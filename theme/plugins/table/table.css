@@ -1,0 +1,69 @@
+.js-col-checkbox {
+    display: none;
+}
+.js-col-row {
+    display: inline-block;
+}
+
+.js-hover .js-col-checkbox, .js-selected .js-col-checkbox {
+    display: inline-block;
+}
+.js-hover .js-col-row, .js-selected .js-col-row {
+    display: none;
+}
+
+.js-td-checkbox {
+    width: 2.5rem;
+    padding: 0;
+    text-align: left;
+}
+
+.js-selected > * {
+    --bs-table-color-state: var(--bs-table-hover-color);
+    --bs-table-bg-state: #ffffe2;
+}
+
+.table-order-click, .table-pagination-click, .table-bulk-action {
+    cursor: pointer;
+}
+
+.table-container {
+    position: relative;
+}
+.table-form-overflow {
+    overflow: auto;
+    margin-bottom: 1rem;
+}
+.table-form-overflow .table {
+    margin-bottom: 0;
+}
+
+.card-body .card-body-overflow {
+    overflow: auto;
+    margin-bottom: 1rem;
+}
+
+
+.table-container th.th-small {
+    width: 1%;
+}
+.table-black-link {
+    color: #000;
+    text-decoration: none;
+}
+
+th .link-action {
+    color: #000;
+    text-decoration: none;
+}
+
+.table-footer-gray > tr > td {
+    color: #FFF;
+    background-color: #adbdcd;
+    font-weight: bold;
+}
+
+.table-hover>tbody>tr:hover>* {
+    background-color: #fff8ab;
+    --bs-table-bg-state: #fff8ab;
+}

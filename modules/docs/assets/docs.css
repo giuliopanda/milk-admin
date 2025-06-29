@@ -1,0 +1,124 @@
+.docs-sidebar {
+    height: calc(100vh - 50px);
+    overflow-y: auto;
+    position: sticky;
+    top: 20px;
+    font-size: 1rem;
+    margin: -1rem 0 0 -.5rem;
+}
+
+.docs-category {
+    transition: all 0.3s ease;
+    margin-bottom: 0.5rem;
+}
+
+.docs-category.hidden {
+    display: none;
+}
+
+.category-title {
+    font-size: 1rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #222529;
+    margin-left:-.5rem;
+    margin-bottom: 0.5rem;
+    padding: 0.5rem 0.75rem 0.25rem 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.doc-link {
+    transition: all 0.2s ease;
+    margin-bottom: 0.15rem;
+    color: #5a626d;
+    text-decoration: none;
+}
+
+.doc-link.hidden {
+    display: none;
+}
+
+.doc-link .nav-link {
+    padding: 0.35rem 0.75rem;
+    color: #495057;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.doc-link .nav-link:hover {
+    background-color: #f1f3f5;
+    color: #212529;
+    text-decoration: none;
+}
+
+
+
+.doc-link-active {
+    background-color: #e9ecef;
+    color: #0a58ca;
+    text-decoration: none;
+}
+
+.demo-section {
+    margin-bottom: 2rem;
+    padding: 1rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+}
+.output-section {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.375rem;
+    margin-top: 1rem;
+    font-family: monospace;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.doc-tags {
+    margin-top: 0.25rem;
+}
+
+.doc-tags .badge {
+    font-size: 0.7rem;
+    font-weight: normal;
+}
+
+#searchResultCount {
+    display: none;
+}
+
+#searchResultCount.show {
+    display: block;
+}
+
+
+.example-box {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.code-box {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+}
+.savings {
+    font-weight: bold;
+    color: #28a745;
+}
+
+.box {
+    width: 100px;
+    height: 100px;
+    background-color: lightblue;
+    margin: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}

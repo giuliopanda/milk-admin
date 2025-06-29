@@ -1,0 +1,17 @@
+.ito-loading {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #FFF;
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    opacity: 0.1;
+    transition: all .5s;
+}
+.ito-loading-active {
+    display: flex;
+}
