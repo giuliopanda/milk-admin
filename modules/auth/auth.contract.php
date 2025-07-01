@@ -146,6 +146,9 @@ class Auth implements AuthContract
                 $this->set_guest_user();
             }
             $this->set_current_user_permissions();
+        } else {
+            $this->set_guest_user();
+            $this->set_current_user_permissions();
         }
     }
 
