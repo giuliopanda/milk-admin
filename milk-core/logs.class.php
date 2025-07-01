@@ -103,6 +103,22 @@ class Logs
     }
 
     /**
+     * Returns all error logs
+     * @return array
+     */
+    public static function get_all_errors() {
+        $get_logs = [];
+        foreach (self::$logs as $group => $logs) {
+            foreach ($logs as $log) {
+                if ($log['msgType'] == 'ERROR') {
+                    $get_logs[] = $log;
+                }
+            }
+        }
+        return $get_logs;
+    }
+
+    /**
      * Clean string before saving to log
      * @param \string $string
      * @return \string

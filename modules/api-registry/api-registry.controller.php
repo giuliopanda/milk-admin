@@ -7,6 +7,7 @@ use MilkCore\Theme;
 use MilkCore\Token;
 use MilkCore\Route;
 use MilkCore\File;
+use MilkCore\Logs;
 use Modules\Install\Install;   
 
 !defined('MILK_DIR') && die(); // Prevent direct access
@@ -97,9 +98,15 @@ class ApiRegistryController extends AbstractController {
     }
     
     public function api_after_run($array_info, $endpoint) {
-        if (isset($array_info['error'])) {
+        $error_logs = Logs::get_all_errors();
+        
+        if (isset($array_info['error']) || !empty($error_logs)) {
            $response_status = 'error';
-           $response_data = $array_info['error'];
+           if (!empty($error_logs)) {
+               $response_data = ['errors' => $error_logs];
+           } else {
+               $response_data = $array_info['error'];
+           }
         } else {
             $response_status = 'completed';
             $response_data = $array_info['response'];
