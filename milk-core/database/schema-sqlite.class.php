@@ -169,7 +169,7 @@ class SchemaSqlite {
 
     public function time(string $name, bool $null = true, ?string $default = null, ?string $after = null): self {
         $field = new FieldSqlite($name);
-        $field->type = 'TEXT';  // SQLite memorizza time come TEXT
+        $field->type = 'TIME';
         $field->nullable = $null;
         $field->default = $default;
         $this->fields[$name] = $field;
@@ -178,7 +178,7 @@ class SchemaSqlite {
 
     public function timestamp(string $name, bool $null = true, ?string $default = 'CURRENT_TIMESTAMP', ?string $after = null): self {
         $field = new FieldSqlite($name);
-        $field->type = 'TEXT';  // SQLite memorizza timestamp come TEXT
+        $field->type = 'TIMESTAMP';
         $field->nullable = $null;
         $field->default = $default;
         $this->fields[$name] = $field;
@@ -277,82 +277,17 @@ class SchemaSqlite {
         // Ottieni la struttura corrente
         $current_fields = $this->get_current_fields();
         $current_indices = $this->get_current_indices();
-        
-        //@TODO: missing check:  if (!$this->validate_modifications($current_fields) && !$force_update) {
-       
-        // Determina se sono necessarie modifiche complesse che richiedono ricostruzione tabella
-        $needs_reconstruction = $this->needs_table_reconstruction($current_fields);
-        
-        if ($needs_reconstruction) {
-            return $this->reconstruct_table($current_fields, $current_indices);
-        } else {
-            return $this->simple_alter_table($current_fields, $current_indices);
-        }
+
+        return $this->reconstruct_table($current_fields, $current_indices);
+      
     }
 
-    /**
-     * Determina se la tabella necessita di ricostruzione completa
-     */
-    private function needs_table_reconstruction(array $current_fields): bool {
-        // Controlla se ci sono campi da rimuovere
-        foreach ($current_fields as $name => $field) {
-            if (!isset($this->fields[$name])) {
-                return true;
-            }
-        }
-        
-        // Controlla se ci sono campi da modificare
-        foreach ($this->fields as $name => $field) {
-            if (isset($current_fields[$name])) {
-                if (!$field->compare($current_fields[$name])) {
-                    return true;
-                }
-            }
-        }
-        
-        // Controlla se l'ordine dei campi è cambiato
-        $current_order = array_keys($current_fields);
-        $new_order = array_keys($this->fields);
-        if ($current_order !== $new_order) {
-            return true;
-        }
-        
-        // Controlla modifiche alla chiave primaria
-        $current_primary_keys = array_keys(array_filter($current_fields, fn($f) => $f->primary_key));
-        $new_primary_keys = !empty($this->primary_keys) ? $this->primary_keys : ($this->primary_key ? [$this->primary_key] : []);
-        if ($current_primary_keys !== $new_primary_keys) {
-            return true;
-        }
-        
-        return false;
-    }
-
-    /**
-     * Gestisce modifiche semplici che non richiedono ricostruzione
-     */
-    private function simple_alter_table(array $current_fields, array $current_indices): bool {
-        // Aggiungi nuovi campi
-        foreach ($this->fields as $name => $field) {
-            if (!isset($current_fields[$name])) {
-                $sql = "ALTER TABLE " . $this->db->qn($this->table) . " ADD COLUMN " . $field->to_sql_sqlite();
-                $this->db->query($sql);
-                if ($this->db->error) {
-                    $this->last_error = $this->db->last_error;
-                    return false;
-                }
-            }
-        }
-        
-        // Gestisci indici
-        return $this->update_indices($current_indices);
-    }
 
     /**
      * Ricostruisce completamente la tabella per modifiche complesse
      */
     private function reconstruct_table(array $current_fields, array $current_indices): bool {
         $temp_table = $this->table . '_temp_' . uniqid();
-        
         try {
             // 1. Crea tabella temporanea con la nuova struttura
             if (!$this->create_temp_table($temp_table)) {
