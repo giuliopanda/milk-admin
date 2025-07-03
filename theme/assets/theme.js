@@ -725,13 +725,89 @@ class Toasts {
     toastEl = null;
     toastBody = null;
     toastType = null;
-    constructor()  {
+    
+    // Gestione coda operazioni
+    currentOperation = null;
+    queuedOperation = null;
+    operationInProgress = false;
+    operationTimeout = null;
+    OPERATION_DURATION = 500; // 0.5 secondi
+    
+    constructor() {
         if (document.getElementById('toastUp') != null) {
             this.toastEl = new bootstrap.Toast(document.getElementById('toastUp'));
         }
     }
 
+    // Metodo per eseguire un'operazione con gestione coda
+    async executeOperation(operation) {
+        // Se c'è un'operazione in corso
+        if (this.operationInProgress) {
+            // Sostituisci l'operazione in coda con quella nuova
+            this.queuedOperation = operation;
+            console.log('Operazione messa in coda:', operation.type);
+            return;
+        }
+
+        // Esegui l'operazione corrente
+        this.operationInProgress = true;
+        this.currentOperation = operation;
+        console.log('Esecuzione operazione:', operation.type);
+
+        try {
+            // Esegui l'operazione
+            if (operation.type === 'show') {
+                this._doShow(operation.html, operation.toastType);
+            } else if (operation.type === 'hide') {
+                this._doHide();
+            }
+
+            // Aspetta il tempo minimo tra operazioni
+            await this.waitOperation();
+
+        } finally {
+            this.operationInProgress = false;
+            this.currentOperation = null;
+
+            // Se c'è un'operazione in coda, eseguila
+            if (this.queuedOperation) {
+                const nextOperation = this.queuedOperation;
+                this.queuedOperation = null;
+                // Esegui ricorsivamente l'operazione in coda
+                this.executeOperation(nextOperation);
+            }
+        }
+    }
+
+    // Metodo helper per attendere la durata dell'operazione
+    waitOperation() {
+        return new Promise(resolve => {
+            this.operationTimeout = setTimeout(() => {
+                this.operationTimeout = null;
+                resolve();
+            }, this.OPERATION_DURATION);
+        });
+    }
+
+    // Metodo pubblico show con gestione coda
     show(html, type) {
+        this.executeOperation({
+            type: 'show',
+            html: html,
+            toastType: type
+        });
+    }
+
+    // Metodo pubblico hide con gestione coda
+    hide() {
+        this.executeOperation({
+            type: 'hide'
+        });
+    }
+
+    // Metodo interno per mostrare il toast (esecuzione effettiva)
+    _doShow(html, type) {
+        console.log('_doShow eseguito');
         if (typeof html !== 'undefined' && html.trim() !== '') {
             if (typeof type == 'undefined' || type.trim() == '') {
                 type = this.toastType ?? 'primary';
@@ -741,40 +817,54 @@ class Toasts {
         this.toastEl.show();
     }
 
-    hide() {
+    // Metodo interno per nascondere il toast (esecuzione effettiva)
+    _doHide() {
+        console.log('_doHide eseguito');
         this.toastEl.hide();
-        document.getElementById('toastBodyTxt').innerHTML = ''
+        document.getElementById('toastBodyTxt').innerHTML = '';
     }
+
     /**
-     * 
-     * @param {html} html 
-     * @param {string} type success | danger | warning 
+     * Imposta il contenuto e lo stile del toast
+     * @param {string} html - Contenuto HTML del toast
+     * @param {string} type - Tipo di toast: success | danger | warning | primary
      */
     body(html, type) {
         this.toastType = type;
         this.toastBody = html;
-        document.getElementById('toastBody').classList.remove('text-bg-success');
-        document.getElementById('toastBody').classList.remove('text-bg-danger');
-        document.getElementById('toastBody').classList.remove('text-bg-warning');
-        document.getElementById('toastBody').classList.remove('text-bg-primary');
+        
+        const toastBodyEl = document.getElementById('toastBody');
+        
+        // Rimuovi tutte le classi di stile precedenti
+        toastBodyEl.classList.remove('text-bg-success', 'text-bg-danger', 'text-bg-warning', 'text-bg-primary');
+        
+        // Aggiungi la classe appropriata
         switch (type) {
             case 'success':
-                document.getElementById('toastBody').classList.add('text-bg-success')
+                toastBodyEl.classList.add('text-bg-success');
                 break;
             case 'danger':
             case 'error':
-                document.getElementById('toastBody').classList.add('text-bg-danger')
+                toastBodyEl.classList.add('text-bg-danger');
                 break;
             case 'warning':
-                document.getElementById('toastBody').classList.add('text-bg-warning')
+                toastBodyEl.classList.add('text-bg-warning');
                 break;
             case 'primary':
-                document.getElementById('toastBody').classList.add('text-bg-primary')
+            default:
+                toastBodyEl.classList.add('text-bg-primary');
                 break;
         }
        
-        document.getElementById('toastBodyTxt').innerHTML = html
-     
+        document.getElementById('toastBodyTxt').innerHTML = html;
+    }
+
+    // Metodo per pulire eventuali timeout pendenti
+    destroy() {
+        if (this.operationTimeout) {
+            clearTimeout(this.operationTimeout);
+            this.operationTimeout = null;
+        }
     }
 }
 

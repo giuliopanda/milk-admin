@@ -151,7 +151,7 @@ class SchemaSqlite {
 
     public function datetime(string $name, bool $null = true, ?string $default = null, ?string $after = null): self {
         $field = new FieldSqlite($name);
-        $field->type = 'TEXT';  // SQLite memorizza datetime come TEXT
+        $field->type = 'DATETIME';  // SQLite memorizza datetime come TEXT
         $field->nullable = $null;
         $field->default = $default;
         $this->fields[$name] = $field;
@@ -160,7 +160,7 @@ class SchemaSqlite {
 
     public function date(string $name, bool $null = true, ?string $default = null, ?string $after = null): self {
         $field = new FieldSqlite($name);
-        $field->type = 'TEXT';  // SQLite memorizza date come TEXT
+        $field->type = 'DATE';  // SQLite memorizza date come TEXT
         $field->nullable = $null;
         $field->default = $default;
         $this->fields[$name] = $field;
@@ -279,7 +279,6 @@ class SchemaSqlite {
         $current_indices = $this->get_current_indices();
 
         return $this->reconstruct_table($current_fields, $current_indices);
-      
     }
 
 
