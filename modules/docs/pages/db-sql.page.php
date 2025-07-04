@@ -4,7 +4,7 @@ namespace Modules\docs;
  * @title Database
  * @category Framework
  * @order 
- * @tags 
+ * @tags Database, SQL, MySQL, SQLite, Query Builder, select, where, order, limit, get, get_results, get_row, get_var, insert, update, delete, yield, debug_prepared_query, get_tables, get_view_definition, get_columns, describes, show_create_table, save
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access
@@ -180,6 +180,9 @@ foreach ($db->yield("SELECT * FROM #__large_table WHERE status = ?", ['active'])
     // Process each row individually
 }</code></pre>
   
+
+    <h4 class="mt-4">debug_prepared_query($query, $params)</h4>
+    <p>Returns a string with the query with parameters added for debugging. Do not use this function to execute queries, because it does not protect carefully from sql injection.</p>
     
     <h4 class="mt-4">get_tables($cache = true)</h4>
     <p>Returns the list of tables in the database.</p>

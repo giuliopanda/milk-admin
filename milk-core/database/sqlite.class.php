@@ -158,54 +158,93 @@ class SQLite
         $this->last_query = $sql;
         $this->error = false;
         $this->last_error = '';
-        
+       
+        $stmt = false;
+        try {
+            $stmt = $this->sqlite->prepare($sql);
+        } catch (\Exception $e) {
+            Logs::set('system', 'ERROR', "SQLITE Prepare: '".$sql."' error:". $this->sqlite->lastErrorMsg());
+            $this->error = true;
+            $this->last_error = $this->sqlite->lastErrorMsg();
+            return false;
+        };
+        if ($stmt === false) {
+            Logs::set('system', 'ERROR', "SQLITE Prepare: '".$sql."' error:". $this->sqlite->lastErrorMsg());
+            $this->error = true;
+            $this->last_error = $this->sqlite->lastErrorMsg();
+            return false;
+        }
+    
+        // Bind parameters for SQLite
         if (is_array($params) && count($params) > 0) {
-            $stmt = false;
-            try {
-                $stmt = @$this->sqlite->prepare($sql);
-            } catch (\Exception $e) {
-                Logs::set('system', 'ERROR', "SQLITE Prepare: '".$sql."' error:". $this->sqlite->lastErrorMsg());
-                $this->error = true;
-                $this->last_error = "Prepare: ".$this->sqlite->lastErrorMsg();
-                return false;
-            };
-            if ($stmt === false) {
-                Logs::set('system', 'ERROR', "SQLITE Prepare: '".$sql."' error:". $this->sqlite->lastErrorMsg());
-                $this->error = true;
-                $this->last_error = $this->sqlite->lastErrorMsg();
-                return false;
-            }
-            
-            // Bind parameters for SQLite
             $i = 1;
             foreach ($params as $val) {
-                if (is_int($val)) {
+                if (is_null($val)) {
+                    $stmt->bindValue($i, $val, SQLITE3_NULL);
+                } else if (is_bool($val)) {
+                    $stmt->bindValue($i, $val ? 1 : 0, SQLITE3_INTEGER);
+                } else if (is_int($val)) {
                     $stmt->bindValue($i, $val, SQLITE3_INTEGER);
                 } else if (is_double($val)) {
                     $stmt->bindValue($i, $val, SQLITE3_FLOAT);
-                } else if (is_null($val)) {
-                    $stmt->bindValue($i, $val, SQLITE3_NULL);
                 } else {
                     $stmt->bindValue($i, $val, SQLITE3_TEXT);
                 }
                 $i++;
             }
-           
-            $ris = @$stmt->execute();
-           
-            Logs::set('system', 'SQLITE::execute', $sql);
+        }
+        
+        // Execute sempre
+        $result = $stmt->execute();
+        $this->error = ($result === false);
+        
+        // Determina se è una SELECT o altro tipo di query
+        if (!$this->error && $result !== false && $result->numColumns() > 0) {
+            // Non chiudere lo statement se è una SELECT - SQLiteResult lo gestirà
+            $ris = new SQLiteResult($result);
         } else {
-            $ris = @$this->sqlite->query($sql);
-            Logs::set('system', 'SQLITE::query', $sql);
+            // Chiudi lo statement solo se non è una SELECT
+            $stmt->close();
+            $ris = !$this->error;
         }
+        
+        Logs::set('system', 'SQLITE::Query', $sql);
+        
         if ($this->sqlite->lastErrorCode() != 0) {
-            Logs::set('system', 'ERROR', "SQLITE Query: '".$sql."' error:". $this->sqlite->lastErrorMsg()." params:".json_encode($params));
+            Logs::set('system', 'ERROR', "SQLITE Query false: '".$sql."' error:". $this->sqlite->lastErrorMsg());
             $this->error = true;
-            $this->last_error ="SQLITE Query: '".$sql."' error:". $this->sqlite->lastErrorMsg()." params:".json_encode($params);
-            return false;
+            $this->last_error = $this->sqlite->lastErrorMsg();
         }
+    
+        return $ris;
+    }
 
-        return $ris ? new SQLiteResult($ris) : false;
+    /**
+     * Debug prepared query - For debugging purposes only, NOT for execution
+     */
+    public function debug_prepared_query_sqlite($query, $params) {
+        $values = array();
+        
+        foreach ($params as $value) {
+            if (is_string($value)) {
+                $values[] = "'" . str_replace("'", "''", $value) . "'";
+            } elseif (is_null($value)) {
+                $values[] = 'NULL';
+            } elseif (is_bool($value)) {
+                $values[] = $value ? '1' : '0';
+            } elseif (is_int($value) || is_float($value)) {
+                $values[] = $value;
+            } else {
+                $values[] = "'" . str_replace("'", "''", strval($value)) . "'";
+            }
+        }
+        
+        $index = 0;
+        $query = preg_replace_callback('/\?/', function($match) use ($values, &$index) {
+            return isset($values[$index]) ? $values[$index++] : '?';
+        }, $query);
+        
+        return $query;
     }
 
      /**

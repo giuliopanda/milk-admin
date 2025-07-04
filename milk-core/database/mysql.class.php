@@ -163,59 +163,91 @@ class MySql
         $this->last_query = $sql;
         $this->error = false;
         $this->last_error = '';
+       
+        $stmt =  false;
+        try {
+            $stmt =  $this->mysqli->prepare($sql);
+        } catch (\Exception $e) {
+            Logs::set('system', 'ERROR', "MYSQL Prepare: '".$sql."' error:". $this->mysqli->error);
+            $this->error = true;
+            $this->last_error = $this->mysqli->error;
+            return false;
+        };
+        if ($stmt === false) {
+            Logs::set('system', 'ERROR', "MYSQL Prepare: '".$sql."' error:". $this->mysqli->error);
+            $this->error = true;
+            $this->last_error = $this->mysqli->error;
+            return false;
+        }
+    
+        $types = '';
+        $values = [];
         if (is_array($params) && count($params) > 0) {
-            // se la query è sbagliata ritorna fatal error!! devo impedire che torni fatal error!
-            $stmt =  false;
-            try {
-                $stmt =  $this->mysqli->prepare($sql);
-            } catch (\Exception $e) {
-                Logs::set('system', 'ERROR', "MYSQL Prepare: '".$sql."' error:". $this->mysqli->error);
-                $this->error = true;
-                $this->last_error = $this->mysqli->error;
-                return false;
-            };
-            if ($stmt === false) {
-                Logs::set('system', 'ERROR', "MYSQL Prepare: '".$sql."' error:". $this->mysqli->error);
-                $this->error = true;
-                $this->last_error = $this->mysqli->error;
-                return false;
-            }
-            $types = '';
-            $values = array();
             foreach ($params as $val) {
-                if (is_int($val)) {
+                if (is_null($val)) {
+                    $types .= 's';  // NULL viene gestito come stringa in bind_param
+                    $values[] = null;
+                } else if (is_bool($val)) {
                     $types .= 'i';
+                    $values[] = $val ? 1 : 0;
+                } else if (is_int($val)) {
+                    $types .= 'i';
+                    $values[] = $val;
                 } else if (is_double($val)) {
                     $types .= 'd';
+                    $values[] = $val;
                 } else {
                     $types .= 's';
+                    $values[] = $val;
                 }
             }
-            $stmt->bind_param($types, ...$params);
-            // get sql types
-            //echo "<p>SQL Types: ".$types."</p>";
-            $stmt->execute();
-            $ris = $stmt->get_result();
-            Logs::set('system', 'MYSQL::Query', $sql);
-            $stmt->close();
-        } else {
-            try {
-                $ris = $this->mysqli->query($sql);
-                Logs::set('system', 'MYSQL Query', $sql);
-            } catch (\Exception $e) {
-                Logs::set('system', 'ERROR', "MYSQL Query: '".$sql."' error:". $this->mysqli->error);
-                $this->error = true;
-                $this->last_error = $this->mysqli->error;
-                return false;
-            };
+            $stmt->bind_param($types, ...$values);
         }
-
+        // get sql types
+        //echo "<p>SQL Types: ".$types."</p>";
+        $this->error = !$stmt->execute();
+        if (!$this->error && $stmt->field_count > 0) {
+            $ris = new MySQLResult($stmt->get_result());
+        } else {
+            $ris = !$this->error;
+        }
+        Logs::set('system', 'MYSQL::Query', $sql);
+        $stmt->close();
+        
         if ($this->mysqli->error != '') {
             Logs::set('system', 'ERROR', "MYSQL Query false: '".$sql."' error:". $this->mysqli->error);
             $this->error = true;
             $this->last_error = $this->mysqli->error;
         }
-        return $ris ? new MySQLResult($ris) : false;
+    
+        return $ris;
+    }
+
+     /**
+     * Debug prepared query - For debugging purposes only, NOT for execution
+     */
+
+    public function debug_prepared_query($query, $params) {
+        if (!is_array($params) || count($params) == 0) {
+            return $query;
+        }
+        $values = array();  
+        foreach ($params as $value) {
+            if (is_string($value)) {
+                $values[] = "'" . addslashes($value) . "'";
+            } elseif (is_null($value)) {
+                $values[] = 'NULL';
+            } else {
+                $values[] = $value;
+            }
+        }
+        
+        $index = 0;
+        $query = preg_replace_callback('/\?/', function($match) use ($values, &$index) {
+            return isset($values[$index]) ? $values[$index++] : '?';
+        }, $query);
+        
+        return $query;
     }
 
      /**
