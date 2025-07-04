@@ -4,7 +4,7 @@ namespace Modules\docs;
  * @title  Plugins
  * @category Theme
  * @order 60
- * @tags 
+ * @tags Table, window., javascript, Get::theme_plugin, rows, info, page_info
  */
 use MilkCore\Get;
 use MilkCore\Route;

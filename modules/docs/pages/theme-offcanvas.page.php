@@ -5,7 +5,7 @@ use MilkCore\Route;
 * @title Offcanvas 
 * @category Theme 
 * @order 30
-* @tags 
+* @tags Offcanvas, javascript, window.offcanvasEnd, window.offcanvas, show, hide, title, body, size
 */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

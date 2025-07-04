@@ -4,7 +4,7 @@ namespace Modules\docs;
 * @title Modal 
 * @category Theme 
 * @order 30
-* @tags 
+* @tags modal, javascript, window.modal, Template, show, hide, title
 */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>
