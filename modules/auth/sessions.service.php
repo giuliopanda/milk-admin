@@ -122,8 +122,8 @@ class SessionsService {
             return [
                 'active' => false,
                 'remaining_minutes' => 0,
-                'expires_at' => null,
-                'total_duration_minutes' => self::get_session_expiry(),
+                'expires_at' => null
+               // 'total_duration_minutes' => self::get_session_expiry(),
             ];
         }
         
@@ -140,8 +140,8 @@ class SessionsService {
         return [
             'active' => $auth->is_authenticated(),
             'remaining_minutes' => $remaining_minutes,
-            'expires_at' => $expires_at ? $expires_at->format('Y-m-d H:i:s') : null,
-            'total_duration_minutes' => $expiry_minutes,
+            'expires_at' => $expires_at ? $expires_at->format('Y-m-d H:i:s') : null
+        //  'total_duration_minutes' => $expiry_minutes,
         ];
     }
 }

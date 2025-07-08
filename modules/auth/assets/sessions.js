@@ -44,13 +44,13 @@ class SessionManager {
         
         const inactiveMinutes = (Date.now() - this.lastActivity) / (1000 * 60);
         
-        // If user is active (movement in the last 30 seconds)
-        if (inactiveMinutes < 0.5) {
+        // If user is active (movement in the last 9.5 min)
+        if (inactiveMinutes < 9.5) {
             await this.refreshSession();
         } else {
             // Check how much time remains
             const sessionInfo = await this.getSessionInfo();
-            if (sessionInfo && sessionInfo.remaining_minutes <= 5) {
+            if (sessionInfo && sessionInfo.remaining_minutes <= 10) {
                 this.showWarningPopup(sessionInfo.remaining_minutes);
             }
         }

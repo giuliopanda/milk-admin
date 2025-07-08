@@ -113,7 +113,7 @@ class AuthController extends AbstractController
             }
         }
         $auth_data = [
-            'auth_expires_session' => ['value'=>'20','type'=>'number','comment' => 'Session duration in minutes']
+            'auth_expires_session' => ['value'=>'120','type'=>'number','comment' => 'Session duration in minutes']
         ];
         
         Install::set_config_file('AUTH', $auth_data);
