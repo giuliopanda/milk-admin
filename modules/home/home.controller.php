@@ -22,8 +22,8 @@ Route::set('home', function() {
     Theme::set('styles', Route::url().'/modules/home/assets/home.css');
     
     // Download the page from the server
-    $response = HttpClient::get('https://www.milkadmin.org/ma32r4c2aa/api.php?page=home/get', ['timeout' => 5]);
-    if ($response['status_code'] == 200) {
+    $response = HttpClient::get('https://www.milkadmin.org/ma32r4c2aa/api.php?page=home/get', ['timeout' => 2]);
+    if ($response !== false && $response['status_code'] == 200) {
         $article = $response['body'];   
     } else {
         ob_start();
