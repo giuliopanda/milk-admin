@@ -166,9 +166,8 @@ class ApiRegistryLogModel extends AbstractModel {
             ->modify("-{$days} days")
             ->format('Y-m-d H:i:s');
             
-        $query = "DELETE FROM ". $this->db->qn($this->table) ." WHERE timestamp < ?";
+        $query = "DELETE FROM ". $this->db->qn($this->table) ." WHERE started_at < ?";
         $this->db->query($query, [$cutoff_date]);
-        
         return $this->db->affected_rows();
     }
     
