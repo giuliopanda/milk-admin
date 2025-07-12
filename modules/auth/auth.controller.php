@@ -60,8 +60,10 @@ class AuthController extends AbstractController
      * Always executed
      */
     public function hook_init() {
-      
-        Permissions::set('auth', ['manage' => 'Manage'], 'Users');
+        // only admin can manage users access permissions
+        if (Permissions::check('_user.is_admin')) {
+            Permissions::set('auth', ['manage' => 'Manage'], 'Users');
+        }
          // If there's no version, it means the system still needs to be installed
 
         if (!Permissions::check('_user.is_guest')) {

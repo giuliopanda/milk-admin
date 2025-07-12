@@ -760,8 +760,8 @@ class Auth implements AuthContract
         $this->last_insert_id = 0;
         $save_permissions = [];
         $password = trim($password);
+
         $permissions_groups = Permissions::get_groups();
-        
         foreach ($permissions_groups as $group => $_) {
             $list_of_permissions = Permissions::get($group);
             foreach ($list_of_permissions as $permission_name => $_) {
@@ -770,6 +770,15 @@ class Auth implements AuthContract
                 } else {
                     $save_permissions[$group][$permission_name] = ($permissions[$group][$permission_name] == 1) ? 1 : 0;
                 }
+            }
+        }
+        // add any $permissions not present in $permissions_groups
+        foreach ($permissions as $group => $permissions_group) {
+            if (!isset($save_permissions[$group])) {
+                $save_permissions[$group] = [];
+            }
+            foreach ($permissions_group as $permission_name => $permission_value) {
+                $save_permissions[$group][$permission_name] = (int)$permission_value;
             }
         }
         

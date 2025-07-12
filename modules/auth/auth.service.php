@@ -198,7 +198,16 @@ class AuthService {
         $password = trim($_REQUEST['password'] ?? '');
         $is_admin = _absint($_REQUEST['is_admin'] ?? 0);
         $permissions = $_REQUEST['permissions'] ?? [];
-    
+        // if you are not an administrator, you cannot change the user management permissions
+        if (!Permissions::check('_user.is_admin') && $id > 0) {
+            $user_to_save = Get::make('auth')->get_user($id);
+            if (isset($user_to_save->permissions['auth']['manage']) && $user_to_save->permissions['auth']['manage'] == 1) {
+                $permissions['auth']['manage'] = "1";
+            } else if (isset($user_to_save->permissions['auth']['manage'])) {
+               unset($permissions['auth']['manage']);
+            }
+        }
+       
         $current_user = Get::make('auth')->get_user();
         if ($current_user->is_admin == 0) {
             $is_admin = 0;
