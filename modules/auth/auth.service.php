@@ -7,6 +7,7 @@ use MilkCore\Token;
 use MilkCore\Sanitize;
 use MilkCore\Permissions;
 use MilkCore\Config;
+use MilkCore\Hooks;
 use MilkCore\MessagesHandler;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
@@ -386,9 +387,9 @@ class AuthService {
         if ($model->page_info['filter_status'] == 'trash') {
             $page_info->set_bulk_actions(['restore' => _r('Restore'), 'delete' => _r('Delete')]);
         } else {
-            $page_info->set_bulk_actions(['trash' => _r('Trash'), 'suspended' => _r('status Suspended'),  'active' => _r('status Active')],);
+            $page_info->set_bulk_actions(['trash' => _r('Trash'), 'suspended' => _r('status Suspended'),  'active' => _r('status Active')]);
         }
-
+        ['rows_info' => $rows_info, 'trows' => $trows, 'page_info' => $page_info] = Hooks::run('auth.user_list', ['rows_info' => $rows_info, 'trows' => $trows, 'page_info' => $page_info]);
         if (($_REQUEST['page-output'] ?? '') == 'json') {
             $content =  Get::theme_plugin('table', ['info' => $rows_info, 'rows' => $trows, 'page_info' => $page_info]); 
             header('Content-Type: application/json');
