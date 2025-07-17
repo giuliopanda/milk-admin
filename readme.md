@@ -2,6 +2,8 @@
 
 See the site: [https://www.milkadmin.org](https://www.milkadmin.org)
 
+![Milk Admin](https://github.com/giuliopanda/repo/blob/main/milkadmin-img01.jpg)
+
 Welcome to Milk Admin, a ready-to-use admin panel written in PHP and designed to support the work of developers. It manages cron jobs, allows you to create public APIs, send emails, manages users, permissions and CRUD.
 Developed with a Bootstrap template and a lightweight and easy-to-learn framework for creating independent systems.
 The system offers an excellent level of automatic protection from CSRF and SQL Injection, as well as extensive initial documentation.
