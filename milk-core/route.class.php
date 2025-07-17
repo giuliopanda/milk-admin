@@ -511,21 +511,36 @@ class Route
      * 
      * @param string|array $query1 First query to compare
      * @param string|array $query2 Second query to compare (default: current query)
+     * @param bool $strict_check If true, all parameters of query1 must exist in query2 and be equal
      * @return bool True if both queries have the same 'page' parameter
      */
-    public static function compare_page_url($query1, $query2 = []):bool {
+    public static function compare_page_url($query1, $query2 = [], $strict_check = false):bool {
         if (is_string($query1)) {
             $query1 = self::parse_query_string($query1);
         }
-
+    
         if (is_string($query2)) {
             $query2 = self::parse_query_string($query2);
         }
+        
         if (count($query2) == 0) {
             // Take parameters from current query
             $query2 = self::parse_query_string(self::get_query_string()); 
         }
-        return $query1['page'] == $query2['page'];
+        
+        if ($strict_check) {
+            // All parameters of query1 must exist in query2 and be equal
+            // query2 can have additional parameters
+            foreach ($query1 as $key => $value) {
+                if (!isset($query2[$key]) || $query2[$key] != $value) {
+                    return false;
+                }
+            }
+            return true;
+        } else {
+            // query1 must have the same 'page' parameter as query2
+            return $query1['page'] == $query2['page'];
+        }
     }
 
     /**
