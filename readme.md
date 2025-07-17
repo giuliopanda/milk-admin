@@ -10,7 +10,7 @@ The system offers an excellent level of automatic protection from CSRF and SQL I
 Try it, the installation system is very fast and you can customize it for your needs. This way you can create your own webapp. Keeping it updated is even easier, you will only need, once you have finished making changes, a single shell command to create a new update version.
 
 
-# Develop your personal CMS, complete with versions and updates.  
+# Develop your personal WEB APP, complete with versions and updates.  
 Create your professional administrative interface without additional frameworks. The structure is simple, you can create new modules by writing all the code inside your own folder, prepare your custom package with installation and update system.
 Once your project is ready, when clients ask for thousands of modifications, you can customize individual installations through view override or adding hooks inside the customization folder.
 
