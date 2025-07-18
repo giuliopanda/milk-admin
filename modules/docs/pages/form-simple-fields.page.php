@@ -5,7 +5,7 @@ use MilkCore\Form;
  * @title Simple Fields
  * @category Forms
  * @order 20
- * @tags 
+ * @tags form, input, textarea, checkbox, radio, select, upload, Bootstrap, validation
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

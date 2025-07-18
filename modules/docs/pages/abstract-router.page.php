@@ -4,7 +4,7 @@ namespace Modules\docs;
  * @title Abstract Router   
  * @category Abstracts Class
  * @order 40
- * @tags Router, action, Abstract, modellist, link, home
+ * @tags AbstractRouter, router, routing, action, handle_routes, action_home, set_handle_routes, access, output_table_response, get_request_params, get_modellist_data, call_table_action, default_request_params, ModelList, table, pagination, sorting, filters, JavaScript, AJAX, theme, permissions, JSON, HTML, offcanvas, table-action, registerHook, fetch, dynamic-table, checkboxes, search, filter_search, add_filter, Theme, CSS, assets
  */
 use MilkCore\Route;
 !defined('MILK_DIR') && die(); // Avoid direct access

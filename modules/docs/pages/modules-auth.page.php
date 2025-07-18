@@ -4,7 +4,7 @@ namespace Modules\docs;
  * @title Auth
  * @category Modules
  * @order 60
- * @tags API, curl, Token, JWT  
+ * @tags auth, authentication, login, logout, session, user-management, permissions, security, CSRF-protection, user-session  
  */
 use MilkCore\Route;
 use MilkCore\Theme;

@@ -4,7 +4,7 @@ namespace Modules\docs;
 * @title Introduction
 * @category Forms
 * @order 10
-* @tags 
+* @tags forms, ObjectToForm, automatic generation, rules, validation
 */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

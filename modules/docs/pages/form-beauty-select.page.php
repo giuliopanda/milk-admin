@@ -5,7 +5,7 @@ use MilkCore\Get;
  * @title Beauty Select
  * @category Forms
  * @order 50
- * @tags 
+ * @tags beauty select, select, dropdown, search, multiple, grouped, TomSelect, getValue, setValue
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

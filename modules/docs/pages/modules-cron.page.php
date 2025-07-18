@@ -7,7 +7,7 @@ use MilkCore\Theme;
  * @title Cron Module Documentation
  * @category Modules
  * @order 2
- * @tags 
+ * @tags cron, scheduler, jobs, background-tasks, automation, task-scheduling, intervals, execution, command-line, maintenance, JobsContract, cron-expressions, predefined-intervals, fluent-API, job-management, recurring-tasks, periodic-execution
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access

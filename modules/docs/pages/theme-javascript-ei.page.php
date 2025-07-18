@@ -4,7 +4,7 @@ namespace Modules\docs;
  * @title  Javascript eI utility
  * @category Theme
  * @order 50
- * @tags javascript, dom, elements, eI, eIs, dom-manipulation, events, toggle, hide-show, elHide, elShow, elRemove, toggleEl, sortable, drag-drop, ItoSortableList, fetch, ajax, permissions, error-handling, forms, checkbox, select, dataset, animation, styles, classes, appendChild, createElement, querySelector, getElementById, event-listener, callback, vanilla-js, framework, utility, helper-functions, json, response, toast, notifications, handlers, hooks, components, attributes, css, html, dynamic, interactive
+ * @tags eI-utility, DOM-manipulation, JavaScript-helpers, element-creation, event-handling, DOM-utilities, vanilla-JavaScript, javascript, dom, elements, eI, eIs, dom-manipulation, events, toggle, hide-show, elHide, elShow, elRemove, toggleEl, sortable, drag-drop, ItoSortableList, fetch, ajax, permissions, error-handling, forms, checkbox, select, dataset, animation, styles, classes, appendChild, createElement, querySelector, getElementById, event-listener, callback, vanilla-js, framework, utility, helper-functions, json, response, toast, notifications, handlers, hooks, components, attributes, css, html, dynamic, interactive
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access

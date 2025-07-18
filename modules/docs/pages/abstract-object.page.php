@@ -4,7 +4,7 @@ namespace Modules\docs;
  * @title Abstract Object   
  * @category Abstracts Class
  * @order 60
- * @tags Database, table, schema, model, int, string, editor, fields,
+ * @tags AbstractObject, object, model, database, table, schema, rules, fields, init_rules, validation, getter, setter, form, MySQL, data-structure, ORM, field-types, string, int, float, bool, date, datetime, array, enum, list, nullable, default, primary, get_value, set_value, to_array, to_mysql_array, form-validation, form-types, text, textarea, select, file, checkbox, radio, hidden, password, email, url, custom-validation, _validate, _get, _set, _edit, _get_raw, MessagesHandler, frontend-validation, backend-validation, checkboxes, radios, options, form-params, invalid-feedback, required, placeholder
  */
 use MilkCore\Route;
 

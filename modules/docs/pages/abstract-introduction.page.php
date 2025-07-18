@@ -4,7 +4,7 @@ namespace Modules\docs;
 * @title Introduction 
 * @category Abstracts Class
 * @order 10
-* @tags 
+* @tags abstract, classes, AbstractController, AbstractRouter, AbstractModel, AbstractObject, modules, permissions, installation, hooks, module-development, bootstrap, init, init_rules, data-structure, routing, actions, MVC, framework, getting-started, extending, inheritance, base-classes
 */
 use MilkCore\Route;
 

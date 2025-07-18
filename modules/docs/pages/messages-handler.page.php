@@ -5,7 +5,7 @@ use MilkCore\Route;
  * @title Messages
  * @category Framework
  * @order 
- * @tags 
+ * @tags messages, errors, success, validation, alerts, feedback, notifications 
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

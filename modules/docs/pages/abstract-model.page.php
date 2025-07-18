@@ -4,7 +4,7 @@ namespace Modules\docs;
  * @title Abstract Model   
  * @category Abstracts Class
  * @order 50
- * @tags query, sql, mysql, get, limit, order, where, select, model, total, get_by_id
+ * @tags AbstractModel, model, database, query, SQL, MySQL, get_by_id, get_by_id_or_empty, get_empty, get_by_id_for_edit, save, delete, where, order, limit, select, from, group, get, execute, get_all, first, total, build_table, drop_table, validate, clear_cache, get_last_error, has_error, set_query_params, get_filtered_columns, get_columns, add_filter, object_class, primary_key, table, CRUD, query-builder, fluent-interface, pagination, sorting, filtering, validation, schema, to_mysql_array, filter_data_by_rules, get_last_insert_id, bind_params, SQL-injection
  */
 use MilkCore\Route;
 !defined('MILK_DIR') && die(); // Avoid direct access

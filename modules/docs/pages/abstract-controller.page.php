@@ -4,7 +4,7 @@ namespace Modules\docs;
  * @title Abstract Controller   
  * @category Abstracts Class
  * @order 30
- * @tags install, update, uninstall, init, hook, page, permission
+ * @tags AbstractController, controller, module, init, bootstrap, install, update, uninstall, access, permissions, menu_links, page, title, router, model, hooks, modules_loaded, install_execute, install_check_data, install_get_html_modules, install_done, install_update, shell, cli, get_module_name, authorized, public, registered, admin, multiple-tables, sidebar-menu, icon, group, order, URL
  */
 use MilkCore\Route;
 

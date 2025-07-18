@@ -5,7 +5,7 @@ use MilkCore\Route;
  * @title API 
  * @category Framework
  * @order 10
- * @tags API, curl, Token, JWT  
+ * @tags API, REST, JWT, token, authentication, login, verify, refresh, curl, Bearer, authorization, users, profile, list, create, update, delete, endpoints, MilkCoreTokenManager, automatic-token, token-refresh, error-handling, HTTP-methods, GET, POST, PUT, DELETE, JSON, pagination, search, CSRF, security, client, PHP-client, test-suite, browser-testing, command-line, 401, 403, 404, 422, 500, unauthorized, forbidden, not-found
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access

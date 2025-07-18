@@ -4,7 +4,7 @@ namespace Modules\docs;
  * @title  Javascipt Toggle
  * @category Theme
  * @order 50
- * @tags toggle, hide-show, elHide, elShow, elRemove, toggleEl
+ * @tags toggle-functionality, show-hide, elHide, elShow, conditional-display, UI-interactions, form-controls, toggle, hide-show, elRemove, toggleEl
  */
 use MilkCore\Form;
 !defined('MILK_DIR') && die(); // Avoid direct access

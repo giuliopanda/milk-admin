@@ -6,7 +6,7 @@ use MilkCore\Get;
 * @title Theme
 * @category Framework
 * @order
-* @tags
+* @tags Theme-class, theme-variables, data-storage, theme-configuration, template-data, content-management
 */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

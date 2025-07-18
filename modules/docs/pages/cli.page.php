@@ -4,7 +4,7 @@ namespace Modules\docs;
  * @title Cli
  * @category Framework
  * @order 
- * @tags 
+ * @tags cli, command line, shell, console, php cli.php, functions, echo, success, error, Cli::set, Cli::run, Cli::echo, drawTable, shell functions
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access

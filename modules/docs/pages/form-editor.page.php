@@ -5,7 +5,7 @@ use MilkCore\Get;
  * @title Editor Text
  * @category Forms
  * @order 40
- * @tags 
+ * @tags editor, trix, wysiwyg, rich text, insertText, insertHTML, getValue, setValue
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

@@ -5,7 +5,7 @@ use MilkCore\Route;
  * @title Table part 2
  * @category Framework
  * @order 
- * @tags 
+ * @tags table-filters, JavaScript, AJAX, filter-management, search, status-filters, frontend-backend, dynamic-filtering, API-methods, user-interface 
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

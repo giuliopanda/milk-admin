@@ -4,7 +4,7 @@ namespace Modules\docs;
  * @title  Introduction
  * @category Theme
  * @order 10
- * @tags menu, header, template, bootstrap, toast, modal, offcanvas, javascript, hooks, permissions, theme_page, theme_plugin, GET, Theme::set, Get::theme_page
+ * @tags theme, template-system, Bootstrap, UI-framework, theme-customization, header, sidebar, menu-management, breadcrumbs, menu, template, toast, modal, offcanvas, javascript, hooks, permissions, theme_page, theme_plugin, GET, Theme::set, Get::theme_page
  */
 use MilkCore\Get;
 use MilkCore\Route;

@@ -7,7 +7,7 @@ use MilkCore\MessagesHandler;
  * @title Form Validation
  * @category Forms
  * @order 20
- * @tags 
+ * @tags form-validation, validation, Bootstrap, Form, textarea, checkboxes, radios, select, upload-files, required, invalid-feedback, was-validated, checkValidity, preventDefault, stopPropagation, MessagesHandler, add_error, add_success, get_error_alert, add_field_error, PHP-validation, JavaScript-validation, client-side, server-side, form-submission, error-messages, feedback, alerts
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

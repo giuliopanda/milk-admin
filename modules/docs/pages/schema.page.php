@@ -5,7 +5,7 @@ use MilkCore\Route;
  * @title Create/modify db tables
  * @category Framework
  * @order 
- * @tags 
+ * @tags schema, database-schema, table-creation, table-modification, database-migration, field-definition, index-management, MySQL-tables, fluent-syntax, table-structure, database-design
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

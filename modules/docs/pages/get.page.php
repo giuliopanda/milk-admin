@@ -4,7 +4,7 @@ namespace Modules\docs;
  * @title Get
  * @category Framework
  * @order 
- * @tags 
+ * @tags Get, db, mail, schema, theme, dependency injection, container, facade, load_modules, theme_page, theme_plugin, dir_path, uri_path, temp_dir, date_time_zone, format_date, response_json, parser, bind, make, has
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access

@@ -5,7 +5,7 @@ use MilkCore\Route;
  * @title Sanitize
  * @category Framework
  * @order 
- * @tags 
+ * @tags sanitization, XSS-protection, security, input-validation, HTML-sanitization, JavaScript-sanitization, CSRF-protection, data-security, output-encoding, safe-output, code-injection-prevention, HTML-entities
  */
 !defined('MILK_DIR') && die(); // Avoid direct access 
 ?>

@@ -5,7 +5,7 @@ use MilkCore\Route;
  * @title Make your first job
  * @category Getting started
  * @order 20
- * @tags Cron, jobs, jobs_contract, Get::make, Hooks::set, Get make, Hooks set, jobs-init
+ * @tags Cron, jobs, jobs_contract, Get::make, Hooks::set, Get make, Hooks set, jobs-init, scheduling
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access

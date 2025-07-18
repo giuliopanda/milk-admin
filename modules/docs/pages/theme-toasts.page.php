@@ -4,7 +4,7 @@ namespace Modules\docs;
 * @title Toasts 
 * @category Theme 
 * @order 30 
-* @tags 
+* @tags toasts, notifications, alerts, window.toasts, user-feedback, success-messages, error-messages
 */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

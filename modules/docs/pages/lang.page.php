@@ -5,7 +5,7 @@ use MilkCore\Route;
  * @title Multi Language support 
  * @category Framework
  * @order 
- * @tags 
+ * @tags language, translation, localization, multi-language, _pt, _rt, Lang 
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access

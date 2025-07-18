@@ -4,7 +4,7 @@ namespace Modules\docs;
  * @title  Plugins
  * @category Theme
  * @order 60
- * @tags Table, window., javascript, Get::theme_plugin, rows, info, page_info
+ * @tags theme-plugins, plugin-development, template-components, Get::theme_plugin, modular-components, reusable-elements, Table, window., javascript, rows, info, page_info
  */
 use MilkCore\Get;
 use MilkCore\Route;

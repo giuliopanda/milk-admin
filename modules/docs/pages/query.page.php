@@ -6,7 +6,7 @@ use MilkCore\Query;
  * @title Query
  * @category Framework
  * @order 
- * @tags 
+ * @tags query-builder, SQL, database-queries, fluent-interface, query-construction, database-abstraction, WHERE-clauses, JOIN, SELECT, ORDER-BY, LIMIT, query-parameters, prepared-statements
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

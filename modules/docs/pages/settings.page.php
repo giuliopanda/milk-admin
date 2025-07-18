@@ -5,7 +5,7 @@ use MilkCore\Route;
  * @title Storage custom Settings
  * @category Framework
  * @order 
- * @tags 
+ * @tags settings, configuration-management, persistent-storage, JSON-storage, application-config, settings-groups, data-persistence, configuration-storage, application-settings, config-management
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

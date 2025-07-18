@@ -5,7 +5,7 @@ use MilkCore\Route;
  * @title JWT API 
  * @category Modules
  * @order 20
- * @tags API, curl, Token, JWT  
+ * @tags JWT, API-authentication, token-authentication, Bearer-token, JSON-web-token, API-security, client-server-auth, token-refresh, Basic-authentication, access-tokens, authentication-flow, token-verification, secure-API
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

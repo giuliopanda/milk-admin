@@ -4,7 +4,7 @@ namespace Modules\docs;
  * @title Mails
  * @category Framework
  * @order 
- * @tags send, mail, email, smtp 
+ * @tags send, mail, email, smtp, templates, PHPMailer, attachments 
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

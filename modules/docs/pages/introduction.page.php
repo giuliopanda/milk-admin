@@ -4,7 +4,7 @@ namespace Modules\docs;
  * @title Introduction to the MilkCore Framework
  * @category Getting started
  * @order 10
- * @tags Introduction, Getting Started, Framework, MVC, MilkCore
+ * @tags Introduction, Getting Started, Framework, MVC, MilkCore, hello-world, Route::set, _pt, controller, theme, Get::theme_page, modules, customizations, external-library, lang, media, storage, config.php, functions.php, WordPress, Laravel, Bootstrap, admin-panel, PHP, CSRF, SQL-injection, cron-jobs, APIs, email, users, permissions, CRUD, webapp, installation, update
  */
 
 use MilkCore\Route;

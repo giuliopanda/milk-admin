@@ -4,7 +4,7 @@ namespace Modules\docs;
  * @title Http Client
  * @category Framework
  * @order 70
- * @tags 
+ * @tags HTTP, client, API, requests, GET, POST, PUT, DELETE, cURL, concurrent 
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

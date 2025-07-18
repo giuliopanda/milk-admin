@@ -5,7 +5,7 @@ use MilkCore\Route;
 * @title Make your first API 
 * @category Getting started 
 * @order 30
-* @tags API, Get::make, Hooks::set, Get make, Hooks set, jobs-init 
+* @tags API, Get::make, Hooks::set, Get make, Hooks set, jobs-init, HttpClient, REST
 */
 
 !defined('MILK_DIR') && die(); // Avoid direct access

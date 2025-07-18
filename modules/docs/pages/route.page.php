@@ -5,7 +5,7 @@ use MilkCore\Route;
  * @title Route
  * @category Framework
  * @order 
- * @tags 
+ * @tags routing, URL-management, page-routing, redirects, query-strings, route-registration, navigation, URL-building, request-handling, page-handlers, URL-parameters, route-functions
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

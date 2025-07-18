@@ -5,7 +5,7 @@ namespace MilkCore;
  * @title Token
  * @category Framework
  * @order 
- * @tags 
+ * @tags tokens, CSRF-protection, JWT-tokens, security-tokens, authentication-tokens, API-security, token-verification
  */
 ?>
 <div class="bg-white p-4">

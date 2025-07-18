@@ -5,7 +5,7 @@ use MilkCore\Route;
  * @title Multi-Database Support
  * @category Framework
  * @order 
- * @tags 
+ * @tags multi-database, MySQL, SQLite, PostgreSQL, database-abstraction, query-conversion, connection-management, database-types, MySQLResult, unified-interface, database-connections, result-standardization
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

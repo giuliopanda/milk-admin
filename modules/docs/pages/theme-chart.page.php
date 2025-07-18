@@ -5,7 +5,7 @@ use MilkCore\Get;
  * @title  Chart
  * @category hidden
  * @order 100
- * @tags 
+ * @tags charts, data-visualization, Chart.js, tables, datasets, graphs, statistics, data-presentation, theme-plugin, visual-data, dynamic-charts, data-tables
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 

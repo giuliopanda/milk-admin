@@ -5,7 +5,7 @@ use MilkCore\Route;
  * @title Table part 1
  * @category Framework
  * @order 
- * @tags 
+ * @tags ModelList, ListStructure, PageInfo, dynamic-table, pagination, sorting, filtering, query, database, table-management, PHP-classes, fluent-interface 
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>
@@ -13,7 +13,11 @@ use MilkCore\Route;
     <h1>Dynamic Table System Documentation</h1>
 
     <p>This system helps manage lists by simplifying pagination, sorting, and filtering. It can be used for tables, lists, or charts.
-   
+    For detailed examples on how to use it with the template plugins:
+    <ul>
+        <li><a href="<?php echo Route::url('?page=dynamic_table_example') ?>">Dynamic Table</a></li>
+    </ul>
+
     <h2>System Overview</h2>
     <p>The dynamic table system is based on three main classes:</p>
     <ul>

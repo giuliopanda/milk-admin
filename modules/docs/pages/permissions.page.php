@@ -5,7 +5,7 @@ use MilkCore\Route;
  * @title Permissions Class
  * @category Framework
  * @order 
- * @tags 
+ * @tags permissions, access-control, authorization, user-groups, permission-groups, exclusive-groups, security, role-management, user-permissions, access-levels, authentication, group-management
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

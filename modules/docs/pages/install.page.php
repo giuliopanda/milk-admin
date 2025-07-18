@@ -4,7 +4,7 @@ namespace Modules\docs;
  * @title Install Module Documentation
  * @category Modules
  * @order 2
- * @tags Install, update, uninstall
+ * @tags Install, update, uninstall, version, build-version, cli, modules
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access
