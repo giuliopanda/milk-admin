@@ -58,3 +58,24 @@ Milk Admin is distributed under MIT license.
 # Next Steps
 In the demo I have already published some modules I'm working on. I hope to advance them and finish them by early 2026. 
 The direction I want to give to this system is related to data monitoring and reporting.
+
+# Changelog
+
+## v1.1 (250700)
+- feat: auth - Added hook 'auth.user_list' for modifying the user list and add 'install.copy_files' for skip directories in install process
+- improve: Added the ability to set the version in add argument in php cli.php build-version
+- improve: Auth module permissions limited to administrator only
+- improve: compare_page_url add strict_check argument
+- fix: api-registry error query clear logs
+- fix: auth session timeout
+- fix: module home httpClient
+- improve: execute query function in mysql/sqlite
+- fix: toast hide/show/hide, date in schema sqlite
+- fix: sqlite/mysql create table date
+- improve: add errors log in api-registry logs
+- fix: homepage link in httpClient
+- fix: auth.contract guest user
+- doc: improve documentation
+
+## v1.0 (250600)
+- initial release
