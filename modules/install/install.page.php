@@ -28,19 +28,19 @@ $requirements = [
         'blocking' => true
     ],
     
-    // Requisiti solo informativi (non bloccanti)
+    // Informational only (non-blocking) requirements
     'memory_limit' => [
-        'required' => '512M (suggested)',
+        'required' => '128M (suggested)',
         'current' => ini_get('memory_limit'),
-        'status' => convertToBytes(ini_get('memory_limit')) >= convertToBytes('512M'),
-        'error' => 'For better performance, consider increasing memory_limit to at least 512M',
+        'status' => convertToBytes(ini_get('memory_limit')) >= convertToBytes('128M'),
+        'error' => 'For better performance, consider increasing memory_limit to at least 128M',
         'blocking' => false
     ],
     'max_execution_time' => [
-        'required' => '600 seconds (suggested)',
+        'required' => '60 seconds (suggested)',
         'current' => ini_get('max_execution_time') . ' seconds',
-        'status' => (int)ini_get('max_execution_time') >= 600 || ini_get('max_execution_time') == 0,
-        'error' => 'For better performance, consider setting max_execution_time to at least 600 seconds or more',
+        'status' => (int)ini_get('max_execution_time') >= 60 || ini_get('max_execution_time') == 0,
+        'error' => 'For better performance, consider setting max_execution_time to at least 60 seconds or more',
         'blocking' => false
     ],
   

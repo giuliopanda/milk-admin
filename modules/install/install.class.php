@@ -3,6 +3,7 @@ namespace Modules\Install;
 use MilkCore\Get;
 use MilkCore\Config;
 use MilkCore\File;
+use MilkCore\Hooks;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
 /**
@@ -164,7 +165,9 @@ class Install
                 if (realpath($sourcePath) === $destPath) {
                     continue;
                 }
-                
+                if (Hooks::run('install.copy_files', false, $sourcePath, $destPath)) {
+                    continue;
+                }
                 if ( realpath($sourcePath) == $sourceDir . DIRECTORY_SEPARATOR .'customizations')  {
                     mkdir($destPath.DIRECTORY_SEPARATOR.'customizations', 0755, true);
                     if (is_file($sourceDir . DIRECTORY_SEPARATOR .'customizations' . DIRECTORY_SEPARATOR . 'readme.md')) {

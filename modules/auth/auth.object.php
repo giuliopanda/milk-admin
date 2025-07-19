@@ -166,7 +166,7 @@ class SessionObject extends AbstractObject {
         
         $this->rule('secret_key', [
             'type' => 'string',
-            'length' => 32,
+            'length' => 64,
             'nullable' => false,
             'label' => 'Secret Key'
         ]);

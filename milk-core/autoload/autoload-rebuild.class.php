@@ -233,7 +233,7 @@ class CacheRebuilder
         $result = file_put_contents($this->cache_file, $php);
         
         if ($result === false) {
-            trigger_error("Save cache failed", E_USER_ERROR);
+            throw new \Exception("Save cache failed");
         }
         
         return true;

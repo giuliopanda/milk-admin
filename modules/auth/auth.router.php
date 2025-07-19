@@ -62,7 +62,7 @@ class AuthRouter extends AbstractRouter
             $session_info = SessionsService::get_session_info();
             echo json_encode([
                 'success' => true,
-                'message' => 'Sessione aggiornata con successo',
+                'message' => 'Session updated successfully',
                 'session_info' => $session_info
             ]);
         } else {
