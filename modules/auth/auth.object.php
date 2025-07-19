@@ -49,8 +49,8 @@ class UserObject extends AbstractObject {
         $this->rule('registered', [
             'type' => 'datetime',
             'mysql' => true,
-            'nullable' => false,
-            'default' => '0000-00-00 00:00:00',
+            'nullable' => true,
+            'default' => null,
             'label' => 'Registration Date'
         ]);
         
