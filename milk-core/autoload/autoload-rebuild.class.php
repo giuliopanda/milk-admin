@@ -29,9 +29,6 @@ class CacheRebuilder
      */
     public function rebuild_cache(): bool
     {
-        AutoloadLogger::log("=== CACHE REBUILD STARTED ===\n<br>");
-        AutoloadLogger::log("Base directory: " . MILK_DIR . "\n<br>");
-        AutoloadLogger::log("Cache file: " . $this->cache_file . "\n<br>");
         $start_time = microtime(true);
         
         $this->class_map = [];
@@ -212,7 +209,6 @@ class CacheRebuilder
         
         $php = "<?php\n";
         $php .= "// Cache generated automatically on " . date('Y-m-d H:i:s') . "\n";
-        $php .= "// Base directory: " . MILK_DIR . "\n";
         $php .= "// Files scanned: {$this->scanned_files}\n";
         $php .= "// Classes found: {$this->found_classes}\n";
         $php .= "// Overrides applied: " . count($this->customization_overrides) . "\n";
