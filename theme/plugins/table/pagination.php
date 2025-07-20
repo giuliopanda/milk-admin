@@ -72,7 +72,7 @@ if ($first_page > $total - $number_of_links) {
                     </ul>
                 </div>
             <?php endif; ?>
-            <?php if ($page_info['pag-goto-show'] ?? true) : ?>
+            <?php if (($page_info['pag-goto-show'] ?? true) && $pages > 9) : ?>
                 <div class="d-inline-block ms-3">
                     <span class="me-2"><?php _pt('Go to page:'); ?> </span>
                 </div>
@@ -156,6 +156,11 @@ if ($first_page > $total - $number_of_links) {
             <?php endif; ?>
         <?php endif; ?>
         <?php if ($page_info['pag-elperpage-show'] ?? true) : ?>
+            <?php if ($page_info['pag-total-show'] ?? true) : ?>
+                <div class="d-inline-block">
+                    <span class="me-2"><?php printf(_rh('Total: <b>%d</b>'), $total); ?></span>
+                </div>
+            <?php endif; ?>
             <div class="d-inline-block ms-3">
                 <span class="me-2"><?php _pt('Elements per page:'); ?> </span>
             </div>

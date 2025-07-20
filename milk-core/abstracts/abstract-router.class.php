@@ -177,6 +177,7 @@ abstract class AbstractRouter {
      * Build the modellist data
      */
     protected function get_modellist_data($table_id, $fn_filter_applier = null): array {
+        $db = Get::db();
         $request = $this->get_request_params($table_id);
         $model_list = $this->get_modellist_service($this->model, $table_id, $request);
         if (is_callable($fn_filter_applier)) {
@@ -184,7 +185,7 @@ abstract class AbstractRouter {
         }
         $query = $model_list->query_from_request();
         $rows = $this->model->get(...$query->get());
-        $total = $this->model->get(...$query->get_total());
+        $total = $db->get_var(...$query->get_total());
         return ['rows'=> $rows, 'info' => $model_list->get_list_structure(), 'page_info' =>  $model_list->get_page_info($total)];
     }
 

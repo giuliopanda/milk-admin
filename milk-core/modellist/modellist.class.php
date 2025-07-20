@@ -7,16 +7,16 @@ use MilkCore\Query;
 
 /**
  * page: modellist.class.php
- * La classe ModelList aiuta a gestisce la visualizzazione delle tabelle html
- * a partire da una tabella mysql 
- * 
- * @package     MilkCore
- * @subpackage  ModelList
- */
+ * The ModelList class helps manage the display of HTML tables
+ * starting from a MySQL table
+ *
+ * @package MilkCore
+ * @subpackage ModelList
+*/
 
 class ModelList
 {
-    public $order = true; // lo modifico pubblicamente
+    public $order = true; // I'm editing it publicly
     var $table = '';
     var $table_id = '';
     var $list_structure;
@@ -33,10 +33,10 @@ class ModelList
     var $page_info;
     
     /**
-     * Costruttore della classe ModelList
-     * 
-     * @param string $table Nome della tabella
-     * @param string|null $table_id ID della tabella (opzionale)
+     * ModelList class constructor
+     *
+     * @param string $table Table name
+     * @param string|null $table_id Table ID (optional)
      */
     public function __construct($table, $table_id = null, $db = null)
     {
@@ -58,10 +58,10 @@ class ModelList
     }
 
     /**
-     * La struttura delle colonne della tabella
+     * Set the structure of the table columns
      * [ 'row_field' => ['type'=>string, 'label' => string, 'primary' => bool]
      * type: hidden, checkbox, text, select;
-     * label: il nome della colonna
+     * label: the name of the column
      */
     public function set_list_structure($list_structure)
     {
@@ -73,11 +73,11 @@ class ModelList
     }
     
     /**
-     * La struttura delle colonne della tabella
+     * Get the structure of the table columns
      */
     public function get_list_structure() {
         if (count($this->list_structure) === 0) {
-            // Se non è stata impostata la imposto in automatico con i campi della tabella
+            // If not set, I set it automatically with the table fields
             $this->list_structure['checkbox'] = ['type'=>'checkbox', 'label' => ''];
             $table_structure = $this->get_table_structure();
             if (is_countable($table_structure)) {
@@ -94,7 +94,7 @@ class ModelList
     }
 
     /**
-     * Se si chiama questa funzione non viene impostato l'ordinamento
+     * Calling this function does not set the sort order.
      */
     public function set_no_order() {
         $this->order = false;
@@ -106,14 +106,14 @@ class ModelList
     }
     
     /**
-     * Setta il limite di righe per pagina
+     * Set the limit of rows per page
      */
     public function set_limit($limit){
         $this->default_limit = $limit;
     }
 
     /**
-     * La struttura delle colonne della tabella
+     * Get the table structure
      */
     public function get_table_structure(): ListStructure|array|null {
         $this->db->get_columns($this->table);
@@ -127,7 +127,7 @@ class ModelList
     }
 
     /**
-     * Aggiunge un filtro di ricerca
+     * Add a search filter
      */
     public function add_filter($filter_type, $fn) {
         $this->fn_filter[$filter_type] = $fn;
@@ -138,7 +138,7 @@ class ModelList
     }
 
     /**
-     * Imposta i parametri della richiesta per la query
+     * Set the request parameters for the query
      * @return MilkCore\Query
      */
     public function query_from_request($request = null): Query {
@@ -170,8 +170,8 @@ class ModelList
         $query->order($this->order_field, $this->order_dir);
         
         /**
-         * La colonna filter è un array di filtri tipofiltri:valore
-         * table.js ha le funzioni per aggiungere modificare e rimuovere i filtri
+         * The filter column is an array of filters type filters:value
+         * table.js has functions for adding, editing, and removing filters
          */
         $this->filters = $request['filters'] ?? '';
         if ($this->filters != '') {
@@ -189,7 +189,7 @@ class ModelList
     }
 
     /**
-     * Filtra la query per la ricerca
+     * Filter the query for search
      */
     public function filter_search(Query $query, $search) {
         $list_structure = $this->get_table_structure();
@@ -220,8 +220,8 @@ class ModelList
     }
 
     /**
-     * Page_info sono le informazioni che servono alla tabella per funzionare
-     * @param int $total Numero totale di record
+     * Page_info is the information the table needs to function.
+     * @param int $total Total number of records.
      * @return PageInfo
      */
     function get_page_info($total): PageInfo {
@@ -252,7 +252,7 @@ class ModelList
      * Draw chart 
      * @param array $data
      * @param array $structure ['label' => 'string', 'axis' => 'x|y']
-     * Deve esserci un solo campo x poi gli altri sono y di default
+     * Must have one x field then the others are y by default
      * 
      */
     function get_data_chart($data, $structure) {
