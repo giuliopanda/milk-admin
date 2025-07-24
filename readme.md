@@ -11,9 +11,7 @@ Try it, the installation system is very fast and you can customize it for your n
 
 
 # Develop your personal WEB APP, complete with versions and updates.  
-Create your professional administrative interface without additional admin panels. The structure is simple, you can create new modules by writing all the code inside your own folder, prepare your custom package with installation and update system.
-Once your project is ready, when clients ask for thousands of modifications, you can customize individual installations through view override or adding hooks inside the customization folder.
-
+Create your own professional administrative interface. The structure is simple: you can create new modules by writing all the code inside a folder named after your project, or prepare an entire software package for your customers to install. Milk Admin is a modular system with installation management and automatic updates. You only need to focus on the features; Milk Admin takes care of the entire context.
 
 # How simple is it?
 
