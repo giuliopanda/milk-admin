@@ -93,7 +93,7 @@ class Form
       
         $id = self::id($options, $name);
         $placeholer = ($options['placeholder'] ?? '');
-        $label_html = ($label != '' && $type != "hidden") ? '<label for="'.$id.'">'._rh($label).'</label>' : '';
+        $label_html = ($label != '' && $type != "hidden") ? '<label for="'.$id.'"'.self::attr(self::get_label_options($options)).'>'. _rh($label).'</label>' : '';
         $field = ($floating) ? '<div class="form-floating">' : (($label != '') ? $label_html  : '');
         $field .= '<input type="'.$type.'" name="'._r($name).'" placeholder="'._r($placeholer).'"'.($value != '' ? ' value="'._r($value).'"' : '').' ';
        
@@ -606,6 +606,121 @@ class Form
 
 
     /**
+     * Renders a clickable action list with hidden input for value storage
+     *
+     * @example
+     * // Basic action list
+     * $filters = [
+     *     'all' => 'All',
+     *     'active' => 'Active', 
+     *     'suspended' => 'Suspended',
+     *     'trash' => 'Trash'
+     * ];
+     * Form::action_list('filter', 'Filter by status', $filters, 'trash', [
+     *     'class' => 'filter-actions mb-3',
+     *     'item-class' => 'link-action',
+     *     'active-class' => 'active-action-list',
+     *     'onchange' => 'handleFilterChange(this.value)'
+     * ], [
+     *     'data-validate' => 'required',
+     *     'class' => 'custom-hidden-input'
+     * ]);
+     *
+     * @param string $name The name attribute for the hidden input
+     * @param string $label The label text for the action list (can be empty)
+     * @param array $list_options Associative array of value => label pairs
+     * @param string $selected The currently selected value
+     * @param array $options Additional options for the container:
+     *   - 'class' => string CSS class for the container
+     *   - 'item-class' => string CSS class for each action item (default: 'link-action')
+     *   - 'active-class' => string CSS class for the active item (default: 'active-action-list')
+     *   - 'container-tag' => string HTML tag for container (default: 'div')
+     *   - 'item-tag' => string HTML tag for items (default: 'span')
+     *   - 'onchange' => string JavaScript to execute when selection changes
+     *   - Other HTML attributes for the container
+     * @param array $input_options Additional HTML attributes for the hidden input field:
+     *   - 'class' => string CSS class for the hidden input
+     *   - 'data-*' => string Data attributes
+     *   - Other standard HTML5 input attributes
+     * @param bool $return If true, returns the HTML instead of echoing it
+     * @return string|void Returns HTML if $return is true, otherwise echoes it
+     */
+    public static function action_list($name, $label, $list_options, $selected = '', $options = array(), $input_options = array(), $return = false) {
+        $id = self::id($options, $name);
+        $container_tag = (array_key_exists('container-tag', $options)) ? $options['container-tag'] : 'div';
+        $item_tag = (array_key_exists('item-tag', $options)) ? $options['item-tag'] : 'span';
+        $item_class = (array_key_exists('item-class', $options)) ? $options['item-class'] : 'link-action';
+        $active_class = (array_key_exists('active-class', $options)) ? $options['active-class'] : 'active-action-list';
+        $onchange = (array_key_exists('onchange', $options)) ? $options['onchange'] : '';
+        
+        // Container class
+        $container_class = (array_key_exists('class', $options)) ? $options['class'] : '';
+        
+        // Process container attributes using the same method as other form elements
+        $container_options = $options;
+        $exclude_attrs = array('item-class', 'active-class', 'container-tag', 'item-tag', 'onchange');
+        foreach ($exclude_attrs as $attr) {
+            unset($container_options[$attr]);
+        }
+        $container_attrs = self::attr($container_options);
+        
+        // Apply validation classes to input options if MessagesHandler exists
+        self::apply_invalid_class($input_options, $name);
+        
+        // Set input ID if not provided in input_options
+        if (!array_key_exists('id', $input_options)) {
+            $input_options['id'] = $id;
+        }
+        
+        // Label HTML - render before hidden input like other form elements
+        $label_html = ($label != '') ? '<label for="'.$id.'">'._rh($label).'</label>' : '';
+        
+        // Hidden input to store the selected value
+        $field = $label_html;
+        $field .= '<input type="hidden" name="' . _r($name) . '" value="' . _r($selected) . '"';
+        
+        // Add onchange from main options if provided (for backward compatibility)
+        if ($onchange) {
+            $input_options['onchange'] = $onchange;
+        }
+        
+        // Apply all input attributes using the standard method
+        $field .= self::attr($input_options);
+        $field .= '>';
+        
+        // Container with proper class handling
+        $container_classes = 'js-action-list action-list-container';
+        if ($container_class != '') {
+            $container_classes .= ' ' . $container_class;
+        }
+        $field .= '<' . $container_tag . ' class="' . $container_classes . '" data-target-input="' . $id . '"' . $container_attrs . '>';
+        
+        // Action items
+        foreach ($list_options as $value => $label) {
+            $is_active = ($selected == $value);
+            $item_classes = $item_class . ' js-action-item';
+            if ($is_active) {
+                $item_classes .= ' ' . $active_class;
+            }
+            
+            $field .= '<' . $item_tag . ' class="' . $item_classes . '" data-value="' . _r($value) . '">';
+            $field .= _rh($label);
+            $field .= '</' . $item_tag . '>';
+        }
+        
+        $field .= '</' . $container_tag . '>';
+        
+        // Hook per modificare il campo
+        $field = Hooks::run('form_action_list', $field, $name, $label, $list_options, $selected, $options, $input_options);
+        
+        if ($return) {
+            return $field;
+        } else {
+            echo $field;
+        }
+    }
+
+    /**
      * Generates a unique ID for form elements
      *
      * @internal This method is used internally to generate unique IDs for form elements
@@ -640,7 +755,7 @@ class Form
      *     'required' => true,
      *     'minlength' => 3,
      *     'placeholder' => 'Enter username'
-     ]);
+     * ]);
      *
      * @param array $options Associative array of HTML attributes
      * @return string HTML attributes as a string
@@ -674,6 +789,17 @@ class Form
        
         return $field;
     }
+
+    private static function get_label_options($options) {
+        $label_options = array();
+        foreach ($options as $key => $option) {
+            if (substr($key, 0, 12) == 'label-attrs-') {
+                $label_options[substr($key, 12)] = $option;
+            }
+        }
+        return $label_options;
+    }
+        
 
     /**
      * Applies validation error classes to form fields
