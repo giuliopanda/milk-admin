@@ -1,17 +1,17 @@
-# MILK ADMIN - A PHP, MySQL/sqlite, Bootstrap Admin Framework
+# MILK ADMIN - A PHP, MySQL/sqlite, Bootstrap Admin Panel
 
 See the site: [https://www.milkadmin.org](https://www.milkadmin.org)
 
 ![Milk Admin](https://github.com/giuliopanda/repo/blob/main/milkadmin-img01.jpg)
 
 Welcome to Milk Admin, a ready-to-use admin panel written in PHP and designed to support the work of developers. It manages cron jobs, allows you to create public APIs, send emails, manages users, permissions and CRUD.
-Developed with a Bootstrap template and a lightweight and easy-to-learn framework for creating independent systems.
+Developed with a Bootstrap template and a lightweight and easy-to-learn admin panel for creating independent systems.
 The system offers an excellent level of automatic protection from CSRF and SQL Injection, as well as extensive initial documentation.
 Try it, the installation system is very fast and you can customize it for your needs. This way you can create your own webapp. Keeping it updated is even easier, you will only need, once you have finished making changes, a single shell command to create a new update version.
 
 
 # Develop your personal WEB APP, complete with versions and updates.  
-Create your professional administrative interface without additional frameworks. The structure is simple, you can create new modules by writing all the code inside your own folder, prepare your custom package with installation and update system.
+Create your professional administrative interface without additional admin panels. The structure is simple, you can create new modules by writing all the code inside your own folder, prepare your custom package with installation and update system.
 Once your project is ready, when clients ask for thousands of modifications, you can customize individual installations through view override or adding hooks inside the customization folder.
 
 
@@ -48,7 +48,7 @@ Various methods for protecting folders and files.
 Public API or with JWT authentication
 
 # Documentation
-You can find detailed documentation inside the version you downloaded, within the docs module and a second documentation at [https://milkadmin.org/docs/](https://milkadmin.org/docs/)
+You can find detailed documentation within the downloaded version or consult it online in the demo. Alternatively, you can find additional documentation at the following link: [https://milkadmin.org/docs/](https://milkadmin.org/docs/)
 
 You can see a demo at [https://milkadmin.org/demo/](https://milkadmin.org/demo/)
 
