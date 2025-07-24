@@ -4,7 +4,7 @@ namespace Modules\docs;
  * @title  Javascript components
  * @category Theme
  * @order 50
- * @tags JavaScript-components, sortable-lists, AJAX-handling, fetch-API, permission-handling, drag-drop, interactive-components, javascript, dom, elements, eI, eIs, dom-manipulation, events, toggle, hide-show, elHide, elShow, elRemove, toggleEl, sortable, ItoSortableList, fetch, ajax, permissions, error-handling, forms, checkbox, select, dataset, animation, styles, classes, appendChild, createElement, querySelector, getElementById, event-listener, callback, vanilla-js, framework, utility, helper-functions, json, response, toast, notifications, handlers, hooks, components, attributes, css, html, dynamic, interactive
+ * @tags JavaScript-components, sortable-lists, AJAX-handling, fetch-API, permission-handling, drag-drop, interactive-components, javascript, dom, elements, eI, eIs, dom-manipulation, events, toggle, hide-show, elHide, elShow, elRemove, toggleEl, sortable, ItoSortableList, fetch, ajax, permissions, error-handling, forms, checkbox, select, dataset, animation, styles, classes, appendChild, createElement, querySelector, getElementById, event-listener, callback, vanilla-js, framework, utility, helper-functions, json, response, toast, notifications, handlers, hooks, components, attributes, css, html, dynamic, interactive, getComponent, get_component, getComponentname, registerHook, callHook, toggleEl, elRemove, elShow, elHide
  */
 use MilkCore\Form;
 !defined('MILK_DIR') && die(); // Avoid direct access

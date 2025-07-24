@@ -2,33 +2,157 @@
 namespace Modules\docs;
 use MilkCore\Route;
 /**
- * @title Table part 2
- * @category Framework
- * @order 
- * @tags table-filters, JavaScript, AJAX, filter-management, search, status-filters, frontend-backend, dynamic-filtering, API-methods, user-interface 
+ * @title Add query filters
+ * @category Dynamic Table
+ * @order 20
+ * @tags table filters, JavaScript, AJAX, filter-management, search, status-filters, frontend-backend, dynamic-filtering, API-methods, user-interface, automated-filters
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>
 <div class="bg-white p-4">
-    <h1>Table Filters System - Quick Guide</h1>
+    <h1>Table Filter System</h1>
     
-    <p>System for managing dynamic filters in tables. Works with three levels: HTML for the interface, JavaScript for state management, PHP for backend processing.</p>
+    <p>After seeing how to create tables and modify them, let's now see how to manage search filters. Let's start with a simple complete example:</p>
+   
+    
+    <h3>Search Input with Automatic Update.</h3>
+    <p>To make a field a search filter you need to add the class <code>js-milk-filter-onchange</code> and the data attributes <code>data-filter-id</code> where you insert the table id and <code>data-filter-type</code> to specify the filter type. The search filter is preset so it will search across the entire table.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">&lt;div class="d-inline-flex" style="width: auto;">
+    &lt;?php \MilkCore\Form::input('text', 'search', 'Search', '', ['floating' => false, 'class' => 'js-milk-filter-onclick', 'data-filter-id' => 'table_posts', 'data-filter-type' => 'search', 'label-attrs-class' => 'p-0 pt-2 me-2']); ?>
+&lt;/div&gt;</code></pre>
 
-    <h2 class="mt-4">1. HTML Frontend</h2>
-    
+
+    <h3>Select with Automatic Update</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">&lt;div class="card"&gt;
     &lt;div class="card-header"&gt;
-        &lt;!-- Status filters --&gt;
-        Filter by status: 
-        &lt;span class="btn btn-sm btn-outline-primary active" onclick="filterStatus('all')"&gt;All&lt;/span&gt;
-        &lt;span class="btn btn-sm btn-outline-primary" onclick="filterStatus('active')"&gt;Active&lt;/span&gt;
-        &lt;span class="btn btn-sm btn-outline-primary" onclick="filterStatus('suspended')"&gt;Suspended&lt;/span&gt;
-        
-        &lt;!-- Search field --&gt;
-        &lt;div class="d-inline-flex ms-3"&gt;
-            &lt;input class="form-control" type="search" id="searchUser" placeholder="Search..."&gt;
-            &lt;button class="btn btn-primary" onclick="search()"&gt;Search&lt;/button&gt;
+        &lt;!-- Select that updates automatically --&gt;
+        &lt;?php Form::select('filter_status', 'Status', [
+            '' =&gt; 'All', 'active' =&gt; 'Active', 'suspended' =&gt; 'Suspended', 'trash' =&gt; 'Trash'
+        ], '', [
+            'data-filter-id' =&gt; 'table_id', 
+            'data-filter-type' =&gt; 'status',  
+            'class' =&gt; 'js-milk-filter-onchange'
+        ]); ?&gt;
+    &lt;/div&gt;
+    
+   
+    // your table here
+ 
+&lt;/div&gt;</code></pre>
+
+    <h3>Form with Search Button</h3>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">&lt;div class="card"&gt;
+    &lt;div class="card-header"&gt;
+        &lt;div class="row g-3"&gt;
+            &lt;div class="col-md-4"&gt;
+                &lt;!-- Input that collects the value but doesn't execute automatically --&gt;
+                &lt;input type="text" 
+                       class="form-control js-milk-filter" 
+                       data-filter-id="table_file_logs" 
+                       data-filter-type="search" 
+                       placeholder="Search in logs..."&gt;
+            &lt;/div&gt;
+            &lt;div class="col-md-3"&gt;
+                &lt;!-- Select for action --&gt;
+                &lt;?php Form::select('filter_action', 'Action', $actions, '', [
+                    'data-filter-id' =&gt; 'table_file_logs', 
+                    'data-filter-type' =&gt; 'action',  
+                    'class' =&gt; 'js-milk-filter'
+                ]); ?&gt;
+            &lt;/div&gt;
+            &lt;div class="col-md-2"&gt;
+                &lt;!-- Button that executes all filters --&gt;
+                &lt;div class="btn btn-primary js-milk-filter-onclick" 
+                     data-filter-id="table_file_logs"&gt;Search&lt;/div&gt;
+            &lt;/div&gt;
         &lt;/div&gt;
+    &lt;/div&gt;
+    
+    // your table here
+&lt;/div&gt;</code></pre>
+
+    <h3>Action List (Button Filters)</h3>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">&lt;div class="card"&gt;
+    &lt;div class="card-header"&gt;
+        &lt;!-- Action list with automatic update --&gt;
+        &lt;?php Form::action_list('filter_action', 'Filter by action', $actions, '', [], [
+            'data-filter-id' =&gt; 'table_file_logs', 
+            'data-filter-type' =&gt; 'action',  
+            'class' =&gt; 'js-milk-filter-onchange'
+        ]); ?&gt;
+    &lt;/div&gt;
+    
+    // your table here
+&lt;/div&gt;</code></pre>
+
+
+<h2 class="mt-4">Available CSS Classes</h2>
+    
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>CSS Class</th>
+                <th>Behavior</th>
+                <th>When to Use</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>js-milk-filter-onchange</code></td>
+                <td>Makes the field a filter that updates automatically on change</td>
+                <td>Search inputs, selects, checkboxes, radios</td>
+            </tr>
+            <tr>
+                <td><code>js-milk-filter</code></td>
+                <td>Makes the field a filter. This is not executed automatically, so you need a button to execute it with the <code>js-milk-filter-onclick</code> class</td>
+                <td>When you want to manually control execution</td>
+            </tr>
+            <tr>
+                <td><code>js-milk-filter-onclick</code></td>
+                <td>Filter executed on click</td>
+                <td>Search buttons, filter application buttons</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2 class="mt-4">Required Data Attributes</h2>
+    
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Attribute</th>
+                <th>Required</th>
+                <th>Description</th>
+                <th>Example</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>data-filter-id</code></td>
+                <td>✅ Always</td>
+                <td>ID of the table to filter</td>
+                <td><code>data-filter-id="userList"</code></td>
+            </tr>
+            <tr>
+                <td><code>data-filter-type</code></td>
+                <td>✅ For onchange/onclick</td>
+                <td>Filter type</td>
+                <td><code>data-filter-type="search"</code></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2 class="mt-4">Frontend HTML Examples</h2>
+
+    <h3>Search Input with Automatic Update</h3>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">&lt;div class="card"&gt;
+    &lt;div class="card-header"&gt;
+        &lt;!-- Search input that updates automatically --&gt;
+        &lt;input type="text" 
+               class="form-control js-milk-filter-onchange" 
+               data-filter-id="userList" 
+               data-filter-type="search" 
+               placeholder="Search users..."&gt;
     &lt;/div&gt;
     
     &lt;div class="card-body"&gt;
@@ -38,79 +162,62 @@ use MilkCore\Route;
     &lt;/div&gt;
 &lt;/div&gt;</code></pre>
 
-    <h2 class="mt-4">2. JavaScript Controller</h2>
-    
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Status filter
-function filterStatus(type) {
-    const table = getComponent('userList');
-    table.filter_remove_start('status:');
-    
-    if (type !== 'all') {
-        table.filter_add('status:' + type);
-    }
-    
-    table.set_page(1);
-    table.reload();
-}
 
-// Search
-function search() {
-    const table = getComponent('userList');
-    const searchValue = document.getElementById('searchUser').value.trim();
-    
-    table.filter_remove_start('search:');
-    
-    if (searchValue !== '') {
-        table.filter_add('search:' + searchValue);
-    }
-    
-    table.set_page(1);
-    table.reload();
-}
 
-// Advanced class for filter management
-class FilterManager {
-    constructor(tableId) {
-        this.table = getComponent(tableId);
-    }
-    
-    clearAllFilters() {
-        this.table.filter_clear();
-        document.getElementById('searchUser').value = '';
-        // Reset UI elements
-        this.table.set_page(1);
-        this.table.reload();
-    }
-}</code></pre>
 
-    <h2 class="mt-4">3. Backend PHP</h2>
+    <h2 class="mt-4">Backend PHP</h2>
     
+    <h3>Method 1: Router Class Extends AbstractRouter</h3>
+    <p>You can use the <code>get_modellist_data</code> method to get table data and pass it to the template. This method accepts a callback as the second argument that allows you to configure filters.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">&lt;?php
-// Setup filters in the model
-function setupFilters($model) {
-    // Status filter
-    $model-&gt;add_filter('status', function($query, $status) {
-        switch($status) {
-            case 'active':
-                $query-&gt;where('status = 1');
-                break;
-            case 'suspended':
-                $query-&gt;where('status = 2');
-                break;
+// Usage with get_modellist_data
+$modellist_data = $this-&gt;get_modellist_data($table_id, function($model_list) {
+    // Filter for action
+    $model_list-&gt;add_filter('action', function($query, $action) {
+        if (!empty($action)) {
+            $query-&gt;where('action = ?', [$action]);
         }
     });
-
-    // Search filter
-    $model-&gt;add_filter('search', function($query, $search) {
-        $query-&gt;where('name LIKE ?', ["%{$search}%"])
-              -&gt;where('OR email LIKE ?', ["%{$search}%"]);
+    
+    // Filter for search
+    $model_list-&gt;add_filter('search', function($query, $search) {
+        if (!empty($search)) {
+            $query-&gt;where('(title LIKE ? OR description LIKE ?)', ["%{$search}%", "%{$search}%"]);
+        }
     });
-}
+});
+?&gt;</code></pre>
 
-// Usage in the page
-$model = new \MilkCore\ModelList('#__users');
-setupFilters($model);
+    <h3>Method 2: With Standard ModelList</h3>
+    <p>Outside of classes that extend AbstractRouter, you can use the standard ModelList to configure filters.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">&lt;?php
+// Complete model configuration
+$model = new \MilkCore\ModelList('#__users', 'userList');
 
+// Filter for search
+$model-&gt;add_filter('search', function($query, $search) use ($model) {
+    if (!empty($search)) {
+        $query-&gt;where('`username` LIKE ? OR `email` LIKE ?', ['%'.$search.'%', '%'.$search.'%']);
+    }
+});
+
+// Filter for status
+$model-&gt;add_filter('status', function($query, $status) use ($model) {
+    $model-&gt;page_info['filter_status'] = $status;
+    switch ($status) {
+        case 'active':
+            $query-&gt;where('`status` = 1');
+            break;
+        case 'suspended':
+            $query-&gt;where('`status` = 0');
+            break;
+        case 'trash':
+            $query-&gt;where('`status` = -1');
+            break;
+    }
+});
+
+// Table generation
 $query = $model-&gt;query_from_request();
 $rows = Get::db()-&gt;get_results(...$query-&gt;get());
 $total = Get::db()-&gt;get_var(...$query-&gt;get_total());
@@ -125,7 +232,7 @@ echo Get::theme_plugin('table', [
 ]);
 ?&gt;</code></pre>
 
-    <h2 class="mt-4">4. Main API Methods</h2>
+    <h2 class="mt-4">6. JavaScript API Methods (Advanced)</h2>
     
     <table class="table table-bordered">
         <thead>
@@ -138,7 +245,7 @@ echo Get::theme_plugin('table', [
         <tbody>
             <tr>
                 <td>filter_add(filter)</td>
-                <td>Adds filter</td>
+                <td>Adds filter manually</td>
                 <td>table.filter_add('status:active')</td>
             </tr>
             <tr>
@@ -175,7 +282,7 @@ echo Get::theme_plugin('table', [
         <tbody>
             <tr>
                 <td>add_filter($type, $callback)</td>
-                <td>Registers filter</td>
+                <td>Registers a filter</td>
                 <td>$model->add_filter('status', function($q, $v) {...})</td>
             </tr>
             <tr>
@@ -186,30 +293,113 @@ echo Get::theme_plugin('table', [
         </tbody>
     </table>
 
-    <h2 class="mt-4">5. Complete Example</h2>
+    <h2 class="mt-4">Complete Example</h2>
     
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">&lt;?php
-// Complete controller
-function user_table() {
-    if (($_REQUEST['page-output'] ?? '') == 'json') {
-        return processTableAjax();
-    }
+// Complete controller with new system
+function user_management() {
+    // Preparing actions for select
+    $actions = [
+        '' =&gt; 'All actions',
+        'login' =&gt; 'Login',
+        'logout' =&gt; 'Logout', 
+        'create' =&gt; 'Creation',
+        'update' =&gt; 'Update'
+    ];
     
-    $model = new \MilkCore\ModelList('#__users');
+    // Model setup
+    $model = new \MilkCore\ModelList('#__users', 'userList');
     
-    // Setup filters
-    $model-&gt;add_filter('status', function($query, $status) {
-        $statusMap = ['active' =&gt; 1, 'suspended' =&gt; 2];
-        if (isset($statusMap[$status])) {
-            $query-&gt;where('status = ?', [$statusMap[$status]]);
+    // Filters
+    $model-&gt;add_filter('search', function($query, $search) {
+        if (!empty($search)) {
+            $query-&gt;where('(username LIKE ? OR email LIKE ? OR name LIKE ?)', 
+                ["%{$search}%", "%{$search}%", "%{$search}%"]);
         }
     });
     
-    $model-&gt;add_filter('search', function($query, $search) {
-        $query-&gt;where('(name LIKE ? OR email LIKE ?)', ["%{$search}%", "%{$search}%"]);
+    $model-&gt;add_filter('status', function($query, $status) {
+        switch ($status) {
+            case 'active':
+                $query-&gt;where('status = 1');
+                break;
+            case 'suspended':
+                $query-&gt;where('status = 0');
+                break;
+            case 'trash':
+                $query-&gt;where('status = -1');
+                break;
+        }
     });
     
-    // Generate table
+    $model-&gt;add_filter('action', function($query, $action) {
+        if (!empty($action)) {
+            $query-&gt;where('last_action = ?', [$action]);
+        }
+    });
+    
+    // Output generation
+    if (($_REQUEST['page-output'] ?? '') == 'json') {
+        // AJAX output
+        $query = $model-&gt;query_from_request();
+        $rows = Get::db()-&gt;get_results(...$query-&gt;get());
+        $total = Get::db()-&gt;get_var(...$query-&gt;get_total());
+        
+        $page_info = $model-&gt;get_page_info($total);
+        $page_info-&gt;set_id('userList')-&gt;set_ajax(true);
+        
+        $table_html = Get::theme_plugin('table', [
+            'info' =&gt; $model-&gt;get_list_structure(),
+            'rows' =&gt; $rows,
+            'page_info' =&gt; $page_info
+        ]);
+        
+        echo json_encode(['success' =&gt; true, 'html' =&gt; $table_html]);
+        return;
+    }
+    
+    // Initial HTML output
+    echo '&lt;div class="card"&gt;
+        &lt;div class="card-header"&gt;
+            &lt;div class="row g-3"&gt;
+                &lt;div class="col-md-4"&gt;
+                    &lt;input type="text" 
+                           class="form-control js-milk-filter-onchange" 
+                           data-filter-id="userList" 
+                           data-filter-type="search" 
+                           placeholder="Search users..."&gt;
+                &lt;/div&gt;
+                &lt;div class="col-md-3"&gt;';
+    
+    Form::select('filter_status', 'Status', [
+        '' =&gt; 'All',
+        'active' =&gt; 'Active',
+        'suspended' =&gt; 'Suspended', 
+        'trash' =&gt; 'Trash'
+    ], '', [
+        'floating' =&gt; false,
+        'data-filter-id' =&gt; 'userList',
+        'data-filter-type' =&gt; 'status',
+        'class' =&gt; 'js-milk-filter-onchange'
+    ]);
+    
+    echo '      &lt;/div&gt;
+                &lt;div class="col-md-3"&gt;';
+    
+    Form::select('filter_action', 'Action', $actions, '', [
+        'floating' =&gt; false,
+        'data-filter-id' =&gt; 'userList', 
+        'data-filter-type' =&gt; 'action',
+        'class' =&gt; 'js-milk-filter-onchange'
+    ]);
+    
+    echo '      &lt;/div&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class="card-body"&gt;
+            &lt;div id="userList" class="js-table-container"&gt;';
+    
+    // Initial table loading
     $query = $model-&gt;query_from_request();
     $rows = Get::db()-&gt;get_results(...$query-&gt;get());
     $total = Get::db()-&gt;get_var(...$query-&gt;get_total());
@@ -217,55 +407,20 @@ function user_table() {
     $page_info = $model-&gt;get_page_info($total);
     $page_info-&gt;set_id('userList')-&gt;set_ajax(true);
     
-    $table_html = Get::theme_plugin('table', [
+    echo Get::theme_plugin('table', [
         'info' =&gt; $model-&gt;get_list_structure(),
         'rows' =&gt; $rows,
         'page_info' =&gt; $page_info
     ]);
     
-    // Output
-    if (($_REQUEST['page-output'] ?? '') == 'json') {
-        echo json_encode(['success' =&gt; true, 'html' =&gt; $table_html]);
-    } else {
-        echo $table_html;
-    }
+    echo '      &lt;/div&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;';
 }
 ?&gt;</code></pre>
 
-    <h2 class="mt-4">6. Best Practices</h2>
-    
-    <div class="row">
-        <div class="col-md-6">
-            <h5>Do</h5>
-            <ul>
-                <li>Always reset to page 1 with new filters</li>
-                <li>Validate input on both frontend and backend</li>
-                <li>Use consistent "type:value" format</li>
-                <li>Debouncing for search fields</li>
-                <li>Sanitize filter values</li>
-            </ul>
-        </div>
-        <div class="col-md-6">
-            <h5>Don't</h5>
-            <ul>
-                <li>Don't trust user input</li>
-                <li>Don't forget SQL escaping</li>
-                <li>Don't ignore performance</li>
-                <li>Don't hardcode filter logic</li>
-                <li>Don't mix filter types</li>
-            </ul>
-        </div>
-    </div>
 
-    <div class="alert alert-info mt-4">
-        <strong>Summary:</strong> The filter system allows you to add/remove filters dynamically through JavaScript, which are processed server-side to update the table via AJAX. Filters are stored as JSON arrays and can be freely combined.
-    </div>
-
-    <div class="alert alert-light">
-        <strong>Useful links:</strong>
-        <ul class="mb-0">
-            <li><a href="<?php echo Route::url('?page=dynamic_table_example') ?>">Dynamic Table Examples</a></li>
-            <li><a href="<?php echo Route::url('?page=table_documentation') ?>">Complete Documentation</a></li>
-        </ul>
-    </div>
+<h2 class="mt-4">JavaScript </h2>
+<p>The system automatically handles JavaScript, however if you want to create a completely custom filter, I provide below the old tutorial on using filters: <a href="<?php echo Route::url('?page=docs&action=/modules/docs/pages/modellist-table-pold.page'); ?>">Old Tutorial</a>
+</p>
 </div>

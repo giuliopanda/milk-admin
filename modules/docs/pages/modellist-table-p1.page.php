@@ -2,9 +2,9 @@
 namespace Modules\docs;
 use MilkCore\Route;
 /**
- * @title Table part 1
- * @category Framework
- * @order 
+ * @title Build a base
+ * @category Dynamic Table
+ * @order 10
  * @tags ModelList, ListStructure, PageInfo, dynamic-table, pagination, sorting, filtering, query, database, table-management, PHP-classes, fluent-interface 
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
@@ -12,11 +12,7 @@ use MilkCore\Route;
 <div class="bg-white p-4">
     <h1>Dynamic Table System Documentation</h1>
 
-    <p>This system helps manage lists by simplifying pagination, sorting, and filtering. It can be used for tables, lists, or charts.
-    For detailed examples on how to use it with the template plugins:
-    <ul>
-        <li><a href="<?php echo Route::url('?page=dynamic_table_example') ?>">Dynamic Table</a></li>
-    </ul>
+    <p>This system helps manage table by simplifying pagination, sorting, and filtering.</p>
 
     <h2>System Overview</h2>
     <p>The dynamic table system is based on three main classes:</p>
@@ -479,68 +475,60 @@ $array = $pageInfo->to_array();
 // $array contiene tutte le informazioni di paginazione come array
     </code></pre>
 
-    <h2>Esempi completi</h2>
+    <h2>Complete examples</h2>
 
-    <h3>Esempio 1: Creazione di una tabella di base</h3>
+    <h3>Basic table creation</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
-// Inizializzazione del model
 $model = new \MilkCore\ModelList('#__dynamic_example');
 
-// Costruzione della query basata sui parametri della richiesta
+// Query construction based on request parameters
 $query = $model->query_from_request();
 
-// Recupero dei dati
+// Data retrieval
 $rows = Get::db()->get_results(...$query->get());
 
-// Conteggio totale dei record
+// Total count retrieval
 $total = Get::db()->get_var(...$query->get_total());
 
-// Configurazione della paginazione
+// Pagination configuration
 $page_info = $model->get_page_info($total);
 
-// Generazione dell'HTML della tabella
+// Table HTML generation
 $table_html = Get::theme_plugin('table', [
     'info' => $model->get_list_structure(), 
     'rows' => $rows, 
     'page_info' => $page_info
 ]); 
 
-// Output della tabella
+// Output of the table
 echo $table_html;
     </code></pre>
 
-    <h3>Esempio 2: Tabella con footer e personalizzazioni</h3>
+    <h3>Table with footer and customizations</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
-// Inizializzazione del model
 $model = new \MilkCore\ModelList('#__dynamic_example');
-
-// Costruzione della query
 $query = $model->query_from_request();
-
-// Recupero dei dati
 $rows = Get::db()->get_results(...$query->get());
-
-// Conteggio totale dei record
 $total = Get::db()->get_var(...$query->get_total());
 
-// Configurazione della paginazione
+// Pagination configuration
 $page_info = $model->get_page_info($total);
 $page_info->set_id('my-table-id');
 $page_info->set_pagination(false);
 
-// Abilita il footer
+// Enable the footer
 $page_info->set_footer(true);
 
-// Aggiungi riga come footer
+// Add line as footer
 $rows[] = (object)['id' => '', 'title' => 'Totale', 'status' => '99999'];
 
-// Personalizzazione grafica
+// Table customization
 $table_attrs = [
     'tfoot' => ['class' => 'table-footer-gray'], 
     'tfoot.td.title' => ['class' => 'text-end']
 ];
 
-// Generazione dell'HTML della tabella
+// Table HTML generation
 $table_html = Get::theme_plugin('table', [
     'info' => $model->get_list_structure(), 
     'rows' => $rows, 
@@ -548,16 +536,15 @@ $table_html = Get::theme_plugin('table', [
     'table_attrs' => $table_attrs
 ]); 
 
-// Output della tabella
+// Output of the table
 echo $table_html;
     </code></pre>
 
-    <h3>Esempio 3: Tabella con struttura personalizzata e filtri</h3>
+    <h3>Table with custom structure and filters</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
-// Inizializzazione del model
 $model = new \MilkCore\ModelList('#__dynamic_example_2');
 
-// Personalizzazione del filtro di ricerca
+// Customizing the search filter
 $model->add_filter('search', function($query, $search) use ($model) {
     if ($search == 'draft') {
         $query->where('`status` = 0');
@@ -573,17 +560,15 @@ $model->add_filter('search', function($query, $search) use ($model) {
     }
 });
 
-// Costruzione della query
 $query = $model->query_from_request();
 
-// Recupero e manipolazione dei dati
 $rows = Get::db()->get_results(...$query->get());
 $rows = array_map(function($row) {
     $row->content = substr($row->content, 0, 200) . '...';
     return $row;
 }, $rows);
 
-// Personalizzazione della struttura della tabella
+// Customizing the table structure
 $row_info = $model->get_list_structure();
 $row_info->set_column(
     'status',                               // Nome campo
@@ -603,26 +588,26 @@ $row_info->set_column(
     ['view' => 'View']                      // Definizione azioni
 );
 
-// Trasforma tutte le etichette in maiuscolo
+// Change all labels to uppercase
 $row_info->map(function($row) {
     $row['label'] = strtoupper($row['label']);
     return $row;
 });
 
-// Conteggio totale dei record
+// Total record count
 $total = Get::db()->get_var(...$query->get_total());
 
-// Configurazione della paginazione
+// Pagination configuration
 $page_info = $model->get_page_info($total);
 $page_info->set_id('my-custom-table');
 
-// Personalizzazione grafica
+// Table customization
 $table_attrs = [
     'thead' => ['class' => 'table-header-yellow'], 
     'th.title' => ['class' => 'th-title']
 ];
 
-// Generazione dell'HTML della tabella
+// Table HTML generation
 $table_html = Get::theme_plugin('table', [
     'info' => $row_info, 
     'rows' => $rows, 
@@ -630,14 +615,13 @@ $table_html = Get::theme_plugin('table', [
     'table_attrs' => $table_attrs
 ]); 
 
-// Output della tabella
 echo $table_html;
     </code></pre>
 
-    <h3>Esempio 4: Gestione di più tabelle nella stessa pagina</h3>
+    <h3>Multiple tables on the same page</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
 function table_list() {
-    // Prima tabella
+    // First table
     $id1 = _raz('table-dynamic-example');
     if ((($_REQUEST['page-output'] ?? '') == 'json' && $_REQUEST['table_id'] == $id1) || ($_REQUEST['page-output'] ?? '') == '') {
         $model = new \MilkCore\ModelList('#__dynamic_example');
@@ -664,12 +648,12 @@ function table_list() {
         ]);
     }
    
-    // Seconda tabella
+    // Second table
     $id2 = _raz('table-dynamic-example-2');
     if ((($_REQUEST['page-output'] ?? '') == 'json' && $_REQUEST['table_id'] == $id2) || ($_REQUEST['page-output'] ?? '') == '') {
         $model2 = new \MilkCore\ModelList('#__dynamic_example_2');
         
-        // Personalizza il filtro di ricerca
+        // Customizing the search filter
         $model2->add_filter('search', function($query, $search) use ($model2) {
             if ($search == 'draft') {
                 $query->where('`status` = 0');
@@ -688,13 +672,13 @@ function table_list() {
         $query2 = $model2->query_from_request();
         $rows2 = Get::db()->get_results(...$query2->get());
         
-        // Modifico una colonna dell'array
+        // Modify a column of the array
         $rows2 = array_map(function($row) {
             $row->content = substr($row->content, 0, 200) . '...';
             return $row;
         }, $rows2);
         
-        // Modifico le info della tabella
+        // Customizing the table structure
         $row_info = $model2->get_list_structure();
         $row_info->set_column(
             'status', 
@@ -723,13 +707,13 @@ function table_list() {
         $page_info2 = $model2->get_page_info($total2);
         $page_info2->set_id($id2);
        
-        // Modifico la grafica
+        // Table customization
         $table_attrs2 = [
             'thead' => ['class' => 'table-header-yellow'], 
             'th.title' => ['class' => 'th-title']
         ];
         
-        // Genero la tabella
+        // Table HTML generation
         $table_html2 = Get::theme_plugin('table', [
             'info' => $row_info, 
             'rows' => $rows2, 
@@ -738,9 +722,9 @@ function table_list() {
         ]);  
     }
 
-    // Gestione output
+    // Output management
     if (($_REQUEST['page-output'] ?? '') == 'json') {
-        // Aggiorno una delle due tabelle
+        // Update one of the two tables
         if ($_REQUEST['table_id'] == $id2) {
             Get::theme_page('json', '', json_encode([
                 'html' => $table_html2, 
@@ -755,7 +739,7 @@ function table_list() {
             ]));
         }
     } else {
-        // Rendering completo della pagina con entrambe le tabelle
+        // Complete page rendering with both tables
         Get::theme_page('default', __DIR__ . '/table.page.php', [
             'table_html1' => $table_html1, 
             'table_html2' => $table_html2,

@@ -121,14 +121,6 @@ Hooks::set('upload_accept_my_upload1', function($accept) {
     <pre class="pre-scrollable border p-2" class="text-bg-gray"><code class="language-php">if (document.getElementById('myuploadfield').is_compiled()) { //... }</code></pre> 
     <br><br>
 
-
-    <h4>Trix Editor</h4>
-    <div class="bg-light p-2">
-        <div class="form-group col-xl-6">
-                <trix-editor input="trix"></trix-editor>
-        </div>
-    </div>
-   
     <h4>color</h4>
     <div class="bg-light p-2">
     <div class="form-group col-lg-1">
@@ -253,4 +245,93 @@ Hooks::set('upload_accept_my_upload1', function($accept) {
         'Group 1' => ['1' => 'One', '2' => 'Two', '3' => 'Three'], 
         'Group 2' => ['4' => 'Four', '5' => 'Five', '6' => 'Six']
 ], '2');</code></pre>
+
+
+<br>
+<h2>Action List</h2>
+<h5><code>Form::action_list($name, $label, $list_options, $selected = '', $options = array(), $input_options = array(), $return = false)</code></h5>
+<p>$field = Hook:set('form_action_list', $field, $name, $label, $list_options, $selected, $options, $input_options)</p>
+<p>Creates a clickable action list with hidden input for value storage. Perfect for filters, tabs, or any selection interface where you need clickable elements instead of a traditional select dropdown.</p>
+
+<div class="bg-light p-2"> 
+    <div class="form-group col-xl-6">
+        <?php
+        $filters = [ 'all' => 'All', 'active' => 'Active',  'suspended' => 'Suspended', 'trash' => 'Trash'];
+        Form::action_list('filter', 'Filter by status', $filters, 'trash', [
+            'class' => 'filter-actions mb-3'
+        ]);
+        ?>
+    </div>
+</div>
+<pre class="pre-scrollable border p-2" class="text-bg-gray"><code class="language-php">$filters = ['all' => 'All', 'active' => 'Active', 'suspended' => 'Suspended', 'trash' => 'Trash'];
+Form::action_list('filter', 'Filter by status', $filters, 'trash', [
+    'class' => 'filter-actions mb-3'
+]);</code></pre>
+
+<h4>With JavaScript callback</h4>
+<div class="bg-light p-2"> 
+    <div class="form-group col-xl-6">
+        <?php
+        $categories = ['tech' => 'Technology', 'design' => 'Design', 'business' => 'Business'];
+        Form::action_list('category', 'Select Category', $categories, 'tech', [
+            'class' => 'btn-group',
+            'item-class' => 'btn btn-outline-primary',
+            'active-class' => 'active'
+        ], [
+            'onchange' => 'alert("Selected:", this.value)',
+            'data-callback' => 'handleCategoryChange'
+        ]);
+        ?>
+    </div>
+</div>
+<pre class="pre-scrollable border p-2" class="text-bg-gray"><code class="language-php">$categories = ['tech' => 'Technology', 'design' => 'Design', 'business' => 'Business'];
+Form::action_list('category', 'Select Category', $categories, 'tech', [
+    'class' => 'btn-group',
+    'item-class' => 'btn btn-outline-primary', 
+    'active-class' => 'active'
+], [
+    'onchange' => 'alert("Selected:", this.value)',
+    'data-callback' => 'handleCategoryChange'
+]);</code></pre>
+
+<h4>JavaScript API</h4>
+<p>The action_list provides a JavaScript API for programmatic control:</p>
+<pre class="pre-scrollable border p-2" class="text-bg-gray"><code class="language-javascript">// Set value programmatically
+Formaction_list.setValue('formfilter', 'active');
+
+// Get current value
+var currentValue = Formaction_list.getValue('formfilter');
+
+// Add change listener
+Formaction_list.onChange('formfilter', function(e) {
+    console.log('New value:', e.target.value);
+});
+
+// Listen to custom event
+document.addEventListener('action_listChange', function(e) {
+    console.log('Changed from', e.detail.oldValue, 'to', e.detail.value);
+});</code></pre>
+
+<h4>Options</h4>
+<p>Available options for customizing the action list:</p>
+
+<h5>Container options ($options):</h5>
+<ul>
+    <li><code>class</code> - CSS class for the container</li>
+    <li><code>item-class</code> - CSS class for each action item (default: 'link-action')</li>
+    <li><code>active-class</code> - CSS class for the active item (default: 'active-action-list')</li>
+    <li><code>container-tag</code> - HTML tag for container (default: 'div')</li>
+    <li><code>item-tag</code> - HTML tag for items (default: 'span')</li>
+    <li><code>onchange</code> - JavaScript to execute when selection changes (for backward compatibility)</li>
+</ul>
+
+<h5>Input options ($input_options):</h5>
+<ul>
+    <li><code>class</code> - CSS class for the hidden input</li>
+    <li><code>onchange</code> - JavaScript to execute when value changes</li>
+    <li><code>data-*</code> - Data attributes for the hidden input</li>
+    <li><code>required</code> - Make the field required</li>
+    <li><code>invalid-feedback</code> - Error message for validation</li>
+    <li>Other standard HTML5 input attributes</li>
+</ul>
     
