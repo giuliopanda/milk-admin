@@ -24,9 +24,9 @@ $btns = Hooks::run('plugin_title.btns', $btns, $title_txt);
                     <?php 
                     foreach ($btns as $btn) {
                         if (isset($btn['link'])) {
-                           ?><a class="btn btn-<?php _p($btn['color']); ?> me-2" href="<?php _p($btn['link']); ?>"><?php _pt($btn['title']); ?></a><?php
+                           ?><a class="btn btn-<?php _p($btn['color'] ?? 'primary'  ); ?> me-2 <?php _p($btn['class'] ?? ''); ?>" href="<?php _p($btn['link']); ?>"><?php _pt($btn['title']); ?></a><?php
                         } else if (isset($btn['click'])) {
-                            ?><span class="btn btn-<?php _p($btn['color']); ?> me-2" onclick="<?php _p($btn['click']); ?>"><?php _pt($btn['title']); ?></span><?php
+                            ?><span class="btn btn-<?php _p($btn['color'] ?? 'primary'); ?> me-2 <?php _p($btn['class'] ?? ''); ?>" onclick="<?php _p($btn['click']); ?>"><?php _pt($btn['title']); ?></span><?php
                         }
                     } 
                     ?>

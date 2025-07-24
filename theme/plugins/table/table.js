@@ -509,7 +509,7 @@ class Table {
             input_order.value = order_val;
             
             // Clear action and ID fields for sorting
-            this.clear_action_fields();
+            this.clearActionFields();
             this.sendForm();
         }
     }
@@ -523,7 +523,7 @@ class Table {
 
         if (input_page && page_val) {
             input_page.value = page_val;
-            this.clear_action_fields();
+            this.clearActionFields();
             this.sendForm();
         }
     }
@@ -537,7 +537,7 @@ class Table {
 
         if (input_page) {
             input_page.value = page_val;
-            this.clear_action_fields();
+            this.clearActionFields();
             this.sendForm();
         }
     }
@@ -557,7 +557,7 @@ class Table {
 
         if (input_limit) {
             input_limit.value = page_val;
-            this.clear_action_fields();
+            this.clearActionFields();
             this.sendForm();
         }
     }
@@ -565,12 +565,21 @@ class Table {
     /**
      * Clear action and ID fields
      */
-    clear_action_fields() {
+    clearActionFields() {
         const action_field = this.el_container.querySelector('.js-field-table-action');
         const ids_field = this.el_container.querySelector('.js-field-table-ids');
         
         if (action_field) action_field.value = '';
         if (ids_field) ids_field.value = '';
+    }
+
+    /**
+     * Set action field
+     */
+    setActionFields(action) {
+        const action_field = this.el_container.querySelector('.js-field-table-action');
+        
+        if (action_field) action_field.value = action;
     }
 
     /**
@@ -585,6 +594,10 @@ class Table {
         
         // Verifica se l'angolo in alto a sinistra è visibile verticalmente
         return rect.top >= 0 && rect.top < window_height;
+    }
+
+    getForm() {
+        return this.el_container.querySelector('.js-table-form');
     }
 
     /**
