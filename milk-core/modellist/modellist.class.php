@@ -54,7 +54,7 @@ class ModelList
         // Inizializzo la struttura della lista come un oggetto ListStructure
         $this->list_structure = new ListStructure();
         // aggiungo il filtro di ricerca di default search
-        $this->add_filter('search', [$this, 'filter_search']);
+         $this->add_filter('search', [$this, 'filter_search']);
     }
 
     /**
@@ -196,8 +196,14 @@ class ModelList
         if (empty($list_structure)) {
             return;
         }
+        $string_where = [];
+        $array_var = [];
         foreach ($list_structure as $field => $row) {
-            $query->where('`'.$field.'` LIKE ? ', ['%'.$search.'%'], 'OR');
+            $string_where[] = $this->db->qn($field) . ' LIKE ? ';
+            $array_var[] = '%'.$search.'%';
+        }
+        if (count($string_where) > 0) {
+            $query->where(implode(" OR ", $string_where), $array_var);
         }
     }
 
