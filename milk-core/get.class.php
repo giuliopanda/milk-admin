@@ -227,7 +227,9 @@ class Get
      */
     public static function load_modules() {
         
-        require_once self::dir_path(MILK_DIR . '/functions.php');
+        if (file_exists(MILK_DIR . '/customizations/functions.php')) {
+            require_once MILK_DIR . '/customizations/functions.php';
+        }
 
         foreach (glob(MILK_DIR . '/modules/*.controller.php') as $filename) {
             if (substr(basename($filename), 0, 1) != '.') {
