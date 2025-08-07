@@ -178,8 +178,7 @@ Hooks::set('install.execute', function($data) {
         }
     }
     if ($db_config['db_type2'] == 'mysql') {
-        // Per SQLite, il file viene creato automaticamente se non esiste
-        Config::set('db_type', 'mysql');
+        Config::set('db_type2', 'mysql');
         Config::set('connect_ip2', _r($db_config['connect_ip2']));
         Config::set('connect_login2', _r($db_config['connect_login2']));
         Config::set('connect_pass2', _r($db_config['connect_pass2']));
