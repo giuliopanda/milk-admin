@@ -173,7 +173,7 @@ if (($info instanceof \MilkCore\ListStructure || is_array($info))  && ($page_inf
                 $footer_row = array_pop($rows);
             }
             ?>
-            <?php if (count($rows) > 0) : ?>
+            <?php if (is_array($rows) && count($rows) > 0) : ?>
                 <tbody <?php Template::add_attrs($table_attrs, 'tbody'); ?>>
                     <?php foreach ($rows as $row) : ?> 
                         <tr <?php Template::add_attrs($table_attrs, 'tr'); ?>>

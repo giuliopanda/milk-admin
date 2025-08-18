@@ -1,10 +1,10 @@
 <?php
 namespace Theme;
-use MilkCore\Logs;
 use MilkCore\Theme;
+use MilkCore\Hooks;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
-
+Hooks::run('footer');
 echo Theme::get('footer.first'); 
 ?>
 <div class="border-top">

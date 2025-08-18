@@ -29,6 +29,6 @@ $conf['page_not_found'] = '404';
 $conf['debug'] = true;
 
 // default title
-$conf['site-title'] = 'MilkAdmin - Framework';
+$conf['site-title'] = 'MilkGraph - Framework';
 
 Config::set_all($conf);

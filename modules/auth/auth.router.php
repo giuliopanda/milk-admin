@@ -2,8 +2,12 @@
 namespace Modules\Auth;
 use MilkCore\AbstractRouter;
 use MilkCore\Hooks;
+use MilkCore\Get;
 
 !defined('MILK_DIR') && die(); // Prevents direct access
+
+// Load access logs service
+require_once(__DIR__ . '/access-logs.service.php');
 
 /**
  * The router for auth module that manages login, user management and permissions
@@ -47,6 +51,14 @@ class AuthRouter extends AbstractRouter
     protected function action_login() {
         AuthService::login();
     }
+    
+    protected function action_profile() {
+        AuthService::profile();
+    }
+    
+    protected function action_update_profile() {
+        AuthService::update_profile();
+    }
 
     // === GESTIONE SESSIONI ===
 
@@ -86,5 +98,36 @@ class AuthRouter extends AbstractRouter
             'session_info' => $session_info,
             'is_authenticated' => $session_info['active']
         ]);
+    }
+
+    /**
+     * Access logs list page using ModelList
+     * Displays access logs with start_date and user_id filters
+     */
+    protected function action_access_logs() {
+        // Get access logs data from service
+        $access_logs_data = AccessLogsService::get_access_logs_data();
+
+        // Handle JSON response (AJAX)
+        if (($_REQUEST['page-output'] ?? '') == 'json') {
+            Get::response_json(['html' => $access_logs_data['table_html'], 'success' => true, 'msg' => '']);
+        }
+        
+        // Render page with template
+        Get::theme_page('default', __DIR__ . '/views/access-logs.php', $access_logs_data);
+    }
+
+
+    /**
+     * Format page activity data for display in offcanvas
+     * Returns formatted HTML for page activity details
+     */
+    protected function action_format_page_activity() {
+        header('Content-Type: application/json');
+        
+        $pages_data = $_POST['pages_data'] ?? '';
+        $result = AccessLogsService::format_page_activity($pages_data);
+        
+        echo json_encode($result);
     }
 }

@@ -17,7 +17,11 @@ Theme::set('header.breadcrumbs', '<a class="link-action" href="?page=jobs">Jobs<
 
 <div class="bg-white p-4">
    <h1>Cron Module Documentation</h1>
-   <p>This documentation provides a concise guide on how to implement scheduled tasks in your application using the Cron module.</p>
+   <?php if (!is_dir(MILK_DIR . '/modules/jobs')) : ?>
+      <div class="alert alert-danger">The <strong>jobs</strong> module is not installed. Please install it to use this module.</div>
+   <?php else: ?>
+      <p>This documentation provides a concise guide on how to implement scheduled tasks in your application using the Cron module.</p>
+   <?php endif; ?>
 
 <h2>Prerequisites</h2>
 <p>Remember that you must have cron running and you must have added the line <br><code>* * * * * php <?php echo MILK_DIR; ?>/cron.php >/dev/null 2>&1</code><br> to your crontab file.</p>

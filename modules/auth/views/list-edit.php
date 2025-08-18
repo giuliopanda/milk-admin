@@ -1,13 +1,16 @@
 <?php 
 namespace Modules\Auth;
 use MilkCore\Get;
-
+use MilkCore\MessagesHandler;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
 
 
 
 echo Get::theme_plugin('title', ['title_txt' => "USER", 'btns' => [ ['title'=>'Add New', 'color'=>'primary', 'click'=>'create_new_user()']]]);  
+
+// Display any system messages
+MessagesHandler::display_messages();
 
 // Show an alert if the system is blocked
 if (isset($system_block_status) && $system_block_status && $system_block_status['blocked']) {

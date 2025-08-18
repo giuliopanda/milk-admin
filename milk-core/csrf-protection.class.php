@@ -117,7 +117,7 @@ class CSRFProtection {
             return true;
         }
         
-        // Check for custom CSRF header (indicates fetch request)
+        // Check for custom CSRF header (indicates fetch request, including file uploads)
         if (isset($_SERVER['HTTP_X_CSRF_TOKEN'])) {
             return true;
         }
@@ -126,6 +126,14 @@ class CSRFProtection {
         $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
         if (str_contains($accept, 'application/json') && !str_contains($accept, 'text/html')) {
             return true;
+        }
+        
+        // Check if it's a fetch request with multipart/form-data (file upload via fetch)
+        if (str_contains(strtolower($content_type), 'multipart/form-data')) {
+            // If it has custom headers or specific user agents that indicate fetch
+            $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+            // Modern browsers using fetch for file upload still send the CSRF header
+            // This is handled by the HTTP_X_CSRF_TOKEN check above
         }
         
         return false;
@@ -174,15 +182,41 @@ class CSRFProtection {
      * @return void
      */
     private static function handle_form_submission(): void {
+        // Preserve original POST data for debugging/logging
+        $original_post = $_POST;
+        $has_files = !empty($_FILES);
         // Clear POST data to prevent further processing
         $_POST = [];
         
-        // Add error message using MessagesHandler
-        MessagesHandler::add_error('Security token expired. Please try again.');
+        // Clear FILES data for security
+        if ($has_files) {
+            // Clean up uploaded files from temp directory
+            foreach ($_FILES as $file_field => $file_data) {
+                if (is_array($file_data['tmp_name'])) {
+                    foreach ($file_data['tmp_name'] as $tmp_file) {
+                        if (is_file($tmp_file)) {
+                            @unlink($tmp_file);
+                        }
+                    }
+                } else if (is_file($file_data['tmp_name'])) {
+                    @unlink($file_data['tmp_name']);
+                }
+            }
+            $_FILES = [];
+        }
+        
+        // Add appropriate error message
+        if ($has_files) {
+            MessagesHandler::add_error('Security token expired during file upload. Please refresh the page and try uploading again.');
+        } else {
+            MessagesHandler::add_error('Security token expired. Please refresh the page and try again.');
+        }
         
         // Log the CSRF attempt for security monitoring
         if (class_exists('MilkCore\Logs')) {
-            Logs::set('security', 'WARNING', 'CSRF token mismatch from IP: ' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            $context = $has_files ? 'file upload' : 'form submission';
+            $post_keys = implode(', ', array_keys($original_post));
+            Logs::set('security', 'WARNING', "CSRF token mismatch on {$context} from IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown') . " (POST keys: {$post_keys})");
         }
     }
     

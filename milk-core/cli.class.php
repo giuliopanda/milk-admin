@@ -106,6 +106,7 @@ class Cli
     public static function callFunction($name, ...$args)
     {
         self::$last_error = '';
+       
         if (!array_key_exists($name, self::$functions)) {
             $error = "Function '$name' not registered";
             self::$last_error = $error;
@@ -116,7 +117,11 @@ class Cli
             self::$last_error = $error;
             return false;
         }
-        $new_args = self::completeArgs(self::$functions[$name], $args[0]);
+        if (count($args) == 0) {
+            $new_args = self::completeArgs(self::$functions[$name]);
+        } else {
+            $new_args = self::completeArgs(self::$functions[$name], $args[0]);
+        }
         call_user_func_array(self::$functions[$name], $new_args);
         return true;
 
@@ -130,7 +135,7 @@ class Cli
      * @param array $args Arguments to pass to the function
      * @return array Completed arguments array
      */
-    static private function completeArgs($function, $args) {
+    static private function completeArgs($function, $args = []) {
         if (is_array($function)) {
             $ref = new \ReflectionMethod($function[0], $function[1]);
         } else {

@@ -48,6 +48,36 @@ class Config
     }
 
     /**
+     * Appends a value to an array configuration value
+     * 
+     * @param string $key The configuration key to append to
+     * @param mixed $value The value to append
+     * @return void
+     */
+    public static function append(string $key, $value):void {
+        if (!array_key_exists($key, self::$config)) {
+            self::$config[$key] = [];
+        }
+        if (is_array($value)) {
+            self::$config[$key] = array_merge(self::$config[$key], $value);
+        } else {
+            self::$config[$key][] = $value;
+        }
+    }
+
+    /**
+     * Removes a configuration value
+     * 
+     * @param string $key The configuration key to remove
+     * @return void
+     */
+    public static function remove(string $key):void {
+        if (array_key_exists($key, self::$config)) {
+            unset(self::$config[$key]);
+        }
+    }
+
+    /**
      * Sets all configuration values
      * 
      * @param array $config An associative array of configuration values

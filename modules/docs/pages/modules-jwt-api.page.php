@@ -13,8 +13,15 @@ use MilkCore\Route;
 <div class="bg-white p-4">
    <h1>JWT Authentication Documentation</h1>
 
-   <div class="alert alert-info">Download the <strong><a href="<?php echo Route::url(); ?>/modules/api-registry/assets/api-token-manager.class.zip">api-token-manager.class.zip</a></strong> class for automatic JWT token management in your client project.</div>
-   <p>This documentation provides a detailed overview of JWT (JSON Web Token) authentication and how to implement it in your application.</p>
+   <?php if (!is_dir(MILK_DIR . '/modules/api-registry')) : ?>
+      <div class="alert alert-danger">The <strong>api-registry</strong> module is not installed. Please install it to use this module.</div>
+      <p>The system natively supports JWT for authentication and token management, however the module allows you to manage logs and allows you to download a class to manage the APIs from other PHP projects.</p>
+   <?php else: ?>
+      <div class="alert alert-info">Download the <strong><a href="<?php echo Route::url(); ?>/modules/api-registry/assets/api-token-manager.class.zip">api-token-manager.class.zip</a></strong> class for automatic JWT token management in your client project.</div>
+      <p>This documentation provides a detailed overview of JWT (JSON Web Token) authentication and how to implement it in your application.</p>
+   <?php endif; ?>
+
+   
 
    <h2>Introduction</h2>
    <p>JWT (JSON Web Token) is a compact, URL-safe means of representing claims to be transferred between two parties. In authentication systems, JWTs allow you to securely transmit information between client and server as a JSON object.</p>

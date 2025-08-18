@@ -23,12 +23,20 @@ namespace Modules\docs;
             'label' => 'New Field'
         ]);
 </code></pre>
-    <p>2. Now from the shell going to the project directory type:</p>
+
+    <h4>Now we need to update the module</h4>
+    <p>Go to the controller and modify or add the version property. If you update the version it must be greater than the previous one. I suggest for this system dates AAMMXX year, month and progressive, but you can also put a progressive number and that's it. The system does not manage classic versions like 1.0, 1.0.1, 1.3.23.2 etc...<p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php"> protected $version = 251001;</code></pre>
+    <p>A this point go to the admin and click the menu on the left <b>installation</b>. The module will update automatically.<br> Alternatively from shell you can run:
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">php cli.php {module_name}:update</code></pre>
+   
+    <h4>Alternatively you can create a new version of the entire system.</h4>
+    <p>1. Now from the shell going to the project directory type:</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">php cli.php build-version</code></pre>
-    <p>3. Now create a zip</p>
+    <p>2. Now create a zip</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">zip -r new_version.zip new_version_xxxxx</code></pre>
 
-    <p>4. Open the page ?page=install and upload the zip file. The installation procedure will be executed. Verify that the new column has been created in the database and that the installation procedure now shows the new version.</p>
+    <p>3. Open the page ?page=install and upload the zip file. The installation procedure will be executed. Verify that the new column has been created in the database and that the installation procedure now shows the new version.</p>
 
     <h2>Introduction</h2>
     <p>Installation, like updating, is designed for the entire system, not for individual modules. 
@@ -53,7 +61,7 @@ php cli.php {module_name}:uninstall
 
     <hr>
 
-    <h2 class="mt-3">Versions</h2>
+    <h2 class="mt-3">Versions </h2>
     <p>Versions are indicated in the configuration file and are composed of 6 characters: AAMMXX where AA is the year e.g. 24, MM the month e.g. 01, XX a progressive number that expresses how many versions are made in that year of that month.</p>
     <p>Inside <b>ito_class/setup.php</b> the version number of the new installation is set.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">define ('NEW_VERSION', '240901');</code></pre>
@@ -205,8 +213,68 @@ if (Config::get('version') == null || NEW_VERSION > Config::get('version')) {
         }
     }</code></pre>
     
+    <h2>CLI Commands for Modules</h2>
+    <p>Individual modules can register their own CLI commands using the CLI hooks system. This allows modules to provide install, uninstall, and custom commands that can be executed from the command line.</p>
+    
+    <h4>Setting up CLI hooks</h4>
+    <p>To enable CLI commands for your module, register the setup function in your controller:</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Set up CLI commands
+Hooks::set('cli-init', 'my_module_setup_cli_hooks', 90);</code></pre>
+    
+    <h4>Implementing the CLI setup function</h4>
+    <p>Create a function that registers your CLI commands:</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">function my_module_setup_cli_hooks() {
+    // Register CLI commands
+    Cli::set("my_module:install", 'my_module_shell_install');
+    Cli::set("my_module:uninstall", 'my_module_shell_uninstall');
+    Cli::set("my_module:my_command", 'my_module_shell_my_command');
+}</code></pre>
+    
+    <h4>Implementing CLI command functions</h4>
+    <p>Create the actual functions that will be executed when the CLI commands are called:</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">function my_module_shell_install() {
+    if (Cli::is_cli()) {
+        Cli::echo("Installing module: My Module");
+        Cli::success('Module My Module install command executed');
+        return true;
+    }
+}
+
+function my_module_shell_uninstall() {
+    if (Cli::is_cli()) {
+        Cli::echo("Uninstalling module: My Module");
+        Cli::success('Module My Module uninstall command executed');
+        return true;
+    }
+}
+
+function my_module_shell_my_command() {
+    if (Cli::is_cli()) {
+        Cli::echo("My custom command executed successfully!");
+        Cli::success("Command completed");
+    }
+}</code></pre>
+    
+    <h4>Using CLI commands</h4>
+    <p>Once registered, you can execute the commands from the shell:</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">php cli.php my_module:install
+php cli.php my_module:uninstall
+php cli.php my_module:my_command</code></pre>
+    
+    <p class="alert alert-info">
+        Always check if the script is running in CLI mode using <code>Cli::is_cli()</code> before executing CLI-specific code.
+        Use <code>Cli::echo()</code> and <code>Cli::success()</code> for proper CLI output formatting.
+    </p>
+
+    <h2>Updating Modules or the System</h2>
+    <p>Updating the system calls the update hook for all modules. If you update just one module, only that module's update hook is called.</p>
+    <p>If you're using the AbstractController, simply change the $version variable to notify the system that the module needs to be updated. If you're not using the AbstractController, you need to add the module version to the configuration. You can do this dynamically by adding the following code:</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">Config::append('module_version', [$this->page => ['version'=>$this->version, 'folder'=>$folder]]);</code></pre>
+    <p>folder is the folder or the filename if the module consists of a single file. You must enter the relative path to the modules folder.</p>
+
     <h2>Update</h2>
     <p>To update the system it is possible to do it using various ways.</p>
+    <p>Go to the installation page ?page=install. The system will check for a new update and install it if necessary.</p>
     <p>inside ?page=install you find the page to upload the zip with the new updated version</p>
     <p>You can however also use git and update the files directly. In this case when you reload the page ?page=install it will notice that a new update has been loaded and will execute the various update procedures of the individual modules so as to update any tables or other.</p>
     <p>Be careful because if during the update the structure of a table is changed, it will be modified without asking for confirmation. In this case it is therefore the duty of individual modules to verify that any variations or removals of columns do not generate data loss</p>

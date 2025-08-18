@@ -103,6 +103,16 @@ php cli.php {module-name}:uninstall</code></pre>
         <p>When a module is uninstalled, the tables created by the module's model are removed but the module folder is NOT deleted. A dot is placed in front of the folder to disable it.</p>
         <p>Before being able to reinstall the module, you need to rename the module itself by removing the dot in front of the folder name.</p>
 
+        <h4 class="mt-3">Disabling CLI Commands</h4>
+        <p>If you want to prevent a module from having automatic CLI commands for installation, update, and uninstallation, you can set the <code>$
+            cli</code> property to <code>true</code>.</p>
+        <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">class MyModuleController extends AbstractController {
+    protected $disable_cli = true; // Disables CLI commands
+    
+    // Other properties...
+}</code></pre>
+        <p>This is useful for modules that don't want to be uninstalled.</p>
+
        
 
     <h1 class="mt-4">AbstractController Abstract Class Documentation</h1>
@@ -116,6 +126,8 @@ php cli.php {module-name}:uninstall</code></pre>
         <li><code>$access</code>: (string, optional) The module access level (<code>public</code>, <code>registered</code>, <code>authorized</code>, <code>admin</code>). Default: `registered`.</li>
         <li><code>$router</code>: (string|object, optional) The router class name (e.g.: 'PostsRouter') or a class instance. If not set, it's derived from the controller name (PostsController -> PostsRouter)</li>
         <li><code>$model</code>: (string|object, optional) The model class name (e.g.: 'PostsModel') or a class instance. If not set, it's derived from the controller name (PostsController -> PostsModel)</li>
+        <li><code>$version</code>: (number) The module version. It is a number composed of year, month and progressive number es. 250801</li>
+        <li><code>$disable_cli</code>: (boolean, optional) When set to true, disables automatic CLI commands for module installation, update, and uninstallation. Default: `false`.</li>
     </ul>
 
     <h2 class="mt-4">Methods</h2>

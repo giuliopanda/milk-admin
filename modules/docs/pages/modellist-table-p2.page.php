@@ -226,7 +226,7 @@ $page_info = $model-&gt;get_page_info($total);
 $page_info-&gt;set_id('userList')-&gt;set_ajax(true);
 
 echo Get::theme_plugin('table', [
-    'info' =&gt; $model-&gt;get_list_structure(),
+    'info' =&gt; $model-&gt;get_list_structure($rows, 'id'),
     'rows' =&gt; $rows,
     'page_info' =&gt; $page_info
 ]);
@@ -349,7 +349,7 @@ function user_management() {
         $page_info-&gt;set_id('userList')-&gt;set_ajax(true);
         
         $table_html = Get::theme_plugin('table', [
-            'info' =&gt; $model-&gt;get_list_structure(),
+            'info' =&gt; $model-&gt;get_list_structure($rows, 'id'),
             'rows' =&gt; $rows,
             'page_info' =&gt; $page_info
         ]);
@@ -408,7 +408,7 @@ function user_management() {
     $page_info-&gt;set_id('userList')-&gt;set_ajax(true);
     
     echo Get::theme_plugin('table', [
-        'info' =&gt; $model-&gt;get_list_structure(),
+        'info' =&gt; $model-&gt;get_list_structure($rows, 'id'),
         'rows' =&gt; $rows,
         'page_info' =&gt; $page_info
     ]);

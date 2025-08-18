@@ -276,11 +276,13 @@ class Permissions
      * ```
      *
      * @param string $permission Permission in format 'group.permission_name'
+     * @param string $hook Optional hook to run if the permission is granted (hook name without 'permission.check.') Per convention, the hook name should be the name of the page of the module 'permission.check.{$page}'
      * @return bool True if the user has the permission, false otherwise
      */
-    public static function check($permission)  {
+    public static function check($permission, $hook = null)  {
+        $hook = (is_string($hook) && strlen(trim($hook)) > 0) ? 'permission.check.'.str_replace("permission.check.", "", $hook) : null;
         if ((self::$user_permissions['_user']['is_admin'] ?? false) && ($permission != '_user.is_guest')) {
-            return true;
+            return (is_string($hook)) ? Hooks::run($hook, true) : true;
         }
         $permission = explode('.', $permission);
         if (count($permission) == 2) {
@@ -288,24 +290,26 @@ class Permissions
             $permission_name = $permission[1];
             if ($group == '_user') {
                 if ($permission_name == 'is_admin') {
-                    return (self::$user_permissions['_user']['is_admin'] ?? false);
+                    $ris = (self::$user_permissions['_user']['is_admin'] ?? false);
                 } else if ($permission_name == 'is_guest') {
-                    return (self::$user_permissions['_user']['is_guest'] ?? false);
+                    $ris= (self::$user_permissions['_user']['is_guest'] ?? false);
                 } else if ($permission_name == 'is_authenticated') {
                     // is_authenticated is the opposite of is_guest
-                    return !(self::$user_permissions['_user']['is_guest'] ?? false);
+                    $ris = !(self::$user_permissions['_user']['is_guest'] ?? false);
                 }
+                return (is_string($hook)) ? Hooks::run($hook, $ris) : $ris;
             } else if (self::$user_permissions['_user']['is_admin'] ?? false) {
-                return true;
+                return (is_string($hook)) ? Hooks::run($hook, true) : true;
             }
       
             if (array_key_exists($group, self::$user_permissions)) {
                 if (array_key_exists($permission_name, self::$user_permissions[$group])) {
-                    return self::$user_permissions[$group][$permission_name];
+                    $ris = self::$user_permissions[$group][$permission_name];
+                    return (is_string($hook)) ? Hooks::run($hook, $ris) : $ris;
                 }
             }
         }
-        return false;
+        return (is_string($hook)) ? Hooks::run($hook, false) : false;
     }
 
     /**

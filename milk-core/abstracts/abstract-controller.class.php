@@ -138,6 +138,20 @@ abstract class AbstractController {
      */
     protected $router = null;
     /**
+     * Disable CLI command generation
+     * 
+     * Set to true to prevent this controller from registering CLI commands.
+     * This is useful for controllers that should not expose shell commands.
+     * 
+     * @example
+     * ```php
+     * protected $disable_cli = true; // Disables all CLI command registration
+     * ```
+     * 
+     * @var bool
+     */
+    protected $disable_cli = false;
+    /**
      * Model instance for handling data
      * 
      * This can be either a string (class name) or an object instance.
@@ -154,8 +168,16 @@ abstract class AbstractController {
      */
     protected $model = null;
 
+    /**
+     * Version of the module 
+     * In Milk Admin the version is a number composed of year, month and progressive number es. 250801
+     * 
+     * @var int|null
+     */
+    protected $version = 0;
 
     protected $bootstrap_loaded = false;
+
 
     /**
      * Constructor
@@ -187,8 +209,10 @@ abstract class AbstractController {
             // devo eseguirlo dopo aver caricato tutti  construct
              Hooks::set('after_modules_loaded', [$this, 'init'], 10);
         }
-        
         Hooks::set('cli-init', [$this, 'setup_cli_hooks'], 90);
+
+        $folder = $this->getFolderCalled();
+        Config::append('module_version', [$this->page => ['version'=>$this->version, 'folder'=>$folder]]);
     }
 
     /**
@@ -407,6 +431,11 @@ abstract class AbstractController {
      * ```
      */
     public function setup_cli_hooks() {
+        // Check if CLI command generation is disabled for this controller
+        if ($this->disable_cli) {
+            return;
+        }
+        
         if (is_object($this->model) && method_exists($this->model, 'build_table') && method_exists($this->model, 'drop_table')) {
             Cli::set($this->page.":install", [$this, 'shell_install_module']);
             Cli::set($this->page.":uninstall", [$this, 'shell_uninstall_module']);
@@ -479,14 +508,12 @@ abstract class AbstractController {
         if (Cli::is_cli() || Permissions::check('_user.is_admin')) {
             $this->model->drop_table();
             // trova la directory della classe che estende questa classe
-            if (!Config::get('debug')) {
-                $dir = $this->get_child_class_path();
-                if (is_dir($dir) == false)  return;
-                $folders = explode(DIRECTORY_SEPARATOR, $dir);
-                $folder = array_pop($folders);
-                $new_folder_name = ".".$folder;
-                rename($dir, implode(DIRECTORY_SEPARATOR, $folders) . DIRECTORY_SEPARATOR . $new_folder_name);
-            }
+           
+            $dir = $this->get_child_class_path();
+            if (is_dir($dir) == false)  return;
+            // Rimuove completamente la directory invece di rinominarla con il punto
+              $this->remove_directory($dir);
+            
             if (Cli::is_cli()) {
                 Cli::success('Module '.$this->title.' uninstalled');
             }
@@ -525,6 +552,21 @@ abstract class AbstractController {
 
     public function _install_done($html) {
         if (!is_object($this->model))$this->_bootstrap();
+        $settings_versions = Settings::get('module_version') ?: [];
+        $settings_versions[$this->page] = [
+            'version' => $this->version ?? 1,
+            'folder' => $this->get_child_class_path()
+        ];
+        $module_actions = Settings::get('module_actions') ?: [];
+        $module_actions[$this->page] = [
+            'action' => 'install',
+            'user_id' => 1,
+            'date' => date('Y-m-d H:i:s')
+        ];
+        
+        // Save to settings
+        Settings::set('module_actions', $module_actions);
+        Settings::set('module_version', $settings_versions);
         return $this->install_done($html);
     }
 
@@ -751,23 +793,114 @@ abstract class AbstractController {
      * @return bool True if the user has access, false otherwise
      */
     public function access() {
-      
+       $hook = $this->page != null ? $this->page : null;
        $permission = false;
        switch ($this->access) {
            case 'public':
                $permission = true;
                break;
            case 'registered':
-               $permission = (Permissions::check('_user.is_guest') == false);
+               $permission = (Permissions::check('_user.is_guest', $hook) == false);
                break;
            case 'authorized':
-               $permission = Permissions::check($this->page.".".key($this->permission));
+               $permission = Permissions::check($this->page.".".key($this->permission), $hook);
                break;
            case 'admin':
-               $permission = Permissions::check('_user.is_admin');
+               $permission = Permissions::check('_user.is_admin', $hook);
                break;
        }
      
        return $permission;
     }
+
+    /**
+     * Get the version of the module
+     * 
+     * @return int|null The version of the module
+     */
+    public function get_version() {
+        return $this->version;
+    }
+
+    /**
+     * Get the folder name of the calling class
+     * 
+     * This function determines the folder name where the class that extends this abstract
+     * class is located. If it's inside the modules directory, it returns the module name.
+     * Otherwise, it returns the directory name.
+     * 
+     * @return string The folder name
+     */
+    private function getFolderCalled() {
+        $childClass = get_called_class();
+        $reflection = new \ReflectionClass($childClass);
+        $filePath = $reflection->getFileName();
+        $directoryPath = dirname($filePath);
+        
+        // Check if the file is inside the modules directory
+        $modulesPath = MILK_DIR . '/modules';
+        if (strpos($directoryPath, $modulesPath) === 0) {
+            // Extract module name from path
+            $relativePath = str_replace($modulesPath . '/', '', $directoryPath);
+            $pathParts = explode('/', $relativePath);
+            return $pathParts[0]; // Return the first directory name (module name)
+        } else {
+            // Return the directory name if not in modules
+            return basename($directoryPath);
+        }
+    }
+
+    /**
+     * Remove a directory and all its contents recursively
+     * Only allows removal of directories within the modules folder for security
+     * 
+     * @param string $dir Directory path to remove
+     * @return bool True if successful, false otherwise
+     */
+    private function remove_directory($dir) {
+        if (!is_dir($dir)) {
+            return false;
+        }
+
+        // Verifica di sicurezza: la directory deve essere dentro /modules
+        $modulesPath = realpath(MILK_DIR . '/modules');
+        $targetPath = realpath($dir);
+        
+        if ($targetPath === false || strpos($targetPath, $modulesPath) !== 0) {
+            if (Cli::is_cli()) {
+                Cli::error('Security error: Cannot remove directory outside modules folder');
+            }
+            return false;
+        }
+
+        $files = array_diff(scandir($dir), array('.', '..'));
+        foreach ($files as $file) {
+            $path = $dir . DIRECTORY_SEPARATOR . $file;
+            if (is_dir($path)) {
+                if (!is_writable($path)) {
+                    if (Cli::is_cli()) {
+                        Cli::error('Security error: Cannot remove directory that is not writable');
+                    }
+                    return false;
+                }
+                $this->remove_directory($path);
+            } else {
+                if (!is_writable($path)) {
+                    if (Cli::is_cli()) {
+                        Cli::error('Security error: Cannot remove file that is not writable');
+                    }
+                    return false;
+                }
+                unlink($path);
+            }
+        }
+        if (!is_writable($dir)) {
+            if (Cli::is_cli()) {
+                Cli::error('Security error: Cannot remove directory that is not writable');
+            }
+            return false;
+        }
+        return rmdir($dir);
+    }
+    
 }

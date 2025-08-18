@@ -1,17 +1,27 @@
-# MILK ADMIN - A PHP, MySQL/sqlite, Bootstrap Admin Panel
+
+è un CMS Core.
+
+# MILK ADMIN - A PHP, MySQL/sqlite, Bootstrap Admin CMS Core.
 
 See the site: [https://www.milkadmin.org](https://www.milkadmin.org)
 
 ![Milk Admin](https://github.com/giuliopanda/repo/blob/main/milkadmin-img01.jpg)
 
-Welcome to Milk Admin, a ready-to-use admin panel written in PHP and designed to support the work of developers. It manages cron jobs, allows you to create public APIs, send emails, manages users, permissions and CRUD.
-Developed with a Bootstrap template and a lightweight and easy-to-learn admin panel for creating independent systems.
-The system offers an excellent level of automatic protection from CSRF and SQL Injection, as well as extensive initial documentation.
-Try it, the installation system is very fast and you can customize it for your needs. This way you can create your own webapp. Keeping it updated is even easier, you will only need, once you have finished making changes, a single shell command to create a new update version.
+Welcome to Milk Admin, a ready-to-use admin panel written in PHP and designed to support the work of developers.
+This system gives you a login, user and permission management and an external module installation and update system. 
+Developed with a Bootstrap template and a lightweight and easy-to-learn framework for creating independent systems.
+
+The system offers an excellent level of automatic protection from CSRF and SQL Injection, and all the basic security practices for login. 
+
+Try it, the installation system is very fast and you can customize it for your needs. You will have access to a large documentation that will help you create your application. 
+This way you can create your own webapp. Keeping it updated is even easier, you will only need, once you have finished making changes, a single shell command to create a new update version.
 
 
-# Develop your personal WEB APP, complete with versions and updates.  
-Create your own professional administrative interface. The structure is simple: you can create new modules by writing all the code inside a folder named after your project, or prepare an entire software package for your customers to install. Milk Admin is a modular system with installation management and automatic updates. You only need to focus on the features; Milk Admin takes care of the entire context.
+# what can you do?
+Don't modify what you already use, but complement it with a lightweight and modular administrative system. The idea is to have a tool that's easy to learn and doesn't require the use of complex or invasive frameworks. MilkAdmin allows you to group your custom code under a single environment, giving you a code base to develop small web applications useful for your company's or your clients' work such as: CRUD, reports, dashboards, APIs, scheduled processes, or email management.
+Thanks to the modular structure, you can easily collaborate with other people, dividing tasks and keeping development organized. Additionally, you can update both individual modules and the entire system with the same simplicity.
+
+
 
 # How simple is it?
 
@@ -46,7 +56,7 @@ Various methods for protecting folders and files.
 Public API or with JWT authentication
 
 # Documentation
-You can find detailed documentation within the downloaded version or consult it online in the demo. Alternatively, you can find additional documentation at the following link: [https://milkadmin.org/docs/](https://milkadmin.org/docs/)
+You can find detailed documentation inside the version you downloaded, within the docs module and a second documentation at [https://milkadmin.org/demo/?page=docs&action=modules/docs/pages/introduction.page](https://milkadmin.org/demo/?page=docs&action=modules/docs/pages/introduction.page)
 
 You can see a demo at [https://milkadmin.org/demo/](https://milkadmin.org/demo/)
 
@@ -58,6 +68,17 @@ In the demo I have already published some modules I'm working on. I hope to adva
 The direction I want to give to this system is related to data monitoring and reporting.
 
 # Changelog
+
+## v 250801
+- new: Module management: Added the ability to hide modules on the installation page and in the shell. This has been done for modules that must always be active, such as install and auth.
+- new:Added module installation and management. You can now install or update modules directly from the administrative interface. You can also enable or disable modules without uninstalling them.
+- improve: Removed the cron and api_registry modules because they can now be installed separately.
+- improve: Improved the display of CLI commands.
+- improve: Added the ability to set the default sorting order on modellist (table).
+- fix: install mysql and sqlite db
+- fix: customizations functions.php path
+- fix: modellist search filter did not work with other custom filters
+- doc: improve documentation
 
 ## v1.1 (250700)
 - feat: auth - Added hook 'auth.user_list' for modifying the user list and add 'install.copy_files' for skip directories in install process
@@ -76,4 +97,5 @@ The direction I want to give to this system is related to data monitoring and re
 - doc: improve documentation
 
 ## v1.0 (250600)
+
 - initial release

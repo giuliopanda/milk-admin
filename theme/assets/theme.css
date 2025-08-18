@@ -1213,3 +1213,103 @@ trix-toolbar .trix-button-group {
 .trix-button-row .trix-button-group .trix-button:first-child {
     border-top-left-radius: 8px; /* Modifica il valore secondo le tue preferenze */
 }
+
+/* SIDEBAR BADGES STYLES */
+
+/* Bootstrap badge positioning for sidebar */
+.sidebar-badge {
+    position: absolute;
+    font-size: 0.65rem;
+    font-weight: 600;
+    border-radius: 50%;
+    min-width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    z-index: 2;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+/* Desktop positioning (icon and text stacked) */
+@media screen and (min-width: 768px) {
+    .sidebar-nav-link {
+        position: relative;
+    }
+    
+    .sidebar-badge {
+        top: 5px;
+        right: 5px;
+    }
+}
+
+/* Mobile positioning (icon and text side by side) */
+@media screen and (max-width: 768px) {
+    .sidebar-nav-link {
+        position: relative;
+    }
+    
+    .sidebar-badge {
+        top: 50%;
+        right: 15px;
+        transform: translateY(-50%);
+    }
+}
+
+/* Dot badge - small notification dot */
+.sidebar-badge-dot {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: #dc3545;
+    border-radius: 50%;
+    border: 2px solid #383e4b;
+    z-index: 2;
+    animation: pulse-dot 1.5s infinite;
+}
+
+/* Desktop positioning for dot badge */
+@media screen and (min-width: 768px) {
+    .sidebar-badge-dot {
+        top: 8px;
+        right: 12px;
+    }
+}
+
+/* Mobile positioning for dot badge */
+@media screen and (max-width: 768px) {
+    .sidebar-badge-dot {
+        top: 50%;
+        right: 20px;
+        transform: translateY(-50%);
+    }
+}
+
+/* Dot badge animation */
+@keyframes pulse-dot {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 0.8;
+    }
+}
+
+/* Hover effects for dot badge */
+.sidebar-nav-link:hover .sidebar-badge-dot {
+    background: #ff6b6b;
+}
+
+/* Selected link badge adjustments */
+.sidebar-nav-link-selected .sidebar-badge {
+    background: rgba(255,255,255,0.9) !important;
+    color: #0d6efd !important;
+    border-color: #0d6efd;
+}
+
+.sidebar-nav-link-selected .sidebar-badge-dot {
+    border-color: #0d6efd;
+}

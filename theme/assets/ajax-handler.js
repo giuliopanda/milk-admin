@@ -5,66 +5,76 @@
 
 // customizations the native fetch to add permission denied handling
 const originalFetch = window.fetch;
-window.fetch = function(...args) {
-    // Get the original arguments
+
+window.fetch = function (...args) {
     let [url, options = {}] = args;
-    
-    // Check if this is a POST request and we have a CSRF token
-    const method = options.method?.toUpperCase() || 'GET';
+    const method = (options.method || 'GET').toUpperCase();
+
     if (method === 'POST') {
-        // Try to get CSRF token from meta tag
-        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-        if (csrfMeta) {
-            const csrfToken = csrfMeta.getAttribute('content');
-            if (csrfToken) {
-                // Ensure headers object exists
-                options.headers = options.headers || {};
-                
-                // Add CSRF token to headers (only if not already present)
-                if (!options.headers['X-CSRF-Token'] && !options.headers['x-csrf-token']) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const csrfTokenName = document.querySelector('meta[name="csrf-token-name"]')?.getAttribute('content') || 'csrf_token';
+
+        if (csrfToken) {
+            if (options.body instanceof FormData) {
+                try {
+                    if (!options.body.has(csrfTokenName)) {
+                        options.body.append(csrfTokenName, csrfToken);
+                    }
+                } catch (err) {
+                    console.error("Errore nell'aggiungere il token al FormData:", err);
+                }
+                // NON forzare un oggetto headers se già è Headers API
+                if (!options.headers) {
+                    options.headers = new Headers();
+                }
+                if (options.headers instanceof Headers) {
+                    if (!options.headers.has('X-CSRF-Token')) {
+                        options.headers.set('X-CSRF-Token', csrfToken);
+                    }
+                } else if (!options.headers['X-CSRF-Token'] && !options.headers['x-csrf-token']) {
+                    options.headers['X-CSRF-Token'] = csrfToken;
+                }
+            } else {
+                if (!options.headers) {
+                    options.headers = {};
+                }
+                if (options.headers instanceof Headers) {
+                    if (!options.headers.has('X-CSRF-Token')) {
+                        options.headers.set('X-CSRF-Token', csrfToken);
+                    }
+                } else if (!options.headers['X-CSRF-Token'] && !options.headers['x-csrf-token']) {
                     options.headers['X-CSRF-Token'] = csrfToken;
                 }
             }
         }
     }
-    
-    // Make the request with modified options
-    return originalFetch.apply(this, [url, options])
-        .then(response => {
-            // Clone the response so we can read it multiple times
-            const responseClone = response.clone();
-            
-            // Process the response for permission denied
-            responseClone.json().then(data => {
-                // Check for permission denied responses
-                if (data.permission_denied === true) {
-                    // Show toast notification for permission denied
-                    window.toasts.show(`Permission denied: ${data.msg}`, 'danger');
-                    
-                    // You might want to handle redirection or other actions here
-                    console.log('Permission denied:', data.msg);
-                }
-                if (data.csrf_error === true && response.status === 422 ) {
-                    window.toasts.show(`Security token expired. Refreshing page...`, 'danger');
-                    // Reload the page to get a fresh CSRF token
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 3000);
-                }
-            }).catch(err => {
-                // If the response is not JSON, just continue
-                console.log('Response is not JSON or is empty');
+
+    try {
+        return originalFetch.apply(this, [url, options])
+            .then(response => {
+                const clone = response.clone();
+                clone.json().then(data => {
+                    if (data.permission_denied) {
+                        window.toasts?.show(`Permission denied: ${data.msg}`, 'danger');
+                    }
+                    if (data.csrf_error && response.status === 422) {
+                        window.toasts?.show(`Security token expired. Refreshing page...`, 'danger');
+                        setTimeout(() => window.location.reload(), 3000);
+                    }
+                }).catch(() => {});
+                return response;
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                throw error;
             });
-            
-            // Return the original response for further processing
-            return response;
-        })
-        .catch(error => {
-            // Handle network errors
-            console.error('Fetch error:', error);
-            throw error;
-        });
+    } catch (err) {
+        console.error("Errore prima della chiamata fetch:", err);
+        throw err;
+    }
 };
+
+
 
 // Helper function to handle AJAX responses consistently
 window.handleAjaxResponse = function(response) {

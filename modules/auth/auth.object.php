@@ -215,3 +215,95 @@ class LoginAttemptsObject extends AbstractObject {
         ]);
     }
 }
+
+/**
+ * Access log object class for auth module  
+ * Maps to #__access_logs table
+ */
+class AccessLogObject extends AbstractObject {
+    /**
+     * Initialize rules for access log object based on database schema
+     */
+    public function init_rules() {
+        $this->rule('id', [
+            'type' => 'int',
+            'primary' => true,
+            'mysql' => true
+        ]);
+        
+        $this->rule('user_id', [
+            'type' => 'int',
+            'mysql' => true,
+            'nullable' => false,
+            'label' => 'User ID'
+        ]);
+
+        $this->rule('username', [
+            'type' => 'string',
+            'length' => 128,
+            'mysql' => true,
+            'nullable' => false,
+            'label' => 'Username'
+        ]);
+        
+        $this->rule('session_id', [
+            'type' => 'string',
+            'length' => 128,
+            'mysql' => true,
+            'nullable' => false,
+            'label' => 'Session ID'
+        ]);
+        
+        $this->rule('login_time', [
+            'type' => 'datetime',
+            'mysql' => true,
+            'nullable' => false,
+            'label' => 'Login Time'
+        ]);
+        
+        $this->rule('logout_time', [
+            'type' => 'datetime',
+            'mysql' => true,
+            'nullable' => true,
+            'label' => 'Logout Time'
+        ]);
+        
+        $this->rule('ip_address', [
+            'type' => 'string',
+            'length' => 64,
+            'mysql' => true,
+            'nullable' => false,
+            'label' => 'IP Address'
+        ]);
+        
+        $this->rule('user_agent', [
+            'type' => 'string',
+            'length' => 512,
+            'mysql' => true,
+            'nullable' => true,
+            'label' => 'User Agent'
+        ]);
+        
+        $this->rule('pages_activity', [
+            'type' => 'array',
+            'mysql' => true,
+            'nullable' => true,
+            'default' => '{}',
+            'label' => 'Pages Activity'
+        ]);
+        
+        $this->rule('last_activity', [
+            'type' => 'datetime',
+            'mysql' => true,
+            'nullable' => true,
+            'label' => 'Last Activity'
+        ]);
+        
+        $this->rule('session_duration', [
+            'type' => 'int',
+            'mysql' => true,
+            'nullable' => true,
+            'label' => 'Session Duration (seconds)'
+        ]);
+    }
+}

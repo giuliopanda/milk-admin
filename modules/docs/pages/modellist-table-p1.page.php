@@ -53,10 +53,11 @@ $listStructure->set_column('title', 'Title', 'text', true, false);
 $model->set_list_structure($listStructure);
     </code></pre>
 
-    <h4>get_list_structure()</h4>
+    <h4>get_list_structure($rows, $primary_key)</h4>
     <p>Returns a ListStructure instance with the table's column structure. If not set, it is automatically generated based on the table fields.</p>
+    <p>It is used to generate the table structure from the database table. If $rows is not set, it is automatically generated based on the table fields.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
-$row_info = $model->get_list_structure();
+$row_info = $model->get_list_structure($rows, 'id');
 // Now $row_info is a ListStructure instance that can be modified
 $row_info->set_column('status', 'Status', 'select', false, false, ['0' => 'Draft', '1' => 'Active']);
     </code></pre>
@@ -71,6 +72,19 @@ $model->set_no_order();
     <p>Sets the row limit per page.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
 $model->set_limit(20);
+    </code></pre>
+
+    <h4>set_order($order_field, $order_dir = 'desc')</h4>
+    <p>Sets the default sorting order for the table. This defines which field and direction will be used for sorting when no user sorting is applied.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
+// Set default sorting by creation date, newest first
+$model->set_order('created_at', 'desc');
+
+// Set default sorting by title, alphabetical order
+$model->set_order('title', 'asc');
+
+// Set default sorting by ID, descending order (default direction)
+$model->set_order('id');
     </code></pre>
 
     <h4>get_table_structure()</h4>
@@ -641,7 +655,7 @@ function table_list() {
         $rows1[] = (object)['id' => '', 'title' => 'Total', 'status' => '99999'];
         
         $table_html1 = Get::theme_plugin('table', [
-            'info' => $model->get_list_structure(), 
+            'info' => $model->get_list_structure($rows1, 'id'), 
             'rows' => $rows1, 
             'page_info' => $page_info1, 
             'table_attrs' => $table_attrs1

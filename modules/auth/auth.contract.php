@@ -443,13 +443,13 @@ class Auth implements AuthContract
     /**
      * Log a failed login attempt
      * 
-     * @param string $username_email Username or email used in attempt
+     * @param string $username Username used in attempt
      * @param string $ip_address IP address of the attempt
      * @param string $session_id Session ID of the attempt
      */
-    private function log_failed_attempt($username_email, $ip_address, $session_id) {
+    private function log_failed_attempt($username, $ip_address, $session_id) {
         $data = [
-            'username_email' => $username_email,
+            'username_email' => $username,
             'ip_address' => $ip_address,
             'session_id' => $session_id,
             'attempt_time' => date('Y-m-d H:i:s')
@@ -461,13 +461,13 @@ class Auth implements AuthContract
     /**
      * Clear failed login attempts when login is successful
      * 
-     * @param string $username_email Username or email
+     * @param string $username Username
      * @param string $ip_address IP address
      * @param string $session_id Session ID
      */
-    private function clear_failed_attempts($username_email, $ip_address, $session_id) {
+    private function clear_failed_attempts($username, $ip_address, $session_id) {
         // Remove failed attempts for this username, IP and session
-        Get::db()->delete('#__login_attempts', ['username_email' => $username_email]);
+        Get::db()->delete('#__login_attempts', ['username_email' => $username]);
         Get::db()->delete('#__login_attempts', ['ip_address' => $ip_address]);
         Get::db()->delete('#__login_attempts', ['session_id' => $session_id]);
     }
@@ -475,25 +475,22 @@ class Auth implements AuthContract
     /**
      * Verify user credentials without performing login
      * 
-     * @param string $username_email Username or email address
+     * @param string $username Username or email address
      * @param string $password Plain text password
      * @return object|false Returns user object if credentials are correct, false otherwise
      */
-    public function verify_credentials($username_email, $password) {
+    public function verify_credentials($username, $password) {
         $this->last_error = '';
         
-        if (empty($username_email) || empty($password)) {
+        if (empty($username) || empty($password)) {
             $this->last_error = 'Username/email and password are required';
             return false;
         }
         
         // First try to find user by username
-        $user_db = Get::db()->get_row("SELECT * FROM " . Get::db()->qn('#__users') . " WHERE username = ? AND status = 1", [$username_email]);
+        $user_db = Get::db()->get_row("SELECT * FROM " . Get::db()->qn('#__users') . " WHERE username = ? AND status = 1", [$username]);
         
-        // If not found by username, try by email
-        if (!is_object($user_db)) {
-            $user_db = Get::db()->get_row("SELECT * FROM " . Get::db()->qn('#__users') . " WHERE email = ? AND status = 1", [$username_email]);
-        }
+     
         
         if (!is_object($user_db)) {
             password_verify($password, '$2y$10$dummy.hash.to.prevent.timing.attacks');
@@ -512,29 +509,25 @@ class Auth implements AuthContract
     }
 
     /**
-     * Find user by username or email
+     * Find user by username 
      * 
-     * @param string $username_email Username or email address to search for
+     * @param string $username Username 
      * @param bool $include_inactive Whether to include inactive users in search (default: false)
      * @return object|false Returns user object if found, false otherwise
      */
-    public function find_user($username_email, $include_inactive = false) {
+    public function find_user($username, $include_inactive = false) {
         $this->last_error = '';
         
-        if (empty($username_email)) {
-            $this->last_error = 'Username or email is required';
+        if (empty($username)) {
+            $this->last_error = 'Username is required';
             return false;
         }
         
         $status_condition = $include_inactive ? '' : ' AND status = 1;';
         
         // First try to find user by username
-        $user_db = Get::db()->get_row("SELECT * FROM " . Get::db()->qn('#__users') . " WHERE username = ?" . $status_condition, [$username_email]);
+        $user_db = Get::db()->get_row("SELECT * FROM " . Get::db()->qn('#__users') . " WHERE username = ?" . $status_condition, [$username]);
         
-        // If not found by username, try by email
-        if (!is_object($user_db)) {
-            $user_db = Get::db()->get_row("SELECT * FROM " . Get::db()->qn('#__users') . " WHERE email = ?" . $status_condition, [$username_email]);
-        }
         
         if (!is_object($user_db)) {
             $this->last_error = $include_inactive ? 'User not found' : 'User not found or inactive';
@@ -548,16 +541,16 @@ class Auth implements AuthContract
     /**
      * Verify credentials and login user if correct
      * 
-     * @param string $username_email Username or email
+     * @param string $username
      * @param string $password Password
      * @param bool $save_sessions Whether to save session data (default: true)
      * @param bool $save_user_last_login Whether to save user last login (default: true)
      * @return bool True if login successful, false otherwise
      */
-    public function login($username_email = '', $password = '', $save_sessions = true, $save_user_last_login = true) {
+    public function login($username = '', $password = '', $save_sessions = true, $save_user_last_login = true) {
         $this->last_error = '';
        
-        if ($username_email != '') {
+        if ($username != '') {
           
             $ip_address = Get::client_ip();
             $session_id = session_id();
@@ -589,14 +582,14 @@ class Auth implements AuthContract
             }
             
             // Check if username/email is blocked
-            if ($this->is_blocked($username_email, 'username')) {
+            if ($this->is_blocked($username, 'username')) {
                 $this->last_error = 'Access temporarily blocked due to too many failed login attempts.';
                 MessagesHandler::add_error($this->last_error);
                 return false;
             }
     
             // Use verify_credentials to check login
-            $user = $this->verify_credentials($username_email, $password);
+            $user = $this->verify_credentials($username, $password);
           
             if ($user !== false) {
                 if ($save_sessions) {
@@ -620,12 +613,15 @@ class Auth implements AuthContract
                 }
                 
                 // Clear failed attempts after successful login
-                $this->clear_failed_attempts($username_email, $ip_address, $session_id);
+                $this->clear_failed_attempts($username, $ip_address, $session_id);
+                
+                // Log successful login to access logs
+                $this->log_access_login($this->current_user->id, session_id(), $ip_address, $_SERVER['HTTP_USER_AGENT'] ?? '', $this->current_user->username ?? '');
                 
                 return true;
             } else {
                 // Login failed - log the attempt
-                $this->log_failed_attempt($username_email, $ip_address, $session_id);
+                $this->log_failed_attempt($username, $ip_address, $session_id);
             }
         }
         
@@ -653,6 +649,13 @@ class Auth implements AuthContract
      */
     public function logout() {
         $this->last_error = '';
+        
+        // Log logout before clearing session
+        $current_session_id = session_id();
+        if (!$this->current_user->is_guest) {
+            $this->log_access_logout($current_session_id);
+        }
+        
         // Set session to guest
         $this->set_guest_user();
         $this->session = (object)[
@@ -895,6 +898,40 @@ class Auth implements AuthContract
         $formattedDateTime = $currentDateTime->format('Y-m-d H:i:s');
         
         Get::db()->query('DELETE FROM `#__login_attempts` WHERE attempt_time < ?', [$formattedDateTime]);
+    }
+
+    /**
+     * Log successful login to access logs
+     * 
+     * @param int $user_id User ID who logged in
+     * @param string $session_id PHP session ID
+     * @param string $ip_address IP address of the user
+     * @param string $user_agent User agent string
+     * @param string $username Username of the user
+     */
+    private function log_access_login($user_id, $session_id, $ip_address, $user_agent, $username = '') {
+        try {
+            $accessLogModel = new AccessLogModel();
+            $accessLogModel->log_login($user_id, $session_id, $ip_address, $user_agent, $username);
+        } catch (\Exception $e) {
+            // Log error but don't interrupt login process
+            error_log('Access log error during login: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Log successful logout from access logs
+     * 
+     * @param string $session_id PHP session ID
+     */
+    private function log_access_logout($session_id) {
+        try {
+            $accessLogModel = new AccessLogModel();
+            $accessLogModel->log_logout($session_id);
+        } catch (\Exception $e) {
+            // Log error but don't interrupt logout process
+            error_log('Access log error during logout: ' . $e->getMessage());
+        }
     }
 
 }

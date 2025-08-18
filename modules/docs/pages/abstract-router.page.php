@@ -68,7 +68,7 @@ class BaseModuleRouter extends AbstractRouter
 
         $model_list = new MilkCore\ModelList($this->model->table, 'table_id');
         $page_info  = $model_list->get_page_info($total, $request['limit'], $request['page'], $request['order_field'], $request['order_dir']);
-        $info       = $model_list->get_list_structure();
+        $info       = $model_list->get_list_structure($trows, 'id');
         $list_data  =  ['info' => $info, 'rows' => $trows, 'page_info' => $page_info];
         $table_html = Get::theme_plugin('table', $list_data); 
            

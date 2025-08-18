@@ -60,6 +60,43 @@ function fn_test($param1, $param2) {
 Cli::success('Success message');
 Cli::error('Error message');</code></pre>
 
+    <h2 class="mt-4">System Commands</h2>
+
+    <h4 class="mt-4">Administrator Recovery</h4>
+    <p>The system includes a built-in CLI command for emergency administrator recovery. This command creates a new administrator user when access is lost.</p>
+    
+    <div class="alert alert-warning">
+        <strong><i class="bi bi-exclamation-triangle"></i> Emergency Use Only:</strong> This command should only be used when administrator access is lost and recovery is needed.
+    </div>
+    
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-bash"># Create admin with automatic username and email
+php cli.php create-administrator
+
+# Create admin with custom username
+php cli.php create-administrator recovery_admin
+
+# Create admin with custom username and email
+php cli.php create-administrator recovery_admin admin@company.com</code></pre>
+
+    <p>The command will generate a secure random password and display the complete credentials:</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-text">=== ADMINISTRATOR CREDENTIALS ===
+Username: emergency_admin_20250811_142530
+Password: 8hF$2kLm9nP!
+Email: admin@localhost.com
+User ID: 15
+=================================
+
+IMPORTANT: Save these credentials securely!
+The password will not be displayed again.</code></pre>
+
+    <p><strong>Security Features:</strong></p>
+    <ul>
+        <li>Can only be executed from command line (not via web)</li>
+        <li>Generates 12-character secure passwords with mixed case, numbers, and symbols</li>
+        <li>Checks for username uniqueness to prevent conflicts</li>
+        <li>Creates users with full administrator privileges</li>
+    </ul>
+
     <h2 class="mt-4">Examples</h2>
 
     <h4 class="mt-4">Register and execute a function</h4>

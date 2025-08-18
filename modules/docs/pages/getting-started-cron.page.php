@@ -48,5 +48,5 @@ Hooks::set('jobs-init', function() {
 });</code></pre>
 
 <p>Go to jobs page in the admin panel and you will see your job.</p>
-<p><a href="<?php echo Route::url('?page=docs&action=/modules/docs/pages/cron.page'); ?>">Go to the Cron Module Documentation</a> for more information.</p>
+<p><a href="<?php echo Route::url('?page=docs&action=modules/docs/pages/modules-cron.page'); ?>">Go to the Cron Module Documentation</a> for more information.</p>
 </div>

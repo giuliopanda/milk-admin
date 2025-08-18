@@ -1,7 +1,7 @@
 <?php
 namespace Modules\docs;
 /**
- * @title Introduction to the MilkCore Framework
+ * @title Introduction 
  * @category Getting started
  * @order 10
  * @tags Introduction, Getting Started, Framework, MVC, MilkCore, hello-world, Route::set, _pt, controller, theme, Get::theme_page, modules, customizations, external-library, lang, media, storage, config.php, functions.php, WordPress, Laravel, Bootstrap, admin-panel, PHP, CSRF, SQL-injection, cron-jobs, APIs, email, users, permissions, CRUD, webapp, installation, update
@@ -19,10 +19,13 @@ Developed with a Bootstrap template and a lightweight and easy-to-learn framewor
 The system offers an excellent level of automatic protection from CSRF and SQL Injection, as well as extensive initial documentation.<br>
 Try it, the installation system is very fast and you can customize it for your needs. This way you can create your own webapp. Keeping it updated is even easier, you will only need, once you have finished making changes, a single shell command to create a new update version.
     </p>
+
+
+    <h2>Install modules</h2>
+    <p>First, you can try downloading new modules from the official repository <a href="https://www.milkadmin.org/download-modules/" target="_blank">https://www.milkadmin.org/download-modules/</a>. Once downloaded, you can install it by uploading the module directly from the administrative interface in the "installation" section.</p>
      
-<p>It's a basic management system, easy to learn for those who already know Laravel or WordPress.</p>
-    
-    <h2>Hello World</h2>
+
+    <h2>Create a Hello World module</h2>
     
     <p>Create a file modules/hello-world.controller.php 
     <pre><code class="language-php">use MilkCore\Route;
@@ -59,8 +62,6 @@ Route::set('hello-world', function() {
 Milk Admin/
 ├── customizations/ # Space dedicated to customizations of the distributed system
 ├── external-library/ # Downloaded libraries     
-├── lang/
-├── media/
 ├── milk-core/ # The framework
 ├── modules/ # Here you find all the system code development
 ├── storage/ # Sqlite if used and other storage data

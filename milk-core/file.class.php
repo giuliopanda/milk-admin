@@ -203,9 +203,18 @@ class File {
     public static function put_contents($file_path, $data) {
         self::$last_error = '';
         
+        // Check directory permissions first
+        $dir = dirname($file_path);
+        if (!is_writable($dir)) {
+            self::$last_error = "Directory not writable: $dir. Please check permissions.";
+            \MilkCore\MessagesHandler::add_error("Permission denied writing to: " . basename($file_path), 'file_permissions');
+            return false;
+        }
+        
         $fp = fopen($file_path, 'c');
         if (!$fp) {
             self::$last_error = "Cannot open file for writing: $file_path";
+            \MilkCore\MessagesHandler::add_error("Failed to open file: " . basename($file_path) . ". Check file permissions.", 'file_permissions');
             return false;
         }
         

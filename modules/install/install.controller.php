@@ -48,33 +48,48 @@ Route::set('install', function() {
     foreach ($files as $file) {
         require_once $file;
     }
+    
+    require_once __DIR__.'/install.service.php';
 
     $action = $_REQUEST['action'] ?? '';
+    
+    // Load JavaScript assets
+    Theme::set('javascript', Route::url().'/modules/install/assets/install.js');
     $model = new InstallModel();
+    
+    // Set breadcrumbs for install pages
+    $breadcrumbs_html = '';
+    if ($action === 'update-modules') {
+        $breadcrumbs_html = '<a href="' . Route::url(['page' => 'install']) . '">' . _r('Install') . '</a>';
+        $breadcrumbs_html .= ' / <span class="active">' . _r('List of Modules') . '</span>';
+    } else {
+        $breadcrumbs_html = '<span class="active">' . _r('Install') . '</span>';
+        $breadcrumbs_html .= ' / <a href="' . Route::url(['page' => 'install', 'action' => 'update-modules']) . '">' . _r('List of Modules') . '</a>';
+    }
+    Theme::set('header.breadcrumbs', $breadcrumbs_html);
     // Check: if the version doesn't exist, it's a new installation; otherwise, it's an update
     $version =  Config::get('version'); 
     if ($version == null) {
         // installation
         switch ($action) {
-            case 'save-config':
-              
+            case 'save-config':  
                 if ($model->check_data($_REQUEST)) {
                     // save configuration data
                     $model->execute_install($_REQUEST);
                     // save the configuration file
                     Install::save_config_file();
-                    Get::theme_page('empty', __DIR__."/install_done.page.php");
+                    Get::theme_page('empty', __DIR__."/views/install_done.page.php");
                 // $model->save_config($_REQUEST); 
                 } else {
                     $html = $model->get_html_modules();
-                    Get::theme_page('empty', __DIR__."/install.page.php", ['html' => $html]);
+                    Get::theme_page('empty', __DIR__."/views/install.page.php", ['html' => $html]);
                 }
                 break;
             
             default:
                 // set the page title
                 Theme::set('header.title', 'Ito Installation');
-                Get::theme_page('empty', __DIR__."/install.page.php", 
+                Get::theme_page('empty', __DIR__."/views/install.page.php", 
                 ['html' => $model->get_html_modules()]);
               
                 break;
@@ -89,7 +104,7 @@ Route::set('install', function() {
             // First, check if there is an update to process
             if (file_exists($update_file) && $action != 'upload-update') {
                 // Process the update
-                $update_result = process_update($update_file, $update_dir);
+                $update_result = InstallService::process_update($update_file, $update_dir);
                 
                 if ($update_result === true) {
                     // Update completed successfully
@@ -120,64 +135,126 @@ Route::set('install', function() {
             
             // Action handling
             switch ($action) {
+                case 'enable-module':
+                    if (isset($_POST['module'])) {
+                        $result = InstallService::enable_module($_POST['module']);
+                        Get::response_json(['status' => $result['success'] ? 'success' : 'error', 'data' => $result]);
+                    }
+                    break;
+                    
+                case 'disable-module':
+                    if (isset($_POST['module'])) {
+                        $result = InstallService::disable_module($_POST['module']);
+                        Get::response_json(['status' => $result['success'] ? 'success' : 'error', 'data' => $result]);
+                    }
+                    break;
+                    
+                case 'uninstall-module':
+                    if (isset($_POST['module'])) {
+                        $result = InstallService::uninstall_active_module($_POST['module']);
+                      
+                         Get::response_json(['status' => $result['success'] ? 'success' : 'error', 'data' => $result]);
+                    } else {
+                        Get::response_json(['status' => 'error', 'data' => ['success' => false, 'message' => _r('No module name provided.')]]);
+                    }
+                    break;
+                    
+                case 'uninstall-active-module':
+                    //php error
+                    error_reporting(E_ALL);
+                    ini_set('display_errors', 1);
+
+                    if (isset($_REQUEST['module'])) {
+                        require_once __DIR__ . '/install.service.php';
+                        $result = InstallService::uninstall_active_module($_REQUEST['module']);
+                        if ($result['success']) {
+                            Route::redirect_success(['page' => 'install', 'action' => 'update-modules'], $result['message']);
+                        } else {
+                            Route::redirect_error(['page' => 'install', 'action' => 'update-modules'], $result['message']);
+                        }
+                    }
+                    break;
+                    
                 case 'upload-update':
-                    // Handle update file upload
-                    if (isset($_FILES['update_file']) && $_FILES['update_file']['error'] === UPLOAD_ERR_OK) {
-                        $uploaded_file = $_FILES['update_file']['tmp_name'];
-                        $file_name = $_FILES['update_file']['name'];
+                    $result = InstallService::handle_upload_update($_FILES, $_POST);
+                    if (!$result['success']) {
+                        Route::redirect_error($result['redirect'], $result['message']);
+                    }
+                    Route::redirect($result['redirect']);
+                    break;
+                    
+                case 'upload-module':
+                   
+                    if (isset($_FILES['module_file'])) {
+                        $result = InstallService::handle_module_upload($_FILES, $_POST);
                         
-                        // Check that it is a ZIP file
-                        $file_info = pathinfo($file_name);
-                        if (strtolower($file_info['extension']) !== 'zip') {
-                            Route::redirect_error(['page' => 'install'], _r('The uploaded file must be in ZIP format.'));
-                        }
-                        
-                        // Check backup confirmation
-                        if (!isset($_POST['confirm_backup']) || $_POST['confirm_backup'] != '1') {
-                            Route::redirect_error(['page' => 'install'], _r('You must confirm you have made a backup before proceeding.'));
-                        }
-                        
-                        // Move the file to the temporary directory
-                        if (!move_uploaded_file($uploaded_file, $update_file)) {
-                            Route::redirect_error(['page' => 'install'], _r('Error during update file upload.'));
+                        if ($result['success']) {
+                            Route::redirect_success(['page' => 'install', 'action' => 'update-modules'], $result['message']);
+                        } else {
+                            Route::redirect_error(['page' => 'install', 'action' => 'update-modules'], $result['message']);
                         }
                     } else {
-                        Route::redirect_error(['page' => 'install'], _r('No file uploaded or upload error.'));
+                        Route::redirect_error(['page' => 'install', 'action' => 'update-modules'], _r('No module file provided.'));
                     }
-                    // update-step2 non esiste, ma se c'è un file zippato lo rieseguo
-                    Route::redirect(['page' => 'install', 'action' => 'update-step2']);
+                    break;
+                    
+                case 'install-module':
+                    if (isset($_POST['module_name'])) {
+                        $result = InstallService::attempt_module_installation($_POST['module_name']);
+                        Get::response_json(['status' => $result['success'] ? 'success' : 'error', 'data' => $result]);
+                    } else {
+                        Get::response_json(['status' => 'error', 'data' => ['success' => false, 'message' => _r('No module name provided.')]]);
+                    }
+                    break;
+                    
+                case 'update-modules-json':
+                    $module_data = InstallService::get_module_status_data();
+                    if (!empty($module_data['modules_to_update'])) {
+                        $updated_modules = InstallService::execute_module_updates($module_data['modules_to_update']);
+                        Get::response_json([
+                            'status' => 'success', 
+                            'data' => [
+                                'success' => true,
+                                'message' => _r('Modules updated successfully'),
+                                'updated_modules' => $updated_modules,
+                                'total_modules' => count($module_data['modules_to_update'])
+                            ]
+                        ]);
+                    } else {
+                        Get::response_json([
+                            'status' => 'success',
+                            'data' => [
+                                'success' => true,
+                                'message' => _r('No modules need updating'),
+                                'updated_modules' => [],
+                                'total_modules' => 0
+                            ]
+                        ]);
+                    }
+                    break;
+                case 'update-modules':
+                    $module_data = InstallService::get_module_status_data();
+                    
+                    // Check for action parameter to perform updates
+                    if (isset($_POST['update_modules']) && $_POST['update_modules'] == '1') {
+                        InstallService::execute_module_updates($module_data['modules_to_update']);
+                        Route::redirect(['page' => 'install', 'action' => 'update-modules']);
+                    }
+                    
+                    $html = InstallService::generate_module_status_html($module_data);
+                    Get::theme_page('default', __DIR__."/views/update-modules.page.php", ['html' => $html]);
                     break;
                 case 'update-step3':     
                     $model = new InstallModel();
-                    // Files have already been updated, now update the DB/config
-                    $html = '<p>'.sprintf(_r('Version %s has been updated.'), NEW_VERSION).'</p>';
-                    $model->execute_update();
-                    
-                    // Update the version in the config
-                    // Reload the current config file
-                    $config_content = file_get_contents(MILK_DIR.'/config.php');
-                    
-                    // Replace ONLY the version line
-                    // Look exactly for the line $conf['version'] = 'value';
-                    $config_content = preg_replace(
-                        "/^\s*\\\$conf\['version'\]\s*=\s*'[^']*';\s*$/m",
-                        " \$conf['version'] = '".NEW_VERSION."';",
-                        $config_content
-                    );
-                    
-                    // Save the file
-                    File::put_contents(MILK_DIR.'/config.php', $config_content);
-                    
-                    // Also update in memory
-                    Config::set('version', NEW_VERSION);
-                    $html = '<p>'._rh('Update completed successfully.').'</p>';
-                    Get::theme_page('default', __DIR__."/update.page.php", ['html' => $html]);
+                    $html = InstallService::execute_update_step3($model);
+                    Get::theme_page('default', __DIR__."/views/update.page.php", ['html' => $html]);
                     break;
                 default:
                     // Show update page
                     // the new version is found in the NEW_VERSION constant
                     if (defined('NEW_VERSION') && NEW_VERSION > $version) {
                         $model = new InstallModel();
+                        /*
                         // Files have already been updated, now update the DB/config
                         $html = '<p>'.sprintf(_r('Version %s has been updated.'), NEW_VERSION).'</p>';
                         $model->execute_update();
@@ -199,15 +276,15 @@ Route::set('install', function() {
                         
                         // Also update in memory
                         Config::set('version', NEW_VERSION);
-                        $html = '<p>'._rh('Update completed successfully.').'</p>';
+                        */
+                        $html = InstallService::execute_update_step3($model);
                     } else if (NEW_VERSION == $version) {
                         // nothing to update
-                        $html = '<p>'._rh('Everything is fine.').'</p>';
-                        $html .= '<p>'.sprintf(_r('%s has already been installed'), NEW_VERSION).'</p>';
+                        $html = '';
                     } else {
-                        $html = '<p>'.sprintf(_r('The system had version %s installed. Now a new less recent version %s has been proposed'), $version, NEW_VERSION).'</p>';
+                        $html = '<p class="alert alert-danger">'.sprintf(_r('The system had version %s installed. Now a new less recent version %s has been proposed'), $version, NEW_VERSION).'</p>';
                     }
-                    Get::theme_page('default', __DIR__."/update.page.php", ['html' => $html]);
+                    Get::theme_page('default', __DIR__."/views/update.page.php", ['html' => $html]);
                     break;
             }
         } else {
@@ -218,95 +295,78 @@ Route::set('install', function() {
     
 });
 
-/**
- * Process the system update
- * 
- * @param string $update_file Path to the ZIP update file
- * @param string $update_dir Temporary directory for extraction
- * @return bool|string True on success, error message string on failure
- */
-function process_update($update_file, $update_dir) {
-    require_once __DIR__.'/install.class.php';
-    
-    // Clean any previous leftovers
-    if (is_dir($update_dir)) {
-        try {
-            Install::remove_directory($update_dir);
-        } catch (\Exception $e) {
-            // Ignore errors, we will still try
-        }
-    }
-    
-    // Extract the ZIP file
-    $extract_result = Install::extract_zip($update_file, $update_dir);
-    if ($extract_result !== true) {
-        return $extract_result;
-    }
-    
-    // Check that files were extracted
-    $files = scandir($update_dir);
-    $files = array_diff($files, ['.', '..']);
-    
-    if (count($files) === 0) {
-        return _r('The ZIP file is empty.');
-    }
-    
-    // If there is only one main directory, enter it
-    if (count($files) === 1) {
-        $first_item = reset($files);
-        $first_item_path = $update_dir . '/' . $first_item;
-        if (is_dir($first_item_path)) {
-            $update_dir = $first_item_path;
-        }
-    }
-    
-    // Check for required system files
-    $required_files = ['index.php', 'milk-core'];
-    $missing_files = [];
-    
-    foreach ($required_files as $required) {
-        if (!file_exists($update_dir . '/' . $required)) {
-            $missing_files[] = $required;
-        }
-    }
-    
-    if (!empty($missing_files)) {
-        return sprintf(_r('The update file is not valid. Missing files: %s'), implode(', ', $missing_files));
-    }
-    
-    try {
-        // Copy the files excluding config.php and storage
-        Install::copy_update_files($update_dir, MILK_DIR);
-        
-        // Remove temporary files
-        unlink($update_file);
-        
-        // Completely remove extraction directory
-        $temp_dir = Get::temp_dir();
-        $extract_base_dir = $temp_dir . '/update-extracted';
-        if (is_dir($extract_base_dir)) {
-            Install::remove_directory($extract_base_dir);
-        }
-        
-        return true;
-    } catch (\Exception $e) {
-        return $e->getMessage();
-    }
-}
+
 
 /**
- * If a redirect is needed because a new version has been installed,
- * redirect to the installation page.
+ * Add sidebar link for installation/updates instead of redirecting
  */
 Hooks::set('init', function() {
     if (Permissions::check('_user.is_admin')) {
-        if (isset($_REQUEST['page']) && $_REQUEST['page'] != 'install') {
-            $version =  Config::get('version'); 
-            if (NEW_VERSION > $version) {
-                Route::redirect(['page'=>'install']);
+        $version = Config::get('version'); 
+        $system_needs_update = NEW_VERSION > $version;
+        
+        $current_versions = Config::get('module_version');
+        $settings_versions = Settings::get('module_version');
+        
+        // Compare only versions from properly formatted arrays
+        $current_versions_only = [];
+        $settings_versions_only = [];
+        
+        foreach ($current_versions as $module => $data) {
+            if (is_array($data) && isset($data['version'])) {
+                $current_versions_only[$module] = $data['version'];
             }
         }
-    }
+        
+        // Handle null or invalid settings_versions with proper error handling
+        if (!is_array($settings_versions)) {
+           // \MilkCore\MessagesHandler::add_error("Module version settings could not be loaded properly. Please check system configuration.", 'system');
+           Settings::set('module_version', $current_versions);
+            $settings_versions = []; // Fallback to empty array
+            
+        }
+        
+        foreach ($settings_versions as $module => $data) {
+            if (is_array($data) && isset($data['version'])) {
+                $settings_versions_only[$module] = $data['version'];
+            } elseif (!is_array($data)) {
+                $settings_versions_only[$module] = $data; // Legacy format
+            }
+        }
+        
+        // Check if any current version is higher than settings version (needs update)
+        $modules_need_update = false;
+        foreach ($current_versions_only as $module => $current_version) {
+            $settings_version = $settings_versions_only[$module] ?? null;
+            if ($settings_version !== null && $current_version > $settings_version) {
+                $modules_need_update = true;
+                break;
+            }
+        }
+        
+        // Add sidebar link - always same icon, title and position
+        $link_url = ($system_needs_update || $modules_need_update) ? 
+            ($system_needs_update ? 
+                Route::url(['page' => 'install']) : 
+                Route::url(['page' => 'install', 'action' => 'update-modules'])
+            ) : 
+            Route::url(['page' => 'install', 'action' => 'update-modules']);
+        
+        $sidebar_link = [
+            'url' => $link_url,
+            'title' => _r('Installation'),
+            'icon' => 'bi bi-gear-fill',
+            'order' => 95
+        ];
+        
+        // Add badge if updates are available
+        if ($system_needs_update || $modules_need_update) {
+            $sidebar_link['badge'] = '!';
+            $sidebar_link['badge_color'] = 'danger';
+        }
+        
+        Theme::set('sidebar.links', $sidebar_link);
+    } 
 });
 
 

@@ -286,3 +286,49 @@ function permission_toogle() {
         document.getElementById('permissionsBlock').style.display = 'block';
     }
 }
+
+/**
+ * Show page activity details in offcanvas
+ */
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('js-show-page-activity')) {
+        e.preventDefault();
+        showPageActivityDetails(e.target);
+    }
+});
+
+function showPageActivityDetails(button) {
+    const pagesData = button.getAttribute('data-pages-data');
+    
+    // Show offcanvas with loading
+    window.offcanvasEnd.show();
+    window.offcanvasEnd.loading_show();
+    window.offcanvasEnd.title('Page Activity Details');
+    
+    // Send request to backend to format the data
+    const formData = new FormData();
+    formData.append('pages_data', pagesData);
+    formData.append('action', 'format-page-activity');
+    formData.append('page', 'auth');
+    
+    fetch(milk_url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        window.offcanvasEnd.loading_hide();
+        
+        if (data.success) {
+            window.offcanvasEnd.body(data.html);
+        } else {
+            window.offcanvasEnd.body('<div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-2"></i>Error loading page activity details: ' + (data.error || 'Unknown error') + '</div>');
+        }
+    })
+    .catch(error => {
+        window.offcanvasEnd.loading_hide();
+        console.error('Error loading page activity details:', error);
+        window.offcanvasEnd.body('<div class="alert alert-danger"><i class="bi bi-exclamation-triangle me-2"></i>Error loading page activity details</div>');
+    });
+}

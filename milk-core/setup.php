@@ -70,7 +70,7 @@ define('STORAGE_DIR', realpath(MILK_DIR.'/'.Config::get('storage_dir', 'storage'
  * Version identifier in format AAmmXX (YearMonth + sequence)
  * @global string NEW_VERSION
  */
-define('NEW_VERSION', '250700');
+define('NEW_VERSION', '250801');
 
 Token::config(Config::get('secret_key'), Config::get('token_key'));
 
@@ -117,7 +117,6 @@ Hooks::set('init', function() {
         }
     }
 });
-
 // Apply CSRF protection automatically in the init hook because the secret key is changed at login!
 Hooks::set('init', function() {
     CSRFProtection::validate();

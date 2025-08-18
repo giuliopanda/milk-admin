@@ -27,6 +27,8 @@ class ModelList
     var $filters;
     var $order_field;
     var $order_dir;
+    var $default_order_field;
+    var $default_order_dir;
     var $table_structure = null;
     var $fn_filter = [];
     var $db;
@@ -74,18 +76,36 @@ class ModelList
     
     /**
      * Get the structure of the table columns
+     * @param array $rows The rows of the table
+     * @param string|null $primary_key The primary key of the table Send primary key and rows allow to set structure without get_table_structure
      */
-    public function get_list_structure() {
+    public function get_list_structure($rows = [], $primary_key = null) {
         if (count($this->list_structure) === 0) {
             // If not set, I set it automatically with the table fields
             $this->list_structure['checkbox'] = ['type'=>'checkbox', 'label' => ''];
-            $table_structure = $this->get_table_structure();
-            if (is_countable($table_structure)) {
-                foreach ($table_structure as $field => $row) {
-                    if ($row->Key == 'PRI') {
+            if (is_array($rows) && count($rows) > 0 ) {
+                if ($primary_key == null) {
+                    $this->get_table_structure();
+                } else {
+                    $this->primary_key = $primary_key;
+                }
+                $first_row = $rows[0];
+                foreach ($first_row as $field => $value) {
+                    if ($this->primary_key == $field) {
                         $this->list_structure[$field] = ['type' => 'text', 'label' => $field, 'primary' => true, 'order' =>  $this->order];
                     } else {
                         $this->list_structure[$field] = ['type' => 'text', 'label' => $field, 'order' =>  $this->order];
+                    }
+                }
+            } else {
+                $table_structure = $this->get_table_structure();
+                if (is_countable($table_structure)) {
+                    foreach ($table_structure as $field => $row) {
+                        if ($row->Key == 'PRI') {
+                            $this->list_structure[$field] = ['type' => 'text', 'label' => $field, 'primary' => true, 'order' =>  $this->order];
+                        } else {
+                            $this->list_structure[$field] = ['type' => 'text', 'label' => $field, 'order' =>  $this->order];
+                        }
                     }
                 }
             }
@@ -138,6 +158,18 @@ class ModelList
     }
 
     /**
+     * Set the default sorting order for the table
+     * This defines which field and direction will be used for sorting when no user sorting is applied
+     * 
+     * @param string $order_field The field name to sort by
+     * @param string $order_dir The sorting direction ('asc' or 'desc', default: 'desc')
+     */
+    public function set_order($order_field, $order_dir="desc") {
+        $this->default_order_field = $order_field;
+        $this->default_order_dir = $order_dir;
+    }
+
+    /**
      * Set the request parameters for the query
      * @return MilkCore\Query
      */
@@ -145,8 +177,18 @@ class ModelList
         if ($request == null) {
             $request = $_REQUEST[$this->table_id] ?? [];
         }
-        $this->order_field = $request['order_field'] ?? $this->primary_key;
-        $this->order_dir = $request['order_dir'] ?? 'desc';
+        if (!$this->default_order_field) {
+            $this->default_order_field = $this->primary_key;
+            $this->default_order_dir = 'desc';
+        }
+        if (!isset($request['order_field'])) {
+            $this->order_field  =  $this->default_order_field;
+            $this->order_dir = $this->default_order_dir;
+        } else {
+            $this->order_field = $request['order_field'] ?? $this->primary_key;
+            $this->order_dir = $request['order_dir'] ?? 'desc';
+        }
+       
         $limit = _absint($request['limit'] ?? $this->default_limit);
         $page = _absint($request['page'] ?? 1);
        

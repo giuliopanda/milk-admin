@@ -160,6 +160,7 @@ function generatedocs_sidebar() {
         'Getting started',
         'Abstracts Class',
         'Theme',
+        'Dynamic Table',
         'Forms',
         'API Reference'
     ];
@@ -229,6 +230,8 @@ function generatedocs_sidebar() {
         $docs_sidebar .= '</div>';
     }
 
+    $docs_sidebar .= '<a href="https://milkadmin.org/docs" target="_blank" rel="noopener noreferrer" class="text-muted">API Documentation</a> ';
+
     $docs_sidebar .= '</div>';
  
     return $docs_sidebar;
@@ -239,7 +242,7 @@ Route::set('docs', function() {
     Theme::set('javascript', Route::url().'/modules/docs/assets/docs.js');
     Theme::set('styles', Route::url().'/modules/docs/assets/docs.css');
     
-    if (Permissions::check('_user.is_admin')) {
+    if (Permissions::check('_user.is_admin', 'docs')) {
         if (!isset($_REQUEST['action'])) {
             Route::redirect('?page=docs&action=modules/docs/pages/introduction.page');
         }
@@ -262,7 +265,7 @@ Route::set('docs', function() {
 
 // Hook per aggiungere il link alla documentazione nel menu
 Hooks::set('init', function($page) {
-    if (Permissions::check('_user.is_admin')) {
+    if (Permissions::check('_user.is_admin', 'docs')) {
         Theme::set('sidebar.links', [
             'url' => Route::url('?page=docs&action=modules/docs/pages/introduction.page'), 
             'title' => 'Documentation', 

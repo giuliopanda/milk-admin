@@ -491,4 +491,108 @@ class AuthService {
         }
         return [$msg_json, $success];
     }
+
+    /**
+     * Display user profile page
+     */
+    static public function profile() {
+        $current_user = Get::make('auth')->get_user();
+        
+        if (Permissions::check('_user.is_guest')) {
+            Route::redirect('?page=auth&action=login');
+            return;
+        }
+
+        // Direct echo to bypass Theme system issues
+        Get::theme_page('default', __DIR__ . '/views/profile.php', ['user' => $current_user]);
+    }
+
+    /**
+     * Update user profile (email and/or password)
+     */
+    static public function update_profile() {
+        header('Content-Type: application/json');
+        
+        $current_user = Get::make('auth')->get_user();
+        
+        if (Permissions::check('_user.is_guest')) {
+            echo json_encode(['msg' => _r('Please login again'), 'success' => false]);
+            return;
+        }
+
+       // if (!\MilkCore\Token::check()) {
+       //     echo json_encode(['msg' => _r('Invalid token'), 'success' => false]);
+       //     return;
+       // }
+
+        $email = trim($_POST['email'] ?? '');
+        $current_password = trim($_POST['current_password'] ?? '');
+        $new_password = trim($_POST['new_password'] ?? '');
+        $confirm_password = trim($_POST['confirm_password'] ?? '');
+
+        // Validate email
+        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            echo json_encode(['msg' => _r('Please provide a valid email address'), 'success' => false]);
+            return;
+        }
+
+        $success = true;
+        $msg = '';
+
+        // Handle password change
+        if (!empty($new_password)) {
+            // Validate current password
+            if (empty($current_password)) {
+                echo json_encode(['msg' => _r('Current password is required to change password'), 'success' => false]);
+                return;
+            }
+
+            // Verify current password
+            $auth = Get::make('auth');
+            $temp_login = $auth->login($current_user->username, $current_password, false, false);
+            if (!$temp_login) {
+                echo json_encode(['msg' => _r('Current password is incorrect'), 'success' => false]);
+                return;
+            }
+
+            // Validate new password
+            if (strlen($new_password) < 6) {
+                echo json_encode(['msg' => _r('New password must be at least 6 characters long'), 'success' => false]);
+                return;
+            }
+
+            if ($new_password !== $confirm_password) {
+                echo json_encode(['msg' => _r('New password and confirm password do not match'), 'success' => false]);
+                return;
+            }
+
+            // Update password
+            $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+            $update_result = Get::db()->update('#__users', [
+                'email' => $email,
+                'password' => $hashed_password
+            ], ['id' => $current_user->id]);
+
+            if ($update_result === false) {
+                echo json_encode(['msg' => _r('Failed to update profile: ') . Get::db()->last_error, 'success' => false]);
+                return;
+            }
+
+            $msg = _r('Profile and password updated successfully');
+        } else {
+            // Update only email
+            $update_result = Get::db()->update('#__users', [
+                'email' => $email
+            ], ['id' => $current_user->id]);
+
+            if ($update_result === false) {
+                echo json_encode(['msg' => _r('Failed to update profile: ') . Get::db()->last_error, 'success' => false]);
+                return;
+            }
+
+            $msg = _r('Profile updated successfully');
+        }
+
+        echo json_encode(['msg' => $msg, 'success' => true]);
+    }
 }

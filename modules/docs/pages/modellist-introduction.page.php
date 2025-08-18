@@ -49,7 +49,7 @@ Route::set(\'dynamic_table_example\', function() {
   
     // Table generation
     $table_html = Get::theme_plugin(\'table\', [
-        \'info\' => $model->get_list_structure(),
+        \'info\' => $model->get_list_structure($rows, \'id\'),
         \'rows\' => $rows,
         \'page_info\' => $page_info
     ]);

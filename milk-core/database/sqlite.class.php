@@ -1107,6 +1107,9 @@ class SQLite
             // Open database (creates file if not exists)
             $this->sqlite = new \SQLite3($this->dbname);
             
+            // Set busy timeout to handle locked database (wait up to 5 seconds)
+            $this->sqlite->busyTimeout(5000); // 5000 milliseconds = 5 seconds
+            
             // Enable foreign keys
             $this->sqlite->exec('PRAGMA foreign_keys = ON');
             
