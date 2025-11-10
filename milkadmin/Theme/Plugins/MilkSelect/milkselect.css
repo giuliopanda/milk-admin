@@ -1,0 +1,260 @@
+.cs-autocomplete-container {
+  position: relative;
+  max-width: 600px;
+  width: 100%;
+}
+
+/* Wrapper base */
+.cs-autocomplete-wrapper-single,
+.cs-autocomplete-wrapper-multiple {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #8d9aac;
+  border-radius: 0.375rem;
+  min-height: 38px;
+  cursor: text;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.cs-autocomplete-wrapper-multiple {
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px;
+}
+
+.cs-autocomplete-wrapper-single {
+  padding: 6px 12px;
+}
+
+.cs-autocomplete-wrapper-single:focus-within,
+.cs-autocomplete-wrapper-multiple:focus-within {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Validation states - only show when form has was-validated or field has explicit is-valid/is-invalid */
+.was-validated .cs-autocomplete-wrapper-single:invalid,
+.was-validated .cs-autocomplete-wrapper-multiple:invalid,
+.cs-autocomplete-wrapper-single.is-invalid,
+.cs-autocomplete-wrapper-multiple.is-invalid {
+  border-color: #dc3545;
+  padding-right: calc(1.5em + 0.75rem);
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right calc(0.375em + 0.1875rem) center;
+  background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+}
+
+.was-validated .cs-autocomplete-wrapper-single:invalid:focus-within,
+.was-validated .cs-autocomplete-wrapper-multiple:invalid:focus-within,
+.cs-autocomplete-wrapper-single.is-invalid:focus-within,
+.cs-autocomplete-wrapper-multiple.is-invalid:focus-within {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+.was-validated .cs-autocomplete-wrapper-single:valid,
+.was-validated .cs-autocomplete-wrapper-multiple:valid,
+.cs-autocomplete-wrapper-single.is-valid,
+.cs-autocomplete-wrapper-multiple.is-valid {
+  border-color: #198754;
+  padding-right: calc(1.5em + 0.75rem);
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%23198754' d='M2.3 6.73.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right calc(0.375em + 0.1875rem) center;
+  background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+}
+
+.was-validated .cs-autocomplete-wrapper-single:valid:focus-within,
+.was-validated .cs-autocomplete-wrapper-multiple:valid:focus-within,
+.cs-autocomplete-wrapper-single.is-valid:focus-within,
+.cs-autocomplete-wrapper-multiple.is-valid:focus-within {
+  border-color: #198754;
+  box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
+}
+
+/* Form-floating support */
+.form-floating.milkselect-floating {
+  position: relative;
+}
+
+.form-floating.milkselect-floating .cs-autocomplete-container {
+  max-width: 100%;
+}
+
+.form-floating.milkselect-floating .cs-autocomplete-wrapper-single, .form-floating.milkselect-floating  .cs-autocomplete-wrapper-multiple {
+  min-height: calc(3.5rem + 2px);
+  padding-top: 1.625rem;
+  padding-bottom: 0.625rem;
+  border-radius: 0.375rem;
+}
+
+.form-floating.milkselect-floating .cs-autocomplete-input-single {
+  padding: 0;
+  height: auto;
+  line-height: 1.25;
+}
+
+.form-floating.milkselect-floating > label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding: .375rem 0.75rem;
+  margin: 0;
+  pointer-events: none;
+  border: 1px solid transparent;
+  transform-origin: 0 0;
+  transition: opacity 0.1s ease-in-out, transform 0.1s ease-in-out;
+  color: #6c757d;
+  z-index: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: .9rem;
+  white-space: nowrap;
+}
+
+/* Label transformation when input has value or is focused */
+.form-floating.milkselect-floating .cs-autocomplete-wrapper-single:focus-within ~ label,
+.form-floating.milkselect-floating .cs-autocomplete-input-single:not(:placeholder-shown) ~ label,
+.form-floating.milkselect-floating .cs-autocomplete-input-single.has-value ~ label {
+  opacity: 0.65;
+  transform: scale(0.85) translateY(-1.25rem) translateX(0.15rem);
+  color: #0d6efd;
+}
+
+/* Ensure the visible input behaves like form-control in floating mode */
+.form-floating.milkselect-floating .cs-autocomplete-input-single.form-control {
+  border: none;
+  background: transparent;
+  padding: 0;
+  box-shadow: none !important;
+}
+
+/* Adjust the clear button position in floating mode */
+.form-floating.milkselect-floating .cs-clear-button {
+  position: relative;
+  z-index: 3;
+  font-size: 1.4rem;
+  margin-top: -0.8rem;
+}
+
+/* Selected items */
+.cs-autocomplete-selected-item {
+  display: inline-flex;
+  align-items: center;
+  background: #0d6efd;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.cs-autocomplete-remove-btn {
+  margin-left: 6px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: #fff;
+  font-size: 1.1rem;
+  line-height: 1;
+  opacity: 0.8;
+  transition: opacity 0.15s;
+}
+
+.cs-autocomplete-remove-btn:hover {
+  opacity: 1;
+}
+
+/* Input */
+.cs-autocomplete-input,
+.cs-autocomplete-input-single {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 1rem;
+  padding: 4px;
+}
+
+/* Dropdown */
+.cs-autocomplete-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 0.375rem;
+  margin-top: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 1050;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-5px);
+  transition: all 0.2s ease;
+}
+
+.cs-autocomplete-dropdown.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* Dropdown shown above the input (when near bottom of page) */
+.cs-autocomplete-dropdown.show-above {
+  top: auto;
+  bottom: 100%;
+  margin-top: 0;
+  margin-bottom: 4px;
+  transform: translateY(5px);
+}
+
+.cs-autocomplete-dropdown.show-above.show {
+  transform: translateY(0);
+}
+
+/* Items */
+.cs-autocomplete-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.cs-autocomplete-item:hover {
+  background-color: #f8f9fa;
+}
+
+.cs-autocomplete-item.active {
+  background-color: #0d6efd;
+  color: white;
+}
+
+.cs-autocomplete-no-results {
+  padding: 8px 12px;
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Clear button */
+.cs-clear-button {
+  margin-left: 8px;
+  color: #6c757d;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  border-radius: 50%;
+  font-size: 1rem;
+  line-height: 1;
+  transition: all 0.15s;
+}
+
+.cs-clear-button:hover {
+  color: #dc3545;
+  background-color: #f8f9fa;
+}

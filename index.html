@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MILK ADMIN - Welcome</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            max-width: 600px;
+            width: 100%;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+        
+        h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            font-weight: 300;
+        }
+        
+        .milk-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+        
+        .instruction-box {
+            background: #f8f9ff;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 5px;
+            text-align: left;
+        }
+        
+        .instruction-box h2 {
+            color: #667eea;
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+        
+        .path {
+            background: #e8ecff;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            color: #333;
+            display: inline-block;
+            margin: 10px 0;
+        }
+        
+        .security-info {
+            background: #fff7e6;
+            border: 1px solid #ffd700;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        
+        .security-info h3 {
+            color: #cc8c00;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .structure-info {
+            background: #f0f8ff;
+            border: 1px solid #4a90e2;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .structure-info h3 {
+            color: #2c5aa0;
+            margin-bottom: 15px;
+        }
+
+        .folder-structure {
+            margin: 15px 0;
+        }
+
+        .folder {
+            margin-bottom: 15px;
+            padding: 12px;
+            background: white;
+            border-radius: 6px;
+            border-left: 4px solid #4a90e2;
+        }
+
+        .folder-name {
+            font-weight: bold;
+            color: #2c5aa0;
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+
+        .folder-desc {
+            color: #666;
+            font-size: 0.95em;
+            line-height: 1.4;
+        }
+
+        .subfolder {
+            margin-top: 10px;
+            margin-left: 20px;
+            padding: 8px;
+            background: #f8f9ff;
+            border-radius: 4px;
+            border-left: 3px solid #7bb3f0;
+        }
+
+        .subfolder .folder-name {
+            font-size: 1em;
+            color: #4a90e2;
+        }
+        
+        .credentials {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .credentials h3 {
+            color: #2e7d32;
+            margin-bottom: 10px;
+        }
+        
+        .cred-item {
+            background: white;
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            border-left: 3px solid #4caf50;
+        }
+        
+        p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #999;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="milk-icon">🥛</div>
+        <h1>Welcome to MILK ADMIN!</h1>
+        
+        <div class="instruction-box">
+            <h2>📂 Installation Required</h2>
+            <p>To install the system, please navigate to:</p>
+            <div class="path">/public_html</div>
+            <p>Follow the installation wizard to complete the setup process.</p>
+        </div>
+        
+        <div class="security-info">
+            <h3>🔒 Security Architecture</h3>
+            <p>The <strong>public_html</strong> directory is intentionally separated from the main application code and configuration files for enhanced security:</p>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+                <li><strong>Web-accessible files</strong> are isolated in public_html</li>
+                <li><strong>Sensitive configuration</strong> and core code remain outside the web root</li>
+                <li><strong>Direct access</strong> to critical system files is prevented</li>
+                <li><strong>Attack surface</strong> is minimized through proper file isolation</li>
+            </ul>
+            <p>This architecture follows security best practices and helps protect your system from unauthorized access.</p>
+        </div>
+
+        <div class="structure-info">
+            <h3>🏗️ Project Structure</h3>
+            <div class="folder-structure">
+                <div class="folder">
+                    <div class="folder-name">📁 public_html</div>
+                    <div class="folder-desc">Web server document root - point your server configuration here. Contains all publicly accessible files.</div>
+                </div>
+                <div class="folder">
+                    <div class="folder-name">📁 milkadmin</div>
+                    <div class="folder-desc">Core application directory containing the main system code and logic.</div>
+                    <div class="subfolder">
+                        <div class="folder-name">📁 Modules</div>
+                        <div class="folder-desc">Contains all installed modules and extensions.</div>
+                    </div>
+                </div>
+                <div class="folder">
+                    <div class="folder-name">📁 milkadmin_local</div>
+                    <div class="folder-desc">Local configuration directory containing custom settings, code overrides, and media files.</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="credentials">
+            <h3>🔑 Default Login Credentials</h3>
+            <p>Once installation is complete, you can access the admin panel with:</p>
+            <div class="cred-item">
+                <strong>Username:</strong> admin
+            </div>
+            <div class="cred-item">
+                <strong>Password:</strong> admin
+            </div>
+            <p><em>⚠️ Remember to change these default credentials after your first login!</em></p>
+        </div>
+        
+        <div class="footer">
+            <p>MILK ADMIN System © 2025</p>
+        </div>
+    </div>
+</body>
+</html>

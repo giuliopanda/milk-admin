@@ -1,0 +1,444 @@
+<?php
+namespace Builders;
+
+use App\{Get, MessagesHandler, ObjectToForm, Route};
+use Builders\Traits\{FormFieldManagementTrait, FormSystemOperationsTrait, FormContainerManagementTrait, FormRelationshipTrait};
+
+!defined('MILK_DIR') && die(); // Prevents direct access
+
+/**
+ * FormBuilder - Fluent interface for creating and managing dynamic forms
+ *
+ * Provides a simplified API that wraps Form and ObjectToForm classes
+ * for easier form creation with method chaining.
+ *
+ * @package Builders
+ * @author MilkAdmin
+ */
+class FormBuilder {
+    use FormFieldManagementTrait;
+    use FormSystemOperationsTrait;
+    use FormContainerManagementTrait;
+    use FormRelationshipTrait;
+
+    private $page = '';
+    private $url_success = null;
+    private $url_error = null;
+    private $current_action = 'edit';
+    private $form_attributes = [];
+    private $fields = [];
+    private $submit_text = 'Save';
+    private $submit_attributes = [];
+    private $custom_html = [];
+    private $field_order = [];
+    private $actions = [];
+    private $function_results = null;
+    private $model = null;
+    private $only_json = false;
+    private $execute_actions = false;
+    private $last_insert_id = 0;
+
+
+    /**
+     * Constructor - Initialize FormBuilder
+     *
+     * @param string $url_success URL to redirect to on successful submission. Accept replace url placeholders es: ?page=users&id=%id%
+     * @param string $url_error URL to redirect to on error
+     */
+    public function __construct($model, $page = '', $url_success = null, $url_error = null, $only_json = false) {
+        $this->page = ($page != '') ? $page : $_REQUEST['page'] ?? '';
+        $this->setModel($model);
+        // torna all'elenco
+        $this->url_success = (!is_null($url_success)) ? $url_success : '?page=' . $this->page;
+        $this->url_error = (!is_null($url_error)) ? $url_error : Route::getQueryString();
+        $this->current_action = $_REQUEST['action'] ?? 'edit';
+        $this->only_json = $only_json;
+        if ($this->only_json === true) {
+            $this->url_success = null;
+            $this->url_error = null;
+        }
+        // Initialize default actions
+        $this->initializeDefaultActions();
+    }
+
+    /**
+     * Get the pressed action key
+     *
+     * @return string The pressed action key
+     */
+    public function getPressedAction(): string {
+        foreach ($this->actions as $action_key => $action_config) {
+            if (isset($_POST[$action_key]) || isset($_REQUEST[$action_key])) {
+               return $action_key;
+            }
+        }
+        return '';
+    }
+
+           
+       
+
+    /**
+     * Set the page name for action links
+     *
+     * @param string $page_name Page name to use in action links
+     * @return self For method chaining
+     *
+     * @example ->setPage('users')
+     */
+    public function setPage(string $page_name): self {
+        $this->page = $page_name;
+        return $this;
+    }
+
+    /**
+     * Set the page identifier
+     *
+     * @param string $page Page identifier
+     * @return self For method chaining
+     *
+     * @example ->page('user_profile')
+     */
+    public function page(string $page): self {
+        $this->page = $page;
+        return $this;
+    }
+
+    /**
+     * Set success redirect URL
+     *
+     * @param string $url URL to redirect to on successful submission
+     * @return self For method chaining
+     *
+     * @example ->urlSuccess('?page=users&action=list')
+     */
+    public function urlSuccess(string $url): self {
+        $this->url_success = $url;
+        return $this;
+    }
+
+    /**
+     * Set error redirect URL
+     *
+     * @param string $url URL to redirect to on error
+     * @return self For method chaining
+     *
+     * @example ->urlError('?page=users&action=edit&error=1')
+     */
+    public function urlError(string $url): self {
+        $this->url_error = $url;
+        return $this;
+    }
+
+    /**
+     * Set the current action (detected from request)
+     *
+     * @param string $current_action Current action being processed
+     * @return self For method chaining
+     *
+     * @example ->currentAction('edit')
+     */
+    public function currentAction(string $current_action): self {
+        $this->current_action = $current_action;
+        return $this;
+    }
+
+    /**
+     * Set form attributes
+     *
+     * @param array $attributes Form element attributes
+     * @return self For method chaining
+     *
+     * @example ->formAttributes(['class' => 'custom-form', 'enctype' => 'multipart/form-data'])
+     */
+    public function formAttributes(array $attributes): self {
+        $this->form_attributes = array_merge($this->form_attributes, $attributes);
+        return $this;
+    }
+
+    /**
+     * Set form ID
+     *
+     * @param string $formId Form ID attribute
+     * @return self For method chaining
+     *
+     * @example ->setId('myForm')
+     */
+    public function setId($formId) {
+        $this->form_attributes['id'] = $formId;
+        return $this;
+    }
+
+    /**
+     * Set model for save/delete operations
+     *
+     * @param object $model Model instance
+     * @return self For method chaining
+     *
+     * @example ->setModel($this->model)
+     */
+    private function setModel(object $model): self {
+        $this->model = $model;
+        $data = Route::getSessionData();
+        $id = $this->model->getPrimaryKey();
+
+        // Preload relationships with ->with() to avoid lazy loading
+        $this->model->with('badge');
+
+        $data_object = $this->model->getByIdForEdit(_absint($_REQUEST[$id] ?? 0), ($data['data'] ?? []));
+
+        $this->addFieldsFromObject($data_object, 'edit');
+        return $this;
+    }
+
+    /**
+     * Get model instance
+     *
+     * @return object|null Model instance
+     */
+    public function getModel(): ?object {
+        return $this->model;
+    }
+
+    /**
+     * Create a save action callback
+     *
+     * @param string|null $redirect_success Success redirect URL
+     * @param string|null $redirect_error Error redirect URL
+     * @return callable Callback function for save action
+     *
+     * @example 'action' => FormBuilder::saveAction()
+     */
+    public static function saveAction(): callable {
+        return function(FormBuilder $form_builder, array $request): array {
+            $redirect_success = $form_builder->url_success;
+            $redirect_error = $form_builder->url_error;
+            if ($form_builder->save($request)) {
+                if ($form_builder->only_json === true) {
+                    return ['success' => true, 'message' => _r('Save successful')];
+                } else {
+                    $redirect_success = Route::replaceUrlPlaceholders($redirect_success, [...$request, 'id' =>  $form_builder->last_insert_id, $form_builder->model->getPrimaryKey() =>  $form_builder->last_insert_id]);
+                    if ($redirect_success != '') {
+                        Route::redirectSuccess($redirect_success, _r('Save successful'));
+                    }
+                    return [];
+                }
+            } 
+
+            if ($form_builder->only_json === true) {
+                return ['success' => false, 'message' => _r('Save failed')];
+            } else {  
+                $redirect_error = Route::replaceUrlPlaceholders($redirect_error, [...$request]);
+                if ($redirect_error != '') {
+                    Route::redirectError($redirect_error, _r('Save failed'));
+                }
+                return [];
+            }
+            return ['success' => false, 'message' => _r('Save failed')];
+        };
+    }
+
+    /**
+     * Create a delete action callback
+     *
+     * @param string|null $redirect_success Success redirect URL
+     * @param string|null $redirect_error Error redirect URL
+     * @return callable Callback function for delete action
+     *
+     * @example 'action' => FormBuilder::deleteAction('?page=list')
+     */
+    public static function deleteAction(?string $redirect_success = null, ?string $redirect_error = null): callable {
+        return function(FormBuilder $form_builder, array $request) use ($redirect_success, $redirect_error): array {
+            return $form_builder->delete($request, $redirect_success, $redirect_error);
+        };
+    }
+
+    /**
+     * Create a condition callback that checks if primary key exists and is greater than 0
+     *
+     * This is useful for showing buttons only when editing existing records
+     *
+     * @param object $model The model instance to check primary key against
+     * @return callable Callback function that returns true if primary key exists and > 0
+     *
+     * @example 'condition' => FormBuilder::hasExistingRecord($model)
+     */
+    public static function hasExistingRecord(object $model): callable {
+        return function(array $fields) use ($model): bool {
+            $primary_key = $model->getPrimaryKey();
+            return isset($fields[$primary_key]['row_value']) &&
+                   !empty($fields[$primary_key]['row_value']) &&
+                   $fields[$primary_key]['row_value'] > 0;
+        };
+    }
+
+    /**
+     * Create a generic condition callback that checks a field value against an operator
+     *
+     * Supported operators: '=', '!=', '>', '<', '>=', '<=', 'in', 'not_in'
+     *
+     * @param string $field_name Field name to check
+     * @param string $operator Operator to use
+     * @param mixed $value Value to compare against (can be array for 'in' and 'not_in')
+     * @return callable Callback function that returns true if condition is met
+     *
+     * @example 'condition' => FormBuilder::fieldCondition('status', '=', 'active')
+     * @example 'condition' => FormBuilder::fieldCondition('id', '!=', 0)
+     * @example 'condition' => FormBuilder::fieldCondition('type', 'in', ['admin', 'moderator'])
+     */
+    public static function fieldCondition(string $field_name, string $operator, $value): callable {
+        return function(array $fields) use ($field_name, $operator, $value): bool {
+            // Get field value (prefer row_value over default value)
+            $field_value = null;
+            if (isset($fields[$field_name]['row_value'])) {
+                $field_value = $fields[$field_name]['row_value'];
+            } elseif (isset($fields[$field_name]['value'])) {
+                $field_value = $fields[$field_name]['value'];
+            }
+           
+            // If field doesn't exist, condition fails
+            if ($field_value === null && !isset($fields[$field_name])) {
+                return false;
+            }
+
+            // Evaluate condition based on operator
+            switch ($operator) {
+                case 'empty':
+                   return ($field_value === null ||   $field_value === '' || $field_value === 0 || is_null($field_value) )  ;
+                case 'not_empty':
+                    return ($field_value !== null &&   $field_value !== '' && $field_value !== 0 && !is_null($field_value) )  ;
+                case '=':
+                case '==':
+                    return $field_value == $value;
+
+                case '!=':
+                case '<>':
+                    return $field_value != $value;
+
+                case '>':
+                    return $field_value > $value;
+
+                case '<':
+                    return $field_value < $value;
+
+                case '>=':
+                    return $field_value >= $value;
+
+                case '<=':
+                    return $field_value <= $value;
+
+                case 'in':
+                    return is_array($value) && in_array($field_value, $value);
+
+                case 'not_in':
+                    return is_array($value) && !in_array($field_value, $value);
+
+                default:
+                    // Unknown operator, condition fails
+                    return false;
+            }
+        };
+    }
+
+    /**
+     * Set submit button text and attributes (deprecated - use setActions instead)
+     *
+     * @param string $text Button text
+     * @param array $attributes Button attributes
+     * @return self For method chaining
+     *
+     * @example ->submit('Update Profile', ['class' => 'btn btn-success'])
+     */
+    public function submit(string $text = 'Save', array $attributes = []): self {
+        $this->submit_text = $text;
+        $this->submit_attributes = $attributes;
+        return $this;
+    }
+
+    /**
+     * Get HTML (alias for render)
+     *
+     * @return string Complete HTML form
+     */
+    public function getHtml(): string {
+        return $this->render();
+    }
+
+    /**
+     * Get form HTML for passing to view functions
+     *
+     * This method is designed to be used in module edit functions
+     * to generate form HTML that can be passed to view templates.
+     *
+     * @return string Complete HTML form
+     *
+     * @example
+     * // In module edit function:
+     * $form_builder = FormBuilder::create($this->model)->getForm();
+     * Response::render('Assets/view.php', ['form' => $form_builder->getForm()], 'default');
+     */
+    public function getForm(): string {
+        return $this->render();
+    }
+
+    /**
+     * Factory method to create FormBuilder instance
+     *
+     * @param object $model Model instance
+     * @param string $page Page identifier
+     * @param ?string $url_success Success redirect URL or false to return json
+     * @param ?string $url_error Error redirect URL
+     * @return self New FormBuilder instance
+     *
+     * @example FormBuilder::create($this->model, $this->page, '?page=mymodule', '?page=mymodule&action=edit&id=%id%')
+     */
+    public static function create($model, $page = '', $url_success_or_json = null, $url_error = null): self {
+        if ($url_success_or_json === false) {
+            $only_json = true;
+            $url_success = null;
+        } else {
+            $only_json = false;
+            $url_success = $url_success_or_json;
+        }
+        return new self($model, $page, $url_success, $url_error, $only_json);
+    }
+
+    /**
+     * Active fetch mode
+     * 
+     */
+    public function activeFetch() {
+        $this->only_json = true;
+        $this->url_success = null;
+        $this->url_error = null;
+        if (isset($this->actions['cancel']['type']) && $this->actions['cancel']['type'] == 'link') {
+            unset($this->actions['cancel']['link']);
+            $this->actions['cancel']['type'] = 'submit';
+                
+        }
+        $this->actions = [
+            'save' => [
+                'label' => 'Save',
+                'type' => 'submit',
+                'class' => 'btn btn-primary',
+                'callback' => $this->saveAction()
+            ],
+            'cancel' => [
+                'label' => 'Cancel',
+                'type' => 'link',
+                'class' => 'btn btn-secondary ms-2',
+                'link' => '?page=' . $this->page
+            ]
+        ];
+        return $this;
+    }
+
+    /**
+     * Magic method to output HTML when object is used as string
+     *
+     * @return string Complete HTML form
+     */
+    public function __toString(): string {
+        return $this->render();
+    }
+}
