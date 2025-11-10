@@ -86,7 +86,7 @@ class RecipesModel extends AbstractModel
             ->integer('cook_time')->label('Cook Time (min)')
             ->select('difficulty')->options(['Easy', 'Medium', 'Hard'])
             ->text('tags')
-            ->integer('rating')->between(1, 5)
+            ->integer('rating')
             ->created_at()->hideFromEdit()
             ->datetime('last_cooked')->nullable();
    }
@@ -282,3 +282,4 @@ Major rewrite introducing modern PHP practices and professional architecture:
 
 
 Pick one thing you're currently tracking in a spreadsheet or paying a subscription for. Build your own version this weekend.
+
