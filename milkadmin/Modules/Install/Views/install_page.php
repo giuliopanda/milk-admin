@@ -91,6 +91,14 @@ function convertToBytes($memoryString) {
     return (int)($value * $units[$unit]);
 }
 
+if (!is_dir(LOCAL_DIR . '/storage')) {
+    mkdir(LOCAL_DIR . '/storage', 0755, true);
+}
+
+if (!is_dir(LOCAL_DIR . '/media')) {
+    mkdir(LOCAL_DIR . '/media', 0755, true);
+}
+
 // Check directory permissions (unificato)
 $directories = [
     'root' => [
@@ -294,4 +302,3 @@ Built with a Bootstrap template and a lightweight, easy-to-learn framework for c
         </div>
     </form>
 </div>
-
