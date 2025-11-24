@@ -9,26 +9,13 @@
 [![Status](https://img.shields.io/badge/Status-Alpha-orange.svg)](https://github.com/giuliopanda/milk-admin)
 [![Documentation](https://img.shields.io/badge/Docs-Online-green.svg)](https://milkadmin.org/milk-admin-v251100/?page=docs&action=Developer/GettingStarted/introduction)
 
-**Milk Admin** is a lightweight PHP framework designed to create administration interfaces that complement existing systems. Think of it as a way to quickly build custom admin panels that integrate with your applications - similar to how WordPress provides an admin interface, but lighter and more flexible.
 
-**However**, we're currently in Alpha. While the goal is to power professional admin interfaces, right now it's perfect for something else: **building tools for yourself**.
+**Milk Admin** is a basic PHP administration component. Its goal is to provide a system for quickly creating control panels that can be integrated into core applications as a support tool.
+
+**However**, it's currently in the alpha stage, so I was wondering if I could try downloading it and using it for a personal project, such as a system for cataloging my favorite sites or projects. **Could you help me determine whether I'm heading in the right direction?**
+
 
  **[Official Website](https://www.milkadmin.org/)** |  **[Documentation](https://milkadmin.org/milk-admin-v251100/?page=docs&action=Developer/GettingStarted/introduction)** |  **[Live Demo](https://milkadmin.org/demo/?page=auth&action=login)**
-
----
-
-## Build Tools for Yourself
-
-Milk Admin is perfect for **PHP developers** who want to create their own systems. Some ideas:
-
-**Personal data** - Library catalogs, recipe databases, media collections with your notes  
-**Knowledge management** - Your own Notion/Evernote alternative, code snippets, research notes  
-**Life tracking** - Expense tracker, workout log, habit tracker without sharing data  
-**Projects** - Side project dashboard, client portal for freelancers, learning progress tracker  
-
-**The key advantage**: You own your data, customize everything, no subscriptions, complete privacy.
-
-> **Reality check**: This is in Alpha. It's perfect for personal projects and experimentation, but not ready for production or client work. That's actually a feature - you can learn and break things without consequences.
 
 ---
 
@@ -126,6 +113,14 @@ class RecipesModule extends AbstractModule
 This gives you: paginated list, full CRUD, search, validation, and automatic save. **Add features as you need them.**
 
 ---
+### Modules
+
+I've already developed several modules that you can download and install to see how the system works.
+[https://www.milkadmin.org/download-modules/](https://www.milkadmin.org/download-modules/)
+
+
+
+---
 
 ## Security Built-in
 
@@ -148,13 +143,8 @@ Personal projects need security too:
 - Core framework is stable
 - Builders accelerate development significantly  
 - Security features implemented and tested
-- Documentation covers the basics
+- Documentation
 
-**What needs work:**
-- Error handling could be more elegant
-- Test coverage is incomplete
-- Some edge cases need refinement
-- Documentation still expanding
 
 **Perfect for**: Personal projects, learning, experimentation  
 **Not ready for**: Production systems, client projects, mission-critical apps
@@ -171,11 +161,7 @@ I'm currently working on several modules that will be available in the demo by e
 
 ### The Bigger Vision
 
-Milk Admin is being built to create **professional admin interfaces** that integrate with existing systems - CRMs, e-commerce platforms, custom applications. The kind of tool you'd use to build a backend panel for your clients or your company's internal tools.
-
-**But we're not there yet.** The Alpha status means some rough edges, incomplete test coverage, and evolving documentation.
-
-That's why we're starting with **personal projects**. They're the perfect testing ground: real use cases, but with the freedom to experiment. As developers build their own tools and report issues, the framework matures.
+Milk Admin is designed to create **professional admin interfaces** that integrate with existing systems - CRMs, e-commerce platforms, custom applications. The kind of tool you'd use to build a backend panel for your clients or your company's internal tools.
 
 **The path forward:**
 1. **Now (Alpha)**: Personal projects, experimentation, learning
@@ -183,25 +169,16 @@ That's why we're starting with **personal projects**. They're the perfect testin
 3. **1.0 Release**: Ready for client work and production systems
 
 ###  Core Improvements (2025)
-- [ ] **Robust error handling** with helpful messages
 - [ ] **Comprehensive test suite** for confidence
 - [ ] **Enhanced builders**:
-  - [ ] List view (non-tabular layouts)
-  - [ ] Calendar widget
+  - [X] List view (non-tabular layouts)
+  - [X] Calendar widget
   - [ ] Chart components for dashboards
 - [ ] **Advanced email system** with templates
 - [ ] **Two-factor authentication**
 
-###  Future Explorations
-Features driven by real use cases. Priority TBD based on community feedback:
-- Data import/export tools
-- File upload management
-- Advanced reporting
-- Complex form builders
-- Mobile-responsive enhancements
-- Plugin architecture
 
-**Goal**: Stable 1.0 release by mid-2026
+**Goal**: I hope to be able to release Stable 1.0 by mid-2026.
 
 ---
 
@@ -290,9 +267,3 @@ Major rewrite introducing modern PHP practices and professional architecture:
 -  [GitHub Repository](https://github.com/giuliopanda/milk-admin)
 
 ---
-
-## Ready to Start?
-
-
-Pick one thing you're currently tracking in a spreadsheet or paying a subscription for. Build your own version this weekend.
-
