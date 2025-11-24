@@ -270,7 +270,7 @@ Built with a Bootstrap template and a lightweight, easy-to-learn framework for c
             <?php if ($blockingPermissionsFailed): ?>
             <div class="alert alert-info">
                 <h6><i class="fas fa-terminal me-2"></i>Fix on Linux:</h6>
-                <code class="d-block">sudo chown -R www-data:www-data <?php echo dirname(MILK_DIR); ?></code>
+                <code class="d-block">sudo chown -R www-data:www-data <?php echo dirname(MILK_DIR); ?>;</code>
                 <code class="d-block">sudo find <?php echo dirname(MILK_DIR); ?> -type d -exec chmod 755 {} \;</code>
                 <code class="d-block">sudo find <?php echo dirname(MILK_DIR); ?> -type f -exec chmod 644 {} \;</code>
                 <small class="text-body-secondary">Replace 'www-data' with your web server user if different.</small>
