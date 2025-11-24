@@ -7,20 +7,19 @@ require 'milkadmin.php';
 
 require MILK_DIR . '/autoload.php';
 
-// Carica i moduli
+// Load modules
 Get::loadModules();
 
-// Inizializza il sistema
+// Initialize system
 Hooks::run('api-init');
 
-// Carica i file di lingua
-Lang::loadIniFile(MILK_DIR . '/lang/'.Config::get('lang', '').'.ini');
-Lang::loadIniFile(MILK_DIR . '/lang/'.Config::get('lang', '').'.adding.ini');
+// Load lang files
+Lang::loadPhpFile(MILK_DIR.'/Lang/'.Get::userLocale().'.php');
 
-// Trova l'endpoint API (solo page, come il router normale)
+// Find API endpoint (only page, like normal router)
 $page = $_REQUEST['page'] ?? '';
 
-// Pulisci il parametro (caratteri alfanumerici, -, _ e /)
+// Clean parameter (alphanumeric, -, _ and /)
 $page = preg_replace('/[^a-zA-Z0-9-_\/]/', '', $page);
 
 if (empty($page)) {
@@ -28,21 +27,28 @@ if (empty($page)) {
 }
 
 try {
-    // Esegui l'endpoint API
+    // Run API endpoint
     if (!API::run($page)) {
         API::errorResponse("API endpoint '$page' not found", 404);
     }
-    
+
 } catch (\Exception $e) {
-    // Log dell'errore
+    // Error log
     Logs::set('api', 'ERROR', 'API Exception: ' . $e->getMessage());
-    
-    // Risposta di errore
+
+    // Error response
     API::errorResponse('Internal server error', 500);
 }
 
-// Pulizia finale
+// Final cleanup
 Hooks::run('end-api');
+
+// Output the buffered response if available
+if (API::hasBufferedResponse()) {
+    API::outputResponse();
+}
+
+// Clean up
 Settings::save();
 Get::db()->close();
 Get::db2()->close();

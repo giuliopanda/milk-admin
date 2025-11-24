@@ -51,8 +51,7 @@ Hooks::set('install.execute_config', function($data) {
         'lang' => 'en',
         'version' => NEW_VERSION,
         'time_zone' => 'Europe/Rome',
-        'date-format' => 'd/m/Y',
-        'time-format' => 'H:i'
+        'locale' => 'it_IT'
     ];
     Install::setConfigFile('', $default_data);
     return $data;

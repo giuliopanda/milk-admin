@@ -114,10 +114,6 @@ class Form
                 case 'week':
                     $value = $value->format('Y-\WW'); // Anno-W[numero settimana]
                     break;
-                case 'datetime':
-                    // Raramente usato, deprecato in HTML5
-                    $value = $value->format('Y-m-d\TH:i:s\Z');
-                    break;
                 default:
                     // Per input text o altri tipi, mantieni il formato originale
                     $value = $value->format('Y-m-d H:i:s');
@@ -979,13 +975,39 @@ class Form
      * @return void
      */
     private static function applyInvalidClass(&$options, $name) {
-        
-        $invalid_class = MessagesHandler::getInvalidClass($name);
+        // Normalize field name by removing data[ prefix and ] suffix
+        // This allows MessagesHandler to match field names correctly
+        $normalized_name = $name;
+        if (preg_match('/^data\[(.+)\]$/', $name, $matches)) {
+            $normalized_name = $matches[1];
+        }
+
+        $invalid_class = MessagesHandler::getInvalidClass($normalized_name);
         if ($invalid_class != '') {
             $options['class'] = (array_key_exists('class', $options)) ?
                 $options['class'] . " " . $invalid_class :
                 $invalid_class;
+
+            // Add invalid-feedback message if not already set
+            if (!array_key_exists('invalid-feedback', $options)) {
+                $errors = MessagesHandler::getErrors();
+                // First check if there's a message with this exact field name
+                if (isset($errors[$normalized_name])) {
+                    $options['invalid-feedback'] = $errors[$normalized_name];
+                } else {
+                    // Otherwise, search for the field in composite keys (e.g., "field1|field2")
+                    foreach ($errors as $key => $message) {
+                        if (strpos($key, '|') !== false) {
+                            $fields = explode('|', $key);
+                            if (in_array($normalized_name, $fields)) {
+                                $options['invalid-feedback'] = $message;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
         }
-        
+
     }
 }

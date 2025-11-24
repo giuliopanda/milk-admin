@@ -1,0 +1,54 @@
+/* List Plugin Styles */
+
+.list-container {
+    position: relative;
+}
+
+.card-body .card-body-overflow {
+    overflow: auto;
+    margin-bottom: 1rem;
+}
+
+.list-pagination-click, .list-bulk-action {
+    cursor: pointer;
+}
+
+/* Selection styles for list items */
+.js-selected,
+.js-list-tr.js-selected {
+    background-color: #fff8ab !important;
+}
+
+/* Hover effect for list items */
+.js-list-tr.js-hover {
+    background-color: #f8f9fa;
+}
+
+/* Link actions styling */
+.link-action {
+    cursor: pointer;
+    color: #0d6efd;
+    text-decoration: none;
+    margin-right: 0.5rem;
+}
+
+.link-action:hover {
+    color: #0a58ca;
+    text-decoration: underline;
+}
+
+/* Box item styles */
+
+
+/* Bulk actions row */
+.js-row-bulk-actions.invisible {
+    display: none;
+}
+
+.js-row-bulk-actions.visible {
+    display: block;
+    padding: 0.75rem;
+    background-color: #e7f1ff;
+    border-radius: 0.25rem;
+    margin-bottom: 1rem;
+}

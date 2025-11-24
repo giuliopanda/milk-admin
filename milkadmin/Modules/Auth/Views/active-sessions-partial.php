@@ -11,26 +11,26 @@ namespace Modules\Auth\Views;
             <div class="card-header">
                 <h5 class="mb-0">
                     <i class="bi bi-people-fill me-2"></i>
-                    Active Users
+                    <?php _pt('Active users'); ?>
                 </h5>
             </div>
             <div class="card-body">
                 <?php if (empty($active_users_data)): ?>
                     <div class="alert alert-info mb-0">
                         <i class="bi bi-info-circle me-2"></i>
-                        No active sessions or remember me tokens found.
+                        <?php _pt('No active sessions or remember me tokens found.'); ?>
                     </div>
                 <?php else: ?>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
                             <thead>
                                 <tr>
-                                    <th>Username</th>
-                                    <th>Email</th>
-                                    <th class="text-center">Active Sessions</th>
-                                    <th class="text-center">Active Remember Me</th>
-                                    <th>Last Activity</th>
-                                    <th class="text-end">Actions</th>
+                                    <th><?php _pt('Username'); ?></th>
+                                    <th><?php _pt('Email'); ?></th>
+                                    <th class="text-center"><?php _pt('Active sessions'); ?></th>
+                                    <th class="text-center"><?php _pt('Active Remember Me'); ?></th>
+                                    <th><?php _pt('Last activity'); ?></th>
+                                    <th class="text-end"><?php _pt('Action'); ?></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -71,10 +71,10 @@ namespace Modules\Auth\Views;
                                             <a href="?page=auth&action=logout-all-devices&user_id=<?php echo (int)$user['user_id']; ?>"
                                                data-fetch="post"
                                                class="btn btn-sm btn-danger"
-                                               onclick="return confirm('Are you sure you want to logout user \'<?php echo htmlspecialchars($user['username'] ?? ''); ?>\' from all devices?\n\nThis will:\n- Terminate all active sessions\n- Revoke all remember me tokens');"
-                                               title="Logout from all devices">
+                                               onclick="return confirm('<?php _pt('Are you sure you want to logout user'); ?> \'<?php echo htmlspecialchars($user['username'] ?? ''); ?>\' <?php _pt('from all devices?'); ?>\n\n<?php _pt('This will:'); ?>\n- <?php _pt('Terminate all active sessions'); ?>\n- <?php _pt('Revoke all remember me tokens'); ?>');"
+                                               title="<?php _pt('Logout from all devices'); ?>">
                                                 <i class="bi bi-box-arrow-right me-1"></i>
-                                                Logout All Devices
+                                                <?php _pt('Logout all devices'); ?>
                                             </a>
                                         </td>
                                     </tr>
@@ -87,7 +87,7 @@ namespace Modules\Auth\Views;
             <div class="card-footer">
                 <small class="text-body-secondary">
                     <i class="bi bi-info-circle me-1"></i>
-                    Showing users with active sessions or remember me tokens only
+                    <?php _pt('Showing users with active sessions or remember me tokens only'); ?>
                 </small>
             </div>
         </div>

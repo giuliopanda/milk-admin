@@ -17,12 +17,19 @@ use App\{HttpClient, Route, Theme, Response, Get};
 
 Route::set('home', function() {
     Theme::set('styles', Route::url().'/Modules/Home/Assets/home.css');
-    
+
     // Download the page from the server
-    $response = HttpClient::get('https://www.milkadmin.org/ma32r4c2aa/api.php?page=home/get', ['timeout' => 2]);
-    if ($response !== false && $response['status_code'] == 200) {
-        $article = $response['body'];   
-    } else {
+    try {
+        $response = HttpClient::get('https://www.milkadmin.org/ma32r4c2aa/api.php?page=home/get', ['timeout' => 2]);
+        if ($response['status_code'] == 200) {
+            $article = $response['body'];
+        } else {
+            ob_start();
+            require_once(Get::dirPath(__DIR__ . '/Assets/welcome.php'));
+            $article = ob_get_clean();
+        }
+    } catch (\App\Exceptions\HttpClientException $e) {
+        // Fallback to local welcome page if HTTP request fails
         ob_start();
         require_once(Get::dirPath(__DIR__ . '/Assets/welcome.php'));
         $article = ob_get_clean();

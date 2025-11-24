@@ -103,8 +103,8 @@ class AuthModule extends AbstractModule
         
         // Build breadcrumb based on current action
         $links = LinksBuilder::fill()
-            ->add('User List', '?page=auth&action=user-list')->icon('bi bi-people-fill')
-            ->add('Access Logs', '?page=auth&action=access-logs')->icon('bi bi-lock-fill')
+            ->add('User list', '?page=auth&action=user-list')->icon('bi bi-people-fill')
+            ->add('Access logs', '?page=auth&action=access-logs')->icon('bi bi-lock-fill')
             ->add('Help', '?page=docs&action=User/Administration/user-management-guide')->icon('bi bi-question-circle-fill');
            
         

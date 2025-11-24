@@ -126,7 +126,7 @@ abstract class AbstractApi {
      * @param string $message Success message
      * @return array
      */
-    protected function success($data = null, string $message = 'Success'): array {
+    protected function success($data = null, string $message = ''): array {
         $response = ['success' => true, 'message' => $message];
         if ($data !== null) {
             $response['data'] = $data;
@@ -141,8 +141,8 @@ abstract class AbstractApi {
      * @param mixed $errors Additional error details
      * @return array
      */
-    protected function error(string $message = 'Error', $errors = null): array {
-        $response = ['error' => true, 'message' => $message];
+    protected function error(string $message = '', ?array $errors = null): array {
+        $response = ['success' => false, 'message' => $message];
         if ($errors !== null) {
             $response['errors'] = $errors;
         }

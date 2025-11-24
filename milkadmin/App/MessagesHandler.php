@@ -188,22 +188,26 @@ class MessagesHandler {
 
     /**
      * Outputs error and success messages
-     * 
+     *
      * This method directly outputs HTML for both error and success messages.
      * It's typically used in templates to display all messages at once.
-     * 
+     *
      * @example
      * ```php
      * // In a template file
      * MessagesHandler::displayMessages();
+     *
+     * // Display only general errors (exclude field-specific errors)
+     * MessagesHandler::displayMessages(true);
      * ```
      *
+     * @param bool $exclude_field_errors If true, excludes error messages associated with specific fields
      * @return void
      */
-    public static function displayMessages(): void {
+    public static function displayMessages(bool $exclude_field_errors = false): void {
         $html = '';
         if (!empty(self::$error_messages)) {
-            $html .= self::getErrorAlert();
+            $html .= self::getErrorAlert($exclude_field_errors);
         }
         if (!empty(self::$success_messages)) {
             $html .= self::getSuccessAlert();
@@ -225,17 +229,28 @@ class MessagesHandler {
      * if (!empty($errorHtml)) {
      *     echo $errorHtml;
      * }
+     *
+     * // Get only general errors (exclude field-specific errors)
+     * $errorHtml = MessagesHandler::getErrorAlert(true);
      * ```
      *
+     * @param bool $exclude_field_errors If true, excludes messages associated with specific fields
      * @return string HTML for the error alert box or an empty string if there are no errors
      */
-    public static function getErrorAlert(): string {
-        if (empty(self::$error_messages)) {
+    public static function getErrorAlert(bool $exclude_field_errors = false): string {
+        $errors = self::$error_messages;
+
+        // Filter out field-specific errors if requested
+        if ($exclude_field_errors) {
+            $errors = array_filter($errors, fn($key) => is_int($key), ARRAY_FILTER_USE_KEY);
+        }
+
+        if (empty($errors)) {
             return '';
         }
 
         $html = '<div class="alert alert-danger alert-dismissible fade show js-alert-container js-auto-dismiss" role="alert">';
-        foreach (self::$error_messages as $key => $error) {
+        foreach ($errors as $key => $error) {
             $html .= '<div data-field="' . _r($key). '">' . $error . '</div>';
         }
         $html .= '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
@@ -246,10 +261,10 @@ class MessagesHandler {
 
     /**
      * Gets all error messages
-     * 
+     *
      * This method returns the array of all error messages, which can be used
      * for custom error handling or display.
-     * 
+     *
      * @example
      * ```php
      * // Get all error messages
@@ -257,11 +272,18 @@ class MessagesHandler {
      * foreach ($errors as $field => $message) {
      *     echo "Error in {$field}: {$message}\n";
      * }
+     *
+     * // Get only general errors (exclude field-specific errors)
+     * $errors = MessagesHandler::getErrors(true);
      * ```
      *
+     * @param bool $exclude_field_errors If true, excludes messages associated with specific fields
      * @return array Array of error messages
      */
-    public static function getErrors(): array {
+    public static function getErrors(bool $exclude_field_errors = false): array {
+        if ($exclude_field_errors) {
+            return array_filter(self::$error_messages, fn($key) => is_int($key), ARRAY_FILTER_USE_KEY);
+        }
         return self::$error_messages;
     }
 

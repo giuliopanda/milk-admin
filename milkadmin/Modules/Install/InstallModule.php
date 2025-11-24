@@ -186,36 +186,54 @@ class InstallModule extends AbstractModule
     #[RequestAction('update-modules-json')]
     public function actionUpdateModulesJson()
     {
-        $module_data = InstallService::getModuleStatusData();
-        if (!empty($module_data['modules_to_update'])) {
-             try {
+        try {
+            $module_data = InstallService::getModuleStatusData();
+
+            if (!empty($module_data['modules_to_update'])) {
                 $updated_modules = InstallService::executeModuleUpdates($module_data['modules_to_update']);
-            } catch (\Exception $e) {
+
                 Response::json([
-                    'status' => 'error',
+                    'status' => 'success',
                     'data' => [
-                        'success' => false,
-                        'message' => sprintf(_r('Error updating modules: %s'), $e->getMessage())
+                        'success' => true,
+                        'message' => _r('Modules updated successfully'),
+                        'updated_modules' => $updated_modules,
+                        'total_modules' => count($module_data['modules_to_update'])
+                    ]
+                ]);
+            } else {
+                Response::json([
+                    'status' => 'success',
+                    'data' => [
+                        'success' => true,
+                        'message' => _r('No modules need updating'),
+                        'updated_modules' => [],
+                        'total_modules' => 0
                     ]
                 ]);
             }
+        } catch (\Exception $e) {
             Response::json([
-                'status' => 'success',
+                'status' => 'error',
                 'data' => [
-                    'success' => true,
-                    'message' => _r('Modules updated successfully'),
-                    'updated_modules' => $updated_modules,
-                    'total_modules' => count($module_data['modules_to_update'])
+                    'success' => false,
+                    'message' => sprintf(_r('Error during module update process: %s'), $e->getMessage()),
+                    'error_type' => get_class($e),
+                    'error_file' => $e->getFile(),
+                    'error_line' => $e->getLine(),
+                    'error_trace' => $e->getTraceAsString()
                 ]
             ]);
-        } else {
+        } catch (\Throwable $e) {
             Response::json([
-                'status' => 'success',
+                'status' => 'error',
                 'data' => [
-                    'success' => true,
-                    'message' => _r('No modules need updating'),
-                    'updated_modules' => [],
-                    'total_modules' => 0
+                    'success' => false,
+                    'message' => sprintf(_r('Critical error during module update: %s'), $e->getMessage()),
+                    'error_type' => get_class($e),
+                    'error_file' => $e->getFile(),
+                    'error_line' => $e->getLine(),
+                    'error_trace' => $e->getTraceAsString()
                 ]
             ]);
         }
@@ -410,8 +428,18 @@ class InstallModule extends AbstractModule
         $setup_file = MILK_DIR.'/setup.php';
         if (file_exists($setup_file)) {
             $setup = file_get_contents($setup_file);
-            $setup = str_replace("define('NEW_VERSION', '".$version."');", "define('NEW_VERSION', '".$new_version."');", $setup);
-            File::putContents($folder_milkadmin.'/setup.php', $setup);
+            // Use regex to replace any version number, not just the current one
+            $setup = preg_replace(
+                "/define\('NEW_VERSION',\s*'[0-9]+'\);/",
+                "define('NEW_VERSION', '".$new_version."');",
+                $setup
+            );
+            try {
+                File::putContents($folder_milkadmin.'/setup.php', $setup);
+            } catch (\App\Exceptions\FileException $e) {
+                Cli::error('Failed to write setup.php: ' . $e->getMessage());
+                return;
+            }
         } else {
             Cli::echo('Warning: setup.php not found at ' . $setup_file);
         }
@@ -436,7 +464,12 @@ class InstallModule extends AbstractModule
         $config_file = __DIR__.'/Assets/InstallFiles/installation_config_example.php';
         if (file_exists($config_file)) {
             $new_config = file_get_contents($config_file);
-            File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/milkadmin_local/config.php', $new_config);
+            try {
+                File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/milkadmin_local/config.php', $new_config);
+            } catch (\App\Exceptions\FileException $e) {
+                Cli::error('Failed to write config.php: ' . $e->getMessage());
+                return;
+            }
         } else {
             Cli::echo('Warning: installation_config_example.php not found at ' . $config_file);
         }
@@ -445,25 +478,63 @@ class InstallModule extends AbstractModule
         $functions_file = __DIR__.'/Assets/InstallFiles/functions_example.php';
         if (file_exists($functions_file)) {
             $new_functions = file_get_contents($functions_file);
-            File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/milkadmin_local/functions.php', $new_functions);
+            try {
+                File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/milkadmin_local/functions.php', $new_functions);
+            } catch (\App\Exceptions\FileException $e) {
+                Cli::error('Failed to write functions.php: ' . $e->getMessage());
+                return;
+            }
         } else {
             Cli::echo('Warning: functions_example.php not found at ' . $functions_file);
         }
 
-        $new_readme = file_get_contents(__DIR__.'/Assets/InstallFiles/readme_example.md');
-        File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/milkadmin_local/readme.md', $new_readme);
+        try {
+            $new_readme = file_get_contents(__DIR__.'/Assets/InstallFiles/readme_example.md');
+            File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/milkadmin_local/readme.md', $new_readme);
 
-        $license = file_get_contents(MILK_DIR.'/../LICENSE');
-        File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/LICENSE', $license);
+            $license = file_get_contents(MILK_DIR.'/../LICENSE');
+            File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/LICENSE', $license);
 
-        $readme = file_get_contents(MILK_DIR.'/../readme.md');
-        File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/readme.md', $readme);
+            $readme = file_get_contents(MILK_DIR.'/../readme.md');
+            File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/readme.md', $readme);
 
-        $new_milkadmin = file_get_contents( __DIR__.'/Assets/InstallFiles/milkadmin_example.php');
-        File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/public_html/milkadmin.php', $new_milkadmin);
+            $new_milkadmin = file_get_contents( __DIR__.'/Assets/InstallFiles/milkadmin_example.php');
+            File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/public_html/milkadmin.php', $new_milkadmin);
 
-        $index = file_get_contents( MILK_DIR.'/../index.html');
-        File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/index.html', $index);
+            $index = file_get_contents( MILK_DIR.'/../index.html');
+            File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/index.html', $index);
+        } catch (\App\Exceptions\FileException $e) {
+            Cli::error('Failed to write distribution files: ' . $e->getMessage());
+            return;
+        }
+
+        try {
+            // Copy composer.json
+            if (file_exists(MILK_DIR.'/../composer.json')) {
+                $composer_json = file_get_contents(MILK_DIR.'/../composer.json');
+                File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/composer.json', $composer_json);
+            } else {
+                Cli::echo('  Warning: composer.json not found in root directory');
+            }
+
+            // Copy composer.lock
+            if (file_exists(MILK_DIR.'/../composer.lock')) {
+                $composer_lock = file_get_contents(MILK_DIR.'/../composer.lock');
+                File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/composer.lock', $composer_lock);
+            } else {
+                Cli::echo('  Warning: composer.lock not found in root directory');
+            }
+
+            // Copy vendor directory
+            if (is_dir(MILK_DIR.'/../vendor')) {
+                Install::copyFiles(MILK_DIR.'/../vendor', MILK_DIR.'/../milk-admin-v'.$new_version.'/vendor');
+            } else {
+                Cli::echo('  Warning: vendor/ directory not found in root directory');
+            }
+        } catch (\App\Exceptions\FileException $e) {
+            Cli::error('Failed to copy composer files: ' . $e->getMessage());
+            return;
+        }
 
         // If "zip" parameter was passed, create a zip file
         if ($create_zip) {
@@ -621,6 +692,130 @@ class InstallModule extends AbstractModule
         }
 
         Cli::echo('    Added ' . $file_count . ' files + ' . $dir_count . ' directories');
+    }
+
+    /**
+     * CLI Command to update paths and URL configuration
+     * Usage: php milkadmin/cli.php update-paths [new_url]
+     *
+     * If new_url is not provided, only directory paths will be updated.
+     * If new_url is provided, both paths and URL will be updated.
+     */
+    #[Shell('update-paths', system: true)]
+    public function updatePaths($new_url = '')
+    {
+        Cli::drawTitle("Update Paths and URL Configuration", 8);
+
+        // Get current paths
+        $milk_dir = MILK_DIR;
+        $local_dir = LOCAL_DIR;
+        $project_root = dirname($milk_dir);
+
+        Cli::echo("\n\033[1;37mCurrent configuration:\033[0m");
+        Cli::echo("  MILK_DIR:  \033[0;36m" . $milk_dir . "\033[0m");
+        Cli::echo("  LOCAL_DIR: \033[0;36m" . $local_dir . "\033[0m");
+
+        // Update public_html/milkadmin.php
+        $milkadmin_php = $project_root . '/public_html/milkadmin.php';
+
+        if (!file_exists($milkadmin_php)) {
+            Cli::error("File not found: " . $milkadmin_php);
+            return;
+        }
+
+        Cli::echo("\n\033[1;33m[1/2]\033[0m Updating paths in \033[0;37mpublic_html/milkadmin.php\033[0m...");
+
+        $content = file_get_contents($milkadmin_php);
+        $original_content = $content;
+
+        // Update MILK_DIR path
+        $content = preg_replace(
+            '/define\(\'MILK_DIR\',\s*realpath\(__DIR__\s*\.\s*"\/\.\.\/[^"]+"\)\);/',
+            'define(\'MILK_DIR\', realpath(__DIR__."/../milkadmin"));',
+            $content
+        );
+
+        // Update LOCAL_DIR path
+        $content = preg_replace(
+            '/define\(\'LOCAL_DIR\',\s*realpath\(__DIR__\s*\.\s*"\/\.\.\/[^"]+"\)\);/',
+            'define(\'LOCAL_DIR\', realpath(__DIR__."/../milkadmin_local"));',
+            $content
+        );
+
+        if ($content !== $original_content) {
+            try {
+                File::putContents($milkadmin_php, $content);
+                Cli::success("  ✓ Paths updated successfully in milkadmin.php");
+            } catch (\App\Exceptions\FileException $e) {
+                Cli::error("  Failed to update milkadmin.php: " . $e->getMessage());
+                return;
+            }
+        } else {
+            Cli::echo("  \033[0;33m✓ No changes needed in milkadmin.php\033[0m");
+        }
+
+        // Update URL in config.php if new_url is provided
+        if (!empty($new_url)) {
+            $config_php = $local_dir . '/config.php';
+
+            if (!file_exists($config_php)) {
+                Cli::error("File not found: " . $config_php);
+                return;
+            }
+
+            Cli::echo("\n\033[1;33m[2/2]\033[0m Updating URL in \033[0;37mmilkadmin_local/config.php\033[0m...");
+
+            // Make sure URL ends with /
+            if (substr($new_url, -1) !== '/') {
+                $new_url .= '/';
+            }
+
+            $config_content = file_get_contents($config_php);
+            $original_config = $config_content;
+
+            // Update base_url in config
+            $config_content = preg_replace(
+                '/\$conf\[\'base_url\'\]\s*=\s*\'[^\']*\';/',
+                "\$conf['base_url'] = '" . addslashes($new_url) . "';",
+                $config_content
+            );
+
+            if ($config_content !== $original_config) {
+                try {
+                    File::putContents($config_php, $config_content);
+                    Cli::success("  ✓ URL updated successfully to: \033[1;36m" . $new_url . "\033[0m");
+                } catch (\App\Exceptions\FileException $e) {
+                    Cli::error("  Failed to update config.php: " . $e->getMessage());
+                    return;
+                }
+            } else {
+                Cli::echo("  \033[0;33m✓ No changes needed in config.php\033[0m");
+            }
+
+            // Also update BASE_URL constant in milkadmin.php if it exists
+            $milkadmin_content = file_get_contents($milkadmin_php);
+            $original_milkadmin = $milkadmin_content;
+
+            $milkadmin_content = preg_replace(
+                '/define\(\'BASE_URL\',\s*\'[^\']*\'\);/',
+                "define('BASE_URL', '" . addslashes($new_url) . "');",
+                $milkadmin_content
+            );
+
+            if ($milkadmin_content !== $original_milkadmin) {
+                try {
+                    File::putContents($milkadmin_php, $milkadmin_content);
+                    Cli::success("  ✓ BASE_URL updated in milkadmin.php");
+                } catch (\App\Exceptions\FileException $e) {
+                    Cli::error("  Failed to update BASE_URL in milkadmin.php: " . $e->getMessage());
+                }
+            }
+        } else {
+            Cli::echo("\n\033[0;33m[2/2]\033[0m Skipping URL update (no new URL provided)");
+            Cli::echo("  To update URL, use: \033[0;37mphp milkadmin/cli.php update-paths <new_url>\033[0m");
+        }
+
+        Cli::echo("\n\033[1;32m✓ Configuration update completed!\033[0m\n");
     }
 
     /**

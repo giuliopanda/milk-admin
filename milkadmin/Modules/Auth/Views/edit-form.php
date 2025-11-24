@@ -42,8 +42,8 @@ $user = $user ?? new \stdClass();
 
     <div class="mb-3">
         <div class="form-floating">
-            <input type="password" name="password" class="form-control" id="changePassword" placeholder="<?php echo ($user->id > 0) ? 'Change password' : 'Password'; ?>" <?php echo ($user->id > 0) ? '' : 'required'; ?>>
-            <label for="changePassword"><?php echo ($user->id > 0) ? 'Change password' : 'Password'; ?></label>
+            <input type="password" name="password" class="form-control" id="changePassword" placeholder="<?php echo ($user->id > 0) ? _pt('Change password') : _pt('Password'); ?>" <?php echo ($user->id > 0) ? '' : 'required'; ?>>
+            <label for="changePassword"><?php echo ($user->id > 0) ? _pt('Change password') : _pt('Password'); ?></label>
         </div>
     </div>
   
@@ -57,7 +57,63 @@ $user = $user ?? new \stdClass();
             <label for="selectStatus"><?php _p('Status'); ?></label>
         </div>
     </div>
-    
+
+    <?php if (\App\Config::get('use_user_timezone', false)) : ?>
+    <div class="mb-3">
+        <div class="form-floating">
+            <select class="form-select" name="timezone" id="selectTimezone">
+                <?php
+                $timezones = \DateTimeZone::listIdentifiers();
+                sort($timezones);
+                $user_timezone = $user->timezone ?? 'UTC';
+
+                // Group timezones by region
+                $grouped_timezones = [];
+                foreach ($timezones as $timezone) {
+                    $parts = explode('/', $timezone, 2);
+                    if (count($parts) === 2) {
+                        $region = $parts[0];
+                        $city = $parts[1];
+                        $grouped_timezones[$region][] = ['value' => $timezone, 'label' => $city];
+                    } else {
+                        // For timezones without a region (like UTC)
+                        $grouped_timezones['Other'][] = ['value' => $timezone, 'label' => $timezone];
+                    }
+                }
+
+                foreach ($grouped_timezones as $region => $cities) :
+                    $chunks = array_chunk($cities, 20);
+                    foreach ($chunks as $chunk_index => $chunk) : ?>
+                        <optgroup label="<?php _p($region . ($chunk_index > 0 ? ' (' . ($chunk_index + 1) . ')' : '')); ?>">
+                            <?php foreach ($chunk as $tz) : ?>
+                                <option value="<?php _p($tz['value']); ?>" <?php echo ($user_timezone == $tz['value']) ? 'selected' : ''; ?>><?php _p($tz['label']); ?></option>
+                            <?php endforeach; ?>
+                        </optgroup>
+                    <?php endforeach;
+                endforeach; ?>
+            </select>
+            <label for="selectTimezone"><?php _p('Timezone'); ?></label>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <?php
+    $available_locales = \App\Config::get('available_locales', []);
+    if (!empty($available_locales)) :
+        $user_locale = $user->locale ?? \App\Config::get('locale', 'it_IT');
+        ?>
+        <div class="mb-3">
+            <div class="form-floating">
+                <select class="form-select" name="locale" id="selectLocale">
+                    <?php foreach ($available_locales as $lang_code => $lang_name) : ?>
+                        <option value="<?php _p($lang_code); ?>" <?php echo ($user_locale == $lang_code) ? 'selected' : ''; ?>><?php _p($lang_name); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <label for="selectLocale"><?php _p('Locale'); ?></label>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <h5><?php _p('Permissions'); ?></h5>
     <?php 
     if ($current_user->is_admin == 1 && $id != $current_user->id) {
@@ -75,15 +131,15 @@ $user = $user ?? new \stdClass();
         <?php 
     } else if ($current_user->is_admin == 1 && $id == $current_user->id) { ?>
         <div class="mb-3">
-            <?php _p('You are Super Administrator'); ?>
+            <?php _pt('You are Super Administrator'); ?>
         </div>
         <?php 
     } else { ?>
           <div class="mb-3">
             <?php if ($user->is_admin == 1) {
-                _p('This user is Super Administrator');
+                _pt('This user is Super Administrator');
             } else {
-                _p('This user is not Super Administrator');
+                _pt('This user is not Super Administrator');
             } ?>
         </div>
     <?php } ?>
@@ -154,7 +210,7 @@ $user = $user ?? new \stdClass();
 <hr>
 <div class="mb-3">
     <div class="d-flex justify-content-between">
-        <button class="btn btn-primary  py-2" type="submit" onclick="saveUser()"><?php _p('Save'); ?></button>
+        <button class="btn btn-primary  py-2" type="submit" onclick="saveUser()"><?php _pt('Save'); ?></button>
 
         <?php if ($id > 0 && $user->is_admin != 1 && $id != $current_user->id) : ?>
             <button class="btn btn-danger  py-2" type="submit" onclick="deleteUser(<?php ($user->status == -1) ? 'true' : 'false'; ?>)"><?php ($user->status == -1) ? _p('Definitely Delete') : _p('Trash'); ?></button>

@@ -2,7 +2,7 @@
 namespace App\Abstracts;
 
 use App\Database\{SQLite, MySql, ResultInterface};
-use App\Get;
+use App\{Get, Config};
 use App\Abstracts\Traits\{QueryBuilderTrait, CrudOperationsTrait, SchemaAndValidationTrait, DataFormattingTrait, RelationshipsTrait, CollectionTrait, CascadeSaveTrait, RelationshipDataHandlerTrait};
 use App\Attributes\{GetFormattedValue, BeforeSave, GetRawValue, SetValue, Validate};
 use ReflectionClass;
@@ -146,6 +146,21 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
      * @var int|null
      */
     protected $last_stored_record_id = null;
+
+    /**
+     * User timezone for date conversions
+     * @var string|null
+     */
+    protected ?string $user_timezone = null;
+
+    /**
+     * Flag to track if dates in records_array are currently in user timezone or UTC
+     * false = dates are in UTC (default when loaded from database)
+     * true = dates have been converted to user timezone
+     * @var bool
+     */
+    protected bool $dates_in_user_timezone = false;
+
     /**
      * Constructor
      * Applica la configurazione statica se disponibile
@@ -328,6 +343,122 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
         return $fields;
     }
 
+   
+    /**
+     * Set flag to indicate whether dates being loaded/filled are in user timezone or UTC
+     *
+     * @param bool $in_user_timezone True if dates are in user timezone, false if in UTC
+     * @return self
+     */
+    public function setDatesInUserTimezone(bool $in_user_timezone): self
+    {
+        $this->dates_in_user_timezone = $in_user_timezone;
+        return $this;
+    }
+
+  
+    /**
+     * Convert all datetime fields in records_array from UTC to user timezone
+     * Only converts fields with timezone_conversion = true
+     * Modifies DateTime objects in-place for performance
+     * Only performs conversion if Config 'use_user_timezone' is true AND dates are currently in UTC
+     *
+     * @return self For method chaining
+     */
+    public function convertDatesToUserTimezone(): self
+    {
+        // Only convert if Config says to use user timezone for forms
+        if (!Config::get('use_user_timezone', false)) {
+            return $this;
+        }
+
+       
+        // No data to convert
+        if (empty($this->records_array)) {
+            return $this;
+        }
+
+        $user_timezone = Get::userTimezone();
+        $timezone_obj = new \DateTimeZone($user_timezone);
+        $rules = $this->getRules();
+
+        foreach ($this->records_array as $index => &$record) {
+            foreach ($rules as $field_name => $rule) {
+                // Only datetime/date/time fields with timezone_conversion
+                if (!in_array($rule['type'], ['datetime', 'date'])) {
+                    continue;
+                }
+
+                if (!($rule['timezone_conversion'] ?? false)) {
+                    continue;
+                }
+
+                // Field exists and is a DateTime object?
+                if (!isset($record[$field_name]) || !is_a($record[$field_name], \DateTime::class)) {
+                    continue;
+                }
+
+                // Convert in-place (modifies the DateTime object)
+                $record[$field_name]->setTimezone($timezone_obj);
+            }
+        }
+        unset($record); // Break the reference
+
+        // Mark dates as converted to user timezone
+        $this->dates_in_user_timezone = true;
+        return $this;
+    }
+
+    /**
+     * Convert all datetime fields in records_array from user timezone to UTC
+     * Only converts fields with timezone_conversion = true
+     * Modifies DateTime objects in-place for performance
+     * Only performs conversion if Config 'use_user_timezone' is true AND dates are in user timezone
+     *
+     * @return self For method chaining
+     */
+    public function convertDatesToUTC(): self
+    {
+        // Check if we should convert dates (only if Config says forms use user timezone)
+        if (!Config::get('use_user_timezone', false)) {
+            return $this;
+        }
+
+        // No data to convert
+        if (empty($this->records_array)) {
+            return $this;
+        }
+
+        $utc_timezone = new \DateTimeZone('UTC');
+        $rules = $this->getRules();
+
+        foreach ($this->records_array as $index => &$record) {
+            foreach ($rules as $field_name => $rule) {
+                // Only datetime/date/time fields with timezone_conversion
+                if (!in_array($rule['type'], ['datetime', 'date', 'time'])) {
+                    continue;
+                }
+
+                if (!($rule['timezone_conversion'] ?? false)) {
+                    continue;
+                }
+
+                // Field exists and is a DateTime object?
+                if (!isset($record[$field_name]) || !is_a($record[$field_name], \DateTime::class)) {
+                    continue;
+                }
+
+                // Convert to UTC in-place
+                $record[$field_name]->setTimezone($utc_timezone);
+            }
+        }
+        unset($record); // Break the reference
+
+        // Mark dates as back in UTC
+        $this->dates_in_user_timezone = false;
+        return $this;
+    }
+
     /**
      * Get relationship field handlers for a specific relationship alias
      * Returns handlers registered with pattern "alias.fieldname"
@@ -419,9 +550,12 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
      */
     public function setRow(array|object|null $data): void {
         $this->records_array = [];
+        $this->dates_in_user_timezone = false;
         $data = $this->filterDataByRules($data);
         $data['___action'] = null; // null = originale, non modificato
+      
         $this->records_array[] = $data;
+      
         $this->current_index = array_key_last($this->records_array);
         $this->cleanEmptyRecords();
         $this->invalidateKeysCache();
@@ -432,9 +566,10 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
      * Used for prepare record from an array or an object without cycling through the model 
      *
      * @param array $data Record data
-     * @return int
+     * @return static
      */
-    public function fill(array|object|null $data=null): int {
+    public function fill(array|object|null $data=null): static {
+        
         $this->error = false;
         $this->last_error = '';
         // Extract relationship data before filtering
@@ -442,27 +577,66 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
             $data = $this->extractRelationshipData($data);
         }
 
-        $data = $this->filterDataByRules($data);
+        $data = $this->filterData($data);
 
-        $data['___action'] = 'insert';
-        if ($this->primary_key != null) {
-            if (isset($data[$this->primary_key]) && $data[$this->primary_key] != 0 && $data[$this->primary_key] != '') {
+       
+        if ($this->primary_key != null && ($this->primary_key != 0)) {
+            if (isset($data[$this->primary_key]) && $data[$this->primary_key] !== 0 && $data[$this->primary_key] !== '') {
+                // verifico se già esiste tra i $this->records_array
+                $this->dates_in_user_timezone = true;
+                if (is_array($this->records_array)) {
+                    foreach ($this->records_array as $key => $value) {
+                        if ($value[$this->primary_key] == $data[$this->primary_key]) {
+                            $this->records_array[$this->current_index]['___action'] = 'edit';
+                            // Merge existing data with new data (new data takes precedence)
+                            // This ensures that fields not provided in $data retain their existing values
+                            $this->current_index = $key;
+                            foreach ($data as $key => $value) {
+                                $this->setValueWithConversion($key, $value);
+                            }
+                            return $this;
+                        }
+                    }
+                }
+                $this->dates_in_user_timezone = false;
                 $row = $this->db->getRow('SELECT * FROM '. $this->db->qn($this->table).' WHERE '. $this->db->qn($this->primary_key).' = ?', [$data[$this->primary_key]]);
                 if ($row != null) {
-                    $data['___action'] = 'edit';
+                    $this->current_index = $this->getNextCurrentIndex();
+                    $this->records_array[$this->current_index]['___action'] = 'edit';
+                    $this->dates_in_user_timezone = false;
+                    foreach ($row as $key => $value) {
+                        $this->setValueWithConversion($key, $value);
+                    }
                     // Merge existing data with new data (new data takes precedence)
                     // This ensures that fields not provided in $data retain their existing values
-                    $existing_data = (array)$row;
-                    $data = array_merge($existing_data, $data);
+                    $this->dates_in_user_timezone = true;
+                    foreach ($data as $key => $value) {
+                        $this->setValueWithConversion($key, $value);
+                    }
+                } else {
+                    // è nuovo anche se c'è id? Questo codice va bene?
+                     $this->cleanEmptyRecords();
+                    $this->current_index = $this->getNextCurrentIndex();
+                    $this->records_array[$this->current_index]['___action'] = 'insert';
+                    foreach ($data as $key => $value) {
+                        $this->setValueWithConversion($key, $value);
+                    }
+                    $this->invalidateKeysCache();
                 }
+                return $this;
             }
         }
+     
         $this->cleanEmptyRecords();
-        $this->records_array[] = $data;
-        $this->current_index = array_key_last($this->records_array);
+        $this->current_index = $this->getNextCurrentIndex();
+        $this->records_array[$this->current_index]['___action'] = 'insert';
+        $this->dates_in_user_timezone = true;
+        foreach ($data as $key => $value) {
+            $this->setValueWithConversion($key, $value);
+        }
         $this->invalidateKeysCache();
 
-        return $this->current_index;
+        return $this;
     }
 
     protected function cleanEmptyRecords(): void {
@@ -482,12 +656,75 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
         }
     }
 
+    public function getNextCurrentIndex(): int {
+        $index = $this->current_index;
+        if (!is_array($this->records_array) || count($this->records_array) == 0) {
+            $index = 0;
+        } else {
+            $index = array_key_last($this->records_array);
+            do {
+                $index++;
+            } while (isset($this->records_array[$index]));
+        }
+        return $index;
+    }
+
     /**
-     * Filter data by rules
+     * Filter data by rules without type conversion
+     * Only filters which fields are accepted, does not convert values
      * If data is an array with a single element, it is extracted
      *
      * @param array|object|null $data Data to filter
-     * @return array Filtered data
+     * @return array Filtered data (values remain unchanged)
+     */
+    protected function filterData(array|object|null $data=null): array {
+        if (is_object($data)) {
+            $data = (array)$data;
+        }
+        if (!is_array($data)) {
+            return [];
+        }
+        // verifico che non ci siano dati annidati
+        // [0=>[...]]
+        if (count($data) == 1) {
+            $first_data = reset($data);
+            if (is_array($first_data)) {
+                $data = $first_data;
+            }
+        }
+        $new_data = [];
+        $rules = $this->getRules();
+
+        // Add fields defined in rules (without conversion)
+        foreach ($rules as $key => $_) {
+            if (array_key_exists($key, $data)) {
+                $new_data[$key] = $data[$key]; // No conversion, just copy
+            }
+        }
+
+        // Also preserve relationship data (not in rules but valid)
+        foreach ($data as $key => $value) {
+            // Skip if already added
+            if (isset($new_data[$key])) {
+                continue;
+            }
+
+            // Check if this is a relationship
+            if (method_exists($this, 'hasRelationship') && $this->hasRelationship($key)) {
+                $new_data[$key] = $value; // Preserve relationship data as-is
+            }
+        }
+
+        return $new_data;
+    }
+
+    /**
+     * Filter data by rules WITH type conversion
+     * Filters which fields are accepted AND converts values to proper types
+     * If data is an array with a single element, it is extracted
+     *
+     * @param array|object|null $data Data to filter
+     * @return array Filtered data with converted values
      */
     protected function filterDataByRules(array|object|null $data=null): array {
         if (is_object($data)) {
@@ -507,10 +744,10 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
         $new_data = [];
         $rules = $this->getRules();
 
-        // Add fields defined in rules
+        // Add fields defined in rules WITH conversion
         foreach ($rules as $key => $_) {
             if (array_key_exists($key, $data)) {
-                $new_data[$key] = $this->setValueWithConversion($key, $data[$key], true);
+                $new_data[$key] = $this->getValueWithConversion($key, $data[$key]);
             }
         }
 

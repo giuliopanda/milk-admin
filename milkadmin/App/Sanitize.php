@@ -58,11 +58,8 @@ class Sanitize
      * @param string $type The type of data ('string', 'email', 'url', 'int', 'float', 'html')
      * @return string The sanitized output
      */
-    public static function input($input, $type = 'string') {
-      
-        if (!is_scalar($input)) {
-            return '';
-        }
+    public static function input(mixed $input, string $type = 'string'): string {
+        $input = self::getString($input);
         switch ($type) {
             case 'email':
                 $sanitizedInput = filter_var($input, FILTER_SANITIZE_EMAIL);
@@ -111,10 +108,8 @@ class Sanitize
      * @param string $html The HTML input to sanitize
      * @return string The sanitized HTML output with harmful elements removed
      */
-    public static function html($html) {
-        if (!is_scalar( $html ) ) {
-            return '';
-        }
+    public static function html(mixed $html): string {
+        $html = self::getString($html);
         // Remove script tags and their content
         
         $html = preg_replace('/<script\b[^>]*>(.*?)<\/script>/is', '', $html);
@@ -139,5 +134,29 @@ class Sanitize
         // remove php code
         $html = preg_replace('/<\?php.*\?>/', '', $html);
         return $html;
+    }
+
+
+    public static function getString(mixed $var): string {
+        // Check if the variable can be converted to string
+        if (is_scalar($var)) {
+            // Scalar types: string, int, float, bool
+            return (string)$var;
+        } elseif (is_object($var)) {
+            // Check for __toString method
+            if (method_exists($var, '__toString')) {
+                return (string)$var; // Or: return $var->__toString();
+            }
+            // Check for Stringable interface (PHP 8+)
+            if ($var instanceof \Stringable) {
+                return (string)$var;
+            }
+        } elseif (is_null($var)) {
+            // Handle NULL explicitly if needed
+            return '';
+        }
+        
+        // Cannot be converted to string
+        return '';
     }
 }

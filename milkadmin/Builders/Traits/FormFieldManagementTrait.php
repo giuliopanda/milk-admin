@@ -332,7 +332,8 @@ trait FormFieldManagementTrait {
                     'label' => $action_data['label'] ?? ucfirst($key),
                     'type' => $action_data['type'] ?? 'submit',
                     'class' => $action_data['class'] ?? 'btn btn-primary',
-                    'validate' => $action_data['validate'] ?? true
+                    'validate' => $action_data['validate'] ?? true,
+                    'attributes' => $action_data['attributes'] ?? []
                 ];
 
                 // Handle different action types

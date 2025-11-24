@@ -302,7 +302,7 @@ if (($info instanceof App\Modellist\ListStructure || is_array($info))  && ($page
         ?>
         <?php if (count($page_info['bulk_actions'] ?? []) > 0) { ?>
             <div class="my-1 js-row-bulk-actions invisible">
-                <span class="me-2"><span class="js-count-selected"></span> <?php  _pt('row selected'); ?> </span> 
+                <span class="me-2"><span class="js-count-selected"></span> <?php  _pt('rows selected'); ?> </span> 
                 <?php foreach ($page_info['bulk_actions'] as $key => $val) { ?>
                     <span class="link-action js-table-bulk-action" data-table-action="<?php _p($key); ?>"><?php _p($val); ?></span>
                 <?php } ?>

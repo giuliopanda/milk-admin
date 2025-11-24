@@ -645,11 +645,11 @@ class Offcanvas_end
         }
         let preload = this.el_container.querySelector('.js-ito-loading')
         this.preload = new Loading(preload)
-        this.offcanvasEl = new bootstrap.Offcanvas( 
-            document.getElementById('offCanvasEnd'), 
+        this.offcanvasEl = new bootstrap.Offcanvas(
+            document.getElementById('offCanvasEnd'),
             { keyboard: false, backdrop: 'static', scroll: true }
         );
-        
+
         // Listener per sincronizzare is_show quando Bootstrap chiude l'offcanvas
         this.el_container.addEventListener('hidden.bs.offcanvas', () => {
             this.is_show = false;
@@ -675,14 +675,18 @@ class Offcanvas_end
     }
 
     show(title = '', body = '') {
-        if (!this.is_show) {
+        // Only clear content if we're going to set new content (title or body provided)
+        // This prevents clearing content when show() is called without parameters
+        if (!this.is_show && (title !== '' || body !== '')) {
             document.getElementById('offCanvasBody').innerHTML = ''
             document.getElementById('offCanvasTitle').innerHTML = ''
         }
-        if (title != '') {
+
+        // Set content only if explicitly provided (not empty string)
+        if (title !== '' && title !== undefined) {
             this.title(title);
         }
-        if (body != '') {
+        if (body !== '' && body !== undefined) {
             this.body(body);
         }
         this.offcanvasEl.show()
@@ -710,7 +714,7 @@ class Offcanvas_end
     }
 
     body(html) {
-        document.getElementById('offCanvasBody').innerHTML = html
+        document.getElementById('offCanvasBody').innerHTML = html;
         updateContainer(document.getElementById('offCanvasBody'));
     }
 }
@@ -740,15 +744,12 @@ class Toasts {
         if (this.operationInProgress) {
             // Sostituisci l'operazione in coda con quella nuova
             this.queuedOperation = operation;
-            console.log('Operazione messa in coda:', operation.type);
             return;
         }
 
         // Esegui l'operazione corrente
         this.operationInProgress = true;
         this.currentOperation = operation;
-        console.log('Esecuzione operazione:', operation.type);
-
         try {
             // Esegui l'operazione
             if (operation.type === 'show') {
@@ -802,7 +803,6 @@ class Toasts {
 
     // Metodo interno per mostrare il toast (esecuzione effettiva)
     _doShow(html, type) {
-        console.log('_doShow eseguito');
         if (typeof html !== 'undefined' && html.trim() !== '') {
             if (typeof type == 'undefined' || type.trim() == '') {
                 type = this.toastType ?? 'primary';
@@ -814,7 +814,6 @@ class Toasts {
 
     // Metodo interno per nascondere il toast (esecuzione effettiva)
     _doHide() {
-        console.log('_doHide eseguito');
         this.toastEl.hide();
         document.getElementById('toastBodyTxt').innerHTML = '';
     }
@@ -935,9 +934,10 @@ class Modal {
     }
 
     show(title, body, footer) {
-        if (title !== undefined) this.title(title)
-        if (body !== undefined) this.body(body)
-        if (footer !== undefined) this.footer(footer)
+        // Set content only if explicitly provided (not undefined or empty string)
+        if (title !== undefined && title !== '') this.title(title)
+        if (body !== undefined && body !== '') this.body(body)
+        if (footer !== undefined && footer !== '') this.footer(footer)
         this.modal_el.show()
     }
 
@@ -1973,17 +1973,22 @@ document.addEventListener("DOMContentLoaded", function() {
      * Initialize all divs with data-fetch and data-url
      * Loads content via fetch after page load with sequential delays
      */
-    function initFetchDiv() {
-        const divs = document.querySelectorAll('div[data-fetch][data-url]');
-
+   function initFetchDiv(container = document) {
+        const divs = container.querySelectorAll('div[data-fetch][data-url]');
         if (divs.length === 0) return;
 
-        let delay = 500; // Start after 0.5 seconds
+        divs.forEach((div) => {
+            // Rimuovi il listener precedente se esiste per evitare duplicati
+            if (div[FETCH_MARK] && div[FETCH_MARK].handler) {
+                div.removeEventListener('click', div[FETCH_MARK].handler);
+            }
 
-        divs.forEach((div, index) => {
-            setTimeout(async () => {
-                if (div[FETCH_MARK]) return; // già inizializzato
-                div[FETCH_MARK] = true;
+            // Add click handler
+            div.style.cursor = 'pointer'; // Optional: show it's clickable
+
+            async function handleFetchClick() {
+                // Prevent multiple fetches while one is in progress
+                if (div.classList.contains('disabled')) return;
 
                 const method = div.getAttribute('data-fetch').toUpperCase();
                 const urlString = div.getAttribute('data-url');
@@ -1993,9 +1998,12 @@ document.addEventListener("DOMContentLoaded", function() {
                     return;
                 }
 
-                const url = new URL(urlString, milk_url );
-                
-                // Show loading (if present)
+                const url = new URL(urlString, milk_url);
+
+                // Disable div to prevent multiple clicks
+                div.classList.add('disabled');
+
+                // Show loading
                 if (window.plugin_loading) {
                     window.plugin_loading.show();
                 }
@@ -2008,7 +2016,6 @@ document.addEventListener("DOMContentLoaded", function() {
                             credentials: 'same-origin'
                         });
                     } else if (method === 'POST') {
-                        // Transform URL parameters into form data
                         const formData = new FormData();
                         for (const [key, value] of url.searchParams.entries()) {
                             formData.append(key, value);
@@ -2027,13 +2034,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     }
 
                     const data = await response.json();
-
-                    // Call jsonAction with the div as container
                     jsonAction(data, div);
-
-                    // Remove data-fetch and data-url attributes after successful load
-                    div.removeAttribute('data-fetch');
-                    div.removeAttribute('data-url');
 
                 } catch (error) {
                     console.error('Fetch div failed:', error);
@@ -2041,15 +2042,21 @@ document.addEventListener("DOMContentLoaded", function() {
                         window.toasts.show('An error occurred while loading content', 'danger');
                     }
                     div.innerHTML = '<div class="alert alert-danger">Failed to load content</div>';
-                    // Remove attributes even on error to prevent retry loops
-                    div.removeAttribute('data-fetch');
-                    div.removeAttribute('data-url');
                 } finally {
+                    // Remove disabled state
+                    div.classList.remove('disabled');
                     if (window.plugin_loading) {
                         window.plugin_loading.hide();
                     }
                 }
-            }, delay + (index * 500)); // Each subsequent div loads 0.5s after the previous one
+            }
+
+            div.addEventListener('click', handleFetchClick);
+
+            // Mark as initialized and store the handler for potential removal
+            div[FETCH_MARK] = {
+                handler: handleFetchClick
+            };
         });
     }
 

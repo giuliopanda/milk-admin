@@ -4,7 +4,7 @@ namespace Modules\Docs\Pages;
  * @title Get
  * @guide framework
  * @order 
- * @tags Get, db, mail, schema, theme, dependency injection, container, facade, load_modules, theme_plugin, dir_path, uri_path, temp_dir, date_time_zone, format_date, parser, bind, make, has, client_ip
+ * @tags Get, db, mail, schema, theme, dependency injection, container, facade, load_modules, theme_plugin, dir_path, uri_path, temp_dir, date_time_zone, format_date, user_timezone, set_user_timezone, timezone, parser, bind, make, has, client_ip
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access
@@ -78,12 +78,31 @@ Get::mail()
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$now = Get::dateTimeZone();
 echo $now->format('Y-m-d H:i:s');</code></pre>
 
-    <h4 class="mt-4">formatDate($date, $format = 'date')</h4>
+    <h4 class="mt-4">formatDate($date, $format = 'date', $timezone = false)</h4>
     <p>Formats a date based on the system settings. Converts a date string to the specified format according to system configuration.<br>
     <strong>$date</strong>: the date to format (in MySQL format) or DateTime object<br>
-    <strong>$format</strong>: the format to use: 'date' (only date), 'time' (only time), or 'datetime' (both)</p>
+    <strong>$format</strong>: the format to use: 'date' (only date), 'time' (only time), or 'datetime' (both)<br>
+    <strong>$timezone</strong>: optional timezone to convert the date to (e.g., 'Europe/Rome', 'America/New_York')</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$formatted_date = Get::formatDate('2021-01-01', 'date');
-$formatted_datetime = Get::formatDate('2021-01-01 14:30:00', 'datetime');</code></pre>
+$formatted_datetime = Get::formatDate('2021-01-01 14:30:00', 'datetime');
+
+// Format date in user's timezone
+$userTimezone = Get::userTimezone();
+$formatted_user_date = Get::formatDate('2021-01-01 14:30:00', 'datetime', $userTimezone);</code></pre>
+
+    <h4 class="mt-4">userTimezone()</h4>
+    <p>Returns the current user's timezone identifier. The timezone is determined based on the following priority: explicitly set timezone using <code>setUserTimezone()</code>, authenticated user's timezone from their profile, or UTC as fallback. Requires <code>use_user_timezone</code> configuration to be enabled; otherwise always returns 'UTC'.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Get current user's timezone
+$timezone = Get::userTimezone();  // Returns 'Europe/Rome', 'America/New_York', or 'UTC'
+
+// Use with formatDate to display dates in user's timezone
+$displayDate = Get::formatDate($date, 'datetime', Get::userTimezone());
+
+// Create DateTime in user's timezone
+$now = new DateTime('now', new DateTimeZone(Get::userTimezone()));</code></pre>
+
+    <h4 class="mt-4">setUserTimezone($timezone)</h4>
+    <p>Explicitly sets the timezone for the current request. This overrides the authenticated user's timezone.</p>
 
     <h2 class="mt-4">Dependency Container</h2>
     

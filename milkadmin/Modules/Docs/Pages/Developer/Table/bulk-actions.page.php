@@ -483,7 +483,7 @@ class BulkActionsModule extends AbstractModule {
                 ]
             ])
             // Make title clickable
-            ->asLink('title', '?page=' . $this->page . '&action=edit&id=%id%');
+            ->field('title')->Link('?page=' . $this->page . '&action=edit&id=%id%');
 
         // Use getResponse() to merge table data with response
         $response = [...$response, ...$tableBuilder->getResponse()];

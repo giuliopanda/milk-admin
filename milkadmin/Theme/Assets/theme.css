@@ -314,8 +314,9 @@ header {
 }
 
 .sidebar-nav-link:focus-visible, .sidebar-nav-link:focus {
-    outline: none;
-    box-shadow: none;
+    outline: 2px solid #FFF;
+    outline-offset: -2px;
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.5);
     color:#F2F2F2;
 }
 

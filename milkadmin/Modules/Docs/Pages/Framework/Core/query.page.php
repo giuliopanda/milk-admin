@@ -1,147 +1,129 @@
 <?php
 namespace Modules\Docs\Pages;
 /**
- * @title Query Class
+ * @title Query Builder
  * @guide framework
  * @order 40
- * @tags query-builder, SQL, database-queries, fluent-interface, query-construction, database-abstraction, WHERE, whereIn, whereHas, JOIN, SELECT, ORDER-BY, LIMIT, prepared-statements, relationships
+ * @tags query-builder, SQL, fluent-interface, where, whereIn, whereHas, JOIN, SELECT, ORDER, LIMIT, relationships, DatabaseException
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>
 <div class="bg-white p-4">
-    <h1>Query Class Documentation</h1>
-    <p class="text-muted">Revision: 2025/10/13</p>
-    <p class="lead">The <code>Query</code> class provides a fluent interface for building SQL queries. It can be used standalone or through Model methods, with seamless integration for relationships and advanced filtering.</p>
+    <h1>Query Class</h1>
+    <p>TODO: To be tested</p>
+    <p>Fluent interface for programmatic SQL query building. Works standalone or integrated with Models.</p>
 
     <div class="alert alert-info">
-        <strong>💡 Two Usage Modes:</strong>
-        <ul class="mb-0">
-            <li><strong>Through Model:</strong> When you call query methods from a Model, results are returned as Model instances with full navigation capabilities</li>
-            <li><strong>Standalone:</strong> Direct Query class usage returns raw database results</li>
-        </ul>
+        <strong><i class="bi bi-info-circle"></i> Higher-Level Abstraction</strong><br>
+        For complete CRUD operations with validation and relationships, use <strong>AbstractModel</strong>.
     </div>
 
-    <h2 class="mt-4">Query Through Model (Recommended)</h2>
+    <div class="alert alert-warning">
+        <strong><i class="bi bi-exclamation-triangle"></i> Error Handling</strong><br>
+        Query failures throw <strong>DatabaseException</strong>. Always use try/catch in production.
+    </div>
 
-    <p>When you call query methods from a Model instance, the Query is automatically linked to that Model. When executed, it returns a Model instance containing the results:</p>
+    <h2 class="mt-4">Usage Modes</h2>
 
+    <div class="table-responsive mb-4">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Aspect</th>
+                    <th>Through Model</th>
+                    <th>Standalone</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Execution</strong></td>
+                    <td>Automatic via getResults()</td>
+                    <td>Manual via get() + db->query()</td>
+                </tr>
+                <tr>
+                    <td><strong>Return Type</strong></td>
+                    <td>Model instance</td>
+                    <td>Array of stdClass or scalar</td>
+                </tr>
+                <tr>
+                    <td><strong>Relationships</strong></td>
+                    <td>✅ Lazy loading supported</td>
+                    <td>❌ Not available</td>
+                </tr>
+                <tr>
+                    <td><strong>whereHas()</strong></td>
+                    <td>✅ Available</td>
+                    <td>❌ Not available</td>
+                </tr>
+                <tr>
+                    <td><strong>Use Case</strong></td>
+                    <td>✅ Recommended for most cases</td>
+                    <td>Complex queries, reports</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h4 class="mt-4">Through Model (Recommended)</h4>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">use Modules\Products\ProductsModel;
 
 $products = new ProductsModel();
 
-// Build query through Model
 $results = $products
-    ->where('in_stock = ?', [true])        // Returns Query (linked to Model)
-    ->whereIn('category_id', [1, 2, 3])    // Returns Query (linked to Model)
-    ->order('price', 'asc')                // Returns Query (linked to Model)
-    ->limit(0, 10)                         // Returns Query (linked to Model)
-    ->getResults();                        // Returns ProductsModel with results
+    ->where('in_stock = ?', [true])
+    ->whereIn('category_id', [1, 2, 3])
+    ->order('price', 'asc')
+    ->limit(0, 10)
+    ->getResults();  // Returns ProductsModel with results
 
-// Access as Model
-echo "Found: " . $results->count() . " products\n";
-
-// Iterate through results
 foreach ($results as $product) {
-    echo $product->name . ": €" . $product->price . "\n";
-}
+    echo $product->name . ": €" . $product->price;
+}</code></pre>
 
-// Navigate manually
-$results->first();
-while ($results->hasNext()) {
-    echo $results->name;
-    $results->next();
-}
-
-// Array access
-$firstProduct = $results[0];
-$secondProduct = $results[1];</code></pre>
-
-    <h2 class="mt-4">Standalone Query Usage</h2>
-
-    <p>You can also use the Query class directly without a Model. In this case, you manually execute the query and get raw results:</p>
-
+    <h4 class="mt-4">Standalone</h4>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">use App\Database\Query;
 use App\Get;
 
-$db = Get::db();
-
-// Create standalone Query
-$query = new Query('#__products', $db);
-
-// Build query
+$query = new Query('#__products', Get::db());
 $query->select('id, name, price')
       ->where('in_stock = ?', [true])
       ->order('price', 'asc')
       ->limit(0, 10);
 
-// Execute manually
 list($sql, $params) = $query->get();
-$result = $db->getResults($sql, $params);
+$result = Get::db()->getResults($sql, $params);
 
-// Results are raw stdClass objects
 foreach ($result as $row) {
-    echo $row->name . ": €" . $row->price . "\n";
+    echo $row->name;
 }</code></pre>
 
-    <h2 class="mt-4">Public Methods</h2>
+    <h2 class="mt-4">Query Building Methods</h2>
 
-    <h3 class="mt-3"><code>__construct($table, $db = null, $model = null)</code></h3>
-    <p>Creates a new Query instance for the specified table.</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">/**
- * @param string $table Table name (with prefix placeholder #__)
- * @param MySql|SQLite $db Database connection
- * @param AbstractModel $model Optional model instance for result conversion
- */
-public function __construct($table, $db = null, $model = null);
-
-// Example: Through Model (automatic)
+    <h4 class="text-primary mt-4">__construct(string $table, $db = null, $model = null)</h4>
+    <p>Creates Query instance for specified table.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Through Model (automatic)
 $query = $model->query();
 
-// Example: Standalone
+// Standalone
 $query = new Query('#__products', Get::db());</code></pre>
 
-    <h3 class="mt-3"><code>select($fields): Query</code></h3>
-    <p>Specifies which columns to select.</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">/**
- * @param string $fields Comma-separated field names
- * @return Query
- */
-public function select($fields): Query;
-
-// Example: Through Model
-$results = $model
+    <h4 class="text-primary mt-4">select(string $fields) : Query</h4>
+    <p>Specifies columns to select.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$results = $model
     ->select('id, name, price')
     ->getResults();
 
-// Example: All fields from multiple tables
-$query = $model->query();
-$query->select('products.*, categories.name as category_name')
-      ->from('LEFT JOIN categories ON products.category_id = categories.id');
-
-// Example: Aggregate functions
+// Aggregate
 $total = $model->query()
     ->select('COUNT(*) as total')
-    ->where('in_stock = ?', [true])
-    ->getVar();  // Returns scalar value</code></pre>
+    ->getVar();</code></pre>
 
-    <h3 class="mt-3"><code>from($from): Query</code></h3>
-    <p>Adds FROM clauses or JOINs to the query.</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">/**
- * @param string $from JOIN clause or additional FROM
- * @return Query
- */
-public function from($from): Query;
-
-// Example: LEFT JOIN
-$query = $model->query();
-$query->from('LEFT JOIN categories ON products.category_id = categories.id')
-      ->where('categories.active = ?', [1]);
-
-// Example: Multiple JOINs
-$query->from('LEFT JOIN categories ON products.category_id = categories.id')
+    <h4 class="text-primary mt-4">from(string $from) : Query</h4>
+    <p>Adds FROM or JOIN clauses.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$query->from('LEFT JOIN categories ON products.category_id = categories.id')
       ->from('LEFT JOIN brands ON products.brand_id = brands.id');</code></pre>
 
-    <h3 class="mt-3"><code>where($condition, $params = [], $operator = 'AND'): Query</code></h3>
+     <h4 class="text-primary mt-4">where($condition, $params = [], $operator = 'AND'): Query</h4>
     <p>Adds a WHERE condition to the query.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">/**
  * @param string $condition SQL condition with placeholders (?)
@@ -184,7 +166,7 @@ $results = $model
         <strong>⚠️ SQL Injection Protection:</strong> Always use placeholders (?) and pass values in the $params array. Never concatenate user input directly into conditions.
     </div>
 
-    <h3 class="mt-3"><code>whereIn($field, $values, $operator = 'AND'): Query</code></h3>
+    <h4 class="text-primary mt-4">whereIn($field, $values, $operator = 'AND'): Query</h4>
     <p>Adds a WHERE IN clause to filter by multiple values.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">/**
  * @param string $field Field name to check
@@ -227,7 +209,7 @@ $products = $model
     ->whereIn('id', [])  // No filtering applied
     ->getResults();</code></pre>
 
-    <h3 class="mt-3"><code>whereHas($relationAlias, $condition, $params = []): Query</code></h3>
+    <h4 class="text-primary mt-4">whereHas($relationAlias, $condition, $params = []): Query</h4>
     <p>Filters records based on related data using an EXISTS subquery. The relationship must be defined in the Model's <code>configure()</code> method.</p>
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">/**

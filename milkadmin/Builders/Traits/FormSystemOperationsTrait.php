@@ -1,7 +1,7 @@
 <?php
 namespace Builders\Traits;
 
-use App\{MessagesHandler, ObjectToForm, Route};
+use App\{MessagesHandler, ObjectToForm, Route, Config};
 
 /**
  * Trait FormSystemOperationsTrait
@@ -28,37 +28,52 @@ trait FormSystemOperationsTrait {
             MessagesHandler::addError('No model set for save operation');
             return false;
         }
+        
 
         // Get primary key value
         $id = _absint($request[$this->model->getPrimaryKey()] ?? 0);
         // Get form data for saving
-        $obj = $this->model->getByIdAndUpdate($id, $request);
-      
-        // Handle file uploads before saving - stop if file operations fail
-        $file_result = $this->moveUploadedFile($obj);
-        if (!$file_result['success']) {
-            MessagesHandler::addError($file_result['message']);
-            return false;
-        }
-  
-        if ( $obj->validate()) {
-            // Save data
-            if ($obj->save()) {
-                if ($id === 0) {
-                    $id = $obj->getLastInsertId();
-                }
-                $this->last_insert_id = $id;
-                //MessagesHandler::addSuccess('Save successful');
-                return true;
-            } else {
-                $error = _r("An error occurred while saving the data. ") .$obj->getLastError();
-                MessagesHandler::addError($error);
+        try {
+            // Get or create record and merge with form data
+            // DateTime parsing timezone is controlled by Config 'use_user_timezone'
+            $obj = $this->model->getByIdAndUpdate($id, $request);
+            // Convert all datetime fields from user timezone to UTC before saving to database
+            // This only happens if Config 'use_user_timezone' is true
+           
+            $obj->convertDatesToUTC();
+            // Handle file uploads before saving - stop if file operations fail
+            $file_result = $this->moveUploadedFile($obj);
+            if (!$file_result['success']) {
+                MessagesHandler::addError($file_result['message']);
                 return false;
             }
-        } else {
-            $errors = $obj->getLastError();
-            MessagesHandler::addError($errors);
-            return false;
+    
+            if ( $obj->validate()) {
+                // Save data
+                if ($obj->save()) {
+                    if ($id === 0) {
+                        $id = $obj->getLastInsertId();
+                    }
+                    $this->last_insert_id = $id;
+                    //MessagesHandler::addSuccess('Save successful');
+                    return true;
+                } else {
+                    $error = _r("An error occurred while saving the data. ") .$obj->getLastError();
+                    MessagesHandler::addError($error);
+                    return false;
+                }
+            } else {
+                $errors = $obj->getLastError();
+                MessagesHandler::addError($errors);
+                return false;
+            }
+        } catch (\Exception $e) {
+            if (Config::get('debug', false)) {
+                throw $e;
+            } else {
+                MessagesHandler::addError($e->getMessage());
+                return false;
+            }
         }
     }
 
@@ -223,17 +238,26 @@ trait FormSystemOperationsTrait {
         }
 
         // Delete record
-        if ($this->model->delete($id)) {
-            if ($redirect_success) {
-                Route::redirectSuccess($redirect_success, _r('Delete successful'));
+        try {
+            if ($this->model->delete($id)) {
+                if ($redirect_success) {
+                    Route::redirectSuccess($redirect_success, _r('Delete successful'));
+                }
+                return ['success' => true, 'message' => 'Delete successful', 'id' => $id];
+            } else {
+                $error = _r("An error occurred while deleting the data. ") . $this->model->getLastError();
+                if ($redirect_error) {
+                    Route::redirectError($redirect_error, $error);
+                }
+                return ['success' => false, 'message' => $error];
             }
-            return ['success' => true, 'message' => 'Delete successful', 'id' => $id];
-        } else {
-            $error = _r("An error occurred while deleting the data. ") . $this->model->getLastError();
-            if ($redirect_error) {
-                Route::redirectError($redirect_error, $error);
+        } catch (\Exception $e) {
+            if (Config::get('debug', false)) {
+                throw $e;
+            } else {
+                MessagesHandler::addError($e->getMessage());
+                return ['success' => false, 'message' => $e->getMessage()];
             }
-            return ['success' => false, 'message' => $error];
         }
     }
 
@@ -339,7 +363,7 @@ trait FormSystemOperationsTrait {
             return ObjectToForm::submit($this->submit_text, $this->submit_attributes);
         }
 
-        $html = '';
+        $html = '<div class="d-flex gap-2">';
 
         foreach ($this->actions as $key => $action) {
             // Check if there's a showIf condition and evaluate it
@@ -390,34 +414,48 @@ trait FormSystemOperationsTrait {
                 }
             }
 
-            if ($action['type'] === 'submit') {
-                $html .= '<button type="submit" name="' . $key . '" value="1" class="' . $action['class'] . '"';
+            $button_class = $action['class'];
+                     
+            if ($action['type'] === 'submit' || $action['type'] === 'button') {
+                $html .= '<button type="' . _r($action['type']) . '" name="' . _r($key) . '" value="1" class="' . _r(trim($button_class)) . '"';
 
                 if (isset($action['confirm'])) {
-                    $html .= ' onclick="return confirm(\'' . htmlspecialchars($action['confirm']) . '\')"';
+                    $html .= ' onclick="return confirm(\'' . _r($action['confirm']) . '\')"';
                 }
 
                 if (isset($action['onclick'])) {
-                    $html .= ' onclick="' . htmlspecialchars($action['onclick']) . '"';
+                    $html .= ' onclick="' . _r($action['onclick']) . '"';
                 }
 
                 if (isset($action['validate']) && $action['validate'] === false) {
                     $html .= ' formnovalidate="formnovalidate"';
                 }
 
-                $html .= '>' . htmlspecialchars($action['label']) . '</button>';
+                if (isset($action['attributes']) && is_array($action['attributes'])) {
+                    foreach ($action['attributes'] as $attribute => $value) {
+                        $html .= ' ' . _r($attribute) . '="' . _r($value) . '"';
+                    }
+                }
+
+                $html .= '>' . _rt($action['label']) . '</button>';
 
             } elseif ($action['type'] === 'link') {
-                $html .= '<a href="' . htmlspecialchars($action['link']) . '" class="' . $action['class'] . '"';
+                $html .= '<a href="' . _r($action['link']) . '" class="' . _r(trim($button_class)) . '"';
 
                 if (isset($action['target'])) {
-                    $html .= ' target="' . htmlspecialchars($action['target']) . '"';
+                    $html .= ' target="' . _r($action['target']) . '"';
                 }
-             
-                $html .= '>' . htmlspecialchars($action['label']) . '</a>';
+
+                if (isset($action['attributes']) && is_array($action['attributes'])) {
+                    foreach ($action['attributes'] as $attribute => $value) {
+                        $html .= ' ' . _r($attribute) . '="' . _r($value) . '"';
+                    }
+                }
+
+                $html .= '>' . _rt($action['label']) . '</a>';
             }
         }
-
+        $html .= '</div>';
         return $html;
     }
 

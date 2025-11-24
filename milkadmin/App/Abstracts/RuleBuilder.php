@@ -76,6 +76,7 @@ class RuleBuilder
             //
             'form-type' => null,   // tipo di campo per il form
             'form-label' => null,  // etichetta per il form
+            'timezone_conversion' => false,
         ];
         return $this;
     }
@@ -215,6 +216,21 @@ class RuleBuilder
     {
         $this->field($name, 'datetime');
         $this->label($this->createLabel($name));
+        $this->rules[$name]['timezone_conversion'] = true; 
+        return $this;
+    }
+
+    /**
+     * Disable timezone conversion for current datetime field
+     * Use for fields that should remain in UTC (system timestamps, etc)
+     *
+     * @return self
+     */
+    public function noTimezoneConversion(): self
+    {
+        if ($this->current_field !== null) {
+            $this->rules[$this->current_field]['timezone_conversion'] = false;
+        }
         return $this;
     }
 
@@ -695,6 +711,14 @@ class RuleBuilder
     public function hideFromList(): self
     {
         $this->rules[$this->current_field]['list'] = false;
+        return $this;
+    }
+
+    public function hide(): self
+    {
+        $this->rules[$this->current_field]['list'] = false;
+        $this->rules[$this->current_field]['edit'] = false;
+        $this->rules[$this->current_field]['view'] = false;
         return $this;
     }
 

@@ -181,11 +181,13 @@ class FormBuilder {
         $this->model = $model;
         $data = Route::getSessionData();
         $id = $this->model->getPrimaryKey();
-
-        // Preload relationships with ->with() to avoid lazy loading
-        $this->model->with('badge');
-
+        $this->model->with();
+        
         $data_object = $this->model->getByIdForEdit(_absint($_REQUEST[$id] ?? 0), ($data['data'] ?? []));
+
+        // Convert datetime fields to user timezone for form display
+        // This only happens if Config 'use_user_timezone' is true
+        $data_object->convertDatesToUserTimezone();
 
         $this->addFieldsFromObject($data_object, 'edit');
         return $this;

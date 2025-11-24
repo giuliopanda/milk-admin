@@ -34,8 +34,7 @@ class Table {
         if (!el_container) {
             throw new Error('Table component requires a valid container element');
         }
-        console.log('Initializing Table component');
-        console.log (el_container);
+
         this.el_container = el_container;
         this.el_scroll = el_container; // Default scroll target
         this.custom_init_fn = custom_init_fn;
@@ -731,11 +730,11 @@ class Table {
 }
 
 // Auto-initialize all tables when DOM is loaded
-window.onload = function() {
+window.addEventListener('load', function() {
     document.querySelectorAll('.js-table-container').forEach((el) => {
         new Table(el);
     });
-};
+});
 
 //  document.dispatchEvent(new CustomEvent('updateContainer', { detail: { el: el } })
 document.addEventListener('updateContainer', function(event) {

@@ -38,14 +38,23 @@ namespace Modules\Docs\Pages;
     <p>Returns the CSS class to apply to a field if it has been declared invalid.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$invalidClass = MessagesHandler::getInvalidClass('field_name');</code></pre>
 
-    <h4 class="mt-4">echo_messages()</h4>
+    <h4 class="mt-4">displayMessages(bool $exclude_field_errors = false)</h4>
     <p>Prints all error and success messages as Bootstrap alerts.</p>
+    <p>Set <code>$exclude_field_errors</code> to <code>true</code> to exclude error messages associated with specific fields (useful when field errors are shown inline).</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">MessagesHandler::displayMessages();
+MessagesHandler::displayMessages(true); // Only general errors</code></pre>
 
-    <h4 class="mt-4">getErrorAlert()</h4>
+    <h4 class="mt-4">getErrorAlert(bool $exclude_field_errors = false)</h4>
     <p>Returns an HTML block containing all error messages, formatted as a Bootstrap alert.</p>
+    <p>Set <code>$exclude_field_errors</code> to <code>true</code> to exclude error messages associated with specific fields.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$errorAlert = MessagesHandler::getErrorAlert();
+$errorAlert = MessagesHandler::getErrorAlert(true); // Only general errors</code></pre>
 
-    <h4 class="mt-4">getErrors()</h4>
+    <h4 class="mt-4">getErrors(bool $exclude_field_errors = false)</h4>
     <p>Gets an array of all currently stored error messages.</p>
+    <p>Set <code>$exclude_field_errors</code> to <code>true</code> to get only general error messages (excluding field-specific errors).</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$errors = MessagesHandler::getErrors();
+$generalErrors = MessagesHandler::getErrors(true); // Only general errors</code></pre>
 
     <h4 class="mt-4">errorsToString($br = false)</h4>
     <p>Converts all error messages into a single string, separated by a line break or an HTML &lt;br&gt; tag.</p>

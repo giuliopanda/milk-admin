@@ -26,12 +26,12 @@ require __DIR__ . '/active-sessions-partial.php';
                     <div class="col">
                         <small class="text-body-secondary">
                             <i class="bi bi-info-circle me-1"></i>
-                            Sessions are automatically tracked when users log in and out of the system
+                            <?php _pt('Sessions are automatically tracked when users log in and out of the system'); ?>
                         </small>
                     </div>
                     <div class="col-auto">
                         <small class="text-body-secondary">
-                            Last updated: <?php echo date('Y-m-d H:i:s') ?>
+                            <?php _pt('Last updated:'); ?> <?php echo date('Y-m-d H:i:s') ?>
                         </small>
                     </div>
                 </div>

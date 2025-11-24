@@ -102,33 +102,33 @@ class Lang
     }
 
     /**
-     * Upload a translation file
+     * Load a PHP translation file
      * @param string $file
      * @param string $area
      * @return bool
      */
-    public static function loadIniFile(string $file, $area = 'all'):bool {
+    public static function loadPhpFile(string $file, $area = 'all'):bool {
         $file = Get::dirPath($file);
-
-        $file = Hooks::run('load_ini_file', $file); 
+        $file = Hooks::run('load_php_file', $file);
         if (!file_exists($file)) {
             return false;
         }
         try {
-            $strings = parse_ini_file($file);
+            $strings = include $file;
         } catch (\Exception $e) {
+            die($e->getMessage());
             return false;
         }
-        if (!$strings) {
+        if (!is_array($strings)) {
             return false;
         }
-
         foreach ($strings as $key => $value) {
             self::set($key, $value, $area);
         }
         return true;
     }
 
+   
     /**
      * Costruisce il contenuto JavaScript
      * 

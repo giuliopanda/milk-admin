@@ -4,126 +4,173 @@ namespace Modules\Docs\Pages;
  * @title Cli
  * @guide framework
  * @order 
- * @tags cli, command line, shell, console, php cli.php, functions, echo, success, error, Cli::set, Cli::run, Cli::echo, drawTable, shell functions
+ * @tags cli, command line, shell, console, php cli.php, functions, echo, success, error, Cli::set, Cli::run, Cli::echo, drawTable, shell functions, update-paths, build-version, create-administrator
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>
 <div class="bg-white p-4">
     <h1>Cli Class</h1>
-    
-    <p>The Cli class is used to register and manage functions to be called from the command line. It provides methods to check if the code is running from the command line, execute registered functions, and print messages to the console.</p>
+    <p class="text-muted">Revision: 2025-11-11</p>
+    <p>Manage command-line functions with exception-based error handling and formatted output.</p>
 
-    <p>To execute a function from the command line, after opening the console and navigating to the project folder, type:</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">php cli.php</code></pre>
-    <p>The list of available functions will appear.</p>
-    <p>To execute a specific function type:</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">php milkadmin/cli.php function_name</code></pre>
+    <h2 class="mt-4">Usage</h2>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-bash"># List all available commands
+php milkadmin/cli.php
 
-     <h4 class="mt-4">Registering a function</h4>
-    
-    <p>If you are inside a module class that extends AbstractModule, you just need to write a function that starts with shell_ and the subsequent part of the function will be a new command registered in cli.</p>
+# Execute a specific command
+php milkadmin/cli.php function_name arg1 arg2</code></pre>
+
+    <h2 class="mt-4">Registering Commands</h2>
+
+    <p><strong>In modules (extends AbstractModule):</strong></p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">class Posts extends AbstractModule {
-    ...
     public function shellTest() {
-        Cli::echo("Test");
+        Cli::echo("Test command executed");
     }
-    ...
-}</code></pre>
-
-<p>Otherwise you can register an external function making sure to include the correct namespace:</p>
-<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">function testEchoFn(...$data) {
-    Cli::success("Params: ". json_encode($data));
 }
-Cli::set('posts-test', 'Modules\Posts\test_echo_fn');</code></pre>
-    
-    <h2 class="mt-4">Main Functions</h2>
-    <p>To see the complete list of functions you can either look at the Cli class or the gist with the API documentation</p>
+// Automatically registered as: posts:test</code></pre>
 
-    <h4 class="mt-4">set($name, $function)</h4>
-    <p>Registers a function.</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">Cli::set('function_name', 'callback_name');</code></pre>
-    <p>The function that is registered can have multiple parameters that will be passed from the command line.</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">Cli::set('test', 'fn_test');
-function fnTest($param1, $param2) {
-    Cli::echo("Param1: $param1");
-    Cli::echo("Param2: $param2");
-}</code></pre>
-    <p>If the function returns false it is possible to see the error by calling Cli::last_error;</p>
-     <h4 class="mt-4">run($argv)</h4>
-    <p>Executes the function passed as argument.</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">Cli::run($argv);</code></pre>
+    <p><strong>Manual registration:</strong></p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">Cli::set('my:command', function($param1, $param2) {
+    Cli::echo("Param1: $param1, Param2: $param2");
+});</code></pre>
 
-    <h4 class="mt-4">echo($msg), success($msg), error($msg)</h4>
-    <p>Prints a message to the console.</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">Cli::echo('Message');
-Cli::success('Success message');
-Cli::error('Error message');</code></pre>
+    <h2 class="mt-4">Exception Handling</h2>
+    <p>Throw exceptions in your CLI functions - the framework catches and displays them automatically:</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">use App\Exceptions\CliException;
+
+Cli::set('user:validate', function($email) {
+    if (empty($email)) {
+        throw new CliException("Email required");
+    }
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        throw new CliException("Invalid email: $email");
+    }
+    Cli::success("Valid email!");
+});</code></pre>
+
+    <p><strong>Available exceptions:</strong></p>
+    <ul>
+        <li><code>CliException</code> - Configuration/validation errors</li>
+        <li><code>CliFunctionExecutionException</code> - Runtime errors (auto-wrapped)</li>
+    </ul>
+
+    <h2 class="mt-4">Methods</h2>
+
+    <h4 class="text-primary mt-4">set(string $name, callable $function) : void</h4>
+    <p>Registers a CLI function.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">Cli::set('test', function($arg) {
+    Cli::echo("Argument: $arg");
+});</code></pre>
+
+    <h4 class="text-primary mt-4">run(array $argv) : bool</h4>
+    <p>Executes a registered function. Handles exceptions automatically.</p>
+
+    <h4 class="text-primary mt-4">callFunction(string $name, ...$args) : void</h4>
+    <p>Calls a registered function programmatically.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">Cli::callFunction('test', 'value1', 'value2');</code></pre>
+
+    <h4 class="text-primary mt-4">getAllFn() : array</h4>
+    <p>Returns names of all registered functions.</p>
+
+    <h4 class="text-primary mt-4">isCli() : bool</h4>
+    <p>Checks if running from command line.</p>
+
+    <h4 class="text-primary mt-4">echo(string $msg) : void</h4>
+    <p>Prints a message.</p>
+
+    <h4 class="text-primary mt-4">success(string $msg) : void</h4>
+    <p>Prints a success message in green.</p>
+
+    <h4 class="text-primary mt-4">error(string $msg) : void</h4>
+    <p>Prints an error message in red.</p>
+
+    <h4 class="text-primary mt-4">drawTitle(string $title, int $padding = 4, string $color = "\033[1;36m") : void</h4>
+    <p>Draws a formatted title box with automatic width.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">Cli::drawTitle("My App");
+// ╔═══════════╗
+// ║  My App   ║
+// ╚═══════════╝</code></pre>
+
+    <h4 class="text-primary mt-4">drawSeparator(string $title = '', int $width = 40, string $color = "\033[0;33m") : void</h4>
+    <p>Draws a separator line with optional centered title.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">Cli::drawSeparator("Settings");
+// ━━━━ Settings ━━━━</code></pre>
+
+    <h4 class="text-primary mt-4">drawTable(array $data, array $columns = null) : void</h4>
+    <p>Draws a formatted table.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">Cli::drawTable([
+    ['id' => 1, 'name' => 'John'],
+    ['id' => 2, 'name' => 'Jane']
+]);</code></pre>
 
     <h2 class="mt-4">System Commands</h2>
 
-    <h4 class="mt-4">Administrator Recovery</h4>
-    <p>The system includes a built-in CLI command for emergency administrator recovery. This command creates a new administrator user when access is lost.</p>
-    
-    <div class="alert alert-warning">
-        <strong><i class="bi bi-exclamation-triangle"></i> Emergency Use Only:</strong> This command should only be used when administrator access is lost and recovery is needed.
-    </div>
-    
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-bash"># Create admin with automatic username and email
+    <h4 class="text-primary mt-4">create-administrator</h4>
+    <p>Emergency administrator recovery command. Creates a new admin user with random secure password.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-bash"># Auto-generate username and email
 php milkadmin/cli.php create-administrator
 
-# Create admin with custom username
-php milkadmin/cli.php create-administrator recovery_admin
+# Custom username
+php milkadmin/cli.php create-administrator admin_user
 
-# Create admin with custom username and email
-php milkadmin/cli.php create-administrator recovery_admin admin@company.com</code></pre>
+# Custom username and email
+php milkadmin/cli.php create-administrator admin_user admin@company.com</code></pre>
 
-    <p>The command will generate a secure random password and display the complete credentials:</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-text">=== ADMINISTRATOR CREDENTIALS ===
-Username: emergency_admin_20250811_142530
-Password: 8hF$2kLm9nP!
-Email: admin@localhost.com
-User ID: 15
-=================================
+    <div class="alert alert-warning">
+        <strong><i class="bi bi-exclamation-triangle"></i> Emergency Use Only</strong>
+    </div>
 
-IMPORTANT: Save these credentials securely!
-The password will not be displayed again.</code></pre>
+    <h4 class="text-primary mt-4">build-version</h4>
+    <p>Updates the application version in configuration and database.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-bash">php milkadmin/cli.php build-version</code></pre>
 
-    <p><strong>Security Features:</strong></p>
+    <h4 class="text-primary mt-4">update-paths</h4>
+    <p>Updates directory paths and base URL configuration when moving the installation to a new location or changing the URL.</p>
+    <p>This command updates:</p>
     <ul>
-        <li>Can only be executed from command line (not via web)</li>
-        <li>Generates 12-character secure passwords with mixed case, numbers, and symbols</li>
-        <li>Checks for username uniqueness to prevent conflicts</li>
-        <li>Creates users with full administrator privileges</li>
+        <li><code>public_html/milkadmin.php</code> - Updates MILK_DIR and LOCAL_DIR paths</li>
+        <li><code>milkadmin_local/config.php</code> - Updates base_url (when URL parameter is provided)</li>
     </ul>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-bash"># Update only directory paths (automatic detection)
+php milkadmin/cli.php update-paths
+
+# Update paths AND change the base URL
+php milkadmin/cli.php update-paths "http://localhost/new-path/public_html/"
+
+# Example: moving to production
+php milkadmin/cli.php update-paths "https://www.mysite.com/admin/"</code></pre>
+
+    <div class="alert alert-info">
+        <strong><i class="bi bi-info-circle"></i> Use Case</strong>
+        <p class="mb-0">Run this command after moving the installation directory or deploying to a different server/domain.</p>
+    </div>
 
     <h2 class="mt-4">Examples</h2>
 
-    <h4 class="mt-4">Register and execute a function</h4>
-    <p>This example shows how to register a function and how to execute it from the command line.</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">function testEchoFn($data) {
-    Cli::success("Params:");
-    var_dump($data);
-}
-Cli::set('test_echo', 'test_echo_fn');
+    <h4 class="mt-4">Complete CLI Command</h4>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">use App\Exceptions\CliException;
 
-// Execute from command line
-// $ php milkadmin/cli.php test_echo foo bar
-</code></pre>
+Cli::set('user:list', function($role = null) {
+    Cli::drawTitle("User Listing");
 
-    <h4 class="mt-4">Draw a table</h4>
-    <p>This example shows how to draw a table on the console.</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">function tabletest() {
-    Cli::drawTable([
-        ['id' => 1, 'name' => 'foo'],
-        ['id' => 2, 'name' => 'bar'],
-        ['id' => 3, 'name' => 'baz'],
-    ]);
-}
-Cli::set('table_test', 'Modules\TestCli\tabletest');
+    // Validation with exceptions
+    if ($role && !in_array($role, ['admin', 'user'])) {
+        throw new CliException("Invalid role. Use: admin, user");
+    }
 
-// Execute from command line
-// $ php milkadmin/cli.php table_test
+    // Fetch and display data
+    $users = [
+        ['id' => 1, 'name' => 'John', 'role' => 'admin'],
+        ['id' => 2, 'name' => 'Jane', 'role' => 'user']
+    ];
+
+    Cli::drawTable($users);
+    Cli::success("Done!");
+});
+
+// Execute: php milkadmin/cli.php user:list admin
 </code></pre>
 
 </div>

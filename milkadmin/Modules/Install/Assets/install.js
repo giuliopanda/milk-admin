@@ -396,11 +396,11 @@ function autoUpdateModules() {
                 messageDiv.innerHTML = `
                     <div class="alert alert-success">
                         <i class="bi bi-check-circle"></i> ${data.data.message || 'Installation completed successfully'}
-                        ${data.data.updated_modules && data.data.updated_modules.length > 0 ? 
-                            '<br><small>Updated modules: ' + data.data.updated_modules.join(', ') + '</small>' 
+                        ${data.data.updated_modules && data.data.updated_modules.length > 0 ?
+                            '<br><small>Updated modules: ' + data.data.updated_modules.join(', ') + '</small>'
                             : ''}
                     </div>`;
-                
+
                 // Reload page after a few seconds
                 setTimeout(() => {
                     location.reload();
@@ -412,6 +412,32 @@ function autoUpdateModules() {
                         <i class="bi bi-exclamation-triangle"></i> ${data.data.message || 'Installation failed'}
                     </div>`;
             }
+        } else if (data.status === 'error' && data.data) {
+            // Error with details - show comprehensive error information
+            let errorDetails = '';
+            if (data.data.error_type || data.data.error_file || data.data.error_line) {
+                errorDetails = '<div class="mt-2 small">';
+                if (data.data.error_type) {
+                    errorDetails += `<div><strong>Error Type:</strong> ${data.data.error_type}</div>`;
+                }
+                if (data.data.error_file) {
+                    errorDetails += `<div><strong>File:</strong> ${data.data.error_file}`;
+                    if (data.data.error_line) {
+                        errorDetails += `:${data.data.error_line}`;
+                    }
+                    errorDetails += '</div>';
+                }
+                if (data.data.error_trace) {
+                    errorDetails += `<details class="mt-2"><summary style="cursor: pointer;"><strong>Stack Trace</strong></summary><pre class="mt-2 p-2 bg-light border rounded" style="font-size: 11px; max-height: 300px; overflow-y: auto;">${data.data.error_trace}</pre></details>`;
+                }
+                errorDetails += '</div>';
+            }
+
+            messageDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> <strong>${data.data.message || 'An error occurred'}</strong>
+                    ${errorDetails}
+                </div>`;
         } else {
             // Unexpected response - show warning
              if (data.message) {

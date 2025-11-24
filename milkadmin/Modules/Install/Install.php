@@ -94,10 +94,14 @@ class Install
         $_SESSION['installation_params'] = $session_params;
         $html_conf = "<?php\nuse App\Config;\n!defined('MILK_DIR') && die(); // Avoid direct access\n\n";
         $conf = implode("\n", $conf);
-        
+
         $html_conf .= "\$conf = [];\n\n".$conf."\nConfig::setAll(\$conf);";
         // copio il file prima di salvarlo
-        File::putContents(LOCAL_DIR."/config.php", $html_conf);
+        try {
+            File::putContents(LOCAL_DIR."/config.php", $html_conf);
+        } catch (\App\Exceptions\FileException $e) {
+            throw new \Exception("Failed to save config file: " . $e->getMessage());
+        }
         // TODO verificare se il file funziona?!?!
 
     }
@@ -321,6 +325,9 @@ class Install
             
             // Skip config.php
             if ($file === 'config.php') {
+                continue;
+            }
+            if ($file == 'milkadmin.php') {
                 continue;
             }
             

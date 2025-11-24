@@ -2,6 +2,7 @@
 namespace App\Database;
 
 use App\{Logs, Config};
+use App\Exceptions\DatabaseException;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
 
@@ -171,10 +172,14 @@ class MySql
      * ```
      */
     public function query(string $sql, array|null $params = null): MySQLResult|bool {
-        if(!$this->checkConnection()) {  
+        if(!$this->checkConnection()) {
             $this->error = true;
             $this->last_error = 'No connection';
-            return false;
+            throw new DatabaseException(
+                'No connection',
+                'mysql',
+                ['query' => $sql, 'params' => $params]
+            );
         }
         $sql = $this->sqlPrefix($sql);
         $this->last_query = $sql;
@@ -182,109 +187,162 @@ class MySql
         $this->last_error = '';
         $this->affected_rows = 0;
         $this->query_columns = [];
-        $stmt =  false;
+
         try {
-            $stmt =  $this->mysqli->prepare($sql);
-        } catch (\Exception $e) {
-            Logs::set('system', 'ERROR', "MYSQL Prepare: '".$sql."' error:". $this->mysqli->error);
-            $this->error = true;
-            $this->last_error = $this->mysqli->error;
-            if (Config::get('debug', false)) {
-                $this->last_error .= " \n<br> ".$this->debugPreparedQuery($sql, $params);
-            }
-            return false;
-        };
-        if ($stmt === false) {
-            Logs::set('system', 'ERROR', "MYSQL Prepare: '".$sql."' error:". $this->mysqli->error);
-            $this->error = true;
-            $this->last_error = $this->mysqli->error;
-            if (Config::get('debug', false)) {
-                $this->last_error .= " \n<br> ".$this->debugPreparedQuery($sql, $params);
-            }
-            return false;
-        }
-    
-        $types = '';
-        $values = [];
-        if (is_array($params) && count($params) > 0) {
-            foreach ($params as $val) {
-                if (is_null($val)) {
-                    $types .= 's';  // NULL viene gestito come stringa in bind_param
-                    $values[] = null;
-                } else if (is_bool($val)) {
-                    $types .= 'i';
-                    $values[] = $val ? 1 : 0;
-                } else if (is_int($val)) {
-                    $types .= 'i';
-                    $values[] = $val;
-                } else if (is_double($val)) {
-                    $types .= 'd';
-                    $values[] = $val;
-                } else {
-                    $types .= 's';
-                    $values[] = $val;
+            $stmt = $this->mysqli->prepare($sql);
+
+            if ($stmt === false) {
+                $errorMsg = $this->mysqli->error;
+                Logs::set('system', 'ERROR', "MYSQL Prepare: '".$sql."' error:". $errorMsg);
+                $this->error = true;
+                $this->last_error = $errorMsg;
+                if (Config::get('debug', false)) {
+                    $this->last_error .= " \n<br> ".$this->debugPreparedQuery($sql, $params);
                 }
+
+                throw new DatabaseException(
+                    $this->last_error,
+                    'mysql',
+                    ['query' => $sql, 'params' => $params]
+                );
             }
-            $stmt->bind_param($types, ...$values);
-        }
-        // get sql types
-        //echo "<p>SQL Types: ".$types."</p>";
-        $this->error = !$stmt->execute();
- 
-        if (!$this->error) {
+
+            $types = '';
+            $values = [];
+            if (is_array($params) && count($params) > 0) {
+                foreach ($params as $val) {
+                    if (is_null($val)) {
+                        $types .= 's';  // NULL viene gestito come stringa in bind_param
+                        $values[] = null;
+                    } else if (is_bool($val)) {
+                        $types .= 'i';
+                        $values[] = $val ? 1 : 0;
+                    } else if (is_int($val)) {
+                        $types .= 'i';
+                        $values[] = $val;
+                    } else if (is_double($val)) {
+                        $types .= 'd';
+                        $values[] = $val;
+                    } else {
+                        $types .= 's';
+                        $values[] = $val;
+                    }
+                }
+                $stmt->bind_param($types, ...$values);
+            }
+
+            // Execute the statement
+            if (!$stmt->execute()) {
+                $errorMsg = $stmt->error;
+                Logs::set('system', 'ERROR', "MYSQL Execute: '".$sql."' error:". $errorMsg);
+                $this->error = true;
+                $this->last_error = $errorMsg;
+                if (Config::get('debug', false)) {
+                    $this->last_error .= " \n<br> ".$this->debugPreparedQuery($sql, $params);
+                }
+                $stmt->close();
+
+                throw new DatabaseException(
+                    $this->last_error,
+                    'mysql',
+                    ['query' => $sql, 'params' => $params]
+                );
+            }
+
             if ($stmt->field_count > 0) {
                 // Query di tipo SELECT → c'è un result set
                 $ris = new MySQLResult($stmt->get_result());
                 $this->query_columns = $ris->get_fields();
             } else {
                 // Query di tipo INSERT/UPDATE/DELETE → nessun result set
-                // Puoi restituire true/false o il numero di righe toccate
-                //$ris = $stmt->affected_rows;
                 $this->affected_rows = $stmt->affected_rows;
                 $ris = true;
             }
-        } else {
-            $ris = false;
-        }
-          
-        Logs::set('system', 'MYSQL::Query', $sql);
-        $stmt->close();
-        
-        if ($this->mysqli->error != '') {
-            Logs::set('system', 'ERROR', "MYSQL Query false: '".$sql."' error:". $this->mysqli->error);
-            $this->error = true;
-            $this->last_error = $this->mysqli->error;
-            if (Config::get('debug', false)) {
-                $this->last_error .= " \n<br> ".$this->debugPreparedQuery($sql, $params);
+
+            Logs::set('system', 'MYSQL::Query', $sql);
+            $stmt->close();
+
+            // Check for any mysqli errors after execution
+            if ($this->mysqli->error != '') {
+                $errorMsg = $this->mysqli->error;
+                Logs::set('system', 'ERROR', "MYSQL Query error: '".$sql."' error:". $errorMsg);
+                $this->error = true;
+                $this->last_error = $errorMsg;
+                if (Config::get('debug', false)) {
+                    $this->last_error .= " \n<br> ".$this->debugPreparedQuery($sql, $params);
+                }
+
+                throw new DatabaseException(
+                    $this->last_error,
+                    'mysql',
+                    ['query' => $sql, 'params' => $params]
+                );
             }
-            $ris = false;
+
+            return $ris;
+
+        } catch (\Exception $e) {
+            // Re-throw come DatabaseException se non lo è già
+            if (!($e instanceof DatabaseException)) {
+                $errorMsg = $e->getMessage();
+                Logs::set('system', 'ERROR', "MYSQL Exception: '".$sql."' error:". $errorMsg);
+                $this->error = true;
+                $this->last_error = $errorMsg;
+                if (Config::get('debug', false)) {
+                    $this->last_error .= " \n<br> ".$this->debugPreparedQuery($sql, $params);
+                }
+
+                throw new DatabaseException(
+                    $this->last_error,
+                    'mysql',
+                    ['query' => $sql, 'params' => $params]
+                );
+            }
+            throw $e;
         }
-    
-        return $ris;
     }
 
-     /**
-     * Debug prepared query - For debugging purposes only, NOT for execution
+    /**
+     * Get the SQL query string with parameters replaced (for debug purposes only)
+     * 
+     * Note: This implementation is specifically for MySQL. If you have a Query
+     * object instance, use the getSql() method instead for a more complete solution.
+     * 
+     * @param string $query The SQL query with placeholders (?)
+     * @param array $params The parameters to replace in the query
+     * @return string The SQL query with parameters substituted
+     * 
+     * @example
+     * $sql = "SELECT * FROM users WHERE id = ? AND name = ?";
+     * $params = [123, 'John'];
+     * echo $this->debugPreparedQuery($sql, $params);
+     * // Output: SELECT * FROM users WHERE id = 123 AND name = 'John'
      */
-
-    public function debugPreparedQuery($query, $params) {
+    public function debugPreparedQuery(string $query, array $params): string {
         if (!is_array($params) || count($params) == 0) {
             return $query;
         }
-        $values = array();  
-        foreach ($params as $value) {
-            if (is_string($value)) {
-                $values[] = "'" . addslashes($value) . "'";
-            } elseif (is_null($value)) {
-                $values[] = 'NULL';
-            } else {
-                $values[] = $value;
-            }
-        }
         
+        // Prepare values with appropriate quoting
+        $quoted_values = array_map(function($param) {
+            if (is_null($param)) {
+                return 'NULL';
+            } elseif (is_bool($param)) {
+                return $param ? '1' : '0';
+            } elseif (is_int($param) || is_float($param)) {
+                return $param;
+            } elseif (is_string($param)) {
+                return "'" . addslashes($param) . "'";
+            } else {
+                // For arrays or objects
+                return "'" . addslashes(serialize($param)) . "'";
+            }
+        }, $params);
+        
+        // Replace placeholders with formatted values
         $index = 0;
-        $query = preg_replace_callback('/\?/', function($match) use ($values, &$index) {
-            return isset($values[$index]) ? $values[$index++] : '?';
+        $query = preg_replace_callback('/\?/', function($match) use ($quoted_values, &$index) {
+            return isset($quoted_values[$index]) ? $quoted_values[$index++] : '?';
         }, $query);
         
         return $query;
@@ -382,7 +440,7 @@ class MySql
             $this->error = true;
             $this->last_error = $this->mysqli->error;
             if (Config::get('debug', false)) {
-                $this->last_error .= " \n<br> ".$this->debugPreparedQuery($sql, []);
+                $this->last_error .= " \n<br> " . $sql;
             }
             return null;
         };
@@ -1135,20 +1193,21 @@ class MySql
   
    /**
      * Connects to a MySQL database
-     * 
+     *
      * @param string $ip Database server hostname or IP
      * @param string $login Database username
      * @param string $pass Database password
      * @param string $dbname Database name
-     * @return bool True on success, false on failure
-     * 
+     * @return bool True on success
+     * @throws DatabaseException When connection fails
+     *
      * @example
      * ```php
      * // Connect to local database
-     * $connected = $db->connect('localhost', 'root', 'password', 'my_database');
-     * 
-     * if (!$connected) {
-     *     echo "Connection failed: " . $db->last_error;
+     * try {
+     *     $db->connect('localhost', 'root', 'password', 'my_database');
+     * } catch (DatabaseException $e) {
+     *     echo "Connection failed: " . $e->getMessage();
      * }
      * ```
      */
@@ -1156,25 +1215,60 @@ class MySql
         $this->close();
         $this->error =  false;
         $this->dbname = $dbname;
-        $timeout = 5; 
+        $timeout = 5;
         $this->mysqli =  mysqli_init( );
         if (!$this->mysqli->options( MYSQLI_OPT_CONNECT_TIMEOUT, $timeout ) ) {
-            Logs::set('system', 'MYSQL', "I cannot setup connectection timeout");
+            $errorMsg = "Cannot setup connection timeout";
+            Logs::set('system', 'MYSQL', $errorMsg);
             $this->error =  true;
-        } 
+            $this->last_error = $errorMsg;
+
+            throw new DatabaseException(
+                $errorMsg,
+                'mysql',
+                [
+                    'host' => $ip,
+                    'database' => $dbname,
+                    'user' => $login
+                ]
+            );
+        }
         try {
              $this->mysqli->real_connect($ip, $login, $pass, $dbname);
         } catch (\Exception $e) {
-            Logs::set('system', 'MYSQL', "Connect. ip:".$ip." login:". $login." psw:".$pass." dbname:".$dbname);
-            Logs::set('system', 'ERROR', "MYSQL Connect. ip:".$ip." login:". $login." psw:".$pass." dbname:".$dbname);
+            $errorMsg = "MySQL connection failed: " . $e->getMessage();
+            Logs::set('system', 'ERROR', "MYSQL Connect. ip:".$ip." login:". $login." dbname:".$dbname." error:".$e->getMessage());
             $this->error =  true;
-            return false;
-        } 
-        // è connesso? 
+            $this->last_error = $errorMsg;
+
+            throw new DatabaseException(
+                $errorMsg,
+                'mysql',
+                [
+                    'host' => $ip,
+                    'database' => $dbname,
+                    'user' => $login,
+                    'password' => $pass
+                ]
+            );
+        }
+        // è connesso?
         if ($this->mysqli->connect_error) {
-            Logs::set('system', 'ERROR', "MYSQL Connect. ip:".$ip." login:". $login." psw:".$pass." dbname:".$dbname);
+            $errorMsg = "MySQL connection error: " . $this->mysqli->connect_error;
+            Logs::set('system', 'ERROR', "MYSQL Connect. ip:".$ip." login:". $login." dbname:".$dbname." error:".$this->mysqli->connect_error);
             $this->error =  true;
-            return false;
+            $this->last_error = $errorMsg;
+
+            throw new DatabaseException(
+                $errorMsg,
+                'mysql',
+                [
+                    'host' => $ip,
+                    'database' => $dbname,
+                    'user' => $login,
+                    'password' => $pass
+                ]
+            );
         }
         return true;
     }

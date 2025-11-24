@@ -38,6 +38,7 @@ trait CrudOperationsTrait
      */
     public function getById($id, bool $use_cache = true): ?static
     {
+        $this->dates_in_user_timezone = false;
         $this->error = false;
         $this->last_error = '';
         if ($use_cache && isset($this->cache[$id])) {
@@ -77,6 +78,7 @@ trait CrudOperationsTrait
      */
     public function getByIds(string|array $ids): ?static
     {
+        $this->dates_in_user_timezone = false;
         $this->error = false;
         $this->last_error = '';
         if (is_string($ids)) {
@@ -152,6 +154,7 @@ trait CrudOperationsTrait
         return $options;
     }
 
+
     public function setResultsByIds(string|array $ids): bool
     {
         $this->error = false;
@@ -174,7 +177,7 @@ trait CrudOperationsTrait
         $query->where($this->db->qn($id_name) . ' IN (' . $placeholders . ')', $id_array);
         $results = $query->getResults();
         $ris = $results->getRawData();
-
+        $this->dates_in_user_timezone = false;
         $this->setResults($ris);
         return true;
     }
@@ -195,15 +198,20 @@ trait CrudOperationsTrait
      * @return static Model instance with record or empty
      */
     public function getByIdAndUpdate($id, array $merge_data = []): static {
+        $this->dates_in_user_timezone = false;
         $model = $this->getById($id);
-       
         if ($model->isEmpty()) {
+            // Empty model - fill with merge_data
+            // Dates in merge_data are in user timezone (from form submission)
             $model->fill($merge_data);
         } else {
+            // Existing model loaded from DB (dates in UTC)
+            // Set flag to true before merging data from form (dates in user timezone)
+            $model->dates_in_user_timezone = true;
             foreach ($merge_data as $k=>$d) {
-                $model->$k = $d; 
+                $model->setValueWithConversion($k, $d);
+                
             }
-
         }
         if ($merge_data != [] || !$model->isEmpty()) {
             // rimuovo il parametro default dai rules
@@ -240,7 +248,9 @@ trait CrudOperationsTrait
      * @return static Model instance with record
      */
     function getByIdForEdit($id, array $merge_data = []): static {
-        return $this->getByIdAndUpdate($id, $merge_data);
+        $model = $this->getByIdAndUpdate($id, $merge_data);
+        $model->convertDatesToUserTimezone();
+        return $model;
     }
 
 
@@ -267,7 +277,14 @@ trait CrudOperationsTrait
         return $model;
     }
 
-    public function get($query, $params = []) {
+    /**
+     * Apply a query to the model and return the results
+     *
+     * @param Query $query The query to apply
+     * @param array $params Optional parameters for the query
+     * @return static Model instance with results
+     */
+    public function get(Query $query, ?array $params = []) : \App\Abstracts\AbstractModel|array|null|false {
         if ($query instanceof Query) {
             $query->setModelClass((new static()));
             return $query->getResults();
@@ -303,11 +320,7 @@ trait CrudOperationsTrait
             
         $new_class = new static();
      
-        if ($new_class->fill($data) == -1) {
-            $this->error = true;
-            $this->last_error = $new_class->last_error;
-            return false;
-        }
+        $new_class->fill($data);
       
         if ($new_class->validate()) {
             $new_class->save(true, false);
@@ -352,6 +365,7 @@ trait CrudOperationsTrait
             return true;
         }
         $this->cleanEmptyRecords();
+
         try {
             // 1. Processa le eliminazioni
             foreach ($this->deleted_primary_keys as $pk_value) {

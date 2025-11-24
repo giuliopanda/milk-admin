@@ -226,7 +226,7 @@ class AuthController extends AbstractController
         $ris = AccessLogsService::formatPageActivity($pages_data);
         $ris = ["offcanvas_end" => [         // 'xl', 'l', or default
             "action" => "show",
-            "title" => "Edit Item",
+            "title" => _rt("Edit item"),
             "body" => $ris['html']
         ]];
         if (isset($ris['html'])) {

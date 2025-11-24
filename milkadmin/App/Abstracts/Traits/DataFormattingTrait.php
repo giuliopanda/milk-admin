@@ -2,6 +2,7 @@
 namespace App\Abstracts\Traits;
 
 use App\Get;
+use App\Config;
 
 !defined('MILK_DIR') && die();
 
@@ -97,6 +98,8 @@ trait DataFormattingTrait
             return $handler($singleData);
         }
 
+        $this->convertDatesToUserTimezone();
+
         $raw_value = $this->getRawValue($name);
 
         if ($raw_value === null) {
@@ -110,16 +113,13 @@ trait DataFormattingTrait
         }
        // print "<p>" .$name." ".$rule['type']." - SQL VALUE: " . print_r($raw_value, true) . "</p>\n";
         // Handle date/datetime/time formatting
-        if (in_array($rule['type'], ['datetime', 'date', 'time'])) {
-            $return_value = Get::formatDate($raw_value, $rule['type']);
-            if ($return_value == '') {
-                if (is_a($raw_value, \DateTime::class)) {
-                    return $raw_value->format('Y-m-d H:i:s');
-                } else {
-                    return $raw_value;
-                }
-            }
+        if (in_array($rule['type'], ['datetime', 'date'])) {
+
+            $return_value = Get::formatDate($raw_value, $rule['type'], true);
+
             return $return_value;
+        } else if ($rule['type'] === 'time') {
+            return Get::formatDate($raw_value, $rule['type'], true);
         }
 
         // Handle array formatting
@@ -221,10 +221,27 @@ trait DataFormattingTrait
             }
         }
 
+        if (in_array($rule['type'], ['datetime', 'date']) && 
+            ($rule['timezone_conversion'] ?? false) &&
+            is_a($value, \DateTime::class)) {
+            
+            // Il valore arriva dal form nel timezone dell'utente
+            // Dobbiamo convertirlo a UTC per il salvataggio
+            $user_timezone = Get::userTimezone();
+            
+            // Imposta il timezone dell'utente sul DateTime ricevuto
+            $value->setTimezone(new \DateTimeZone($user_timezone));
+            
+            // Converti a UTC per il database
+            $value->setTimezone(new \DateTimeZone('UTC'));
+        }
+
         // Handle DateTime conversion
         if (is_a($value, \DateTime::class)) {
             if ($rule['type'] === 'date') {
                 return $value->format('Y-m-d');
+            } else if ($rule['type'] === 'time') {
+                return $value->format('H:i:s');
             } else {
                 return $value->format('Y-m-d H:i:s');
             }
@@ -291,23 +308,20 @@ trait DataFormattingTrait
     }
 
     /**
-     * Set value with automatic type conversion.
-     * If $return is true return value else set value in records_array[$this->current_index][$name]
-     * Converts date strings to DateTime, JSON strings to arrays
+     * Get value with automatic type conversion without setting it.
+     * Converts date strings to DateTime, JSON strings to arrays, etc.
      *
      * @param string $name Field name
-     * @param mixed $value Value to set
-     * @return mixed
+     * @param mixed $value Value to convert
+     * @return mixed Converted value
      */
-    protected function setValueWithConversion(string $name, mixed $value, $return = false): mixed {
+    protected function getValueWithConversion(string $name, mixed $value): mixed {
         // Skip metadata fields
         if ($name === '___action') {
             return null;
         }
 
         if ($value === null) {
-            if ($return) return null;
-            $this->setRawValue($name, null);
             return null;
         }
 
@@ -319,10 +333,8 @@ trait DataFormattingTrait
         if (!$rule) {
             // Check if this is a relationship alias
             if (method_exists($this, 'hasRelationship') && $this->hasRelationship($name)) {
-                // It's a relationship - store the value directly without conversion
-                if ($return) return $value;
-                $this->setRawValue($name, $value);
-                return null;
+                // It's a relationship - return the value directly without conversion
+                return $value;
             }
             // Not a relationship and no rule - skip
             return null;
@@ -335,9 +347,7 @@ trait DataFormattingTrait
             if (isset($this->records_array[$this->current_index])) {
                 $value = $handler($value, $this->records_array[$this->current_index]);
             }
-            if ($return) return $value;
-            $this->setRawValue($name, $value);
-            return null;
+            return $value;
         }
 
         // Handle array type: convert JSON string to array
@@ -363,16 +373,48 @@ trait DataFormattingTrait
         elseif ($rule['type'] === 'datetime' || $rule['type'] === 'date') {
             if (!is_a($value, \DateTime::class)) {
                 if (strtotime($value) !== false) {
-                    $value = new \DateTime($value);
+                    // Determine which timezone to use when parsing the string
+                    // If timezone_conversion is disabled for this field, always use UTC
+                    // Otherwise, check Config and dates_in_user_timezone flag
+                    if (!($rule['timezone_conversion'] ?? false)) {
+                        // No timezone conversion for this field - force UTC
+                        $timezone = new \DateTimeZone('UTC');
+                    } elseif (Config::get('use_user_timezone', false)) {
+                        // If dates_in_user_timezone is true, incoming dates are already in user timezone
+                        // Parse them in user timezone without conversion
+                        // If false, incoming dates are in UTC and will be converted later
+                        if ($this->dates_in_user_timezone) {
+                            // Dates are already in user timezone - parse in user timezone
+                            $timezone = new \DateTimeZone(Get::userTimezone());
+                        } else {
+                            // Dates are in UTC - parse as UTC (will be converted later by convertDatesToUserTimezone)
+                            $timezone = new \DateTimeZone('UTC');
+                        }
+                    } else {
+                        // Config says to parse dates in UTC (default)
+                        $timezone = new \DateTimeZone('UTC');
+                    }
+                    $value = new \DateTime($value, $timezone);
                 } else {
                     $value = null;
                 }
             }
         }
 
-        if ($return) return $value;
-        $this->setRawValue($name, $value);
-        return null;
+        return $value;
+    }
+
+    /**
+     * Set value with automatic type conversion and store it in records_array.
+     * Converts date strings to DateTime, JSON strings to arrays
+     *
+     * @param string $name Field name
+     * @param mixed $value Value to set
+     * @return void
+     */
+    protected function setValueWithConversion(string $name, mixed $value): void {
+        $convertedValue = $this->getValueWithConversion($name, $value);
+        $this->setRawValue($name, $convertedValue);
     }
 
     /**
@@ -404,7 +446,7 @@ trait DataFormattingTrait
 
         // Modifica il valore nel record
         $this->records_array[$this->current_index][$name] = $value;
-        if ($name === $this->getPrimaryKey() && ($this->records_array[$this->current_index]['___action'] ?? null) === 'insert') {
+        if ($name === $this->getPrimaryKey() && ($this->records_array[$this->current_index]['___action'] ?? null) === 'insert' && !empty($value)) {
             // Se stiamo inserendo un nuovo record e stiamo impostando la chiave primaria, cambiamo lo stato in 'edit'
             $this->records_array[$this->current_index]['___action'] = 'edit';
         }

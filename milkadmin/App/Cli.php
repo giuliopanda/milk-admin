@@ -1,5 +1,8 @@
-<?php 
+<?php
 namespace App;
+
+use App\Exceptions\CliException;
+use App\Exceptions\CliFunctionExecutionException;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
 /**
@@ -20,122 +23,144 @@ namespace App;
  * @package     App
  */
 
-class Cli 
+class Cli
 {
     /**
-     * Last error message from CLI operations
-     * 
-     * @var string
-     */
-    static public $last_error = '';
-    /**
      * List of registered functions
-     * 
+     *
      * @var array
      */
     static private $functions = [];
     /**
      * Current function being executed
-     * 
+     *
      * @var string
      */
     static private $current_function = ''; 
     /**
      * Checks if the code is running from the command line
-     * 
+     *
      * @return bool True if running from CLI, false otherwise
      */
-    public static function isCli() {
+    public static function isCli(): bool {
         return (php_sapi_name() === 'cli');
     }
 
     /**
      * Executes the function passed as an argument
-     * 
+     * Handles exceptions and displays error messages in a user-friendly format
+     *
      * @param array $argv Arguments from command line
      * @return bool True if the function was executed successfully, false otherwise
      */
-    public static function run($argv) {
+    public static function run(array $argv): bool {
         array_shift($argv);
         self::$current_function = array_shift($argv);
-        if (self::$current_function == NULL || !self::isCli()) return false;
-        return self::callFunction(self::$current_function, $argv);
+
+        if (self::$current_function == NULL || !self::isCli()) {
+            return false;
+        }
+
+        try {
+            self::callFunction(self::$current_function, $argv);
+            return true;
+        } catch (CliFunctionExecutionException $e) {
+            self::error($e->getMessage());
+            // Show previous exception if available
+            if ($e->getPrevious()) {
+                self::echo("Caused by: " . $e->getPrevious()->getMessage());
+            }
+            return false;
+        } catch (CliException $e) {
+            self::error($e->getMessage());
+            return false;
+        } catch (\Exception $e) {
+            self::error("Unexpected error: " . $e->getMessage());
+            return false;
+        }
     }
 
     /**
      * Returns the names of all registered functions
-     * 
+     *
      * @return array Array of function names
      */
-    public static function getAllFn() {
+    public static function getAllFn(): array {
         return array_keys(self::$functions);
     }
 
     /**
      * Registers a function
-     * 
+     *
      * @param string $name Function name
-     * @param callable $function Function to register
-     * @return bool True if the function was registered successfully, false otherwise
+     * @param callable|string|array $function Function to register (callable, function name, or [class, method])
+     * @return void
+     * @throws CliException If registration fails (invalid name, not callable, or already registered)
      */
-    public static function set($name, $function) {
-        self::$last_error = '';;
+    public static function set(string $name, callable|string|array $function): void {
         if (empty($name) || !is_string($name)) {
-            self::$last_error = "Function name must be a non-empty string";
-            return false;
+            throw new CliException("Function name must be a non-empty string");
         }
         if (!is_callable($function)) {
-            self::$last_error = "Function must be callable";
-            return false;
+            throw new CliException("Function '$name' must be callable");
         }
         if (isset(self::$functions[$name])) {
-            self::$last_error = "Function '$name' already registered";
-            return false;
+            throw new CliException("Function '$name' is already registered");
         }
         self::$functions[$name] = $function;
-        return true;
     }
 
     /**
      * Calls a registered function
-     * 
+     *
      * @param string $name Function name
-     * @param array $args Arguments to pass to the function
-     * @return bool True if the function was called successfully, false otherwise
+     * @param mixed ...$args Arguments to pass to the function (variadic)
+     * @return void
+     * @throws CliException If function is not registered or not callable
+     * @throws CliFunctionExecutionException If the function execution fails
      */
-    public static function callFunction($name, ...$args)
+    public static function callFunction(string $name, ...$args): void
     {
-        self::$last_error = '';
-       
         if (!array_key_exists($name, self::$functions)) {
-            $error = "Function '$name' not registered";
-            self::$last_error = $error;
-            return false;
+            throw new CliException("Function '$name' is not registered");
         }
         if (!is_callable(self::$functions[$name])) {
-            $error = "Function '$name' is not callable";
-            self::$last_error = $error;
-            return false;
+            throw new CliException("Function '$name' is not callable");
         }
-        if (count($args) == 0) {
-            $new_args = self::completeArgs(self::$functions[$name]);
-        } else {
-            $new_args = self::completeArgs(self::$functions[$name], $args[0]);
-        }
-        call_user_func_array(self::$functions[$name], $new_args);
-        return true;
 
+        // Handle arguments - if first arg is an array and only one arg, use it as args list
+        // Otherwise use all args directly
+        if (count($args) == 1 && is_array($args[0])) {
+            $new_args = self::completeArgs(self::$functions[$name], $args[0]);
+        } else {
+            $new_args = self::completeArgs(self::$functions[$name], $args);
+        }
+
+        try {
+            call_user_func_array(self::$functions[$name], $new_args);
+        } catch (\Exception $e) {
+            // If it's already a CliException, rethrow it
+            if ($e instanceof CliException) {
+                throw $e;
+            }
+            // Wrap other exceptions as execution errors
+            throw new CliFunctionExecutionException(
+                "Function '$name' execution failed: " . $e->getMessage(),
+                $e->getCode(),
+                $e
+            );
+        }
     }
 
     /**
      * Prepares the array with parameters to pass to the function
      * Analyzes function requirements and ensures correct argument count
-     * 
-     * @param callable $function The function to analyze
+     *
+     * @param callable|string|array $function The function to analyze
      * @param array $args Arguments to pass to the function
      * @return array Completed arguments array
      */
-    static private function completeArgs($function, $args = []) {
+    static private function completeArgs(callable|string|array $function, array $args = []): array {
         if (is_array($function)) {
             $ref = new \ReflectionMethod($function[0], $function[1]);
         } else {
@@ -164,11 +189,12 @@ class Cli
  
     /**
      * Draws a formatted table in the console
-     * 
+     *
      * @param array $data Data to display in the table
-     * @param array $columns Column definitions (optional)
+     * @param array|null $columns Column definitions (optional)
+     * @return void
      */
-    static function drawTable($data, $columns = null) {
+    static function drawTable(array $data, ?array $columns = null): void {
         // Early return if data is empty
         if (!is_array($data) || count($data) == 0) {
             echo "No data to show\n";
@@ -258,36 +284,88 @@ class Cli
     }
 
     /**
-     * Prints an error message in red on the console
-     * 
-     * @param string $msg Message to print
+     * Draws a title box in the console
+     * Automatically calculates box size based on title length
+     *
+     * @param string $title The title to display
+     * @param int $padding Additional padding on each side (default: 4)
+     * @param string $color ANSI color code (default: cyan - \033[1;36m)
+     * @return void
      */
-    static function error($msg) {
+    static function drawTitle(string $title, int $padding = 4, string $color = "\033[1;36m"): void {
+        $reset = "\033[0m";
+        $title_length = strlen($title);
+        $box_width = $title_length + ($padding * 2);
+
+        // Top border
+        echo "\n";
+        echo $color . "╔" . str_repeat("═", $box_width) . "╗" . $reset . "\n";
+
+        // Title line with centering
+        $left_padding = str_repeat(" ", $padding);
+        $right_padding = str_repeat(" ", $padding);
+        echo $color . "║" . $reset . $left_padding . "\033[1;37m" . $title . $reset . $right_padding . $color . "║" . $reset . "\n";
+
+        // Bottom border
+        echo $color . "╚" . str_repeat("═", $box_width) . "╝" . $reset . "\n";
+        echo "\n";
+    }
+
+    /**
+     * Draws a section separator line
+     *
+     * @param string $title Optional section title
+     * @param int $width Line width (default: 40)
+     * @param string $color ANSI color code (default: yellow)
+     * @return void
+     */
+    static function drawSeparator(string $title = '', int $width = 40, string $color = "\033[0;33m"): void {
+        $reset = "\033[0m";
+
+        if (empty($title)) {
+            echo $color . str_repeat("━", $width) . $reset . "\n";
+        } else {
+            $title_with_spaces = " " . $title . " ";
+            $title_length = strlen($title_with_spaces);
+
+            if ($title_length >= $width) {
+                echo $color . $title_with_spaces . $reset . "\n";
+            } else {
+                $line_length = floor(($width - $title_length) / 2);
+                $left_line = str_repeat("━", $line_length);
+                $right_line = str_repeat("━", $width - $line_length - $title_length);
+                echo $color . $left_line . $reset . $title_with_spaces . $color . $right_line . $reset . "\n";
+            }
+        }
+    }
+
+    /**
+     * Prints an error message in red on the console
+     *
+     * @param string $msg Message to print
+     * @return void
+     */
+    static function error(string $msg): void {
         print "\n\033[31mError:\033[0m ".$msg."\n";
     }
 
     /**
-     * @return string The last error message
+     * Prints a message on the console
+     *
+     * @param string $msg Message to print
+     * @return void
      */
-    static function getLastError(): string {
-        return self::$last_error;
+    static function echo(string $msg): void {
+        print $msg."\n";
     }
 
     /**
-     * Prints a message on the console
-     * 
-     * @param string $msg Message to print
-     */
-    static function echo($msg) {
-        print $msg."\n";
-    }
-    
-    /**
      * Prints a success message in green on the console
-     * 
+     *
      * @param string $msg Message to print
+     * @return void
      */
-    static function success($msg) {
+    static function success(string $msg): void {
         print "\n\033[32mSuccess:\033[0m ".$msg."\n";
     }
 }

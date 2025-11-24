@@ -168,13 +168,13 @@ $query = "SELECT * FROM pages WHERE id = " . $pageId;<?php _p(ob_get_clean()); ?
             <h3>Functions with translation</h3>
         </div>
         <div class="card-body">
-            <h4>_pt($var) / _rt($var) - Sanitization with translation</h4>
-            <p>Sanitizes and translates text using the localization system:</p>
+            <h4>_pt($var, ...args) / _rt($var, ...args) - Sanitization with translation</h4>
+            <p>Sanitizes and translates text using the localization system. The ...args are passed to the translation function:</p>
 
             <pre class="border p-2 bg-light"><code class="language-php"><?php ob_start(); ?>
 // Print a translated and sanitized string
 _pt('welcome_message'); // Looks for the translation of 'welcome_message' and prints it sanitized
-
+_pt('Hello %s', 'World'); // Uses translation with substitution
 // Return version
 $translatedText = _rt('welcome_message');
 <?php _p(ob_get_clean()); ?></code></pre>

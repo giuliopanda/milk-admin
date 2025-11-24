@@ -1,7 +1,7 @@
 <?php
 namespace App\Abstracts;
 
-use App\{Config, Hooks, Logs, Permissions, Route, Theme, Get};
+use App\{Config, Hooks, Logs, Permissions, Route, Theme, Get, Lang};
 use App\Abstracts\Traits\{InstallationTrait, RouteControllerTrait, AttributeShellTrait, AttributeApiTrait, AttributeHookTrait};
 
 !defined('MILK_DIR') && die(); // Prevent direct access
@@ -342,7 +342,7 @@ abstract class AbstractModule {
        
      
         if ((isset($_REQUEST['page']) && $_REQUEST['page'] == $this->page)) {
-          
+            $this->loadLang();
             Hooks::set('after_modules_loaded', [$this, 'init'], 10);
             Hooks::set('after_modules_loaded', [$this, 'setStylesAndScripts'], 15);
             Hooks::set('after_modules_loaded', [$this, 'afterInit'], 11);
@@ -420,6 +420,11 @@ abstract class AbstractModule {
         $this->jobsStart();
     }
 
+    /**
+     * Call always during module initialization
+     * 
+     * This method is called during the 'init' hook phase.
+     */
     public function _hook_init() {
 
         // Set up sidebar menu
@@ -529,6 +534,22 @@ abstract class AbstractModule {
             $this->setupAttributeApiTraitHooks();
         }
     }
+
+    /**
+     * Load the language files for the module
+     *
+     * @return void
+     */
+     protected function loadLang() {
+        // Load the module's language files
+        $reflection = new \ReflectionClass($this);
+        $moduleDir = dirname($reflection->getFileName());
+        $langDir = $moduleDir . '/Lang/';
+        if (is_dir($langDir)) {
+            $lang = Get::userLocale();
+            Lang::loadPhpFile($langDir . '/' . $lang . '.php', $this->page);
+        }
+     }
     
 
     /**
@@ -1031,5 +1052,17 @@ abstract class AbstractModule {
             $this->install = new $installClass();
         }
     }
+
+    
+    /**
+     * Get common data for the module
+     */
+    public function getCommonData(): array {
+        return [
+            'page' => $this->page,
+            'title' => $this->title,
+        ];
+    }
+
 
 }

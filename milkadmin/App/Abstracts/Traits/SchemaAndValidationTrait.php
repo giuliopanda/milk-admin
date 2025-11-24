@@ -100,12 +100,15 @@ trait SchemaAndValidationTrait
                     $pre_sequence = null;
                     foreach ($rule['options'] as $key => $_) {
                         if ($seqence) {
-                            if ($pre_sequence !== null && $pre_sequence + 1 != $key) {
+                            // First check if key is an integer before doing math operations
+                            if (!is_int($key)) {
+                                $seqence = false;
+                            } elseif ($pre_sequence !== null && $pre_sequence + 1 != $key) {
                                 $seqence = false;
                             }
                             $pre_sequence = $key;
                         }
-                        $max = max($max, strlen($key));
+                        $max = max($max, strlen((string)$key));
                         if (!is_int($key)) {
                             $is_int = false;
                         }

@@ -24,7 +24,7 @@ use Theme\Template;
                 <div class="alert alert-info fade show" role="alert">
                     <p><?php _pt('If the username you entered is from a registered user, an e-mail with the instructions to reset password has been sent.');  ?></p>
                 </div>
-                <a href="<?php echo \App\Route::url(['page'=>'auth','action'=>'login']); ?>"><?php _p('Return to Login'); ?></a>
+                <a href="<?php echo \App\Route::url(['page'=>'auth','action'=>'login']); ?>"><?php _pt('Return to Login'); ?></a>
             </div>
         
         </div>
@@ -37,11 +37,11 @@ use Theme\Template;
                 <div class="p-1 flex-shrink-1">
                     <i class="bi bi-key-fill" style="font-size:2rem; line-height: 1rem;"></i>
                 </div> 
-                <div class="p-1 w-100 align-content-center"><?php _p('PASSWORD RESET'); ?></div>
+                <div class="p-1 w-100 align-content-center"><?php _pt('PASSWORD RESET'); ?></div>
             </div>
         </div>
         <div class="card-body">
-            <p><?php _p('Insert your username to receive the instructions to reset your password.'); ?></p>
+            <p><?php _pt('Insert your username to receive the instructions to reset your password.'); ?></p>
             <form class="js-needs-validation" novalidate method="post">
                 <input type="hidden" name="page" value="auth">
                 <input type="hidden" name="action" value="forgot_password">
@@ -49,15 +49,15 @@ use Theme\Template;
                 <div class="mb-3">
                     <div class="form-floating">
                         <input type="text" name="username" class="form-control" id="floatingInput" placeholder="usernames" required>
-                        <label for="floatingInput"><?php _p('Username'); ?></label>
+                        <label for="floatingInput"><?php _pt('Username'); ?></label>
                     </div>
                 </div>
                 <button class="btn btn-primary w-100 py-2" type="submit">
                     <i class="bi bi-envelope-fill"></i>
-                    <span  style="margin-left: 5px; display: inline-block;"><?php _p('Send password reset email'); ?></span>
+                    <span  style="margin-left: 5px; display: inline-block;"><?php _pt('Send password reset email'); ?></span>
                 </button>
             </form>
         </div>
     </div>
-    <a href="<?php echo \App\Route::url(['page'=>'auth','action'=>'login']); ?>">Login</a>
+    <a href="<?php echo \App\Route::url(['page'=>'auth','action'=>'login']); ?>"><?php _pt('Login'); ?></a>
 </div>

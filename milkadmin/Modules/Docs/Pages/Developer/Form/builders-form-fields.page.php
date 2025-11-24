@@ -140,8 +140,6 @@ class ProductModel extends AbstractModel {
 
     <h4>1. Add Field at the End (No Position)</h4>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
-    ->addFieldsFromObject($data_object, 'edit')
-
     // Add field at the end of the form
     ->addField('phone', 'string', [
         'label' => 'Phone Number',
@@ -155,8 +153,6 @@ class ProductModel extends AbstractModel {
 
     <h4>2. Add Field Before Another Field</h4>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
-    ->addFieldsFromObject($data_object, 'edit')
-
     // Add 'surname' field BEFORE 'status' field
     ->addField('surname', 'string', [
         'label' => 'Surname'
@@ -296,8 +292,6 @@ class ProductModel extends AbstractModel {
     <p>Use <code>removeField()</code> to exclude fields from the form:</p>
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
-    ->addFieldsFromObject($data_object, 'edit')
-
     // Remove system fields that shouldn't be edited
     ->removeField('created_at')
     ->removeField('updated_at')
@@ -326,8 +320,6 @@ class ProductModel extends AbstractModel {
     <p>Use <code>modify_field()</code> to change properties of fields added by <code>addFieldsFromObject()</code>:</p>
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
-    ->addFieldsFromObject($data_object, 'edit')
-
     // Change the label
     ->modify_field('name', [
         'label' => 'Full Name'
@@ -384,9 +376,7 @@ class ProductModel extends AbstractModel {
     <p>Use <code>fieldOrder()</code> to control the display order of fields:</p>
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
-    ->addFieldsFromObject($data_object, 'edit')
-
-    // Remove system fields
+      // Remove system fields
     ->removeField('created_at')
     ->removeField('updated_at')
 
@@ -436,10 +426,7 @@ class UserModule extends AbstractModule {
         $user = $this->model->getByIdForEdit($id);
 
         $form = \Builders\FormBuilder::create($this->model, $this->page)
-            // 1. Add all fields from Model
-            ->addFieldsFromObject($user, 'edit')
-
-            // 2. Remove system fields
+            // 1. Remove system fields
             ->removeField('created_at')
             ->removeField('updated_at')
             ->removeField('last_login')
@@ -564,7 +551,6 @@ class EmployeesModel extends AbstractModel {
 
 // Controller - add related fields to form
 $form = FormBuilder::create($this->model, 'employees', '?page=employees')
-    ->addFieldsFromObject($data_object, 'edit')
     ->addRelatedField('badge.badge_number', 'Badge Number')
     ->addRelatedField('badge.issue_date', 'Issue Date')
     ->addRelatedField('badge.status', 'Status')
@@ -606,8 +592,6 @@ $form = FormBuilder::create($this->model, 'employees', '?page=employees')
 
     <h4>Examples</h4>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
-    ->addFieldsFromObject($data_object, 'edit')
-
     // Add HTML BEFORE a specific field
     ->addHtml(
         '<div class="alert alert-info">Please provide your full name</div>',
@@ -652,8 +636,6 @@ $form = FormBuilder::create($this->model, 'employees', '?page=employees')
 
     <h4>Examples</h4>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
-    ->addFieldsFromObject($data_object, 'edit')
-
     // Add HTML before all fields
     ->addHtmlBeforeFields(
         '<div class="alert alert-primary">
@@ -677,9 +659,6 @@ $form = FormBuilder::create($this->model, 'employees', '?page=employees')
 
     <h3>Complete Example: Mixing Both Approaches</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
-    // Add all fields from model
-    ->addFieldsFromObject($data_object, 'edit')
-
     // Global: Add instructions at the top
     ->addHtmlBeforeFields(
         '<div class="alert alert-info">Please complete this form</div>'
@@ -710,7 +689,6 @@ $form = FormBuilder::create($this->model, 'employees', '?page=employees')
     <p>All field management methods support method chaining for clean, readable code:</p>
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
-    ->addFieldsFromObject($data_object, 'edit')
     ->removeField('created_at')
     ->removeField('updated_at')
     ->modify_field('name', ['label' => 'Full Name'])
@@ -723,7 +701,6 @@ $form = FormBuilder::create($this->model, 'employees', '?page=employees')
 
     <h3>1. Use addFieldsFromObject() as Starting Point</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Good - Start with Model fields, then customize
-->addFieldsFromObject($data_object, 'edit')
 ->removeField('created_at')
 ->modify_field('name', ['label' => 'Full Name'])
 

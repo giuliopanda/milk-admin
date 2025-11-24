@@ -4,14 +4,14 @@ namespace Modules\Docs\Pages;
  * @title Table
  * @guide developer
  * @order 10
- * @tags TableBuilder, fluent-interface, method-chaining, query-builder, table-management, columns, actions, styling, PHP-classes, simplified-API
+ * @tags TableBuilder, fluent-interface, field-first, method-chaining, query-builder, table-management, columns, actions, styling, PHP-classes, simplified-API
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>
 <div class="bg-white p-4">
     <h1>TableBuilder Class Documentation</h1>
 
-    <p>The TableBuilder class provides a fluent interface for creating and managing dynamic tables, simplifying the process compared to using ModelList, ListStructure, and PageInfo directly.</p>
+    <p>The TableBuilder class provides a fluent, field-first interface for creating and managing dynamic tables. It uses a modern chaining pattern where you configure each field individually, making your code more readable and maintainable.</p>
 
     <h2>System Overview</h2>
     <p>TableBuilder acts as a wrapper that combines:</p>
@@ -53,7 +53,9 @@ $tableBuilder = \Builders\TableBuilder::create($model, 'posts_table')
     ->limit(20)
     ->orderBy('created_at', 'desc')
     ->setDefaultActions()
-    ->asLink('title', '?page='.$this->page.'&action=edit&id=%id%');
+    // Field-first pattern: configure title field
+    ->field('title')
+        ->link('?page='.$this->page.'&action=edit&id=%id%');
 
 $response = $tableBuilder->getResponse();
 Response::render('view.php', $response);
@@ -84,81 +86,140 @@ Response::render('view.php', $response);
         <p class="mb-0"><strong>📘 For comprehensive query documentation:</strong> See <a href="?page=docs&action=Developer/AbstractsClass/abstract-model-queries" class="alert-link">Abstract Model - Query Methods</a></p>
     </div>
 
-    <h2>Column Management</h2>
+    <h2>Field-First Pattern</h2>
 
+    <p>The field-first pattern provides a clean, readable way to configure each table column. Instead of calling methods with the field name as a parameter, you first select the field with <code>field()</code> and then chain configuration methods.</p>
+
+    <div class="alert alert-info">
+        <h5><i class="bi bi-lightbulb"></i> Why Field-First?</h5>
+        <ul class="mb-0">
+            <li><strong>Better Readability</strong>: All configurations for a field are grouped together</li>
+            <li><strong>Clearer Intent</strong>: Easy to see what each field does at a glance</li>
+            <li><strong>IDE Support</strong>: Better autocomplete and method suggestions</li>
+            <li><strong>Consistent</strong>: Matches modern fluent API patterns</li>
+        </ul>
+    </div>
+
+    <h3>Basic Field Configuration</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$table = \Builders\TableBuilder::create($model, 'posts_table')
-    // Add custom column with callback
-    ->column('excerpt', 'Excerpt', 'html', [], function($row) {
-        return substr($row->content, 0, 100) . '...';
-    })
+    // Configure each field with method chaining
+    ->field('id')
+        ->label('ID')
+        ->hide()  // Hide this field
 
-    // Make column clickable
-    ->asLink('title', '?page=posts&action=edit&id=%id%')
+    ->field('title')
+        ->label('Article Title')
+        ->link('?page=posts&action=edit&id=%id%')
+        ->truncate(80)
 
-    // Modify column labels and types
-    ->setLabel('created_at', 'Publication Date')
-    ->setType('status', 'select')
-    ->setOptions('status', ['draft' => 'Draft', 'published' => 'Published'])
+    ->field('status')
+        ->label('Status')
+        ->type('select')
+        ->options([
+            'draft' => 'Draft',
+            'published' => 'Published',
+            'archived' => 'Archived'
+        ])
 
-    // Show/hide columns
-    ->hideColumn('password')
-    ->showOnlyColumns(['id', 'title', 'status', 'created_at'])
+    ->field('created_at')
+        ->label('Publication Date')
+        ->type('datetime')
 
-    // Reorder columns
-    ->reorderColumns(['id', 'title', 'status', 'created_at'])
+    ->getTable();</code></pre>
+
+    <h3>Available Field Methods</h3>
+    <table class="table table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>Method</th>
+                <th>Description</th>
+                <th>Example</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>label(string $label)</code></td>
+                <td>Set display label for the field</td>
+                <td><code>->field('created_at')->label('Published')</code></td>
+            </tr>
+            <tr>
+                <td><code>type(string $type)</code></td>
+                <td>Set field type (text, select, date, html, etc.)</td>
+                <td><code>->field('status')->type('select')</code></td>
+            </tr>
+            <tr>
+                <td><code>options(array $options)</code></td>
+                <td>Set options for select fields</td>
+                <td><code>->field('status')->options(['active' => 'Active'])</code></td>
+            </tr>
+            <tr>
+                <td><code>fn(callable $fn)</code></td>
+                <td>Custom formatter function</td>
+                <td><code>->field('name')->fn(fn($row) => strtoupper($row['name']))</code></td>
+            </tr>
+            <tr>
+                <td><code>hide()</code></td>
+                <td>Hide field from display</td>
+                <td><code>->field('password')->hide()</code></td>
+            </tr>
+            <tr>
+                <td><code>noSort()</code></td>
+                <td>Disable sorting for this field</td>
+                <td><code>->field('actions')->noSort()</code></td>
+            </tr>
+            <tr>
+                <td><code>sortBy(string $real_field)</code></td>
+                <td>Map virtual field to database field for sorting</td>
+                <td><code>->field('doctor_name')->sortBy('doctor.name')</code></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Display Formatting Methods</h2>
+
+    <h3>Links - link() method</h3>
+    <p>The <code>link()</code> method converts a field to a clickable link with placeholder support.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$table = \Builders\TableBuilder::create($model, 'posts_table')
+    // Basic link
+    ->field('title')
+        ->link('?page=posts&action=edit&id=%id%')
+
+    // Link with options
+    ->field('author')
+        ->link('/profile/%author_id%', [
+            'target' => '_blank',
+            'class' => 'text-primary fw-bold'
+        ])
+
+    // Multiple placeholders
+    ->field('full_name')
+        ->link('/user/%id%?tab=profile&ref=%category%')
 
     ->getTable();
-    </code></pre>
 
-    <h3>Link Columns (asLink method)</h3>
-    <p>The <code>asLink()</code> method provides a simple way to convert columns to clickable links, replacing the verbose <code>setFn()</code> approach.</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
-// Old verbose way (before asLink)
-$table = \Builders\TableBuilder::create($model, 'posts_table')
-    ->setFn('title', function($row, $key) {
-        return '<a href="?page=posts&action=edit&id=' . $row->id . '">' . $row->title . '</a>';
-    });
-
-// New simplified way with asLink()
-$table = \Builders\TableBuilder::create($model, 'posts_table')
-    // Basic link - automatically sets column type to 'html'
-    ->asLink('title', '?page=posts&action=edit&id=%id%')
-
-    // Link with additional options
-    ->asLink('author', '/profile/%author_id%', [
-        'target' => '_blank',
-        'class' => 'text-primary fw-bold'
-    ])
-
-    // Multiple placeholders supported
-    ->asLink('full_name', '/user/%id%?tab=profile&ref=%category%')
-
-    ->getTable();
-
-// Supported placeholder patterns:
+// Supported placeholders:
 // %id% - Primary key or 'id' field
 // %field_name% - Any column value (e.g., %title%, %status%, %created_at%)
-// %author_id% - Nested field access
 
 // Available options:
 // 'target' => '_blank' | '_self' | '_parent' | '_top'
 // 'class' => 'css-classes-here'
     </code></pre>
 
-    <h3>File Columns (asFile method)</h3>
-    <p>The <code>asFile()</code> method converts array columns containing file data into download links. <strong>Automatically applied</strong> when model has <code>type=array</code> and <code>form-type=file</code>.</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
-// Basic usage - converts file array to download links
-$table = \Builders\TableBuilder::create($model, 'documents_table')
-    ->asFile('attachments')
-    ->getTable();
+    <h3>Files - file() method</h3>
+    <p>The <code>file()</code> method converts array fields containing file data into download links. <strong>Automatically applied</strong> when model has <code>type=array</code> and <code>form-type=file</code>.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$table = \Builders\TableBuilder::create($model, 'documents_table')
+    // Basic usage
+    ->field('attachments')
+        ->file()
 
-// With custom options
-$table = \Builders\TableBuilder::create($model, 'reports_table')
-    ->asFile('files', [
-        'class' => 'btn btn-link text-primary',
-        'target' => '_blank'
-    ])
+    // With custom options
+    ->field('files')
+        ->file([
+            'class' => 'btn btn-link text-primary',
+            'target' => '_blank'
+        ])
+
     ->getTable();
 
 // Expected data format:
@@ -170,29 +231,24 @@ $table = \Builders\TableBuilder::create($model, 'reports_table')
 // Available options:
 // 'class' => 'custom-css-class'  // Default: 'js-file-download'
 // 'target' => '_blank' | '_self'  // Default: '_blank'
-
-// Auto-detection: If your model defines a column with:
-// 'type' => 'array',
-// 'form-type' => 'file'
-// TableBuilder automatically applies asFile() without explicit call
     </code></pre>
 
-    <h3>Image Columns (asImage method)</h3>
-    <p>The <code>asImage()</code> method displays image thumbnails for array columns containing image data. <strong>Automatically applied</strong> when model has <code>type=array</code> and <code>form-type=image</code>.</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
-// Basic usage - shows image thumbnails
-$table = \Builders\TableBuilder::create($model, 'products_table')
-    ->asImage('photos')
-    ->getTable();
+    <h3>Images - image() method</h3>
+    <p>The <code>image()</code> method displays image thumbnails. <strong>Automatically applied</strong> when model has <code>type=array</code> and <code>form-type=image</code>.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$table = \Builders\TableBuilder::create($model, 'products_table')
+    // Basic usage
+    ->field('photos')
+        ->image()
 
-// With custom options
-$table = \Builders\TableBuilder::create($model, 'gallery_table')
-    ->asImage('images', [
-        'size' => 80,              // Thumbnail size in pixels (default: 50)
-        'class' => 'rounded',      // Additional CSS classes
-        'lightbox' => true,        // Wrap in clickable link (default: false)
-        'max_images' => 3          // Limit displayed images, show "+N" badge
-    ])
+    // With custom options
+    ->field('gallery')
+        ->image([
+            'size' => 80,              // Thumbnail size in pixels
+            'class' => 'rounded',      // CSS classes
+            'lightbox' => true,        // Clickable links
+            'max_images' => 3          // Limit displayed images
+        ])
+
     ->getTable();
 
 // Expected data format:
@@ -202,34 +258,83 @@ $table = \Builders\TableBuilder::create($model, 'gallery_table')
 // ];
 
 // Available options:
-// 'size' => 50                    // Thumbnail width/height in pixels
-// 'class' => ''                   // Additional CSS classes for images
-// 'lightbox' => false             // Enable clickable links to full images
-// 'max_images' => null            // Limit number shown (shows "+N" for remaining)
-
-// Auto-detection: If your model defines a column with:
-// 'type' => 'array',
-// 'form-type' => 'image'
-// TableBuilder automatically applies asImage() without explicit call
-
-// Example with max_images:
-// If column has 5 images and max_images=3, displays:
-// [img1] [img2] [img3] [+2]
+// 'size' => 50                    // Width/height in pixels
+// 'class' => ''                   // CSS classes
+// 'lightbox' => false             // Enable clickable links
+// 'max_images' => null            // Show "+N" for remaining
     </code></pre>
 
-    <h3>Sort Mapping</h3>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
-// Map virtual column sorting to actual database field
-$table = \Builders\TableBuilder::create($model, 'orders_table')
-    ->column('customer_name', 'Customer', 'text', [], function($row) {
-        return $row->first_name . ' ' . $row->last_name;
-    })
-    
-    // When user clicks to sort by 'customer_name', actually sort by 'first_name'
-    ->mapSort('customer_name', 'first_name')
-    
+    <h3>Text Truncation - truncate() method</h3>
+    <p>The <code>truncate()</code> method limits text length, adding a suffix when exceeded.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$table = \Builders\TableBuilder::create($model, 'posts_table')
+    // Basic truncation
+    ->field('description')
+        ->truncate(100)
+
+    // Custom suffix
+    ->field('title')
+        ->truncate(50, '…')
+
+    ->field('content')
+        ->truncate(200, ' [read more]')
+
     ->getTable();
+
+// Features:
+// - UTF-8 safe (uses mb_substr and mb_strlen)
+// - Applied after all formatting
+// - Only truncates strings exceeding the specified length
+// - Can be combined with other methods
     </code></pre>
+
+    <h2>Complete Example</h2>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$table = \Builders\TableBuilder::create($model, 'posts_table')
+    // Query configuration
+    ->where('status != ?', ['deleted'])
+    ->orderBy('created_at', 'DESC')
+    ->limit(20)
+
+    // Field configurations with field-first pattern
+    ->field('id')
+        ->label('ID')
+        ->hide()
+
+    ->field('title')
+        ->label('Article Title')
+        ->link('?page=posts&action=edit&id=%id%')
+        ->truncate(80)
+
+    ->field('author_name')
+        ->label('Author')
+        ->fn(function($row) {
+            return $row['first_name'] . ' ' . $row['last_name'];
+        })
+
+    ->field('category')
+        ->label('Category')
+        ->type('select')
+        ->options([
+            'tech' => 'Technology',
+            'news' => 'News',
+            'blog' => 'Blog'
+        ])
+
+    ->field('status')
+        ->label('Status')
+
+    ->field('photos')
+        ->label('Images')
+        ->image(['size' => 60, 'max_images' => 2])
+
+    ->field('created_at')
+        ->label('Publication Date')
+        ->type('datetime')
+
+    // Actions
+    ->setPage('posts')
+    ->setDefaultActions()
+
+    ->getTable();</code></pre>
 
     <h2>Row Actions</h2>
 
@@ -271,7 +376,7 @@ $table = \Builders\TableBuilder::create($model, 'orders_table')
     <p><strong>See: <a href="?page=docs&action=bulk-actions">Bulk Actions Documentation</a></strong></p>
 
     <h2>Table Styling</h2>
-    <p>TableBuilder provides comprehensive styling options for customizing table appearance.</p>
+    <p>TableBuilder provides comprehensive styling options including field-specific styling with conditional classes.</p>
     <p><strong>See: <a href="?page=docs&action=styling">Table Styling Documentation</a></strong></p>
 
     <h2>Output Methods</h2>
@@ -283,7 +388,7 @@ $table = \Builders\TableBuilder::create($model, 'orders_table')
         <p><strong><code>render()</code> or <code>getTable()</code></strong> - Use when you have NO row actions or bulk actions with callbacks:</p>
         <pre class="mb-2"><code class="language-php">// Simple table - no actions or only link actions
 $html = TableBuilder::create($model, 'table_id')
-    ->asLink('title', '?page=posts&action=edit&id=%id%')
+    ->field('title')->link('?page=posts&action=edit&id=%id%')
     ->render();
 
 Response::render($view, ['html' => $html]);</code></pre>
@@ -409,57 +514,57 @@ $results = $table->getFunctionsResults();
                 <td>Custom query logic</td>
             </tr>
             <tr>
-                <td rowspan="10">Column Management</td>
-                <td><code>column()</code></td>
-                <td>Add/modify column</td>
+                <td rowspan="13">Field Configuration<br>(Field-First)</td>
+                <td><code>field()</code></td>
+                <td>Start configuring a field</td>
             </tr>
             <tr>
-                <td><code>setLabel()</code></td>
-                <td>Set column label</td>
+                <td><code>label()</code></td>
+                <td>Set field label</td>
             </tr>
             <tr>
-                <td><code>setType()</code></td>
-                <td>Set column type</td>
+                <td><code>type()</code></td>
+                <td>Set field type</td>
             </tr>
             <tr>
-                <td><code>setOptions()</code></td>
+                <td><code>options()</code></td>
                 <td>Set select options</td>
             </tr>
             <tr>
-                <td><code>hideColumn()</code></td>
-                <td>Hide column</td>
+                <td><code>fn()</code></td>
+                <td>Custom formatter function</td>
             </tr>
             <tr>
-                <td><code>deleteColumn()</code></td>
-                <td>Remove column</td>
+                <td><code>link()</code></td>
+                <td>Convert to clickable link</td>
             </tr>
             <tr>
-                <td><code>disableSort()</code></td>
+                <td><code>file()</code></td>
+                <td>Display as file download links</td>
+            </tr>
+            <tr>
+                <td><code>image()</code></td>
+                <td>Display as image thumbnails</td>
+            </tr>
+            <tr>
+                <td><code>truncate()</code></td>
+                <td>Truncate text with suffix</td>
+            </tr>
+            <tr>
+                <td><code>hide()</code></td>
+                <td>Hide field</td>
+            </tr>
+            <tr>
+                <td><code>noSort()</code></td>
                 <td>Disable sorting</td>
             </tr>
             <tr>
-                <td><code>mapSort()</code></td>
-                <td>Map virtual to real field</td>
+                <td><code>sortBy()</code></td>
+                <td>Map to real database field</td>
             </tr>
             <tr>
-                <td><code>reorderColumns()</code></td>
-                <td>Change column order</td>
-            </tr>
-            <tr>
-                <td><code>showOnlyColumns()</code></td>
-                <td>Show specific columns only</td>
-            </tr>
-            <tr>
-                <td><code>asLink()</code></td>
-                <td>Convert column to clickable link</td>
-            </tr>
-            <tr>
-                <td><code>asFile()</code></td>
-                <td>Convert array column to file download links (auto-applied for form-type=file)</td>
-            </tr>
-            <tr>
-                <td><code>asImage()</code></td>
-                <td>Convert array column to image thumbnails (auto-applied for form-type=image)</td>
+                <td><code>class()</code></td>
+                <td>Set CSS classes (see Styling docs)</td>
             </tr>
             <tr>
                 <td rowspan="4">Actions</td>
@@ -479,7 +584,7 @@ $results = $table->getFunctionsResults();
                 <td>Configure bulk actions</td>
             </tr>
             <tr>
-                <td rowspan="4">Output</td>
+                <td rowspan="5">Output</td>
                 <td><code>getData()</code></td>
                 <td>Get complete data array</td>
             </tr>
@@ -489,7 +594,7 @@ $results = $table->getFunctionsResults();
             </tr>
             <tr>
                 <td><code>getResponse()</code></td>
-                <td>Get HTML + additional data. This solution allows the Response to handle both the html version and json.</td>
+                <td>Get HTML + additional data (handles JSON automatically)</td>
             </tr>
             <tr>
                 <td><code>render()</code></td>
@@ -497,17 +602,18 @@ $results = $table->getFunctionsResults();
             </tr>
             <tr>
                 <td><code>getFunctionsResults()</code></td>
-                <td>Get action results</td>
+                <td>Get action callback results</td>
             </tr>
         </tbody>
     </table>
 
     <h2>Key Features Summary</h2>
     <ul>
+        <li><strong>Field-First Pattern</strong>: Configure each field with clear, grouped method chains</li>
         <li><strong>Fluent Interface</strong>: Method chaining for readable code</li>
         <li><strong>Action Functions</strong>: Execute custom logic on selected rows with return values for theme integration</li>
         <li><strong>Advanced Queries</strong>: Support for JOINs, WHERE conditions, and custom callbacks</li>
-        <li><strong>Column Management</strong>: Hide, reorder, and customize column display</li>
-        <li><strong>Styling Options</strong>: Comprehensive table and row styling capabilities</li>
+        <li><strong>Flexible Display</strong>: Links, images, files, truncation, custom formatters</li>
+        <li><strong>Styling Options</strong>: Comprehensive table and field-specific styling with conditional classes</li>
     </ul>
 </div>

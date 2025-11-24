@@ -134,14 +134,19 @@ class Settings
         
         // If file exists, load the data
         if (file_exists($file_path)) {
-            $json_content = File::getContents($file_path);
-            $data = json_decode($json_content, true);
-            
-            if ($data === null && json_last_error() !== JSON_ERROR_NONE) {
-                // If there's a JSON parsing error, initialize with empty array
+            try {
+                $json_content = File::getContents($file_path);
+                $data = json_decode($json_content, true);
+
+                if ($data === null && json_last_error() !== JSON_ERROR_NONE) {
+                    // If there's a JSON parsing error, initialize with empty array
+                    self::$data[$clean_group] = [];
+                } else {
+                    self::$data[$clean_group] = $data ?: [];
+                }
+            } catch (\App\Exceptions\FileException $e) {
+                // If file read fails, initialize with empty array
                 self::$data[$clean_group] = [];
-            } else {
-                self::$data[$clean_group] = $data ?: [];
             }
         } else {
             // If file doesn't exist, initialize with empty array
@@ -435,9 +440,13 @@ class Settings
                 $file_path = self::getFilePath($group);
                 $json_content = json_encode(self::$data[$group], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 
-                if (File::putContents($file_path, $json_content) !== false) {
+                try {
+                    File::putContents($file_path, $json_content);
                     // Remove the modified flag after successful save
                     unset(self::$modified_groups[$group]);
+                } catch (\App\Exceptions\FileException $e) {
+                    // Log error but continue with other groups
+                    error_log("Settings: Failed to save group '$group': " . $e->getMessage());
                 }
             }
         }

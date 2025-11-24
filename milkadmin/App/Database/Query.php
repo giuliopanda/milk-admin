@@ -661,12 +661,59 @@ class Query
         return [$sql, $params];
     }
 
-     /**
-     * Costruisce e ritorna la query SQL per calcolare il numero totale di record.
+   /**
+     * Get the SQL query string with parameters replaced (for debug purposes only)
      * 
-     * @return array Array contenente la stringa SQL e i parametri per il bind_param.
+     * This method generates a readable SQL query by replacing placeholders with
+     * their actual values. It should ONLY be used for debugging and logging,
+     * never for actual query execution as it may not perfectly replicate the
+     * database driver's parameter binding behavior.
+     * 
+     * @return string The SQL query with parameters substituted
+     * 
+     * @example
+     * $query->where('id', '=', 123)->where('name', '=', 'John');
+     * echo $query->getSql();
+     * // Output: SELECT * FROM users WHERE id = 123 AND name = 'John'
      */
-    public function getTotal() {
+    public function getSql() {
+        list($sql, $params) = $this->get();
+        
+        // Prepare values with appropriate quoting
+        $quoted_params = array_map(function($param) {
+            if (is_null($param)) {
+                return 'NULL';
+            } elseif (is_bool($param)) {
+                return $param ? '1' : '0';
+            } elseif (is_int($param) || is_float($param)) {
+                return $param;
+            } elseif (is_string($param)) {
+                // Use database quote method if available
+                if (method_exists($this->db, 'quote')) {
+                    return $this->db->quote($param);
+                } else {
+                    // Fallback: manual escaping
+                    return "'" . addslashes($param) . "'";
+                }
+            } else {
+                // For arrays or objects
+                return "'" . addslashes(serialize($param)) . "'";
+            }
+        }, $params);
+        
+        // Replace placeholders with formatted values
+        $sql = str_replace('?', '%s', $sql);
+        $sql_string = vsprintf($sql, $quoted_params);
+        
+        return $sql_string;
+    }
+
+    /**
+     * Builds and returns the SQL query to calculate the total number of records.
+     *
+     * @return array Array containing the SQL string and the parameters for bind_param.
+     */
+    public function getTotal(): array {
         $params = []; // saranno i parametri da passare al bind_param
         $sql = 'SELECT COUNT(*) FROM '.$this->db->qn($this->table);
        
@@ -677,11 +724,11 @@ class Query
     }
 
     /**
-     * Pulisce i parametri della query.
-     * @param string $single Se una stringa "select" o "from" o "where" o "order" o "limit" viene passata come parametro, verrà pulito solo quel parametro.
+     * Clears the query parameters.
+     *
+     * @param string $single If a string "select" or "from" or "where" or "order" or "limit" is passed as a parameter, only that parameter will be cleared.
      */
-
-    public function clean($single = '') {
+    public function clean(string $single = ''): void {
         if ($single == 'select') {
             $this->select = [];
         } elseif ($single == 'from') {
@@ -702,9 +749,11 @@ class Query
     }
 
     /**
-     * Costruisce la stringa WHERE della query.
+     * Builds the WHERE string of the query.
+     *
+     * @return array Array containing the WHERE string and the parameters for bind_param.
      */
-    private function buildWhere() {
+    private function buildWhere(): array {
         $params = [];
         $sql_where = '';
         if (count($this->where) > 0) {
@@ -730,9 +779,9 @@ class Query
 
 
     /**
-     * Esegue la query e restituisce i risultati.
+     * Executes the query and returns the results.
      *
-     * @return\App\Abstracts\AbstractModel|array|null|false I risultati della query o false se la query fallisce.
+     * @return \App\Abstracts\AbstractModel|array|null|false The results of the query or false if the query fails.
      */
     public function getResults(): \App\Abstracts\AbstractModel|array|null|false {
         if ($this->static_model !== null) {
@@ -754,9 +803,9 @@ class Query
     }
 
     /**
-     * Esegue la query e restituisce una riga.
+     * Executes the query and returns a row.
      *
-     * @return mixed Una riga o false se la query fallisce.
+     * @return \App\Abstracts\AbstractModel|array|null|false A row or false if the query fails.
      */
     public function getRow(): \App\Abstracts\AbstractModel|array|null|false {
         $this->limit(0, 1);
@@ -776,9 +825,9 @@ class Query
     }
 
     /**
-     * Esegue la query e restituisce un singolo valore.
-     * 
-     * @return mixed Un singolo valore o false se la query fallisce.
+     * Executes the query and returns a single value.
+     *
+     * @return mixed A single value or false if the query fails.
      */
     public function getVar(): mixed {
         $this->limit(0, 1);
@@ -790,7 +839,7 @@ class Query
      *
      * @param \App\Abstracts\AbstractModel $model The static model
      */
-    public function setModelClass($model): void {
+    public function setModelClass(\App\Abstracts\AbstractModel $model): void {
         $this->static_model = $model;
 
         // Extract include_relationships from the model if available
@@ -801,6 +850,10 @@ class Query
             }
         }
       
+    }
+
+    public function __toString(): string {
+        return $this->getSql();
     }
 }
 

@@ -46,7 +46,6 @@ namespace Modules\Docs\Pages;
     <p>Create a container with 3 equal columns:</p>
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
-    ->addFieldsFromObject($data, 'edit')
 
     // Add 3 fields in 3 equal columns (col-md-4 each)
     ->addContainer(
@@ -69,8 +68,6 @@ namespace Modules\Docs\Pages;
     <p>Create a container with custom column sizes using Bootstrap grid (total 12):</p>
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
-    ->addFieldsFromObject($data, 'edit')
-
     // Custom column sizes: [4, 5, 3] = col-md-4, col-md-5, col-md-3
     ->addContainer(
         'address_info',
@@ -91,7 +88,6 @@ namespace Modules\Docs\Pages;
     <p>When you have more fields than columns, they automatically wrap to new rows:</p>
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
-    ->addFieldsFromObject($data, 'edit')
 
     // 5 fields in 3 columns = 2 rows (3 fields + 2 fields)
     ->addContainer(
@@ -139,9 +135,6 @@ class TestFormContainerModule extends AbstractModule {
         $data = $this->model->getByIdForEdit($id);
 
         $form = \Builders\FormBuilder::create($this->model, $this->page)
-            // Add fields from model
-            ->addFieldsFromObject($data, 'edit')
-
             // Add extra fields for testing
             ->addField('email', 'email', ['label' => 'Email Address'])
             ->addField('phone', 'tel', ['label' => 'Phone Number'])

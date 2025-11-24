@@ -1,0 +1,17 @@
+{
+    "name": "milkadmin/milk-admin",
+    "description": "MilkAdmin Framework",
+    "type": "project",
+    "autoload": {
+        "psr-4": {
+            "App\\": "milkadmin/App/",
+            "Builders\\": "milkadmin/Builders/",
+            "Theme\\": "milkadmin/Theme/",
+            "Modules\\": "milkadmin/Modules/",
+            "Local\\": "milkadmin_local/"
+        }
+    },
+    "require": {
+        "php": ">=8.0"
+    }
+}

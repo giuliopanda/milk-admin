@@ -26,20 +26,15 @@ class AccessLogsService
      * @return TableBuilder Configured table builder instance
      */
     public static function getAccessLogsTableBuilder() {
-        if (!Permissions::check('auth.manage')) {
-            echo json_encode(['html' => _r('Permission denied'), 'title' => 'Error']);
-            return;
-        }
-
         $model = new AccessLogModel();
         $table_id = 'access_logs_table';
 
         // Create table with Builders
         $tableBuilder = TableBuilder::create($model, $table_id)
             // Select columns
-            ->reorderColumns(['username', 'ip_address', 'login_time', 'logout_time', 'last_activity', 'session_duration','pages_activity'])
+            ->reorderColumns(['username', 'ip_address', 'login_time', 'logout_time', 'last_activity','pages_activity'])
             ->orderBy('login_time', 'desc') ->limit(20)
-            ->filter('start_date', function($query, $value) {
+            ->filter('start_date', function($query, $value) {   
                 $query->where('DATE(login_time) >= ?', [$value]);
             })
             ->filter('end_date', function($query, $value) {
@@ -51,8 +46,7 @@ class AccessLogsService
 
             // Column customization
             ->hideColumns(['id','user_id', 'session_id', 'user_agent' ])
-            ->setType('logout_time', 'html')
-            ->column('pages_activity', 'Pages Visited', 'html', [], function($row) {
+            ->column('pages_activity', 'Pages visited', 'html', [], function($row) {
                 $pages_data = $row->pages_activity ?? [];
 
                 if (empty($pages_data) ) {
@@ -62,8 +56,8 @@ class AccessLogsService
                 $pages_count = count($pages_data);
                 return '<a href="' . Route::url('?page=auth&action=format-page-activity&id=' . $row->id) . '" class="btn btn-sm btn-primary" data-fetch="post"> ' . $pages_count . ' pages visited </a>';
             })
-            ->setType('session_duration', 'html')
-            ->setFn('session_duration', function($row) {
+            ->field('session_duration')->type('html')
+            ->field('session_duration')->fn(function($row) {
                 $end = (empty($row->logout_time)) ? $row->last_activity : $row->logout_time;
                 if (empty($end) || empty($row->login_time) ) {
                     return '<span class="text-body-secondary">Active</span>';
@@ -71,7 +65,7 @@ class AccessLogsService
 
                 return AccessLogsService::formatSessionDuration($row->login_time, $end);
             });
-
+        
         return $tableBuilder;
     }
 

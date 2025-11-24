@@ -4,7 +4,7 @@ namespace Modules\Docs\Pages;
  * @title Install Module Documentation
  * @guide framework
  * @order 2
- * @tags Install, update, uninstall, version, build-version, cli, modules
+ * @tags Install, update, uninstall, version, build-version, update-paths, cli, modules
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access
@@ -46,6 +46,33 @@ namespace Modules\Docs\Pages;
         <li>Clean up the original folders, leaving only the ZIP and install script</li>
     </ul>
     <p>The resulting package can be uploaded to your server. Simply upload both the ZIP file and <code>install_from_zip.php</code> to your server directory, then access <code>install_from_zip.php</code> via browser. It will automatically extract the ZIP, redirect to the installation page, and self-delete.</p>
+
+    <h3 class="mt-4">Updating Paths and URL After Moving Installation</h3>
+    <p>When you move your installation to a new directory or deploy to a different server/domain, you need to update the configuration paths and base URL. Use the <code>update-paths</code> CLI command:</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-bash"># Update only directory paths (automatic detection)
+php milkadmin/cli.php update-paths
+
+# Update paths AND change the base URL
+php milkadmin/cli.php update-paths "http://localhost/new-path/public_html/"
+
+# Example: deploying to production
+php milkadmin/cli.php update-paths "https://www.mysite.com/admin/"</code></pre>
+
+    <p>This command updates:</p>
+    <ul>
+        <li><code>public_html/milkadmin.php</code> - MILK_DIR and LOCAL_DIR paths</li>
+        <li><code>milkadmin_local/config.php</code> - base_url configuration</li>
+    </ul>
+
+    <div class="alert alert-info">
+        <strong><i class="bi bi-info-circle"></i> When to use update-paths</strong>
+        <ul class="mb-0">
+            <li>After moving the installation directory on the same server</li>
+            <li>After deploying to a new server or domain</li>
+            <li>After changing the public URL structure</li>
+            <li>After copying the installation to a different location</li>
+        </ul>
+    </div>
 
     <p>2. Alternatively, create a zip manually:</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">zip -r new_version.zip new_version_xxxxx</code></pre>

@@ -10,6 +10,8 @@ class UserModel extends AbstractModel {
     protected string $primary_key = 'id';
 
     protected function configure($rule): void {
+        $languages = \App\Config::get('available_locales', []);
+        $default_language = \App\Config::get('locale', 'en_US');
         $rule->table($this->table)
             ->id('id')
             ->string('username', 255)->required()->label('Username')
@@ -25,7 +27,9 @@ class UserModel extends AbstractModel {
                     1 => 'Active'
                 ]])
             ->boolean('is_admin')->default(0)->label('Administrator')
-            ->text('permissions')->default('{}')->label('Permissions');
+            ->text('permissions')->default('{}')->label('Permissions')
+            ->string('timezone', 64)->default('UTC')->label('Timezone')
+            ->select('locale', $languages)->default($default_language)->label('Language');
     }
 
     #[BeforeSave('password')]

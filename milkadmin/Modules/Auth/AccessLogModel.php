@@ -11,13 +11,13 @@ class AccessLogModel extends AbstractModel {
             ->int('user_id')->nullable(false)->label('User ID')
             ->string('username', 128)->nullable(false)->label('Username')
             ->string('session_id', 128)->nullable(false)->label('Session ID')
-            ->datetime('login_time')->nullable(false)->label('Login Time')
-            ->datetime('logout_time')->nullable()->label('Logout Time')
+            ->datetime('login_time')->nullable(false)->label('Login')
+            ->datetime('logout_time')->nullable()->label('Logout')
             ->string('ip_address', 64)->nullable(false)->label('IP Address')
             ->string('user_agent', 512)->nullable()->label('User Agent')
-            ->array('pages_activity')->nullable()->label('Pages Activity')
-            ->datetime('last_activity')->nullable()->label('Last Activity')
-            ->int('session_duration')->nullable()->label('Session Duration (seconds)');
+            ->array('pages_activity')->nullable()->label('Pages activity')
+            ->datetime('last_activity')->nullable()->label('Last activity')
+            ->int('session_duration')->nullable()->label('Session Duration (seconds)')->hide();
     }
     
     /**

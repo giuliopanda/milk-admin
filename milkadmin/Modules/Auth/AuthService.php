@@ -190,6 +190,10 @@ class AuthService {
         $password = trim($_REQUEST['password'] ?? '');
         $is_admin = _absint($_REQUEST['is_admin'] ?? 0);
         $permissions = $_REQUEST['permissions'] ?? [];
+        // Se use_user_timezone è false, salva sempre UTC
+        $timezone = Config::get('use_user_timezone', false) ? ($_REQUEST['timezone'] ?? 'UTC') : 'UTC';
+        $locale = $_REQUEST['locale'] ?? '';
+
         // if you are not an administrator, you cannot change the user management permissions
         if (!Permissions::check('_user.is_admin') && $id > 0) {
             $user_to_save = Get::make('Auth')->getUser($id);
@@ -199,11 +203,11 @@ class AuthService {
                unset($permissions['auth']['manage']);
             }
         }
-       
+
         $current_user = Get::make('Auth')->getUser();
         if ($current_user->is_admin == 0) {
             $is_admin = 0;
-        } 
+        }
 
         $status = _absint($_REQUEST['status'] ?? 1);
         $msg = '';
@@ -226,7 +230,7 @@ class AuthService {
                     echo json_encode(['msg' => _r('Permission denied: You cannot edit an admin user'), 'success' => false]);
                     return;
                 }
-                Get::make('Auth')->saveUser($id, $username, $email, $password, $status, $is_admin, $permissions);
+                Get::make('Auth')->saveUser($id, $username, $email, $password, $status, $is_admin, $permissions, $timezone, $locale);
 
                 $user = Get::make('Auth')->getUser($id);
                 $activation_key = Get::make('Auth')->createActivationKey($id);
@@ -236,7 +240,7 @@ class AuthService {
                 $success = true;
             }
         } else {
-            Get::make('Auth')->saveUser($id, $username, $email, $password, $status, $is_admin, $permissions);
+            Get::make('Auth')->saveUser($id, $username, $email, $password, $status, $is_admin, $permissions, $timezone, $locale);
             $id = Get::make('Auth')->getLastInsertId();
 
             $user = Get::make('Auth')->getUser($id);
@@ -348,7 +352,10 @@ class AuthService {
         }
 
         // Recupero dei dati
-        $trows = Get::db()->getResults(...$query->get());
+        $user_model = new UserModel();
+        $users = $user_model->get($query);
+        $trows = $users->getFormattedData();
+        
         // Conteggio totale dei record
         $total = Get::db()->getVar(...$query->getTotal());
 
@@ -359,8 +366,18 @@ class AuthService {
             ->setColumn('status', 'Status', 'select', true, false, ['0' => _r('Suspended'), '1' => _r('Active'), '-1' => _r('Trash')])
             ->setColumn('is_admin', 'Is Admin', 'select', true, false, ['0' => _r('No'), '1' => _r('Yes')])
             ->hideColumn('id')
+            ->setLabel('last_login', _r('Last login'))
             ->setPrimary('id')
             ->deleteColumns(['password','activation_key', 'permissions']);
+
+        $locale = Config::get('available_locales', false);
+        if (!is_array($locale) || count($locale) == 0) {
+            $rows_info->hideColumn('locale');
+        }
+         if (!\App\Config::get('use_user_timezone', false)) {
+            $rows_info->hideColumn('timezone');
+         }
+        
 
         if ($model->page_info['filter_status'] == 'trash') {
             $rows_info->setAction(['restore' => _r('Restore'), 'delete' => _r('Delete')], _r('Action'));

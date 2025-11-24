@@ -147,13 +147,8 @@ window.getCSRFToken = function() {
  * Handles structured JSON responses for controlling frontend via AJAX
  */
 function jsonAction(data, container) {
-    // 1. HTML replacement
-    if ('html' in data && container && data.html != '') {
-        container.outerHTML = data.html;
-        console.log("jsonAction");
-        updateContainer(container);
-    }
-
+    // 1. HTML replacement Removed
+   
     // 2. Redirect
     if ('redirect' in data && data.redirect != '') {
         window.location.href = data.redirect;
@@ -171,6 +166,16 @@ function jsonAction(data, container) {
         if (data.offcanvas_end.size) {
             window.offcanvasEnd.size(data.offcanvas_end.size);
         }
+
+        // Set content first (if specified) - updateContainer is called here
+        if (data.offcanvas_end.title) {
+            window.offcanvasEnd.title(data.offcanvas_end.title);
+        }
+        if (data.offcanvas_end.body) {
+            window.offcanvasEnd.body(data.offcanvas_end.body);
+        }
+
+        // Then handle actions (show/hide without re-setting content)
         if (data.offcanvas_end.action) {
             switch (data.offcanvas_end.action) {
                 case 'loading_show':
@@ -190,12 +195,11 @@ function jsonAction(data, container) {
                 default:
                     break;
             }
-        }
-        if (data.offcanvas_end.title) {
-            window.offcanvasEnd.title(data.offcanvas_end.title);
-        }
-        if (data.offcanvas_end.body) {
-            window.offcanvasEnd.body(data.offcanvas_end.body);
+        } else {
+            // No action specified: just show if content was provided
+            if (data.offcanvas_end.title || data.offcanvas_end.body) {
+                window.offcanvasEnd.show();
+            }
         }
     }
 
@@ -204,6 +208,19 @@ function jsonAction(data, container) {
         if (data.modal.size) {
             window.modal.size(data.modal.size);
         }
+
+        // Set content first (if specified) - updateContainer is called here
+        if (data.modal.title) {
+            window.modal.title(data.modal.title);
+        }
+        if (data.modal.body) {
+            window.modal.body(data.modal.body);
+        }
+        if (data.modal.footer) {
+            window.modal.footer(data.modal.footer);
+        }
+
+        // Then handle actions (show/hide without re-setting content)
         if (data.modal.action) {
             switch (data.modal.action) {
                 case 'loading_show':
@@ -223,19 +240,11 @@ function jsonAction(data, container) {
                 default:
                     break;
             }
-        }
-        if (data.modal.title) {
-            window.modal.title(data.modal.title);
-        }
-        if (data.modal.body) {
-            window.modal.body(data.modal.body);
-        }
-        if (data.modal.footer) {
-            window.modal.footer(data.modal.footer);
-        }
-        // Show modal if no action specified but content provided
-        if (!data.modal.action && (data.modal.title || data.modal.body || data.modal.footer)) {
-            window.modal.show(data.modal.title, data.modal.body, data.modal.footer);
+        } else {
+            // No action specified: just show the modal (content already set above)
+            if (data.modal.title || data.modal.body || data.modal.footer) {
+                window.modal.show();
+            }
         }
     }
 
@@ -248,10 +257,13 @@ function jsonAction(data, container) {
         } else if (data.toast.body || data.toast.message) {
             window.toasts.show(data.toast.body || data.toast.message, data.toast.type || message_type);
         }
-    }
-    // Legacy message support
-    if (data.msg && window.toasts) {
-        window.toasts.show(data.msg, message_type);
+    } else {
+        // message sigle + success
+        if (data.msg ) {
+            window.toasts.show(data.msg, message_type);
+        } else if (data.message ) {
+            window.toasts.show(data.message, message_type);
+        }
     }
 
     // 6. Form management
@@ -326,7 +338,17 @@ function jsonAction(data, container) {
         }
     }
 
-    // 10. JavaScript Hooks
+    // 10. Calendar actions
+    if ('calendar' in data && data.calendar.id) {
+        const calendar = getComponent(data.calendar.id);
+        if (calendar) {
+            if (data.calendar.action == 'reload') {
+                calendar.reload();
+            }
+        }
+    }
+
+    // 11. JavaScript Hooks
     if (data.hook) {
         milkActionsProcessHook(data.hook);
     }
@@ -399,7 +421,6 @@ function milkActionsProcessElement(elementData) {
     // Set innerHTML
     if (elementData.innerHTML !== undefined) {
         el.innerHTML = elementData.innerHTML;
-        console.log("innerHTML");
         updateContainer(el);
     }
 
@@ -464,7 +485,7 @@ function milkActionsProcessElement(elementData) {
         while (tempDiv.firstChild) {
             el.appendChild(tempDiv.firstChild);
         }
-        console.log("append");
+
         updateContainer(el);
     }
 
@@ -475,7 +496,6 @@ function milkActionsProcessElement(elementData) {
         while (tempDiv.lastChild) {
             el.insertBefore(tempDiv.lastChild, el.firstChild);
         }
-        console.log("prepend");
         updateContainer(el);
     }
 
@@ -486,7 +506,6 @@ function milkActionsProcessElement(elementData) {
         while (tempDiv.firstChild) {
             el.parentNode.insertBefore(tempDiv.firstChild, el);
         }
-        console.log("before");
         updateContainer(el);
     }
 
@@ -498,7 +517,7 @@ function milkActionsProcessElement(elementData) {
         while (tempDiv.lastChild) {
             el.parentNode.insertBefore(tempDiv.lastChild, refNode);
         }
-        
+        updateContainer(el)
     }
 }
 
@@ -507,12 +526,14 @@ function milkActionsProcessElement(elementData) {
 /**
  * Se creo un elemento poi questo deve essere aggiornato con tutti i javascript
  * @Todo dovrebbe essere questo ad avviarsi a inizio caricamento con el = document
- * @param {} el 
+ * @param {} el
  */
 function updateContainer(el) {
+
     const container = eI(el);
-   
+
     initFetchLinks(el);
+    initFetchDiv(el);
     //
     const forms = container.querySelectorAll('.js-needs-validation');
     Array.prototype.slice.call(forms).forEach(function (form) {
@@ -528,9 +549,10 @@ function updateContainer(el) {
     });
     //
     container.querySelectorAll('[data-togglefield]').forEach(el => {  new toggleEls(el); });
-  
+
     // Auto-dismiss alerts after 8 seconds
     autoDismissAlerts(8000, container);
 
+   
     document.dispatchEvent(new CustomEvent('updateContainer', { detail: { el: el } }));
 }

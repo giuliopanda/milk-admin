@@ -207,7 +207,7 @@ class InstallService
         if (!move_uploaded_file($uploaded_file, $update_file)) {
             return ['success' => false, 'redirect' => ['page' => 'install'], 'message' => _r('Error during update file upload.')];
         }
-        return ['success' => true, 'redirect' => ['page' => 'install', 'action' => 'update-step2']];
+        return ['success' => true, 'redirect' => ['page' => 'install', 'action' => 'update-step3']];
     }
     
     /**
@@ -379,6 +379,16 @@ class InstallService
             // Copy the files excluding config.php and storage
             Install::copyUpdateFiles($update_dir.'/milkadmin', MILK_DIR);
             
+             // Copy public_html files if directory exists in update package
+            if (is_dir($update_dir.'/public_html')) {
+                Install::copyUpdateFiles($update_dir.'/public_html', MILK_DIR.'/../public_html');
+            }
+
+            // Clear PHP opcache to ensure new files are loaded
+            if (function_exists('opcache_reset')) {
+                opcache_reset();
+            }
+
             // Remove temporary files
             unlink($update_file);
             
@@ -407,17 +417,20 @@ class InstallService
         Hooks::run('cli-init');
         foreach ($modules_to_update as $module => $versions) {
           
-            if ($versions['previous'] == 0 || $versions['previous'] == NULL) {
-                $install_result = Cli::callFunction($module.":install");
-                $action = 'installed';
-            } else {
-                $install_result = Cli::callFunction($module.":update");
-                $action = 'updated';
-            }
-            
-            if ($install_result === false) {
-                MessagesHandler::addError(sprintf(_r('Error updating module %s: %s'), $module, Cli::getLastError()));
-            } else {
+            $success = false;
+            try {
+                if ($versions['previous'] == 0 || $versions['previous'] == NULL) {
+                Cli::callFunction($module.":install");
+                    $action = 'installed';
+                } else {
+                    Cli::callFunction($module.":update");
+                    $action = 'updated';
+                }
+                $success = true;
+            } catch (\Exception $e) {
+                MessagesHandler::addError(sprintf(_r('Error updating module %s: %s'), $module, $e->getMessage()));
+            } 
+            if ($success) {
                 $updated_modules[] = $module;
                 // Save the action to module_actions
                 self::saveModuleAction($module, $action);
@@ -766,10 +779,14 @@ class InstallService
             " \$conf['version'] = '".NEW_VERSION."';",
             $config_content
         );
-        
-        File::putContents(LOCAL_DIR.'/config.php', $config_content);
+
+        try {
+            File::putContents(LOCAL_DIR.'/config.php', $config_content);
+        } catch (\App\Exceptions\FileException $e) {
+            return '<p class="alert alert-danger">Failed to update config.php: ' . $e->getMessage() . '</p>';
+        }
         Config::set('version', NEW_VERSION);
-        
+
         return '<p class="alert alert-success">'._r('Update completed successfully.').'</p>';
     }
     

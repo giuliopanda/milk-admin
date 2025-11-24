@@ -58,6 +58,16 @@ abstract class AbstractController {
     }
 
     /**
+     * Get common data for the module
+     */
+    public function getCommonData(): array {
+        return [
+            'page' => $this->page,
+            'title' => $this->title,
+        ];
+    }
+
+    /**
      * Main route handler is now handled by AttributeRouteTrait
      *
      * This method automatically calls the appropriate action method based on the 'action' URL parameter.

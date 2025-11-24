@@ -2,50 +2,69 @@
 namespace Modules\Docs\Pages;
 use App\Route;
 /**
- * @title API 
+ * @title API
  * @guide framework
  * @order 10
- * @tags API, REST, JWT, token, authentication, login, verify, refresh, curl, Bearer, authorization, users, profile, list, create, update, delete, endpoints, MilkCoreTokenManager, automatic-token, token-refresh, error-handling, HTTP-methods, GET, POST, PUT, DELETE, JSON, pagination, search, CSRF, security, client, PHP-client, test-suite, browser-testing, command-line, 401, 403, 404, 422, 500, unauthorized, forbidden, not-found
+ * @tags API, REST, JWT, token, authentication, endpoints, success, error, response, request, Bearer, authorization, HTTP-methods, GET, POST, PUT, DELETE, JSON, CORS, AbstractApi, ApiEndpoint, ApiDoc, documentation, permissions
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>
 <div class="bg-white p-4">
-    <h1>Complete MilkCore API Documentation</h1>
-    <p>EndPoints are registered within modules in the module or in a {FileName}Api.php file within the module.</p>
+    <h1>API</h1>
+    <p class="text-muted">Revision: 2025-11-11</p>
+    <p>RESTful API system with JWT authentication, automatic routing, and endpoint documentation.</p>
 
-    <p>To register an EndPoint, use the following attributes:
-    <h3>#[ApiEndpoint($endpoint, $method, $options)].</h3>
-    <ul>
-    <li>$endpoint: The endpoint string</li>
-    <li>$method: The HTTP method (GET, POST, PUT, DELETE, ANY). Default is ANY</li>
-    <li>$options: The authentication array. For example: ['auth' => true] to require a user authenticated via JWT. [permission => 'auth.manage'] to verify a specific permission level. ['permissions'=>'token'] is a special handling for a call that is not authenticated but receives a fixed token configured in $config['api_token'];</li>
-    </ul>
+    <h2 class="mt-4">Response Format</h2>
+    <p>All API responses follow a standardized JSON format:</p>
 
-    <p>The code structure will look something like this:</p>
-<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
-class MyTestApi extends AbstractApi {
-    #[ApiEndpoint('my-test/hello')]
-    public function apiHello($request) {
-    return $this->success(['message' => 'Hello World']);
-}
+    <p><strong>Success responses:</strong></p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-json">{
+    "success": true,
+    "data": { /* your data */ }
 }</code></pre>
 
-<p>You can find more examples at <a href="<?php echo Route::url(); ?>?page=docs&action=Developer/GettingStarted/getting-started-api">Make your first API</a></p>
+    <p><strong>Error responses:</strong></p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-json">{
+    "success": false,
+    "message": "Error description"
+}</code></pre>
 
-<h2>Documenting your APIs (Recommended)</h2>
+    <h2 class="mt-4">Endpoint Registration</h2>
 
-<p><strong>It is highly recommended to add documentation to your APIs</strong> using either the <code>#[ApiDoc]</code> attribute or the documentation parameters in <code>API::set()</code>.</p>
+    <p><strong>In modules (extends AbstractApi or extended AbstactModule):</strong></p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">class MyTestApi extends AbstractApi {
+    #[ApiEndpoint('my-test/hello')]
+    public function apiHello($request) {
+        return $this->success(['message' => 'Hello World']);
+    }
+}</code></pre>
 
-<h3>Documentation with #[ApiDoc] Attribute</h3>
-<p>When using attributes, add <code>#[ApiDoc]</code> right after <code>#[ApiEndpoint]</code>:</p>
-<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">use App\Attributes\{ApiEndpoint, ApiDoc};
+    <p><strong>With authentication and HTTP method:</strong></p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">class UsersApi extends AbstractApi {
+    #[ApiEndpoint('users/create', 'POST', ['auth' => true])]
+    public function apiCreate($request) {
+        $data = $request['body'];
+        return $this->success(['id' => 1, 'username' => $data['username']]);
+    }
+}</code></pre>
 
-class MyTestApi extends AbstractApi {
-    #[ApiEndpoint('my-test/create-post', 'POST', ['auth' => true])]
+    <p><strong>Manual registration:</strong></p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">use App\API;
+
+API::set('test/hello', function($request) {
+    return ['message' => 'Hello World'];
+});</code></pre>
+
+    <h2 class="mt-4">Documenting APIs</h2>
+    <p>Add documentation using the <code>#[ApiDoc]</code> attribute:</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">use App\Attributes\{ApiEndpoint, ApiDoc};
+
+class PostsApi extends AbstractApi {
+    #[ApiEndpoint('posts/create', 'POST', ['auth' => true])]
     #[ApiDoc(
         'Create a new blog post',
-        ['body' => ['title' => 'string', 'content' => 'string', 'tags' => 'array']],
+        ['body' => ['title' => 'string', 'content' => 'string']],
         ['id' => 'int', 'title' => 'string', 'created_at' => 'datetime']
     )]
     public function createPost($request) {
@@ -53,221 +72,291 @@ class MyTestApi extends AbstractApi {
     }
 }</code></pre>
 
-<h3>Documentation with API::set()</h3>
-<p>When registering APIs without a class, pass documentation parameters to <code>API::set()</code>:</p>
-<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">use App\API;
-
-API::set('test/hello',
+    <p><strong>With API::set():</strong></p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">API::set('test/hello',
     function($request) {
         return ['message' => 'Hello World'];
     },
-    ['auth' => true],
-    'Returns a hello world message',                    // Description
-    ['query' => ['name' => 'string']],                   // Parameters
-    ['message' => 'string', 'timestamp' => 'datetime']   // Response
-);
-</code></pre>
-
-<p><strong>Documentation structure:</strong></p>
-<ul>
-<li><strong>Description</strong>: Brief explanation of what the API does</li>
-<li><strong>Parameters</strong>: Input parameters structure (supports nesting)</li>
-<li><strong>Response</strong>: Expected response structure (supports nesting)</li>
-</ul>
-
-<p>Access documentation programmatically:</p>
-<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Get specific endpoint documentation
-$doc = API::getDocumentation('test/hello');
-
-// Get all endpoints with documentation
-$endpoints = API::listEndpoints();
-</code></pre>
-
-<h2>To register EndPoint APIs without using a class that extends AbstractModule</h2>
-
-<p>To register an API, open milkadmin_local/functions.php and add the following code:</p>
-<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">use App\API;
-API::set('test/hello', function($request) {
-return 'Hello World';
-});
-</code></pre>
-
-<p><strong>With documentation (recommended):</strong></p>
-<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">use App\API;
-
-API::set('test/hello',
-    function($request) {
-        return ['message' => 'Hello World', 'timestamp' => time()];
-    },
-    [],                                          // Options (empty for public endpoint)
+    [],                                          // Options
     'Returns a hello world message',             // Description
-    [],                                          // Parameters (empty for no params)
-    ['message' => 'string', 'timestamp' => 'int'] // Response structure
-);
-</code></pre>
+    [],                                          // Parameters
+    ['message' => 'string']                      // Response structure
+);</code></pre>
 
-<p>To call the API open your browser and go to http://localhost/api.php/?page=test/hello</p>
+    <h2 class="mt-4">Exception Handling</h2>
+    <p>Throw exceptions in your API handlers - the framework catches and formats them automatically:</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">use App\Exceptions\{ApiException, ApiAuthException};
 
-<p>To call the api from Milk Admin you can write:</p>
-<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">use App\API;
-$response = HttpClient::get('<?php echo Route::url(); ?>/api.php?page=test/hello'); 
-if ($response['status_code'] == 200) {
-$article = $response['body'];
-}
-</code></pre>
+API::set('users/delete', function($request) {
+    $id = $request['input']('id');
 
-<p>If you want to handle a call with a user's authorization, you can write:</p>
-<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">use App\API;
+    if (!$id) {
+        throw new ApiException("User ID required", 422);
+    }
 
-!defined('MILK_DIR') && die(); // Avoid direct access
-API::set('test/hello', function($request) {
-return 'Hello World';
-}, '_user.is_authenticated');
-</code></pre>
+    $user = User::find($id);
+    if (!$user) {
+        throw new ApiException("User not found", 404);
+    }
 
-<p><strong>With authentication and documentation:</strong></p>
-<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">use App\API;
+    if ($user->id !== API::user()->id) {
+        throw new ApiAuthException("Cannot delete other users", 403);
+    }
 
-API::set('users/profile',
+    $user->delete();
+    return ['success' => true];
+}, ['auth' => true, 'method' => 'DELETE']);</code></pre>
+
+    <p><strong>Available exceptions:</strong></p>
+    <ul>
+        <li><code>ApiException</code> - General API errors (default 400)</li>
+        <li><code>ApiAuthException</code> - Authentication/authorization errors (default 403)</li>
+    </ul>
+
+    <h2 class="mt-4">Methods</h2>
+
+    <h4 class="text-primary mt-4">API::set(string $page, callable|string $handler, array $options = [], ?string $description = null, ?array $parameters = null, ?array $response = null) : void</h4>
+    <p>Registers an API endpoint.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">API::set('users/list', function($request) {
+    return ['users' => User::all()];
+});</code></pre>
+
+    <h4 class="text-primary mt-4">API::group(array $options, callable $callback) : void</h4>
+    <p>Groups endpoints with common options.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">API::group(['prefix' => 'admin', 'auth' => true], function() {
+    API::set('users', 'AdminModule@users');
+    API::set('settings', 'AdminModule@settings');
+});</code></pre>
+
+    <h4 class="text-primary mt-4">API::run(string $page) : bool</h4>
+    <p>Executes an API endpoint. Handles authentication and exceptions automatically.</p>
+
+    <h4 class="text-primary mt-4">API::user() : ?object</h4>
+    <p>Returns the currently authenticated user or null.</p>
+
+    <h4 class="text-primary mt-4">API::payload() : ?array</h4>
+    <p>Returns the current JWT payload or null.</p>
+
+    <h4 class="text-primary mt-4">API::request() : ?array</h4>
+    <p>Returns the current request data.</p>
+
+    <h4 class="text-primary mt-4">API::generateToken(int $user_id, array $additional_data = []) : array</h4>
+    <p>Generates a JWT token for a user.</p>
+
+    <h4 class="text-primary mt-4">API::refreshToken() : array</h4>
+    <p>Refreshes the current JWT token.</p>
+
+    <h4 class="text-primary mt-4">API::successResponse(mixed $data) : void</h4>
+    <p>Sends a success response.</p>
+
+    <h4 class="text-primary mt-4">API::errorResponse(string $msg, int $status, ?array $debug_info = null) : void</h4>
+    <p>Sends an error response.</p>
+
+    <h4 class="text-primary mt-4">API::listEndpoints() : array</h4>
+    <p>Returns all registered endpoints with their documentation.</p>
+
+    <h4 class="text-primary mt-4">API::getDocumentation(string $page) : ?array</h4>
+    <p>Returns documentation for a specific endpoint.</p>
+
+    <h2 class="mt-4">Request Structure</h2>
+    <p>Handlers receive a request array with structured data:</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">function($request) {
+    // HTTP method
+    $method = $request['method'];
+
+    // Endpoint page
+    $page = $request['page'];
+
+    // URL parameters (id, slug, etc.)
+    $id = $request['params']['id'] ?? null;
+
+    // Query parameters (?key=value)
+    $search = $request['query']['search'] ?? '';
+
+    // Request body (JSON or form data)
+    $data = $request['body'];
+
+    // Headers
+    $contentType = $request['headers']['Content-Type'] ?? '';
+
+    // Uploaded files
+    $files = $request['files'];
+
+    // Auth info (if authenticated)
+    $user = $request['auth']['user'] ?? null;
+
+    // Helper methods
+    $value = $request['input']('key', 'default');
+    $exists = $request['has']('key');
+    $all = $request['all']();
+}</code></pre>
+
+    <h2 class="mt-4">Options</h2>
+
+    <p><strong>Authentication:</strong></p>
+    <ul>
+        <li><code>['auth' => true]</code> - Require JWT authentication</li>
+    </ul>
+
+    <p><strong>Permissions:</strong></p>
+    <ul>
+        <li><code>['permissions' => 'permission.name']</code> - Require specific permission</li>
+        <li><code>['permissions' => 'token']</code> - Require fixed API token from <code>Config::get('api_token')</code></li>
+    </ul>
+
+    <p><strong>HTTP Methods:</strong></p>
+    <ul>
+        <li><code>['method' => 'GET']</code> - Only allow GET requests</li>
+        <li><code>['method' => 'POST']</code> - Only allow POST requests</li>
+        <li><code>['method' => 'PUT']</code> - Only allow PUT requests</li>
+        <li><code>['method' => 'DELETE']</code> - Only allow DELETE requests</li>
+        <li><code>['method' => 'ANY']</code> - Allow any method (default)</li>
+    </ul>
+
+    <h2 class="mt-4">Authentication Endpoints</h2>
+
+    <h4 class="text-primary mt-4">auth/login</h4>
+    <p><span class="method-post">POST</span> - Obtain JWT token with credentials.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-bash">curl -X POST "api.php?page=auth/login" \
+-H "Content-Type: application/json" \
+-d '{"username": "admin", "password": "admin"}'</code></pre>
+
+    <div class="response-success">
+        <strong>Success response:</strong>
+        <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-json">{
+    "success": true,
+    "result": {
+        "user": {
+            "id": 1,
+            "username": "admin",
+            "email": "admin@example.com"
+        },
+        "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...",
+        "expires_at": 1641234567,
+        "expires_in": 3600
+    }
+}</code></pre>
+    </div>
+
+    <h4 class="text-primary mt-4">auth/verify</h4>
+    <p><span class="method-get">GET</span> - Verify token validity.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-bash">curl -X GET "api.php?page=auth/verify" \
+-H "Authorization: Bearer YOUR_TOKEN"</code></pre>
+
+    <div class="response-success">
+        <strong>Success response:</strong>
+        <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-json">{
+    "success": true,
+    "result": {
+        "user_id": 1,
+        "username": "admin",
+        "expires_at": 1641234567
+    }
+}</code></pre>
+    </div>
+
+    <h4 class="text-primary mt-4">auth/refresh</h4>
+    <p><span class="method-get">GET</span> - Renew token with existing valid token.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-bash">curl -X GET "api.php?page=auth/refresh" \
+-H "Authorization: Bearer YOUR_TOKEN"</code></pre>
+
+    <div class="response-success">
+        <strong>Success response:</strong>
+        <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-json">{
+    "success": true,
+    "result": {
+        "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...",
+        "expires_at": 1641237567,
+        "expires_in": 3600
+    }
+}</code></pre>
+    </div>
+
+    <h2 class="mt-4">Error Responses</h2>
+    <p>All errors return HTTP status codes and a standardized error format:</p>
+
+    <p><strong>Authentication error (401):</strong></p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-json">{
+    "success": false,
+    "message": "No authentication token provided"
+}</code></pre>
+
+    <p><strong>Permission error (403):</strong></p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-json">{
+    "success": false,
+    "message": "Insufficient permissions"
+}</code></pre>
+
+    <p><strong>Not found (404):</strong></p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-json">{
+    "success": false,
+    "message": "Endpoint not found"
+}</code></pre>
+
+    <p><strong>Method not allowed (405):</strong></p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-json">{
+    "success": false,
+    "message": "Method POST not allowed. Expected: GET"
+}</code></pre>
+
+    <p><strong>Server error (500):</strong></p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-json">{
+    "success": false,
+    "message": "Internal server error"
+}</code></pre>
+
+    <h2 class="mt-4">Examples</h2>
+
+    <h4 class="mt-4">Complete Authenticated API</h4>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">use App\API;
+use App\Exceptions\ApiException;
+
+API::set('posts/create',
     function($request) {
+        $title = $request['body']['title'];
+        if (empty($title)) {
+            throw new ApiException("Title required", 422);
+        }
+        // Get authenticated user
         $user = API::user();
+        $post = new PostsModel();
+        $post->fill([
+            'title' => $title,
+            'content' => $request['body']['content'],
+            'user_id' => $user->id
+        ]);
+        $post->save();
+
         return [
-            'id' => $user->id,
-            'username' => $user->username,
-            'email' => $user->email
+            'id' => $post->id,
+            'title' => $post->title,
+            'created_at' => $post->created_at
         ];
     },
-    ['auth' => true, 'method' => 'GET'],           // Options with auth
-    'Get current authenticated user profile',       // Description
-    [],                                             // No parameters needed
-    ['id' => 'int', 'username' => 'string', 'email' => 'string'] // Response
-);
-</code></pre>
+    ['auth' => true, 'method' => 'POST'],
+    'Create a new blog post',
+    ['body' => ['title' => 'string', 'content' => 'string']],
+    ['id' => 'int', 'title' => 'string', 'created_at' => 'datetime']
+);</code></pre>
 
-<p>This is a minimal example with authentication:</p>
-<p>Create a new file in the root directory called test-api.php. (In production do not create new files in the root directory, this is just for testing).</p>
-<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">namespace MilkCore;
+    <h4 class="mt-4">PHP Client Example</h4>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">use App\HttpClient;
+use App\Route;
 
-define('MILK_DIR', __DIR__);
-require __DIR__ . '/App/autoload.php';
+// Login
+ $response = HttpClient::post(Route::url() . '/api.php?page=auth/login', [
+    'headers' => ['Content-Type' => 'application/json'],
+    'body' => json_encode(['username' => 'admin', 'password' => 'admin'])
+]);
 
-!defined('MILK_DIR') && die(); // Avoid direct access
-// user and password
-$response = HttpClient::post(Route::url() . '/api.php?page=auth/login', 
-['headers' => ['Authorization' => 'Basic' . base64_encode( 'admin:admin' )]]);
-if (@$response['status_code'] == 200 && ($response['body']['success'] ?? false)) { 
-    $token = $response['body']['data']['token'];
-    print "TOKEN: ".$token."\n";
-
-    $response = HttpClient::post(Route::url() . '/api.php?page=test/hello',
-    ['headers' => ['Authorization' => 'Bearer ' . $token]]);
-    var_dump ($response['body']);
-
+if ($response['status_code'] == 200 && $response['body']['success']) {
+    print "<h1>Success</h1>";
+    print "<div>TOKEN: " . $response['body']['data']['token'] . "</div>";
+    $user = $response['body']['data']['user'];
+    echo "Username: " . $user['username'];
 } else {
-    print "<pre>";
-    var_dump($response);
-    print "</pre>";
-    die();
-}
-
-</code></pre>
-
-    <p>MilkCore APIs provide a complete RESTful interface for user management, JWT authentication, and CSRF protection. The system also includes a PHP class for automatic token management.</p>
-
-    <h2 class="mt-4">Authentication APIs</h2>
-
-    <h4 class="mt-4">1. Login - Get access token</h4>
-    <div class="endpoint-box">
-        <strong>Endpoint:</strong> <code>auth/login</code><br>
-        <strong>Method:</strong> <span class="method-post">POST</span><br>
-        <strong>Authentication:</strong> <span class="auth-not-required">Not required (public)</span>
-    </div>
-    
-    <p>This endpoint allows you to obtain a JWT token by providing valid login credentials.</p>
-    
-    <p><strong>Request example:</strong></p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code>curl -X POST "api.php?page=auth/login" \
--H "Content-Type: application/json" \
--d '{
-"username": "admin", 
-"password": "admin"
-}'</code></pre>
-
-    <div class="response-success">
-        <strong>Success response:</strong>
-        <pre class="pre-scrollable border p-2 text-bg-gray"><code>{
-"success": true,
-"message": "Login successful",
-"data": {
-"user": {
-    "id": 1,
-    "username": "admin",
-    "email": "admin@example.com",
-    "is_admin": true
-},
-"token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...",
-"expires_at": 1641234567,
-"expires_in": 3600
-}
+    print "<h1>Error</h1>";
+    echo "<div>ERROR: " . $response['body']['message'] . "</div>";
 }</code></pre>
-    </div>
 
-    <h4 class="mt-4">2. Token Verification - Check token validity</h4>
-    <div class="endpoint-box">
-        <strong>Endpoint:</strong> <code>auth/verify</code><br>
-        <strong>Method:</strong> <span class="method-get">GET</span><br>
-        <strong>Authentication:</strong> <span class="auth-required">Required (token in header)</span>
-    </div>
-    
-    <p>This endpoint allows you to verify if a JWT token is still valid and has not expired.</p>
-    
-    <p><strong>Request example:</strong></p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code>curl -X GET "api.php?page=auth/verify" \
--H "Authorization: Bearer YOUR_TOKEN_HERE"</code></pre>
-
-    <div class="response-success">
-        <strong>Success response:</strong>
-        <pre class="pre-scrollable border p-2 text-bg-gray"><code>{
-"success": true,
-"message": "Valid token",
-"data": {
-    "user_id": 1,
-    "username": "admin",
-    "expires_at": 1641234567
-}
-}</code></pre>
-    </div>
-
-    <h4 class="mt-4">3. Refresh Token - Renew an existing token</h4>
-    <div class="endpoint-box">
-        <strong>Endpoint:</strong> <code>auth/refresh</code><br>
-        <strong>Method:</strong> <span class="method-get">GET</span><br>
-        <strong>Authentication:</strong> <span class="auth-required">Required (token in header)</span>
-    </div>
-    
-    <p>This endpoint allows you to obtain a new JWT token using an existing valid token, thus extending the user's session.</p>
-    
-    <p><strong>Request example:</strong></p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code>curl -X GET "api.php?page=auth/refresh" \
--H "Authorization: Bearer YOUR_CURRENT_TOKEN"</code></pre>
-
-    <div class="response-success">
-        <strong>Success response:</strong>
-        <pre class="pre-scrollable border p-2 text-bg-gray"><code>{
-"success": true,
-"message": "Token renewed",
-"token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...",
-"expires_at": 1641237567,
-"expires_in": 3600
-}</code></pre>
-    </div>
-
-    <h2 class="mt-4">Important Notes</h2>
-    
-    <p>When using these APIs, it's important to keep in mind some fundamental aspects to ensure security and proper system functioning.</p>
-    
-    <p>The token obtained through login must be included in all subsequent requests that require authentication, using the Authorization header with the format "Bearer TOKEN". The token duration is time-limited for security reasons, so it's advisable to implement automatic refresh logic when necessary.</p>
-    
-    <p>It's essential to store the token securely on the client side and not expose it in logs or URLs. In case of expired or invalid token, the system will return an appropriate error that should be handled by the client application.</p>
-    
 </div>

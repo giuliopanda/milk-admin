@@ -26,7 +26,6 @@ use App\{Sanitize, Lang};
  * @return string The sanitized string, or empty string if input is not scalar
  */
  function _r($var) {
-    if (!is_scalar($var)) return '';
     return Sanitize::input($var, 'string');
  }
 
@@ -40,11 +39,16 @@ use App\{Sanitize, Lang};
  * @param mixed $var The string to translate and sanitize
  * @return string The translated and sanitized string, or empty string if input is not scalar
  */
-function _rt($var) {
-    if (!is_scalar($var)) return '';
+function _rt($var, ...$args) {
+    $var = Sanitize::getString($var);
     $var = Lang::get($var, ($_REQUEST['page'] ?? ''));
+    
+    if (!empty($args)) {
+        $var = sprintf($var, ...$args);
+    }
+    
     return Sanitize::html($var);
- }
+}
 
  /**
  * Returns HTML-escaped string
@@ -56,7 +60,6 @@ function _rt($var) {
  * @return string The HTML-escaped string, or empty string if input is not scalar
  */
  function _rh($var) {
-    if (!is_scalar($var)) return '';
     return Sanitize::html($var);
  }
 
@@ -84,7 +87,6 @@ function _raz($var) {
  * @return void
  */
 function _p($var) {
-    if (!is_scalar($var)) return '';
     echo Sanitize::input($var, 'string');
 }
 
@@ -97,9 +99,15 @@ function _p($var) {
  * @param mixed $var The string to translate and output
  * @return void
  */
-function _pt($var) {
-    if (!is_scalar($var)) return '';
+
+function _pt($var, ...$args) {
+    $var = Sanitize::getString($var);
     $var = Lang::get($var, ($_REQUEST['page'] ?? ''));
+    
+    if (!empty($args)) {
+        $var = sprintf($var, ...$args);
+    }
+    
     echo Sanitize::html($var);
 }
 
@@ -112,8 +120,7 @@ function _pt($var) {
  * @param mixed $var The string to escape and output
  * @return void
  */
-function _ph($var) {
-    if (!is_scalar($var)) return '';
+function _ph(mixed $var): void {
     echo Sanitize::html($var);
 }
 

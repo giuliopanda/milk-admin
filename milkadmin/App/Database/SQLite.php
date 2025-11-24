@@ -2,6 +2,7 @@
 namespace App\Database;
 
 use App\Logs;
+use App\Exceptions\DatabaseException;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
 /**
@@ -165,10 +166,14 @@ class SQLite
      * ```
      */
     public function query(string $sql, array|null $params = null): SQLiteResult|bool {
-        if(!$this->checkConnection()) {  
+        if(!$this->checkConnection()) {
             $this->error = true;
             $this->last_error = 'No connection';
-            return false;
+            throw new DatabaseException(
+                'No connection',
+                'sqlite',
+                ['query' => $sql, 'params' => $params]
+            );
         }
         $sql = $this->sqlPrefix($sql);
         $this->last_query = $sql;
@@ -176,56 +181,59 @@ class SQLite
         $this->last_error = '';
         $this->affected_rows = 0;
         $this->query_columns = [];
-        
-        $stmt = false;
+
         try {
             $stmt = $this->sqlite->prepare($sql);
-        } catch (\Exception $e) {
-            Logs::set('system', 'ERROR', "SQLITE Prepare: '".$sql."' error:". $this->sqlite->lastErrorMsg());
-            $this->error = true;
-            $this->last_error = $this->sqlite->lastErrorMsg();
-            return false;
-        };
-        if ($stmt === false) {
-            Logs::set('system', 'ERROR', "SQLITE Prepare: '".$sql."' error:". $this->sqlite->lastErrorMsg());
-            $this->error = true;
-            $this->last_error = $this->sqlite->lastErrorMsg();
-            return false;
-        }
-    
-        // Bind parameters for SQLite
-        if (is_array($params) && count($params) > 0) {
-            $i = 1;
-            foreach ($params as $val) {
-                if (is_null($val)) {
-                    $stmt->bindValue($i, $val, SQLITE3_NULL);
-                } else if (is_bool($val)) {
-                    $stmt->bindValue($i, $val ? 1 : 0, SQLITE3_INTEGER);
-                } else if (is_int($val)) {
-                    $stmt->bindValue($i, $val, SQLITE3_INTEGER);
-                } else if (is_double($val)) {
-                    $stmt->bindValue($i, $val, SQLITE3_FLOAT);
-                } else {
-                    $stmt->bindValue($i, $val, SQLITE3_TEXT);
-                }
-                $i++;
+
+            if ($stmt === false) {
+                $errorMsg = $this->sqlite->lastErrorMsg();
+                Logs::set('system', 'ERROR', "SQLITE Prepare: '".$sql."' error:". $errorMsg);
+                $this->error = true;
+                $this->last_error = $errorMsg;
+
+                throw new DatabaseException(
+                    $this->last_error,
+                    'sqlite',
+                    ['query' => $sql, 'params' => $params]
+                );
             }
-        }
-        
-        // Execute the statement
-        $result = $stmt->execute();
 
-        // Check for errors immediately after execute
-        if ($result === false || $this->sqlite->lastErrorCode() != 0) {
-            $this->error = true;
-            $this->last_error = $this->sqlite->lastErrorMsg();
-            Logs::set('system', 'ERROR', "SQLITE Query execute failed: '".$sql."' error: ". $this->last_error);
-            return false;
-        } else {
-            $this->error = false;
-        }
+            // Bind parameters for SQLite
+            if (is_array($params) && count($params) > 0) {
+                $i = 1;
+                foreach ($params as $val) {
+                    if (is_null($val)) {
+                        $stmt->bindValue($i, $val, SQLITE3_NULL);
+                    } else if (is_bool($val)) {
+                        $stmt->bindValue($i, $val ? 1 : 0, SQLITE3_INTEGER);
+                    } else if (is_int($val)) {
+                        $stmt->bindValue($i, $val, SQLITE3_INTEGER);
+                    } else if (is_double($val)) {
+                        $stmt->bindValue($i, $val, SQLITE3_FLOAT);
+                    } else {
+                        $stmt->bindValue($i, $val, SQLITE3_TEXT);
+                    }
+                    $i++;
+                }
+            }
 
-        if ($result !== false) {
+            // Execute the statement
+            $result = $stmt->execute();
+
+            // Check for errors immediately after execute
+            if ($result === false || $this->sqlite->lastErrorCode() != 0) {
+                $errorMsg = $this->sqlite->lastErrorMsg();
+                Logs::set('system', 'ERROR', "SQLITE Query execute failed: '".$sql."' error: ". $errorMsg);
+                $this->error = true;
+                $this->last_error = $errorMsg;
+
+                throw new DatabaseException(
+                    $this->last_error,
+                    'sqlite',
+                    ['query' => $sql, 'params' => $params]
+                );
+            }
+
             if ($result->numColumns() > 0) {
                 // Query di tipo SELECT → ha colonne
                 $ris = new SQLiteResult($result);
@@ -234,20 +242,33 @@ class SQLite
                 for ($i = 0; $i < $result->numColumns(); $i++) {
                     $this->query_columns[] = $result->columnName($i);
                 }
-
             } else {
                 // Query di tipo INSERT/UPDATE/DELETE → nessun result set
-                $this->affected_rows = $this->sqlite->changes(); // $this->db è la connessione SQLite3
-                $result->finalize(); // libera risorse
+                $this->affected_rows = $this->sqlite->changes();
+                $result->finalize();
                 $ris = true;
             }
-        } else {
-            $ris = false;
+
+            Logs::set('system', 'SQLITE::Query', $sql);
+
+            return $ris;
+
+        } catch (\Exception $e) {
+            // Re-throw come DatabaseException se non lo è già
+            if (!($e instanceof DatabaseException)) {
+                $errorMsg = $e->getMessage();
+                Logs::set('system', 'ERROR', "SQLITE Exception: '".$sql."' error:". $errorMsg);
+                $this->error = true;
+                $this->last_error = $errorMsg;
+
+                throw new DatabaseException(
+                    $this->last_error,
+                    'sqlite',
+                    ['query' => $sql, 'params' => $params]
+                );
+            }
+            throw $e;
         }
-
-        Logs::set('system', 'SQLITE::Query', $sql);
-
-        return $ris;
     }
 
     /**
@@ -1149,17 +1170,18 @@ class SQLite
   
    /**
      * Connects to a SQLite database
-     * 
+     *
      * @param string $dbname Database file path
-     * @return bool True on success, false on failure
-     * 
+     * @return bool True on success
+     * @throws DatabaseException When connection fails
+     *
      * @example
      * ```php
      * // Connect to SQLite database (creates file if not exists)
-     * $connected = $db->connect('/path/to/database.db');
-     * 
-     * if (!$connected) {
-     *     echo "Connection failed: " . $db->last_error;
+     * try {
+     *     $db->connect('database.db');
+     * } catch (DatabaseException $e) {
+     *     echo "Connection failed: " . $e->getMessage();
      * }
      * ```
      */
@@ -1168,7 +1190,7 @@ class SQLite
         $this->error = false;
         $this->dbname = STORAGE_DIR.'/'.$dbname;
         try {
-           
+
             // Check if directory exists and is writable
             $dir = dirname($this->dbname);
             if (!is_dir($dir)) {
@@ -1176,7 +1198,7 @@ class SQLite
                     throw new \Exception("Cannot create directory: $dir");
                 }
             }
-         
+
             if (!is_writable($dir)) {
                 throw new \Exception("Directory is not writable: $dir");
             }
@@ -1192,7 +1214,7 @@ class SQLite
 
             // Set busy timeout to handle locked database (wait up to 5 seconds)
             $this->sqlite->busyTimeout(5000); // 5000 milliseconds = 5 seconds
-            
+
             // Enable foreign keys
             $this->sqlite->exec('PRAGMA foreign_keys = ON');
 
@@ -1208,18 +1230,35 @@ class SQLite
             }
 
         } catch (\Exception $e) {
+            $errorMsg = "SQLite connection failed: " . $e->getMessage();
             Logs::set('system', 'ERROR', "SQLITE Connect: dbname:".$this->dbname." error: ".$e->getMessage());
             $this->error = true;
-            $this->last_error = $e->getMessage();
-            return false;
-        } 
-        
-        if (!$this->sqlite) {
-            $this->error = true;
-            $this->last_error = "Failed to create SQLite3 object";
-            return false;
+            $this->last_error = $errorMsg;
+
+            throw new DatabaseException(
+                $errorMsg,
+                'sqlite',
+                [
+                    'database' => $this->dbname,
+                    'directory' => dirname($this->dbname)
+                ]
+            );
         }
-        
+
+        if (!$this->sqlite) {
+            $errorMsg = "Failed to create SQLite3 object";
+            $this->error = true;
+            $this->last_error = $errorMsg;
+
+            throw new DatabaseException(
+                $errorMsg,
+                'sqlite',
+                [
+                    'database' => $this->dbname
+                ]
+            );
+        }
+
         return true;
     }
 
@@ -1317,7 +1356,7 @@ class SQLite
             $this->last_error = "No database connection";
             return false;
         }
-         $this->last_error = '';
+        $this->last_error = '';
         $this->error = false;
         return true;
     }

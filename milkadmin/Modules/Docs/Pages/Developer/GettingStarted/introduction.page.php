@@ -37,8 +37,8 @@ Try it, the installation system is very fast and you can customize it for your n
     <p>The <strong>Model</strong> system provides a powerful ORM-like interface for database operations:</p>
     <ul>
         <li><strong>Schema Definition</strong> - Define tables using fluent syntax: <code>$rule->string('name')->required()</code></li>
-        <li><strong>CRUD Operations</strong> - Built-in methods: <code>store()</code>, <code>getById()</code>, <code>delete()</code>, <code>getAll()</code></li>
-        <li><strong>Query Builder</strong> - Chain conditions: <code>where()->order()->limit()</code></li>
+        <li><strong>CRUD Operations</strong> - Built-in methods (examples): <code>save()</code>, <code>fill()</code>, <code>getEmpty()</code>, <code>store()</code>, <code>getById()</code>, <code>delete()</code>, <code>getAll()</code> and many more</li>
+        <li><strong>Query Builder</strong> - Chain conditions (examples): <code>where()->order()->limit()</code> and many more</li>
         <li><strong>Relationships</strong> - Support for <code>hasOne()</code>, <code>hasMany()</code>, <code>belongsTo()</code></li>
         <li><strong>Validation</strong> - Automatic validation based on schema rules</li>
     </ul>

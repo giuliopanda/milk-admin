@@ -27,7 +27,7 @@ namespace App;
 
  require __DIR__ . '/App/functions.php';
 // composer autoloader
-require __DIR__ . '/vendor/autoload.php';
+require __DIR__ . '/../vendor/autoload.php';
 
 require LOCAL_DIR . '/config.php';
 require __DIR__ . '/setup.php';

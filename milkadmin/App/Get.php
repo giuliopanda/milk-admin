@@ -3,6 +3,7 @@
 namespace App;
 
 use App\Database\{MySql, SQLite, SchemaMysql, SchemaSqlite};
+use App\Exceptions\DatabaseException;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
 /**
@@ -67,6 +68,21 @@ class Get
      */
     static $db2 = null;
 
+
+    /**
+     * User timezone for date conversions
+     *
+     * @var string|null
+     */
+    static $user_timezone = null;
+
+    /**
+     * User language for translations
+     *
+     * @var string|null
+     */
+    static $user_locale = null;
+
     /**
      * Creates or returns an instance of the primary database connection
      * 
@@ -87,25 +103,29 @@ class Get
     {
         if (self::$db == null) {
             $db_type = Config::get('db_type', 'mysql');
-            if ($db_type === 'sqlite') {
-                // SQLite connection
-                self::$db = new SQLite(Config::get('prefix'));
-                $dbname = Config::get('connect_dbname');
-                if ($dbname != NULL) {
-                    // SQLite connect method requires all 4 parameters for compatibility
-                    // but only uses the dbname parameter
-                    if (!self::$db->connect($dbname)) {
-                        die("SQLite connection error: " . self::$db->last_error . "\n");
+            try {
+                if ($db_type === 'sqlite') {
+                    // SQLite connection
+                    self::$db = new SQLite(Config::get('prefix'));
+                    $dbname = Config::get('connect_dbname');
+                    if ($dbname != NULL) {
+                        self::$db->connect($dbname);
+                    }
+                } else {
+                    // MySQL connection (default)
+                    self::$db = new MySql(Config::get('prefix'));
+                    if (Config::get('connect_ip') != NULL) {
+                        self::$db->connect(
+                            Config::get('connect_ip'),
+                            Config::get('connect_login'),
+                            Config::get('connect_pass'),
+                            Config::get('connect_dbname')
+                        );
                     }
                 }
-            } else {
-                // MySQL connection (default)
-                self::$db = new MySql(Config::get('prefix'));
-                if (Config::get('connect_ip') != NULL) {
-                    if (!self::$db->connect(Config::get('connect_ip'), Config::get('connect_login'), Config::get('connect_pass'), Config::get('connect_dbname'))) {
-                        die("MySQL connection error: " . self::$db->last_error . "\n");
-                    }
-                }
+            } catch (DatabaseException $e) {
+                Logs::set('system', 'FATAL', "Database connection failed: " . $e->getMessage());
+                die("Database connection error: " . $e->getMessage() . "\n");
             }
         }
         return self::$db;
@@ -132,25 +152,29 @@ class Get
         if (self::$db2 == null) {
             $db_type = Config::get('db_type2', 'mysql');
 
-            if ($db_type === 'sqlite') {
-                // SQLite connection
-                self::$db2 = new SQLite(Config::get('prefix2'));
-                $dbname = Config::get('connect_dbname2');
-                if ($dbname != NULL) {
-                    // SQLite connect method requires all 4 parameters for compatibility
-                    // but only uses the dbname parameter
-                    if (!self::$db2->connect($dbname)) {
-                        die("SQLite connection error\n");
+            try {
+                if ($db_type === 'sqlite') {
+                    // SQLite connection
+                    self::$db2 = new SQLite(Config::get('prefix2'));
+                    $dbname = Config::get('connect_dbname2');
+                    if ($dbname != NULL) {
+                        self::$db2->connect($dbname);
+                    }
+                } else {
+                    // MySQL connection (default)
+                    self::$db2 = new MySql(Config::get('prefix2'));
+                    if (Config::get('connect_ip2') != NULL) {
+                        self::$db2->connect(
+                            Config::get('connect_ip2'),
+                            Config::get('connect_login2'),
+                            Config::get('connect_pass2'),
+                            Config::get('connect_dbname2')
+                        );
                     }
                 }
-            } else {
-                // MySQL connection (default)
-                self::$db2 = new MySql(Config::get('prefix2'));
-                if (Config::get('connect_ip2') != NULL) {
-                    if (!self::$db2->connect(Config::get('connect_ip2'), Config::get('connect_login2'), Config::get('connect_pass2'), Config::get('connect_dbname2'))) {
-                        die("MySQL connection error\n");
-                    }
-                }
+            } catch (DatabaseException $e) {
+                Logs::set('system', 'FATAL', "Secondary database connection failed: " . $e->getMessage());
+                die("Secondary database connection error: " . $e->getMessage() . "\n");
             }
         }
         return self::$db2;
@@ -219,28 +243,33 @@ class Get
      * 
      * @return void
      */
-    public static function loadModules()
-    {
-       
+    public static function loadModules() {
         require_once(self::dirPath(LOCAL_DIR . '/functions.php'));
-
+        
         $file_loaded = [];
-        self::loadModulesFromDir(MILK_DIR . '/Modules', $file_loaded);
+        $module_loaded = []; // Nuovo array per tracciare i moduli con path completo
+        
+        // Carico prima i moduli da MILK_DIR (hanno priorità)
+        self::loadModulesFromDir(MILK_DIR . '/Modules', $file_loaded, $module_loaded);
+        
+        // Carico i moduli da LOCAL_DIR solo se non sono già stati caricati da MILK_DIR
+        self::loadModulesFromDir(LOCAL_DIR . '/Modules', $file_loaded, $module_loaded);
+        
         Hooks::run('module_file_loaded');
         Hooks::run('modules_loaded');
-
+        
         // Carico anche gli init.php dei plugins
         $php_files = glob(THEME_DIR.'/Plugins/*/init.php');
         foreach ($php_files as $php) {
             require $php;
         }
-    
+        
         Hooks::run('after_modules_loaded');
     }
 
 
     // Helper function to load modules from a directory
-    private static function loadModulesFromDir($baseDir, &$file_loaded)
+    private static function loadModulesFromDir($baseDir, &$module_loaded)
     {
         $patterns = [
             $baseDir . '/*Module.php',           // Direct Module files
@@ -249,8 +278,11 @@ class Get
             $baseDir . '/*/*_module.php'         // Subdirectory _module files
         ];
 
+        // Determina il namespace base in base alla directory
+       
+
         foreach ($patterns as $pattern) {
-           
+        
             foreach (glob($pattern) as $filename) {
                 // Skip hidden files/directories
                 $dir = dirname($filename);
@@ -263,13 +295,29 @@ class Get
 
                 $basename = basename($filename);
 
-                // Skip if file already loaded
-                if (in_array($basename, $file_loaded)) {
+                // Crea un identificatore unico per il modulo
+                // Per file in subdirectory: "SubDir/ModuleName.php"
+                // Per file diretti: "ModuleName.php"
+                if (strpos($pattern, '/*/*') !== false) {
+                    $moduleName = basename($dir);
+                    $moduleIdentifier = $moduleName . '/' . $basename;
+                } else {
+                    $moduleIdentifier = $basename;
+                }
+
+                // Skip if module already loaded
+                if (in_array($moduleIdentifier, $module_loaded)) {
                     continue;
                 }
 
-                $file_loaded[] = $basename;
-                require_once self::dirPath($filename);
+                // Segna il modulo come caricato
+                $module_loaded[] = $moduleIdentifier;
+
+                $real_path =  self::dirPath($filename);
+                $isLocalDir = (strpos($real_path, LOCAL_DIR) !== false);
+                $namespacePrefix = $isLocalDir ? 'Local\\Modules\\' : 'Modules\\';
+
+                require_once $real_path;
                 // Only instantiate Module classes (not _module files)
                 if (strpos($basename, 'Module.php') !== false) {
                     $class = basename($filename, '.php');
@@ -278,12 +326,11 @@ class Get
                     if (strpos($pattern, '/*/*') !== false) {
                         // Subdirectory file
                         $moduleName = basename($dir);
-                        $fullClass = 'Modules\\' . $moduleName . '\\' . $class;
+                        $fullClass = $namespacePrefix . $moduleName . '\\' . $class;
                     } else {
                         // Direct file
-                        $fullClass = 'Modules\\' . $class;
-                    }
-                    
+                        $fullClass = $namespacePrefix . $class;
+                    }  
 
                     Hooks::set('module_file_loaded', function () use ($fullClass, $class) {
                         if (class_exists($fullClass)) {
@@ -354,26 +401,50 @@ class Get
      */
     public static function dirPath(string $file): string
     {
-       
         $filename = basename($file);
-        $dir = dirname($file);
-        $dir = str_replace("..", "", $dir);
-        $dir = realpath($dir);
-     
-        $dir_without_root = str_replace(MILK_DIR.'/', '', $dir);
-        if ($dir == $dir_without_root) {
-            // non è una cartella del sistema!
-            // aggiungo la cartella milkadmin_local 
-            $dir_without_local = str_replace(LOCAL_DIR, '', dirname($file));
-            if (is_file(LOCAL_DIR ."/". $dir_without_local . '/' . $filename)) {
-                 return LOCAL_DIR . $dir_without_local . '/' . $filename;
+
+        // block trivial traversal or null-byte attempts
+        if (strpos($file, "\0") !== false) return '';
+        if ($filename === '') return '';
+
+        $localRoot = realpath(LOCAL_DIR);
+        $milkRoot  = realpath(MILK_DIR);
+
+        if (!$localRoot || !$milkRoot) {
+            return ''; // invalid roots, security first
+        }
+
+        // Normalize the input directory
+        $dir = realpath(dirname($file));  
+
+        // If dirname is invalid, consider only filename
+        if ($dir === false) {
+            $relative = $filename;
+        } else {
+            // get relative path from root
+            if (strpos($dir, $localRoot) === 0) {
+                $relative = ltrim(substr($dir, strlen($localRoot)), "/\\") . "/" . $filename;
+            } elseif (strpos($dir, $milkRoot) === 0) {
+                $relative = ltrim(substr($dir, strlen($milkRoot)), "/\\") . "/" . $filename;
+            } else {
+                return ''; // out of roots ⇒ block
             }
-            return '';
         }
-           if ($dir === false) {
-            return '';
+
+        // Build final candidates
+        $localFile = realpath($localRoot . "/" . $relative);
+        $milkFile  = realpath($milkRoot  . "/" . $relative);
+
+        // Prefer LOCAL
+        if ($localFile && is_file($localFile) && strpos($localFile, $localRoot) === 0) {
+            return $localFile;
         }
-        return $file;
+
+        if ($milkFile && is_file($milkFile) && strpos($milkFile, $milkRoot) === 0) {
+            return $milkFile;
+        }
+
+        return '';
     }
 
     /**
@@ -395,7 +466,7 @@ class Get
         $file_without_root = str_replace(THEME_URL, '', $file);
         if ($file == $file_without_root) {
             return $file;
-        }
+        } 
         // aggiungo la cartella milkadmin_local 
         $theme_dir = Config::get('theme_dir', 'default');
 
@@ -442,71 +513,163 @@ class Get
     public static function dateTimeZone()
     {
         $now = new \DateTime();
-
-        if (Config::get('time_zone') == '') {
-            return $now;
-        }
-        $now->setTimezone(new \DateTimeZone(Config::get('time_zone')));
+        $now->setTimezone(new \DateTimeZone(Get::userTimezone()));
         return new \DateTime($now->format('Y-m-d H:i:s'));
     }
 
-    /**
-     * Format a date based on the system settings
+
+     /**
+     * Get user timezone for date conversions
+     * Falls back to authenticated user timezone, then global config
      *
-     * Converts a date string to the specified format according to system configuration.
+     * @return string Timezone identifier
+     */
+    public static function userTimezone(): string
+    {
+        if (!Config::get('use_user_timezone', false)) {
+            return 'UTC';
+        }
+        // 1. Check if explicitly set on this model instance
+        if (self::$user_timezone !== null) {
+            return self::$user_timezone;
+        }
+        
+        // 2. Try to get from authenticated user
+        try {
+            $auth = Get::make('Auth');
+            $user = $auth->getUser();
+            if ($user && isset($user->timezone)) {
+                self::$user_timezone = $user->timezone;
+                return $user->timezone;
+            }
+        } catch (\Exception $e) {
+            // Auth service not available or user not logged in
+        }
+        
+        // 3. Fallback to global config
+        return 'UTC';
+    }
+
+     /**
+     * Set user timezone for date conversions
+     *
+     * @param string|null $timezone Timezone identifier (e.g., 'Europe/Rome', 'America/New_York')
+     */
+    public static function setUserTimezone(?string $timezone) {
+        self::$user_timezone = $timezone;
+    }
+
+    public static function userLocale(): string
+    {
+        if (!Config::get('available_locales', false)) {
+            return Config::get('locale', 'en_US');
+        }
+        // 1. Check if explicitly set on this model instance
+        if (self::$user_locale !== null) {
+            return self::$user_locale;
+        }
+        
+        // 2. Try to get from authenticated user
+        try {
+            $auth = Get::make('Auth');
+            $user = $auth->getUser();
+            if ($user && isset($user->locale)) {
+                self::$user_locale = $user->locale;
+                return $user->locale;
+            }
+        } catch (\Exception $e) {
+            // Auth service not available or user not logged in
+        }
+        
+        // 3. Fallback to global config
+        return Config::get('locale', 'en_US');
+    }
+
+    public static function setUserLocale(?string $locale) {
+        self::$user_locale = $locale;
+    }
+
+
+    /**
+     * Format a date based on the system settings using locale
+     *
+     * Converts a date string to the specified format according to system locale configuration.
+     * Uses IntlDateFormatter for proper internationalization.
      *
      * @example
      * ```php
      * $formatted_date = Get::formatDate('2021-01-01', 'date');
+     * // With locale 'it_IT': "01/11/2021"
+     * // With locale 'en_US': "11/01/2021"
      * ```
      *
-     * @param string|null $date The date to format (in MySQL format)
+     * @param string|null|\DateTime $date The date to format (in MySQL format or DateTime object)
      * @param string $format The format to use: 'date' (only date), 'time' (only time), or 'datetime' (both)
+     * @param bool $timezone Whether to convert to user timezone
      * @return string The formatted date
      */
+    public static function formatDate(string|null|\DateTime $date, string $format = 'date', bool $timezone = false): string {
+        if ($date === null) {
+            return '';
+        }
 
-    public static function formatDate(string|null|\DateTime $date, string $format = 'date'): string {
-         if ($date === null) {
-             return '';
-         }
-         
-         if ($date === '0000-00-00 00:00:00' || $date === '0000-00-00' || $date === '00:00:00' || $date === '00:00' || $date === '0000-00-00 00:00') {
-             return '';
-         }
-         
-         // Convert string to DateTime if needed
-         if (is_string($date)) {
-             $cleaned_date = strip_tags($date);
-             try {
-                 $date = new \DateTime($cleaned_date);
-             } catch (\Exception $e) {
-                 // If DateTime creation fails, return the original string
-                 return $date;
-             }
-         }
-         
-         // At this point, $date should be a DateTime object
-         if (!($date instanceof \DateTime)) {
-             return is_string($date) ? $date : '';
-         }
-         
-         // Clone to avoid modifying the original
-         $dateClone = clone $date;
-         
-         $format_date = Config::get('date-format', 'Y-m-d');
-         $format_time = Config::get('time-format', 'H:i:s');
-         
-         if (Config::get('time_zone') != '') {
-             $dateClone->setTimezone(new \DateTimeZone(Config::get('time_zone')));
-         }
-         
-         if ($format == 'date') {
-             return $dateClone->format($format_date);
-         } else if ($format == 'time') {
-             return $dateClone->format($format_time);
-         } else {
-             return $dateClone->format($format_date . ' ' . $format_time);
-         }
+        if ($date === '0000-00-00 00:00:00' || $date === '0000-00-00' || $date === '00:00:00' || $date === '00:00' || $date === '0000-00-00 00:00') {
+            return '';
+        }
+
+        // Convert string to DateTime if needed
+        if (is_string($date)) {
+            $cleaned_date = strip_tags($date);
+            try {
+                $date = new \DateTime($cleaned_date);
+            } catch (\Exception $e) {
+                // If DateTime creation fails, return the original string
+                return $date;
+            }
+        }
+
+        // At this point, $date should be a DateTime object
+        if (!($date instanceof \DateTime)) {
+            return is_string($date) ? $date : '';
+        }
+
+        // Clone to avoid modifying the original
+        $dateClone = clone $date;
+
+        // Apply timezone conversion if requested
+        if ($timezone) {
+            $dateClone->setTimezone(new \DateTimeZone(Get::userTimezone()));
+        }
+
+        // Get locale from config
+        $locale = Config::get('locale', 'en_US');
+
+        // Create IntlDateFormatter based on format type
+        if ($format == 'date') {
+            $formatter = new \IntlDateFormatter(
+                $locale,
+                \IntlDateFormatter::SHORT,  // Short date format
+                \IntlDateFormatter::NONE,
+                $timezone ? Get::userTimezone() : null
+            );
+        } else if ($format == 'time') {
+            $formatter = new \IntlDateFormatter(
+                $locale,
+                \IntlDateFormatter::NONE,
+                \IntlDateFormatter::SHORT,  // Short time format
+                $timezone ? Get::userTimezone() : null
+            );
+        } else {
+            // datetime
+            $formatter = new \IntlDateFormatter(
+                $locale,
+                \IntlDateFormatter::SHORT,
+                \IntlDateFormatter::SHORT,
+                $timezone ? Get::userTimezone() : null
+            );
+        }
+
+        return $formatter->format($dateClone);
     }
 
     /**

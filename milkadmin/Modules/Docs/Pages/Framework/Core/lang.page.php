@@ -43,13 +43,21 @@ namespace Modules\Docs\Pages;
 <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$translation = Lang::get('hello', 'greetings');
 echo $translation; // Output: hello</code></pre> 
 
-<h4 class="mt-2">loadIniFile(string $file, $area = 'all')</h4> 
-<p>Upload a translation file.</p> 
-<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$success = Lang::loadIniFile('path/to/translations.ini', 'greetings');</code></pre>    </div>
+<h4 class="mt-2">loadPhpFile(string $file, $area = 'all')</h4>
+<p>Load a PHP translation file.</p>
+<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$success = Lang::loadPhpFile('path/to/translations.php', 'greetings');</code></pre>
+<p>Translation files are PHP files that return an array where keys are English strings and values are translations:</p>
+<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">&lt;?php
+// translations.php
+return [
+    "Hello World" => "Ciao Mondo",
+    "Save" => "Salva",
+    "Cancel" => "Annulla",
+];</code></pre>
 
-<h2 class="mt-4">Javascript translation</h2> 
-<p>Translation can also be done in javascript with <code>__(key, params = {})</code></p> 
-<p>The translation uses the same PHP ini files, without the areas. You must wait until the translation file has loaded, otherwise the original text will be returned.</p><pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-js">waitForTranslations().then(() => {
+<h2 class="mt-4">Javascript translation</h2>
+<p>Translation can also be done in javascript with <code>__(key, params = {})</code></p>
+<p>The translation uses the same PHP files, without the areas. You must wait until the translation file has loaded, otherwise the original text will be returned.</p><pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-js">waitForTranslations().then(() => {
     alert(__('Hello %s', ['World']));
 });</code></pre> 
 <p>waitForTranslations() waits for translations to load, but if the translations aren't supposed to appear immediately, but rather later, it can be assumed that the loading has already been successful. If the translations haven't been loaded yet, the original text is still returned.</p>

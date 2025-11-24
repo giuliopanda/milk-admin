@@ -349,6 +349,11 @@ use App\Route;
                     <td>Set form-specific label</td>
                     <td><code>$rule->text('content')->formLabel('Article Content')</code></td>
                 </tr>
+                 <tr>
+                    <td><code>hide()</code></td>
+                    <td>Hide from list/table view, edit form and detail view</td>
+                    <td><code>$rule->text('notes')->hide()</code></td>
+                </tr>
                 <tr>
                     <td><code>hideFromList()</code></td>
                     <td>Hide from list/table view</td>

@@ -19,7 +19,7 @@ API::group(['prefix' => 'auth'], function() {
         $credentials = Route::extractCredentials();
         if (!$credentials['username'] || !$credentials['password']) {
             return [
-                'error' => true,
+                'success' => false,
                 'message' => 'Username and password required'
             ];
         }
@@ -30,7 +30,7 @@ API::group(['prefix' => 'auth'], function() {
             $auth = Get::make('Auth');
             if (!$auth || !$auth->login($credentials['username'], $credentials['password'], false)) {
                 return [
-                    'error' => true,
+                    'success' => false,
                     'message' => 'Invalid credentials'
                 ];
             } else {
@@ -44,7 +44,7 @@ API::group(['prefix' => 'auth'], function() {
                 'role' => $user->is_admin ? 'admin' : 'user'
             ]);
 
-            if ($token_response['error'] ?? false) {
+            if (!($token_response['success'] ?? true)) {
                 return $token_response;
             }
 
@@ -66,7 +66,7 @@ API::group(['prefix' => 'auth'], function() {
         }
 
         return [
-            'error' => true,
+            'success' => false,
             'message' => 'Authentication failed'
         ];
     },
@@ -91,8 +91,7 @@ API::group(['prefix' => 'auth'], function() {
             'token' => 'string',
             'expires_at' => 'datetime',
             'expires_in' => 'int'
-        ],
-        'error' => 'boolean'
+        ]
     ]);
     
     // Refresh token
@@ -102,7 +101,7 @@ API::group(['prefix' => 'auth'], function() {
 
         if (!$token) {
             return [
-                'error' => true,
+                'success' => false,
                 'message' => 'Token not provided'
             ];
         }
@@ -120,10 +119,12 @@ API::group(['prefix' => 'auth'], function() {
         ]
     ],
     [
-        'token' => 'string',
-        'expires_at' => 'datetime',
-        'expires_in' => 'int',
-        'error' => 'boolean',
+        'data' => [
+            'token' => 'string',
+            'expires_at' => 'datetime',
+            'expires_in' => 'int'
+        ],
+        'success' => 'boolean',
         'message' => 'string'
     ]);
     
@@ -133,7 +134,7 @@ API::group(['prefix' => 'auth'], function() {
 
         if (!$token) {
             return [
-                'error' => true,
+                'success' => false,
                 'message' => 'Token not provided'
             ];
         }
@@ -142,7 +143,7 @@ API::group(['prefix' => 'auth'], function() {
 
         if (!$payload) {
             return [
-                'error' => true,
+                'success' => false,
                 'message' => 'Invalid token: ' . Token::$last_error
             ];
         }
@@ -175,8 +176,7 @@ API::group(['prefix' => 'auth'], function() {
             'exp' => 'int',
             'jti' => 'string',
             'iss' => 'string'
-        ],
-        'error' => 'boolean'
+        ]
     ]);
 });
 
@@ -279,7 +279,7 @@ API::group(['prefix' => 'users', 'auth' => true], function() {
 
         if (!$id) {
             return [
-                'error' => true,
+                'success' => false,
                 'message' => 'ID utente richiesto'
             ];
         }
@@ -317,8 +317,7 @@ API::group(['prefix' => 'users', 'auth' => true], function() {
                 'email' => 'string',
                 'created_at' => 'datetime'
             ]
-        ],
-        'error' => 'boolean'
+        ]
     ]);
     
     // Create user
@@ -332,7 +331,7 @@ API::group(['prefix' => 'users', 'auth' => true], function() {
         // Validation
         if (!$data['username'] || !$data['email'] || !$data['password']) {
             return [
-                'error' => true,
+                'success' => false,
                 'message' => 'All fields are required'
             ];
         }
@@ -371,8 +370,7 @@ API::group(['prefix' => 'users', 'auth' => true], function() {
                 'username' => 'string',
                 'email' => 'string'
             ]
-        ],
-        'error' => 'boolean'
+        ]
     ]);
     
     // Update user
@@ -381,7 +379,7 @@ API::group(['prefix' => 'users', 'auth' => true], function() {
 
         if (!$id) {
             return [
-                'error' => true,
+                'success' => false,
                 'message' => 'ID utente richiesto'
             ];
         }
@@ -424,7 +422,6 @@ API::group(['prefix' => 'users', 'auth' => true], function() {
                 'email' => 'string'
             ]
         ],
-        'error' => 'boolean'
     ]);
     
     // Delete user
@@ -433,7 +430,7 @@ API::group(['prefix' => 'users', 'auth' => true], function() {
 
         if (!$id) {
             return [
-                'error' => true,
+                'success' => false,
                 'message' => 'ID utente richiesto'
             ];
         }
@@ -455,8 +452,7 @@ API::group(['prefix' => 'users', 'auth' => true], function() {
     ],
     [
         'success' => 'boolean',
-        'message' => 'string',
-        'error' => 'boolean'
+        'message' => 'string'
     ]);
 });
 */

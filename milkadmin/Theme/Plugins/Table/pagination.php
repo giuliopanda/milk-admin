@@ -35,7 +35,7 @@ if ($first_page > $total - $number_of_links) {
         <?php if ($pages > 1) : ?>
             <?php if (($page_info['pag-total-show'] ?? true) && !($page_info['pag-elperpage-show'] ?? true)) : ?>
                 <div class="d-inline-block">
-                    <span class="me-2"><?php printf(_rh('Total: <b>%d</b>'), $total); ?></span>
+                    <span class="me-2"><?php _pt('Total'); _p(': ' . $total); ?></span>
                 </div>
             <?php endif; ?>
             <?php if ($page_info['pag-number-show'] ?? true) : ?>  
@@ -158,11 +158,11 @@ if ($first_page > $total - $number_of_links) {
         <?php if ($page_info['pag-elperpage-show'] ?? true) : ?>
             <?php if ($page_info['pag-total-show'] ?? true) : ?>
                 <div class="d-inline-block">
-                    <span class="me-2"><?php printf(_rh('Total: <b>%d</b>'), $total); ?></span>
+                    <span class="me-2"><?php _pt('Total'); _p(': ' . $total); ?></span>
                 </div>
             <?php endif; ?>
             <div class="d-inline-block ms-3">
-                <span class="me-2"><?php _pt('Elements per page:'); ?> </span>
+                <span class="me-2"><?php _pt('Elements per page'); ?>: </span>
             </div>
             <div class="d-inline-block">
                 <select class="form-select js-pagination-el-per-page" data-table-page="limit">

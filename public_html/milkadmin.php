@@ -18,15 +18,24 @@ if (!is_dir(MILK_DIR)) {
     die ();
 }
 $link_complete = '';
-if (isset($_SESSION['link_complete'])) {
-    $link_complete = $_SESSION['link_complete'];
-} else {
-    if (isset($_SERVER['REQUEST_URI']) && isset($_SERVER['REQUEST_SCHEME'])) {
-        $uri = explode('?', $_SERVER['REQUEST_URI']);
-        $link_complete =   $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'] . $uri[0];
-        $_SESSION['link_complete'] = $link_complete;
-    }  
+
+if (isset($_SERVER['REQUEST_URI']) && isset($_SERVER['REQUEST_SCHEME'])) {
+    $uri = explode('?', $_SERVER['REQUEST_URI']);
+    $request_uri = $uri[0];
+    
+    // FIX: Estrai solo il percorso base fino a public_html/ (incluso)
+    $public_html_pos = strpos($request_uri, '/public_html/');
+    if ($public_html_pos !== false) {
+        // Taglia tutto dopo public_html/ per ottenere solo il path base
+        $base_path = substr($request_uri, 0, $public_html_pos + strlen('/public_html/'));
+    } else {
+        // Fallback: usa REQUEST_URI completo (comportamento originale)
+        $base_path = $request_uri;
+    }
+
+    $link_complete = $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'] . $base_path;
 }
+      
 if (!defined('BASE_URL')) {
     define('BASE_URL', $link_complete);
 } 

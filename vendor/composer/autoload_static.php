@@ -15,6 +15,10 @@ class ComposerStaticInitcde682fdf38dac6f30d5bde9f4ff4a2b
         array (
             'Modules\\' => 8,
         ),
+        'L' => 
+        array (
+            'Local\\' => 6,
+        ),
         'B' => 
         array (
             'Builders\\' => 9,
@@ -28,19 +32,23 @@ class ComposerStaticInitcde682fdf38dac6f30d5bde9f4ff4a2b
     public static $prefixDirsPsr4 = array (
         'Theme\\' => 
         array (
-            0 => __DIR__ . '/../..' . '/Theme',
+            0 => __DIR__ . '/../..' . '/milkadmin/Theme',
         ),
         'Modules\\' => 
         array (
-            0 => __DIR__ . '/../..' . '/Modules',
+            0 => __DIR__ . '/../..' . '/milkadmin/Modules',
+        ),
+        'Local\\' => 
+        array (
+            0 => __DIR__ . '/../..' . '/milkadmin_local',
         ),
         'Builders\\' => 
         array (
-            0 => __DIR__ . '/../..' . '/Builders',
+            0 => __DIR__ . '/../..' . '/milkadmin/Builders',
         ),
         'App\\' => 
         array (
-            0 => __DIR__ . '/../..' . '/App',
+            0 => __DIR__ . '/../..' . '/milkadmin/App',
         ),
     );
 

@@ -28,10 +28,8 @@ Hooks::set('set_last_error', function($error, $from) {
 if (Cli::isCli()) {
 
     if (!Cli::run($argv)) {
+        // If run() returns false and we have arguments, show similar commands or help
         if (count($argv) > 1) {
-            $error = (Cli::$last_error != '') ? Cli::$last_error : "The function is not registered or is not callable.";
-            Cli::error($error);
-            
             // Try to find similar commands
             $attempted_command = $argv[1];
             $all_commands = Cli::getAllFn();
@@ -63,29 +61,29 @@ if (Cli::isCli()) {
             // Show similar commands if found
             if (!empty($similar_commands)) {
                 Cli::echo("");
-                Cli::echo("   \033[1;33mDid you mean:\033[0m");
-                Cli::echo("   \033[0;33m─────────────\033[0m");
-                
+                Cli::drawSeparator("Did you mean", 50, "\033[1;33m");
+
                 // Show only top 5 most similar commands
                 $count = 0;
                 foreach ($similar_commands as $item) {
                     if ($count >= 5) break;
-                    
+
                     if (strpos($item['command'], ':') !== false) {
                         // Module command
                         $parts = explode(':', $item['command'], 2);
                         $module = $parts[0];
                         $command = $parts[1];
-                        Cli::echo("     \033[0;36m▸\033[0m \033[1;35m" . $module . ":\033[0m\033[0;37m" . $command . "\033[0m");
+                        Cli::echo("  \033[0;36m▸\033[0m \033[1;35m" . $module . ":\033[0m\033[0;37m" . $command . "\033[0m");
                     } else {
                         // System command
-                        Cli::echo("     \033[1;33m•\033[0m \033[1;37m" . $item['command'] . "\033[0m");
+                        Cli::echo("  \033[1;33m•\033[0m \033[1;37m" . $item['command'] . "\033[0m");
                     }
                     $count++;
                 }
-                
+
                 Cli::echo("");
-                Cli::echo("   \033[0;37mLeave empty to see all available commands.\033[0m");
+                Cli::echo("  \033[0;37mLeave empty to see all available commands.\033[0m");
+                Cli::echo("");
                 return;
             }
         }
@@ -107,27 +105,20 @@ if (Cli::isCli()) {
         // Sort commands alphabetically
         sort($system_commands);
         sort($module_commands);
-        
-        Cli::echo("");
-        Cli::echo("   \033[1;36m╔════════════════════════════════════════════════════════╗\033[0m");
-        Cli::echo("   \033[1;36m║\033[0m                        \033[1;37mMilk cli\033[0m                        \033[1;36m║\033[0m");
-        Cli::echo("   \033[1;36m║\033[0m                 \033[0;37mCommand Line Interface\033[0m                 \033[1;36m║\033[0m");
-        Cli::echo("   \033[1;36m╚════════════════════════════════════════════════════════╝\033[0m");
-        Cli::echo("");
-        
+
+        Cli::drawTitle("Milk CLI - Command Line Interface", 8);
+
         if (!empty($system_commands)) {
-            Cli::echo("   \033[1;32mSYSTEM COMMANDS:\033[0m");
-            Cli::echo("   \033[0;32m─────────────────────\033[0m");
+            Cli::drawSeparator("SYSTEM COMMANDS", 50, "\033[1;32m");
             foreach ($system_commands as $name) {
-                Cli::echo("     \033[1;33m•\033[0m \033[1;37m" . $name . "\033[0m");
+                Cli::echo("  \033[1;33m•\033[0m \033[1;37m" . $name . "\033[0m");
             }
             Cli::echo("");
         }
-        
+
         if (!empty($module_commands)) {
-            Cli::echo("   \033[1;34mMODULE COMMANDS:\033[0m");
-            Cli::echo("   \033[0;34m─────────────────────\033[0m");
-            
+            Cli::drawSeparator("MODULE COMMANDS", 50, "\033[1;34m");
+
             // Group by module
             $grouped_modules = [];
             foreach ($module_commands as $name) {
@@ -136,17 +127,17 @@ if (Cli::isCli()) {
                 $command = $parts[1] ?? '';
                 $grouped_modules[$module][] = $command;
             }
-            
+
             foreach ($grouped_modules as $module => $commands) {
-                Cli::echo("     \033[1;35m" . $module . ":\033[0m");
+                Cli::echo("  \033[1;35m" . $module . ":\033[0m");
                 foreach ($commands as $command) {
-                    Cli::echo("        \033[0;36m▸\033[0m \033[0;37m" . $module . ":" . $command . "\033[0m");
+                    Cli::echo("    \033[0;36m▸\033[0m \033[0;37m" . $module . ":" . $command . "\033[0m");
                 }
                 Cli::echo("");
             }
         }
-        
-        Cli::echo("   \033[1;33mUsage:\033[0m \033[0;37mphp milkadmin/cli.php <command> [arguments]\033[0m");
+
+        Cli::echo("\033[1;33mUsage:\033[0m \033[0;37mphp milkadmin/cli.php <command> [arguments]\033[0m");
         Cli::echo("");
     }
 }

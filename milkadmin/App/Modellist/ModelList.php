@@ -210,6 +210,20 @@ class ModelList
      * @return \App\Database\Query
      */
     public function queryFromRequest($request = null): Query {
+       
+        $query = $this->getQueryFromRequestWithoutFilters($request);
+      
+        $this->applyFilters($query, $request);
+        return $query;
+    }
+
+
+    /**
+     * Set the request parameters for the query
+     * without filters
+     * @return \App\Database\Query
+     */
+    public function getQueryFromRequestWithoutFilters($request = null): Query {
         if ($request == null) {
             $request = $_REQUEST[$this->table_id] ?? [];
         }
@@ -249,24 +263,7 @@ class ModelList
             $query->limit($limit_start, $limit);
         }
         $query->order($this->order_field, $this->order_dir);
-        
-        /**
-         * The filter column is an array of filters type filters:value
-         * table.js has functions for adding, editing, and removing filters
-         */
-        $this->filters = $request['filters'] ?? '';
-        if ($this->filters != '') {
-            $tmp_filters = json_decode($this->filters);
-            foreach ($tmp_filters as $filter) {
-                $filter_type = explode(':', $filter);
-                $filter = implode(':', array_slice($filter_type, 1));
-                $filter_type = $filter_type[0];
-                if (isset($this->fn_filter[$filter_type]) && !in_array($filter_type, $this->filter_applied)) {
-                    $this->filter_applied[] = $filter_type;
-                    call_user_func($this->fn_filter[$filter_type], $query, $filter);
-                } 
-            }
-        }
+              
         return $query;
     }
 

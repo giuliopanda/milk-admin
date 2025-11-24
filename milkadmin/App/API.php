@@ -2,6 +2,8 @@
 namespace App;
 !defined('MILK_DIR') && die(); // Avoid direct access
 
+use App\Exceptions\ApiException;
+use App\Exceptions\ApiAuthException;
 /**
  * API Routing and Management Class
  * 
@@ -60,10 +62,31 @@ class API
 
     /**
      * JWT authentication status for the current request
-     * 
+     *
      * @var array|null
      */
     private static $auth_status = null;
+
+    /**
+     * Buffered response data
+     *
+     * @var array|null
+     */
+    private static $response_buffer = null;
+
+    /**
+     * Buffered HTTP status code
+     *
+     * @var int
+     */
+    private static $status_code = 200;
+
+    /**
+     * Buffered headers
+     *
+     * @var array
+     */
+    private static $headers_buffer = [];
 
     /**
      * Register an API endpoint
@@ -95,7 +118,7 @@ class API
      * );
      * ```
      */
-    public static function set($page, $handler, $options = [], $description = null, $parameters = null, $response = null) {
+    public static function set(string $page, callable|string $handler, array $options = [], ?string $description = null, ?array $parameters = null, ?array $response = null): void {
         // Apply group options
         $final_options = $options;
         $final_page = $page;
@@ -150,12 +173,12 @@ class API
 
     /**
      * Group endpoints with common options
-     * 
+     *
      * @param array $options Group options (prefix, auth, permissions, etc.)
      * @param callable $callback Function containing endpoint registrations
      * @return void
      */
-    public static function group($options, $callback) {
+    public static function group(array $options, callable $callback): void {
         self::$group_stack[] = $options;
         call_user_func($callback);
         array_pop(self::$group_stack);
@@ -163,63 +186,61 @@ class API
 
     /**
      * Execute an API endpoint (like Route::run)
-     * 
+     *
      * @param string $page The requested page
      * @return bool True if endpoint was found and executed, false otherwise
      */
-    public static function run($page) {
+    public static function run(string $page): bool {
         // Find matching endpoint
         $endpoint = self::findEndpoint($page);
-        
+
         if (!$endpoint) {
             // Try OPTIONS for CORS preflight
-            if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+            if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
                 self::handleCors();
                 return true;
             }
             return false;
         }
-        
+
         $array_info = ['continue'=>true];
         // Run before hooks
         $array_info = Hooks::run('api_before_run', $array_info, $endpoint);
         if (!$array_info['continue']) {
             return true;
         }
-        
+
         try {
             // Check HTTP method if specified
             if (isset($endpoint['options']['method'])) {
                 $required_method = strtoupper($endpoint['options']['method']);
                 $current_method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-                
+
                 if ($required_method !== $current_method &&  $required_method != 'ANY') {
-                    self::errorResponse("Method $current_method not allowed. Expected: $required_method", 405);
-                    return true;
+                    throw new ApiException("Method $current_method not allowed. Expected: $required_method", 405);
                 }
             }
-            
+
             // Check authentication if required
             if (self::requiresAuth($endpoint)) {
                 $auth_result = self::checkAuth();
                 if (!$auth_result['success']) {
-                    self::errorResponse($auth_result['message'], 401);
-                    return true;
+                    throw new ApiAuthException($auth_result['message'], 401);
                 }
             }
-            
+
             // Check permissions if specified
             if (isset($endpoint['options']['permissions'])) {
                 // special permission simple token
                 if (isset($endpoint['options']['permissions']) && $endpoint['options']['permissions'] == 'token') {
                     $api_token = Config::get('api_token', '');
                     $token = '';
-                   
+
                     if (isset($_REQUEST['token'])) {
                         $token = $_REQUEST['token'];
                     } else {
                         $raw_body = file_get_contents('php://input');
-                        
+
                         if (!empty($raw_body)) {
                             $body_data = json_decode($raw_body, true);
                             if (json_last_error() === JSON_ERROR_NONE && isset($body_data['token'])) {
@@ -234,42 +255,76 @@ class API
                         }
                     }
                     if ($api_token == '' || $api_token != $token) {
-                        self::errorResponse('Insufficient permissions!!', 403);
-                        return true;
+                        throw new ApiAuthException('Invalid or missing API token.', 403);
                     }
-                } elseif (!self::checkPermissions($endpoint['options']['permissions'])) {
-                    self::errorResponse('Insufficient permissions', 403);
-                    return true;
+                } else {
+                    // Lancia eccezione se i permessi non sono sufficienti
+                    self::checkPermissions($endpoint['options']['permissions']);
                 }
             }
-            
+
             // Prepare request data
             $request = self::prepareRequest($endpoint);
             self::$current_request = $request;
-            
-            // Execute handler (like Route::run)
+
+            // Execute handler
             $response = self::executeHandler($endpoint['handler'], $request);
-            
+
             $array_info['response'] = $response;
             Hooks::run('api_after_run', $array_info, $endpoint);
-            // Send response
-            self::jsonResponse($response);
-            
-        } catch (\Exception $e) {
-            Logs::set('api', 'ERROR', 'API Error: ' . $e->getMessage());
+
+            // Send success response
+            self::successResponse($response);
+
+        } catch (ApiAuthException $e) {
+            // Expected authentication errors
+            Logs::set('api', 'AUTH', $e->getMessage());
             $array_info['error'] = $e->getMessage();
             Hooks::run('api_after_run', $array_info, $endpoint);
-            self::errorResponse('Internal server error', 500);
+            self::errorResponse($e->getMessage(), $e->getCode() ?: 403);
+
+        } catch (ApiException $e) {
+            // Expected API errors
+            Logs::set('api', 'ERROR', $e->getMessage());
+            $array_info['error'] = $e->getMessage();
+            Hooks::run('api_after_run', $array_info, $endpoint);
+            self::errorResponse($e->getMessage(), $e->getCode() ?: 400);
+
+        } catch (\Throwable $e) {
+            // Unexpected PHP errors
+            Logs::set('api', 'FATAL', $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            $array_info['error'] = $e->getMessage();
+            Hooks::run('api_after_run', $array_info, $endpoint);
+
+            // Check debug mode
+            if (Config::get('debug', false)) {
+                // Detailed error for debug mode
+                self::errorResponse(
+                    "Internal server error: " . $e->getMessage(),
+                    500,
+                    [
+                        'exception' => get_class($e),
+                        'file' => $e->getFile(),
+                        'line' => $e->getLine(),
+                        'trace' => $e->getTraceAsString()
+                    ]
+                );
+            } else {
+                // Generic error for production
+                self::errorResponse("Internal server error.", 500);
+            }
         }
+
+        return true;
     }
 
     /**
      * Find matching endpoint
-     * 
+     *
      * @param string $page Request page
      * @return array|null Matching endpoint or null
      */
-    private static function findEndpoint($page) {
+    private static function findEndpoint(string $page): ?array {
         // Direct match
         if (isset(self::$endpoints[$page])) {
             return self::$endpoints[$page];
@@ -280,20 +335,20 @@ class API
 
     /**
      * Check if endpoint requires authentication
-     * 
+     *
      * @param array $endpoint Endpoint configuration
      * @return bool
      */
-    private static function requiresAuth($endpoint) {
+    private static function requiresAuth(array $endpoint): bool {
         return isset($endpoint['options']['auth']) && $endpoint['options']['auth'] === true;
     }
 
     /**
      * Check JWT authentication
-     * 
+     *
      * @return array Authentication result with 'success' and 'message' keys
      */
-    private static function checkAuth() {
+    private static function checkAuth(): array {
         if (self::$auth_status !== null) {
             return self::$auth_status;
         }
@@ -349,29 +404,49 @@ class API
 
     /**
      * Check if user has required permissions
-     * 
+     *
      * @param array|string $permissions Required permissions
-     * @return bool
+     * @return void
+     * @throws ApiAuthException
      */
-    private static function checkPermissions($permissions) {
-        if (!Permissions::check($permissions)) {
-            die (json_encode([
-                'error' => true,
-                'message' => 'Insufficient permissions',
-                'permissions' => $permissions,
-                'user_permissions' => Permissions::getUserPermissions()
-            ]));
+    private static function checkPermissions(array|string $permissions): void {
+        // Se i permessi sono disattivati, tutto ok
+        if (!Settings::get("permissions_enabled")) {
+            return;
         }
-        return Permissions::check($permissions);
+
+        // Caso: autenticazione disattivata per la route
+        // (Questo check potrebbe non essere necessario qui, dipende dalla tua logica)
+
+        // Ottieni i permessi dell'utente
+        $user_permissions = Permissions::getUserPermissions();
+
+        // No permissions found for user
+        if (empty($user_permissions)) {
+            throw new ApiAuthException("Missing permissions: user has no assigned authorizations.", 403);
+        }
+
+        // Get user information
+        $user = self::user();
+
+        // No user information available
+        if (empty($user)) {
+            throw new ApiAuthException("Unknown user: unable to verify authorizations.", 401);
+        }
+
+        // Check permissions: difference between required and possessed
+        if (!$user->is_core && !Permissions::check($permissions)) {
+            throw new ApiAuthException("Insufficient permissions: user does not have required authorizations.", 403);
+        }
     }
 
     /**
      * Prepare request data for handler
-     * 
+     *
      * @param array $endpoint Endpoint configuration
      * @return array Request data
      */
-    private static function prepareRequest($endpoint) {
+    private static function prepareRequest(array $endpoint): array {
         $request = [
             'method' => $_SERVER['REQUEST_METHOD'],
             'page' => $endpoint['page'],
@@ -421,10 +496,10 @@ class API
 
     /**
      * Get request headers
-     * 
+     *
      * @return array Request headers
      */
-    private static function getRequestHeaders() {
+    private static function getRequestHeaders(): array {
         $headers = [];
         
         if (function_exists('getallheaders')) {
@@ -453,13 +528,13 @@ class API
 
     /**
      * Get request body
-     * 
+     *
      * @return array Request body data
      */
-    private static function getRequestBody() {
+    private static function getRequestBody(): array {
         $content_type = $_SERVER['CONTENT_TYPE'] ?? '';
         $method = $_SERVER['REQUEST_METHOD'];
-        
+
         // Handle JSON content for any HTTP method
         if (strpos($content_type, 'application/json') !== false) {
             $input = file_get_contents('php://input');
@@ -494,115 +569,150 @@ class API
 
     /**
      * Execute the endpoint handler
-     * 
+     *
      * @param callable|string $handler The handler to execute
      * @param array $request Request data
      * @return mixed Handler response
+     * @throws ApiException
      */
-    private static function executeHandler($handler, $request) {
+    private static function executeHandler(callable|string $handler, array $request): mixed {
         if (is_string($handler) && strpos($handler, '@') !== false) {
             // Module@method format
             list($module, $method) = explode('@', $handler, 2);
-            
+
             // Add namespace if needed
             if (strpos($module, '\\') === false) {
                 $module = 'Modules\\' . $module;
             }
-            
+
             if (!class_exists($module)) {
-                throw new \Exception("Module class '$module' not found");
+                throw new ApiException("Modulo '$module' non trovato: impossibile eseguire l'endpoint.", 500);
             }
-            
+
             $instance = new $module();
-            
+
             if (!method_exists($instance, $method)) {
-                throw new \Exception("Method '$method' not found in module '$module'");
+                throw new ApiException("Metodo '$method' mancante nel modulo '$module'.", 500);
             }
-            
+
             return call_user_func([$instance, $method], $request);
         }
-        
+
         // Direct callable
         return call_user_func($handler, $request);
     }
 
     /**
-     * Send JSON response
-     * 
-     * @param mixed $data Response data
+     * Buffer JSON response (low-level method)
+     *
+     * @param array $payload Response payload
      * @param int $status HTTP status code
      * @return void
      */
-    public static function jsonResponse($data, $status = 200) {
-        http_response_code($status);
-        header('Content-Type: application/json');
-        
-        // Handle CORS if configured
-        self::handleCors();
-        
-        echo json_encode($data);
-        
-        // Clean up
-        if (Get::db() !== null) {
-            Get::db()->close();
+    public static function jsonResponse(array $payload, int $status = 200): void {
+        // Close session to avoid locking
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
         }
-        if (Get::db2() !== null) {
-            Get::db2()->close();
+
+        // Buffer the response instead of sending it
+        self::$response_buffer = $payload;
+        self::$status_code = $status;
+
+        // Buffer CORS headers
+        self::bufferCorsHeaders();
+
+        // Buffer Content-Type header
+        self::$headers_buffer['Content-Type'] = 'application/json; charset=utf-8';
+    }
+
+    /**
+     * Send success response
+     *
+     * @param mixed $data Response data
+     * @return void
+     */
+    public static function successResponse(mixed $data): void {
+        // Se i dati sono già un array con struttura di risposta (success/f), passali direttamente
+        if (is_array($data) && (isset($data['success']) || isset($data['error']))) {
+            self::jsonResponse($data, 200);
+            return;
         }
-        Settings::save();
-        exit;
+
+        // Altrimenti wrappa in formato standard
+        self::jsonResponse([
+            'success' => true,
+            'data'  => $data
+        ], 200);
     }
 
     /**
      * Send error response
-     * 
-     * @param string $message Error message
+     *
+     * @param string $msg Error message
      * @param int $status HTTP status code
+     * @param array|null $debug_info Optional debug information (only shown in debug mode)
      * @return void
      */
-    public static function errorResponse($message, $status = 400) {
-        self::jsonResponse([
-            'error' => true,
-            'message' => $message
-        ], $status);
+    public static function errorResponse(string $msg, int $status, ?array $debug_info = null): void {
+        $response = [
+            'success' => false,
+            'message' => $msg
+        ];
+
+        // Add debug info if provided
+        if ($debug_info !== null && !empty($debug_info)) {
+            $response['debug'] = $debug_info;
+        }
+
+        self::jsonResponse($response, $status);
     }
 
     /**
-     * Handle CORS headers
-     * 
+     * Handle CORS headers (legacy method for OPTIONS preflight)
+     *
      * @return void
      */
-    private static function handleCors() {
+    private static function handleCors(): void {
+        self::bufferCorsHeaders();
+
+        if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+            self::$status_code = 204;
+            self::$response_buffer = [];
+        }
+    }
+
+    /**
+     * Buffer CORS headers
+     *
+     * @return void
+     */
+    private static function bufferCorsHeaders(): void {
         $allowed_origins = Config::get('api_cors_origins', '*');
         $allowed_methods = Config::get('api_cors_methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
         $allowed_headers = Config::get('api_cors_headers', 'Content-Type, Authorization');
-        
+
         if ($allowed_origins === '*') {
-            header('Access-Control-Allow-Origin: *');
+            self::$headers_buffer['Access-Control-Allow-Origin'] = '*';
         } elseif (is_array($allowed_origins)) {
             $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
             if (in_array($origin, $allowed_origins)) {
-                header('Access-Control-Allow-Origin: ' . $origin);
-                header('Access-Control-Allow-Credentials: true');
+                self::$headers_buffer['Access-Control-Allow-Origin'] = $origin;
+                self::$headers_buffer['Access-Control-Allow-Credentials'] = 'true';
             }
         }
-        
-        header('Access-Control-Allow-Methods: ' . $allowed_methods);
-        header('Access-Control-Allow-Headers: ' . $allowed_headers);
-        header('Access-Control-Max-Age: 86400');
-        
-        if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-            http_response_code(204);
-            exit;
-        }
+
+        self::$headers_buffer['Access-Control-Allow-Methods'] = $allowed_methods;
+        self::$headers_buffer['Access-Control-Allow-Headers'] = $allowed_headers;
+        self::$headers_buffer['Access-Control-Max-Age'] = '86400';
     }
 
     /**
      * Get the current authenticated user
-     * 
+     *
      * @return object|null The authenticated user or null
      */
-    public static function user() {
+    public static function user(): ?object {
         if (self::$auth_status && self::$auth_status['success']) {
             return self::$auth_status['user'] ?? null;
         }
@@ -611,10 +721,10 @@ class API
 
     /**
      * Get the current JWT payload
-     * 
+     *
      * @return array|null The JWT payload or null
      */
-    public static function payload() {
+    public static function payload(): ?array {
         if (self::$auth_status && self::$auth_status['success']) {
             return self::$auth_status['payload'] ?? null;
         }
@@ -623,28 +733,28 @@ class API
 
     /**
      * Get the current request data
-     * 
+     *
      * @return array|null The current request or null
      */
-    public static function request() {
+    public static function request(): ?array {
         return self::$current_request;
     }
 
     /**
      * Generate a new JWT token for a user
-     * 
+     *
      * @param int $user_id User ID
      * @param array $additional_data Additional data to include in the token
      * @return array Token response
      */
-    public static function generateToken($user_id, $additional_data = []) {
+    public static function generateToken(int $user_id, array $additional_data = []): array {
         if (Get::has('Auth')) {
             $auth = Get::make('Auth');
             $user = $auth->getUser($user_id);
             
             if (!$user || $user->status != 1) {
                 return [
-                    'error' => true,
+                    'success' => false,
                     'message' => 'User not found or inactive'
                 ];
             }
@@ -660,7 +770,7 @@ class API
         
         if (!$token) {
             return [
-                'error' => true,
+                'success' => false,
                 'message' => Token::$last_error
             ];
         }
@@ -676,15 +786,15 @@ class API
 
     /**
      * Refresh a JWT token
-     * 
+     *
      * @return array Token response
      */
-    public static function refreshToken() {
+    public static function refreshToken(): array {
         $auth = self::checkAuth();
         
         if (!$auth['success']) {
             return [
-                'error' => true,
+                'success' => false,
                 'message' => $auth['message']
             ];
         }
@@ -694,7 +804,7 @@ class API
         
         if (!$user_id) {
             return [
-                'error' => true,
+                'success' => false,
                 'message' => 'Invalid token payload'
             ];
         }
@@ -711,7 +821,7 @@ class API
      *
      * @return array All registered endpoints
      */
-    public static function listEndpoints() {
+    public static function listEndpoints(): array {
         $list = [];
 
         foreach (self::$endpoints as $page => $endpoint) {
@@ -796,5 +906,72 @@ class API
         }
 
         return $result;
+    }
+
+    /**
+     * Get the buffered response data
+     *
+     * @return array|null The buffered response or null
+     */
+    public static function getResponseBuffer(): ?array {
+        return self::$response_buffer;
+    }
+
+    /**
+     * Get the buffered HTTP status code
+     *
+     * @return int The buffered status code
+     */
+    public static function getStatusCode(): int {
+        return self::$status_code;
+    }
+
+    /**
+     * Get the buffered headers
+     *
+     * @return array The buffered headers
+     */
+    public static function getHeadersBuffer(): array {
+        return self::$headers_buffer;
+    }
+
+    /**
+     * Output the buffered response with headers and JSON
+     *
+     * @return void
+     */
+    public static function outputResponse(): void {
+        // Set HTTP status code
+        http_response_code(self::$status_code);
+
+        // Send all buffered headers
+        foreach (self::$headers_buffer as $name => $value) {
+            header("$name: $value");
+        }
+
+        // Output JSON response
+        if (self::$response_buffer !== null) {
+            echo json_encode(self::$response_buffer);
+        }
+    }
+
+    /**
+     * Check if a response has been buffered
+     *
+     * @return bool True if a response is buffered
+     */
+    public static function hasBufferedResponse(): bool {
+        return self::$response_buffer !== null;
+    }
+
+    /**
+     * Clear the response buffer
+     *
+     * @return void
+     */
+    public static function clearResponseBuffer(): void {
+        self::$response_buffer = null;
+        self::$status_code = 200;
+        self::$headers_buffer = [];
     }
 }

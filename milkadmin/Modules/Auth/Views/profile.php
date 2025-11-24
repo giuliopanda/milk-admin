@@ -13,7 +13,7 @@ $user = Get::make('Auth')->getUser();
         <div class="col-md-8 offset-md-2">
             <div class="card">
                 <div class="card-header">
-                    <h4><i class="bi bi-person-circle"></i> User Profile</h4>
+                    <h4><i class="bi bi-person-circle"></i> <?php _pt('User Profile'); ?></h4>
                 </div>
                 <div class="card-body">
                     <form id="profileForm">
@@ -22,14 +22,14 @@ $user = Get::make('Auth')->getUser();
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="username" class="form-label">Username</label>
+                                    <label for="username" class="form-label"><?php _pt('Username'); ?></label>
                                     <input type="text" class="form-control" id="username" name="username" value="<?php echo htmlspecialchars($user->username); ?>" readonly>
-                                    <div class="form-text">Username cannot be changed for security reasons.</div>
+                                    <div class="form-text"><?php _pt('Username cannot be changed for security reasons.'); ?></div>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="email" class="form-label">Email Address</label>
+                                    <label for="email" class="form-label"><?php _pt('Email Address'); ?></label>
                                     <input type="email" class="form-control" id="email" name="email" value="<?php echo htmlspecialchars($user->email); ?>" required>
                                 </div>
                             </div>
@@ -37,35 +37,35 @@ $user = Get::make('Auth')->getUser();
                         
                         <hr class="my-4">
                         
-                        <h5>Change Password</h5>
-                        <p class="text-body-secondary">Leave password fields empty if you don't want to change your password.</p>
+                        <h5><?php _pt('Change Password'); ?></h5>
+                        <p class="text-body-secondary"><?php _pt('Leave password fields empty if you don\'t want to change your password.'); ?></p>
                         
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="new_password" class="form-label">New Password</label>
+                                    <label for="new_password" class="form-label"><?php _pt('New Password'); ?></label>
                                     <input type="password" class="form-control" id="new_password" name="new_password">
-                                    <div class="form-text">Minimum 6 characters recommended.</div>
+                                    <div class="form-text"><?php _pt('Minimum 6 characters recommended.'); ?></div>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="confirm_password" class="form-label">Confirm New Password</label>
+                                    <label for="confirm_password" class="form-label"><?php _pt('Confirm New Password'); ?></label>
                                     <input type="password" class="form-control" id="confirm_password" name="confirm_password">
                                 </div>
                             </div>
                         </div>
                         
                         <div class="alert alert-info">
-                            <i class="bi bi-info-circle"></i> <strong>Security Note:</strong> After changing your password, you will remain logged in on this device but will be logged out from all other devices.
+                            <i class="bi bi-info-circle"></i> <?php _pt('After changing your password, you will remain logged in on this device but will be logged out from all other devices.'); ?>
                         </div>
                         
                         <div class="d-flex justify-content-between">
                             <button type="button" class="btn btn-secondary" onclick="window.history.back()">
-                                <i class="bi bi-arrow-left"></i> Back
+                                <i class="bi bi-arrow-left"></i> <?php _pt('Back'); ?>
                             </button>
                             <button type="button" class="btn btn-primary" onclick="updateProfile()">
-                                <i class="bi bi-check-lg"></i> Save Changes
+                                <i class="bi bi-check-lg"></i> <?php _pt('Save changes'); ?>
                             </button>
                         </div>
                     </form>
@@ -74,27 +74,27 @@ $user = Get::make('Auth')->getUser();
             
             <div class="card mt-4">
                 <div class="card-header">
-                    <h5>Account Information</h5>
+                    <h5><?php _pt('Account information'); ?></h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <p><strong>User ID:</strong> <?php echo $user->id; ?></p>
-                            <p><strong>Account Status:</strong> 
+                            <p><strong><?php _pt('User ID:'); ?></strong> <?php echo $user->id; ?></p>
+                            <p><strong><?php _pt('Account Status'); ?>:</strong> 
                                 <?php if ($user->status == 1): ?>
-                                    <span class="badge bg-success">Active</span>
+                                    <span class="badge bg-success"><?php _pt('Active'); ?></span>
                                 <?php else: ?>
-                                    <span class="badge bg-warning">Inactive</span>
+                                    <span class="badge bg-warning"><?php _pt('Inactive'); ?></span>
                                 <?php endif; ?>
                             </p>
                         </div>
                         <div class="col-md-6">
-                            <p><strong>Registration Date:</strong> <?php echo date('F j, Y', strtotime($user->registered)); ?></p>
-                            <p><strong>Last Login:</strong> 
+                            <p><strong><?php _pt('Registration date'); ?></strong>: <?php echo Get::formatDate($user->registered, 'dateTime', true); ?></p>
+                            <p><strong><?php _pt('Last login'); ?></strong>:
                                 <?php if ($user->last_login): ?>
-                                    <?php echo date('F j, Y g:i A', strtotime($user->last_login)); ?>
+                                    <?php echo Get::formatDate($user->last_login, 'dateTime', true); ?>
                                 <?php else: ?>
-                                    Never
+                                    <?php _pt('Never'); ?>
                                 <?php endif; ?>
                             </p>
                         </div>
@@ -102,7 +102,7 @@ $user = Get::make('Auth')->getUser();
                     
                     <?php if ($user->is_admin == 1): ?>
                         <div class="alert alert-warning mt-3">
-                            <i class="bi bi-shield-check"></i> <strong>Administrator Account:</strong> You have administrative privileges on this system.
+                            <i class="bi bi-shield-check"></i> <strong><?php _pt('Administrator Account'); ?></strong>: <?php _pt('You have administrative privileges on this system.'); ?>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -123,13 +123,13 @@ function updateProfile() {
     if (newPassword) {
        
         if (newPassword !== confirmPassword) {
-            alert('New password and confirm password do not match.');
+            alert('<?php _pt('New password and confirm password do not match.'); ?>');
             document.getElementById('confirm_password').focus();
             return;
         }
         
         if (newPassword.length < 6) {
-            alert('New password must be at least 6 characters long.');
+            alert('<?php _pt('New password must be at least 6 characters long.'); ?>');
             document.getElementById('new_password').focus();
             return;
         }
@@ -151,20 +151,20 @@ function updateProfile() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Profile updated successfully!');
+            alert('<?php _pt('Profile updated successfully!'); ?>');
             if (newPassword) {
-                alert('Password changed successfully. You will remain logged in on this device.');
+                alert('<?php _pt('Password changed successfully. You will remain logged in on this device.'); ?>');
             }
             // Clear password fields
             document.getElementById('new_password').value = '';
             document.getElementById('confirm_password').value = '';
         } else {
-            alert('Error: ' + (data.msg || 'Failed to update profile'));
+            alert('<?php _pt('Error:'); ?> ' + (data.msg || '<?php _pt('Failed to update profile'); ?>'));
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('An error occurred while updating your profile.');
+        alert('<?php _pt('An error occurred while updating your profile.'); ?>');
     });
 }
 </script>

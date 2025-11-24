@@ -35,7 +35,8 @@ use App\Route;
     ├── Assets/                    # Static files (optional)
     │   ├── MyModule.js
     │   ├── MyModule.css
-    │   └── translation_en.ini
+    ├── Lang/                      # Translation files (optional)
+    │   └── it_IT.php
     └── Views/                     # Templates
         ├── list_page.php
         └── edit_page.php</code></pre>

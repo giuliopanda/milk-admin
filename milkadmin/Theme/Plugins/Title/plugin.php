@@ -34,10 +34,10 @@ $btns = Hooks::run('plugin_title.btns', $btns, $title_txt);
             </div>
         </div>
         <?php if (isset($right)): ?>
-        <?php $right = Hooks::run('plugin_title.right', $right, $title_txt); ?>
-        <div  class=" flex-shrink-1 space-nowrap">
-            <?php _ph($right) ?>
-        </div>
+            <?php $right = Hooks::run('plugin_title.right', $right, $title_txt); ?>
+            <div  class=" flex-shrink-1 space-nowrap">
+                <?php _ph($right) ?>
+            </div>
         <?php endif; ?>
     </div>
     <?php if (isset($description)): ?>

@@ -762,7 +762,7 @@ class AuthContract implements AuthContractInterface
 
     /**
      * Save user data to database
-     * 
+     *
      * @param int $id User ID (0 for new user)
      * @param string $username Username
      * @param string $email Email address
@@ -770,9 +770,11 @@ class AuthContract implements AuthContractInterface
      * @param int $status User status (1 = active, 0 = inactive)
      * @param int $is_admin Admin flag (1 = admin, 0 = regular user)
      * @param array $permissions User permissions array
+     * @param string $timezone User timezone (default: UTC)
+     * @param string $locale User locale (default: en_US)
      * @return int|bool User ID on success, false on failure
      */
-    public function saveUser($id, $username, $email, $password = '', $status = 1, $is_admin = 0, $permissions = []) {
+    public function saveUser($id, $username, $email, $password = '', $status = 1, $is_admin = 0, $permissions = [], $timezone = 'UTC', $locale = '') {
         $this->last_error = '';
         $this->last_insert_id = 0;
         $save_permissions = [];
@@ -798,20 +800,25 @@ class AuthContract implements AuthContractInterface
                 $save_permissions[$group][$permission_name] = (int)$permission_value;
             }
         }
-        
+        if ($locale == '') {
+            $locale = Config::get('locale', 'en_US');
+        }
+
         $data = [
             'username' => $username,
             'email' => $email,
             'status' => $status,
             'is_admin' => _absint($is_admin),
             'permissions' => json_encode($save_permissions),
-            'registered' => date('Y-m-d H:i:s')
+            'registered' => date('Y-m-d H:i:s'),
+            'timezone' => $timezone,
+            'locale' => $locale
         ];
-        
+
         if ($password != '') {
             $data['password'] = $this->hashPassword($password);
         }
-        
+
         if ($id > 0) {
             $result = Get::db()->update('#__users', $data, ['id' => _absint($id)]);
             if ($result === false) {
@@ -821,7 +828,7 @@ class AuthContract implements AuthContractInterface
             return $result;
         } else {
             $result = Get::db()->insert('#__users', $data);
-           
+
             if ($result === false) {
                 $this->last_error = 'Failed to create user: ' . Get::db()->last_error;
             } else {

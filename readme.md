@@ -225,7 +225,20 @@ Milk Admin is distributed under the [MIT License](LICENSE). Build whatever you w
 
 ## Changelog
 
-### v251101 (Current)
+### v251102 (Current)
+- Refactored error handling in framework classes
+- Date formatting system refactor
+- Implementation of the timezone field in users
+- Language system refactor
+- Introduction of the locate concept
+- Ability to configure locate per user
+- Development of the display system for lists as well as tables (ListBuilder)
+- Development of the CalendarBuilder.
+- Improved the invalid field handling system.
+- Various bug fixes.
+
+
+### v251101
 
 Major rewrite introducing modern PHP practices and professional architecture:
 
@@ -282,4 +295,3 @@ Major rewrite introducing modern PHP practices and professional architecture:
 
 
 Pick one thing you're currently tracking in a spreadsheet or paying a subscription for. Build your own version this weekend.
-

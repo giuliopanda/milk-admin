@@ -70,8 +70,6 @@ echo $form;
 
     <h4>Quick Overview</h4>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, 'posts', '?page=posts')
-    // Add fields from Model (recommended)
-    ->addFieldsFromObject($data_object, 'edit')
 
     // Remove unwanted fields
     ->removeField('created_at')
@@ -107,7 +105,6 @@ echo $form;
     <h3>Quick Overview</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Standard actions (recommended for CRUD)
 $form = \Builders\FormBuilder::create($this->model,'posts', '?page=posts')
-    ->addFieldsFromObject($data_object, 'edit')
     ->addStandardActions(true, '?page=posts') // save, delete, cancel
     ->getForm();
 
@@ -127,7 +124,6 @@ class PostModule extends AbstractModule {
         $data_object = $this->model->getByIdForEdit($id);
         
         $form_builder = FormBuilder::create($this->model, $this->page, '?page='.$this->page)
-            ->addFieldsFromObject($data_object, 'edit')
             ->setActions([
                 'save_and_continue' => [
                     'label' => 'Save & Continue',
@@ -223,7 +219,6 @@ public function customDeleteCallback($form_builder, $request) {
     <h3>Getting Form HTML</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
 $form_builder = FormBuilder::create($this->model,'posts', '?page=posts')
-    ->addFieldsFromObject($data_object, 'edit')
     ->setActions([...]);
 
 // Get form HTML
@@ -263,7 +258,6 @@ public function actionEdit() {
     
     $form_builder = FormBuilder::create($this->model,'posts', '?page='.$this->page)
         ->currentAction('edit')
-        ->addFieldsFromObject($data_object, 'edit')
         ->setActions([
             'save' => ['label' => 'Save', 'class' => 'btn btn-primary', 'action' => FormBuilder::saveAction('?page='.$this->page)],
             'delete' => ['label' => 'Delete', 'class' => 'btn btn-danger', 'action' => FormBuilder::deleteAction('?page='.$this->page), 'confirm' => 'Are you sure?']

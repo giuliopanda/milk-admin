@@ -221,7 +221,7 @@ function search() {
 }
 
 /**
- * Viene chiamata ogni volta che viene caricata la form dell'edit 
+ * Viene chiamata ogni volta che viene caricata la form dell'edit
  */
 function active_form_js() {
     sendEmail = document.getElementById('sendEmail');
@@ -242,8 +242,43 @@ function active_form_js() {
         isAdmin.addEventListener('change', () => permission_toogle());
         permission_toogle();
     }
-    
+
     initExclusivePermissions();
+
+    // Imposta il timezone del browser per nuovi utenti
+    setUserTimezone();
+}
+
+/**
+ * Set browser timezone for new users
+ * Only works if timezone select field is visible (when use_user_timezone is true)
+ */
+function setUserTimezone() {
+    const selectTimezone = document.getElementById('selectTimezone');
+
+    // Se il campo timezone non è presente (perché use_user_timezone è false), non fare nulla
+    if (!selectTimezone) {
+        return;
+    }
+
+    // Legge il valore dell'id dall'input hidden
+    const userIdInput = document.querySelector('input[name="id"]');
+    const userId = userIdInput ? parseInt(userIdInput.value) : null;
+
+    // Se è un nuovo utente (id = 0), imposta il timezone del browser
+    if (userId === 0) {
+        // Ottieni il timezone del browser
+        const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+        // Cerca l'opzione corrispondente nel select
+        const options = selectTimezone.options;
+        for (let i = 0; i < options.length; i++) {
+            if (options[i].value === browserTimezone) {
+                selectTimezone.selectedIndex = i;
+                break;
+            }
+        }
+    }
 }
 
 
