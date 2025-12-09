@@ -93,7 +93,7 @@ trait DataFormattingTrait
         $handler = $this->getMethodHandler($name, 'get_formatted');
        
         if ($handler !== null) {
-            // Pass the entire row array to the handler (works for both real and virtual fields)
+            // Pass the entire row obj to the handler (works for both real and virtual fields)
             $singleData = $this->getRawData('object', false);
             return $handler($singleData);
         }
@@ -112,7 +112,7 @@ trait DataFormattingTrait
             return $raw_value;
         }
        // print "<p>" .$name." ".$rule['type']." - SQL VALUE: " . print_r($raw_value, true) . "</p>\n";
-        // Handle date/datetime/time formatting
+        // Handle date/datetime/time/timestamp formatting
         if (in_array($rule['type'], ['datetime', 'date'])) {
 
             $return_value = Get::formatDate($raw_value, $rule['type'], true);
@@ -120,6 +120,13 @@ trait DataFormattingTrait
             return $return_value;
         } else if ($rule['type'] === 'time') {
             return Get::formatDate($raw_value, $rule['type'], true);
+        } else if ($rule['type'] === 'timestamp') {
+            // Convert Unix timestamp to datetime string, then format it
+            if (is_numeric($raw_value)) {
+                $datetime_string = date('Y-m-d H:i:s', $raw_value);
+                return Get::formatDate($datetime_string, 'datetime', true);
+            }
+            return $raw_value;
         }
 
         // Handle array formatting
@@ -173,12 +180,19 @@ trait DataFormattingTrait
      */
     protected function prepareSingleFieldValue(string $field_name, mixed $value, array $rule): mixed
     {
-        // Check for save_value (always takes precedence)
-        if (isset($rule['save_value'])) {
-            return $rule['save_value'];
+     
+        // Check for attribute-based formatted getter in Model first
+        $handler = $this->getMethodHandler($field_name, 'get_sql');
+       
+        if ($handler !== null) {
+            // Pass the entire row obj to the handler (works for both real and virtual fields)
+            $singleData = $this->getRawData('object', false);
+            return $handler($singleData);
         }
 
-        // Handle created_at fields with auto-preservation
+
+
+        // PRIORITY 2: Handle created_at fields with auto-preservation
         if (isset($rule['_auto_created_at']) && $rule['_auto_created_at'] === true) {
             $id_field = $this->getPrimaryKey();
             $current_record = $this->getRawData('object', false);
@@ -202,10 +216,9 @@ trait DataFormattingTrait
             return date('Y-m-d H:i:s');
         }
 
-        // Check for attribute-based SQL getter (#[BeforeSave])
-        $handler = $this->getMethodHandler($field_name, 'get_sql');
-        if ($handler !== null) {
-            return $handler($this, $value);
+        // PRIORITY 3: Check for save_value (static values)
+        if (isset($rule['save_value'])) {
+            return $rule['save_value'];
         }
 
         // Handle array conversion to JSON
@@ -234,6 +247,21 @@ trait DataFormattingTrait
             
             // Converti a UTC per il database
             $value->setTimezone(new \DateTimeZone('UTC'));
+        }
+
+        // Handle timestamp conversion to Unix timestamp
+        if ($rule['type'] === 'timestamp') {
+            if (is_a($value, \DateTime::class)) {
+                // Convert DateTime to Unix timestamp
+                return $value->getTimestamp();
+            } elseif (is_numeric($value)) {
+                // Already a Unix timestamp
+                return (int)$value;
+            } elseif (is_string($value) && strtotime($value) !== false) {
+                // Convert date string to Unix timestamp
+                return strtotime($value);
+            }
+            return $value;
         }
 
         // Handle DateTime conversion
@@ -316,6 +344,7 @@ trait DataFormattingTrait
      * @return mixed Converted value
      */
     protected function getValueWithConversion(string $name, mixed $value): mixed {
+
         // Skip metadata fields
         if ($name === '___action') {
             return null;
@@ -327,6 +356,8 @@ trait DataFormattingTrait
 
         // Get field rule
         $rule = $this->getRule($name);
+        if ($rule) {
+        }
 
         // If no rule exists, check if it's a relationship field
         // Relationship data (hasOne/belongsTo) needs to be stored even without a direct field rule
@@ -336,16 +367,16 @@ trait DataFormattingTrait
                 // It's a relationship - return the value directly without conversion
                 return $value;
             }
-            // Not a relationship and no rule - skip
-            return null;
+            // Not a relationship and no rule - return value as-is (might be extension field)
+            return $value;
         }
 
         // Check for attribute-based setter in Model first
         $handler = $this->getMethodHandler($name, 'set_value');
         if ($handler !== null) {
-            // Create a temporary object to pass to the handler (for consistency with old API)
+            // Pass current record as first param, value as second param
             if (isset($this->records_array[$this->current_index])) {
-                $value = $handler($value, $this->records_array[$this->current_index]);
+                $value = $handler((object)$this->records_array[$this->current_index]);
             }
             return $value;
         }
@@ -401,6 +432,23 @@ trait DataFormattingTrait
             }
         }
 
+        // Handle timestamp type: convert to Unix timestamp (integer)
+        elseif ($rule['type'] === 'timestamp') {
+            if (is_a($value, \DateTime::class)) {
+                // Convert DateTime to Unix timestamp
+                $value = $value->getTimestamp();
+            } elseif (is_numeric($value)) {
+                // Already a Unix timestamp - convert to integer
+                $value = (int)$value;
+            } elseif (is_string($value) && strtotime($value) !== false) {
+                // Convert date string to Unix timestamp
+                $value = strtotime($value);
+            } else {
+                // Invalid timestamp value
+                $value = null;
+            }
+        }
+
         return $value;
     }
 
@@ -413,8 +461,11 @@ trait DataFormattingTrait
      * @return void
      */
     protected function setValueWithConversion(string $name, mixed $value): void {
+
         $convertedValue = $this->getValueWithConversion($name, $value);
+
         $this->setRawValue($name, $convertedValue);
+
     }
 
     /**
@@ -426,6 +477,7 @@ trait DataFormattingTrait
      */
     protected function setRawValue(string $name, mixed $value): void
     {
+
         // Skip metadata fields
         if ($name === '___action') {
             return;
@@ -436,16 +488,18 @@ trait DataFormattingTrait
         if (!isset($this->records_array[$this->current_index]) || !is_array($this->records_array[$this->current_index])) {
             if (!is_array($this->records_array)) {
                 $this->records_array = [];
-            } 
+            }
             // Creane uno nuovo
             $this->records_array[] = [];
             $this->current_index = array_key_last($this->records_array);
             $this->records_array[$this->current_index]['___action'] = 'insert';
         }
-        
+
 
         // Modifica il valore nel record
         $this->records_array[$this->current_index][$name] = $value;
+
+
         if ($name === $this->getPrimaryKey() && ($this->records_array[$this->current_index]['___action'] ?? null) === 'insert' && !empty($value)) {
             // Se stiamo inserendo un nuovo record e stiamo impostando la chiave primaria, cambiamo lo stato in 'edit'
             $this->records_array[$this->current_index]['___action'] = 'edit';
@@ -539,6 +593,7 @@ trait DataFormattingTrait
         $accepted_fields = array_keys($rules);
 
         if ($all_records) {
+            
             $result = [];
             $count = $this->count();
 
@@ -550,7 +605,7 @@ trait DataFormattingTrait
                     $record = $this->records_array[$this->current_index];
                     $record_data = [];
                        // Include relationships if requested
-                    if (method_exists($this, 'getIncludedRelationshipsData') && !empty($this->include_relationships)) {
+                    if (!empty($this->include_relationships)) {
                         $relationships_data = $this->getIncludedRelationshipsData('raw');
                         foreach ($relationships_data as $alias => $rel_data) {
                             // Convert relationship arrays to objects if object type requested
@@ -568,17 +623,16 @@ trait DataFormattingTrait
                             }
                         }
                     }
-                    foreach ($accepted_fields as $field) {
-                        if (!isset($record[$field])) {
-                            //@TODO error!
-                        } else {
-                            $record_data[$field] = $record[$field];
+                    
+                    foreach ($record as $field => $value) {
+                        if ($field === '___action') {
+                            continue; // Skip metadata field
                         }
+                        $record_data[$field] = $value;
                     }
 
                     $result[] = $type === 'object' ? (object)$record_data : $record_data;
                 }
-    
 
                 $this->moveTo($original_index);
             }
@@ -589,8 +643,9 @@ trait DataFormattingTrait
             // Return current record only
             $data = [];
              // Include relationships if requested
-            if (method_exists($this, 'getIncludedRelationshipsData') && !empty($this->include_relationships)) {
+            if (!empty($this->include_relationships)) {
                 $relationships_data = $this->getIncludedRelationshipsData('raw');
+                
                 foreach ($relationships_data as $alias => $rel_data) {
                     // Convert relationship arrays to objects if object type requested
                     if ($type === 'object' && is_array($rel_data)) {
@@ -713,21 +768,26 @@ trait DataFormattingTrait
                     
                     // Include relationships if requested
                     $relationships_data = $this->getIncludedRelationshipsData('raw');
-                    foreach ($relationships_data as $alias => $rel_data) {
-                        foreach ($rel_data as $krd=>$_) {
-                            if ($type === 'object') {
-                                if (!isset($record_data[$alias]) || !is_object($record_data[$alias])) {
-                                    $record_data[$alias] = (object)[];
-                                }
-                                $record_data[$alias]->$krd = $this->getFormattedValue($alias.".".$krd);
-                            } else {
-                                if (!isset($record_data[$alias]) || !is_array($record_data[$alias])) {
-                                    $record_data[$alias] = [];
-                                }
-                                $record_data[$alias][$krd] = $this->getFormattedValue($alias.".".$krd);
+                    if (is_array($relationships_data)) {
+                      
+                        foreach ($relationships_data as $alias => $rel_data) {
+                            if (empty($rel_data)) {
+                                continue;
                             }
+                            foreach ($rel_data as $krd=>$_) {
+                                if ($type === 'object') {
+                                    if (!isset($record_data[$alias]) || !is_object($record_data[$alias])) {
+                                        $record_data[$alias] = (object)[];
+                                    }
+                                    $record_data[$alias]->$krd = $this->getFormattedValue($alias.".".$krd);
+                                } else {
+                                    if (!isset($record_data[$alias]) || !is_array($record_data[$alias])) {
+                                        $record_data[$alias] = [];
+                                    }
+                                    $record_data[$alias][$krd] = $this->getFormattedValue($alias.".".$krd);
+                                }
+                            } 
                         }
-                        
                     }
                    
                     foreach ($accepted_fields as $field) {
@@ -751,12 +811,11 @@ trait DataFormattingTrait
             }
 
             // Include relationships if requested
-            if (method_exists($this, 'getIncludedRelationshipsData') && !empty($this->include_relationships)) {
-                $relationships_data = $this->getIncludedRelationshipsData('formatted');
-                foreach ($relationships_data as $alias => $rel_data) {
-                    $data[$alias] = $rel_data;
-                }
+            $relationships_data = $this->getIncludedRelationshipsData('formatted');
+            foreach ($relationships_data as $alias => $rel_data) {
+                $data[$alias] = $rel_data;
             }
+            
 
             return $type === 'object' ? (object)$data : $data;
         }

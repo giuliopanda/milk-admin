@@ -149,6 +149,51 @@ public function deletePost() {
 
 <hr>
 
+<h2>Important: User Initialization Before Permission Checks</h2>
+
+<div class="alert alert-warning">
+    <strong>Critical:</strong> If you attempt to verify permissions before the user has been loaded, the system will treat the user as an administrator by default.
+</div>
+
+<p>
+    In modules, inside the <code>configure()</code> method, before performing any <code>checkPermission</code> or <code>Permissions::check()</code> call, you must ensure that the current user has been initialized.
+</p>
+
+<h3>How to Initialize the User</h3>
+
+<p>
+    You can initialize the user by simply requesting the Auth contract:
+</p>
+
+<pre><code class="language-php">protected function configure($rule): void
+{
+    // Initialize the authenticated user
+    Get::make('Auth');
+
+    // Now it's safe to check permissions
+    if (!Permissions::check('posts.access')) {
+        // Permission denied
+    }
+
+    $rule->page('posts')
+         ->title('Posts')
+         ->access('authorized')
+         ->permissions([
+             'access' => 'Access Posts Module',
+             'delete' => 'Delete Posts'
+         ]);
+}</code></pre>
+
+<p>
+    Calling <code>Get::make('Auth')</code> automatically initializes the permissions for the logged-in user. Without this initialization, the permission system cannot determine the actual user's permissions and will default to administrator privileges.
+</p>
+
+<div class="alert alert-info">
+    <strong>Note:</strong> This initialization is automatically handled in controller methods after the <code>modules_loaded</code> hook. However, in the <code>configure()</code> method or early module initialization, you must explicitly call <code>Get::make('Auth')</code> before checking permissions.
+</div>
+
+<hr>
+
 <h2>Permission System Behavior</h2>
 
 <h3>When access('authorized') is Used</h3>

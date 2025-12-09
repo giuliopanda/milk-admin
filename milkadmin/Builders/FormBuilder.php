@@ -1,8 +1,9 @@
 <?php
 namespace Builders;
 
-use App\{Get, MessagesHandler, ObjectToForm, Route};
-use Builders\Traits\{FormFieldManagementTrait, FormSystemOperationsTrait, FormContainerManagementTrait, FormRelationshipTrait};
+use App\{Get, MessagesHandler, ObjectToForm, Route, ExtensionLoader};
+use App\Abstracts\Traits\ExtensionManagementTrait;
+use Builders\Traits\FormBuilder\{FormFieldManagementTrait, FormSystemOperationsTrait, FormContainerManagementTrait, FormRelationshipTrait};
 
 !defined('MILK_DIR') && die(); // Prevents direct access
 
@@ -20,6 +21,7 @@ class FormBuilder {
     use FormSystemOperationsTrait;
     use FormContainerManagementTrait;
     use FormRelationshipTrait;
+    use ExtensionManagementTrait;
 
     private $page = '';
     private $url_success = null;
@@ -37,6 +39,20 @@ class FormBuilder {
     private $only_json = false;
     private $execute_actions = false;
     private $last_insert_id = 0;
+
+    /**
+     * List of extension names to load for this builder
+     * Format: ['ExtensionName' => ['param1' => 'value1', 'param2' => 'value2']]
+     * or simple: ['ExtensionName'] (will be normalized to ['ExtensionName' => []])
+     * @var array
+     */
+    protected array $extensions = [];
+
+    /**
+     * Loaded extension instances
+     * @var array
+     */
+    protected array $loaded_extensions = [];
 
 
     /**
@@ -178,18 +194,22 @@ class FormBuilder {
      * @example ->setModel($this->model)
      */
     private function setModel(object $model): self {
-        $this->model = $model;
+
         $data = Route::getSessionData();
-        $id = $this->model->getPrimaryKey();
-        $this->model->with();
+        $id = $model->getPrimaryKey();
+        $model->with();
         
-        $data_object = $this->model->getByIdForEdit(_absint($_REQUEST[$id] ?? 0), ($data['data'] ?? []));
+        $this->model = $model->getByIdForEdit(_absint($_REQUEST[$id] ?? 0), ($data['data'] ?? []));
 
         // Convert datetime fields to user timezone for form display
         // This only happens if Config 'use_user_timezone' is true
-        $data_object->convertDatesToUserTimezone();
+        $this->model->convertDatesToUserTimezone();
 
-        $this->addFieldsFromObject($data_object, 'edit');
+        $this->addFieldsFromObject($this->model, 'edit');
+
+        // NOTE: Extensions are initialized in the extensions() method, not here
+        // because at this point (constructor) the extensions haven't been set yet
+
         return $this;
     }
 
@@ -435,6 +455,10 @@ class FormBuilder {
         return $this;
     }
 
+    public function getPage(): string {
+        return $this->page;
+    }
+
     /**
      * Magic method to output HTML when object is used as string
      *
@@ -442,5 +466,112 @@ class FormBuilder {
      */
     public function __toString(): string {
         return $this->render();
+    }
+
+   
+    // ========================================================================
+    // EXTENSION MANAGEMENT
+    // ========================================================================
+
+    /**
+     * Initialize extensions defined in $this->extensions array
+     *
+     * @return void
+     */
+    protected function initializeExtensions(): void
+    {
+        $this->extensions = $this->normalizeExtensions($this->extensions);
+        $this->loadExtensions();
+    }
+
+    /**
+     * Load extensions defined in $this->extensions array
+     *
+     * @return void
+     * @throws \Exception If extension is not found
+     */
+    protected function loadExtensions(): void
+    {
+        if (empty($this->extensions)) {
+            return;
+        }
+
+        $this->loaded_extensions = ExtensionLoader::load($this->extensions, 'FormBuilder', $this);
+    }
+
+    /**
+     * Set extensions to load for this builder (method chaining)
+     *
+     * @param array $extensions Extensions array
+     * @return self For method chaining
+     *
+     * @example ->extensions(['SoftDelete' => ['auto_filter' => true]])
+     * @example ->extensions(['SoftDelete'])
+     */
+    public function extensions(array $extensions): self
+    {
+        // Normalize and merge with existing extensions
+        $normalized = $this->normalizeExtensions($extensions);
+        $this->extensions = $this->mergeExtensions($this->extensions, $normalized);
+
+        // Reload extensions
+        $this->loadExtensions();
+
+        // Call configure hook on newly loaded extensions
+        $this->callExtensionHook('configure');
+
+        return $this;
+    }
+
+    /**
+     * Get loaded extension by name
+     *
+     * @param string $extension_name Extension name
+     * @return object|null Extension instance or null if not found
+     */
+    public function getLoadedExtension(string $extension_name): ?object
+    {
+        return $this->loaded_extensions[$extension_name] ?? null;
+    }
+
+    /**
+     * Call a hook on all loaded extensions
+     *
+     * @param string $hook Hook name
+     * @param array $params Additional parameters to pass to the hook
+     * @return void
+     */
+    protected function callExtensionHook(string $hook, array $params = []): void
+    {
+        ExtensionLoader::callHook($this->loaded_extensions, $hook, array_merge([$this], $params));
+    }
+
+    /**
+     * Call a hook on all loaded extensions as a pipeline
+     * Each extension can modify and return the data
+     *
+     * @param string $hook Hook name
+     * @param mixed $data Data to process
+     * @return mixed Modified data
+     */
+    protected function callExtensionPipeline(string $hook, mixed $data): mixed
+    {
+        foreach ($this->loaded_extensions as $extension) {
+            if (method_exists($extension, $hook)) {
+                $data = $extension->$hook($data);
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * Get all fields (used by extensions)
+     *
+     * @return array Fields array
+     */
+    public function getFields(): array
+    {
+        return $this->fields;
     }
 }

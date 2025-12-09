@@ -1,5 +1,6 @@
 <?php
 namespace Modules\Home\Assets;
+use App\{Route};
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>
 <div class="card-header">

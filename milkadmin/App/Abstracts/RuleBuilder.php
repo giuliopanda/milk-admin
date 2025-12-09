@@ -48,6 +48,12 @@ class RuleBuilder
     protected string $db_type = 'db';
 
     /**
+     * Extensions to load
+     * @var array|null
+     */
+    protected ?array $extensions = null;
+
+    /**
      * Start defining a new field
      *
      * @param string $name Field name
@@ -246,7 +252,6 @@ class RuleBuilder
         $this->rules[$this->current_field]['_auto_created_at'] = true;
         $this->label($this->createLabel($name));
         $this->hideFromEdit();
-        $this->saveValue(date('Y-m-d H:i:s'));
         return $this;
     }
 
@@ -284,7 +289,7 @@ class RuleBuilder
      */
     public function timestamp(string $name): self
     {
-        $this->field($name, 'datetime');
+        $this->field($name, 'timestamp');
         $this->label($this->createLabel($name));
         return $this;
     }
@@ -926,7 +931,7 @@ class RuleBuilder
      *                         - RESTRICT: Prevent parent deletion if child records exist
      * @return self
      */
-    public function hasOne(string $alias, string $related_model, string $foreign_key_in_related, string $onDelete = 'CASCADE'): self
+    public function hasOne(string $alias, string $related_model, string $foreign_key_in_related, string $onDelete = 'CASCADE', bool $allowCascadeSave = false): self
     {
         // Validate onDelete parameter
         $valid_onDelete = ['CASCADE', 'SET NULL', 'RESTRICT'];
@@ -981,6 +986,7 @@ class RuleBuilder
             'foreign_key' => $foreign_key_in_related, // Field in RELATED table (e.g., 'actor_id')
             'related_model' => $related_model,
             'onDelete' => $onDelete,                 // Delete behavior: CASCADE, SET NULL, RESTRICT
+            'allowCascadeSave' => $allowCascadeSave, // Allow automatic cascade save when parent is saved
         ];
 
         return $this;
@@ -1269,5 +1275,45 @@ class RuleBuilder
     public function getDbType(): ?string
     {
         return $this->db_type;
+    }
+
+    /**
+     * Set extensions to load
+     *
+     * @param array $extensions Array of extension names
+     * @return self
+     */
+    public function extensions(array $extensions): self
+    {
+        $this->extensions = $extensions;
+        return $this;
+    }
+
+    /**
+     * Get extensions
+     *
+     * @return array|null Extensions array
+     */
+    public function getExtensions(): ?array
+    {
+        return $this->extensions;
+    }
+
+    /**
+     * Remove primary key flags from all fields
+     * Useful when creating audit tables where the primary key will be different
+     *
+     * @return self
+     */
+    public function removePrimaryKeys(): self
+    {
+       foreach ($this->rules as $field_name => &$field_rule) {
+            if ($field_rule['primary']) {
+                unset($this->rules[$field_name]);
+                break;
+            }
+        }
+        $this->primary_key = null;
+        return $this;
     }
 }

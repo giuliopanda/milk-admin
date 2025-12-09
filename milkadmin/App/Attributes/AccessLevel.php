@@ -36,7 +36,7 @@ namespace App\Attributes;
 class AccessLevel {
 
     /**
-     * @param string $level Access level: 'public', 'registered', 'admin', or 'authorized:permission'
+     * @param string $level Access level: 'public', 'registered', 'admin', 'authorized', or 'authorized:permission'
      */
     public function __construct(
         public string $level

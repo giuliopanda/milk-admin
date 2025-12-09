@@ -106,6 +106,8 @@ class ImageUploader {
             let imageCol = eI(`<div style="flex-shrink: 0; margin-right: 1rem;"></div>`);
             let img = eI(`<img class="js-image-preview${this.countI}" alt="${files[i].name}" style="width: ${thumbSize}px; height: ${thumbSize}px; object-fit: cover; border-radius: 4px;">`);
 
+            let inputUrl, inputName;
+            
             // Generate preview from file
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -130,6 +132,7 @@ class ImageUploader {
 
              if (name.includes('[')) {
                 let new_name = name.replace(']', '')
+                console.log (new_name);
                 inputUrl = eI(`<input type="hidden" class="js-file-name js-filename${this.countI}" name="${new_name}_files][${this.countI}][url]" value="${files[i].name}">`);
                 liContainer1.appendChild(inputUrl);
 
@@ -284,6 +287,15 @@ class ImageUploader {
  * Check if element has js-uploader-type=image to avoid conflicts with file uploader
  */
 document.addEventListener('DOMContentLoaded', function() {
+    startImageUploader()
+});
+
+
+document.addEventListener('updateContainer', function(event) {
+    startImageUploader()
+});
+
+function startImageUploader() {
     document.querySelectorAll('.js-image-uploader').forEach(function(el) {
         // Only initialize if this is specifically an image uploader
         const uploaderType = el.querySelector('.js-uploader-type');
@@ -303,4 +315,4 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 500);
         });
     });
-});
+}

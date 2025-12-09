@@ -83,7 +83,7 @@ class InstallService
      */
     public static function disableModule($module)
     {
-        $module_data = Config::get('module_version');
+        $module_data = Config::get('modules_active');
 
         if (!isset($module_data[$module])) {
             return ['success' => false, 'message' => sprintf(_r('Module %s not found'), $module)];
@@ -123,7 +123,7 @@ class InstallService
     public static function uninstallActiveModule($module)
     {
         Hooks::run('cli-init');
-        $module_data = Config::get('module_version');
+        $module_data = Config::get('modules_active');
 
         if (!isset($module_data[$module])) {
             return ['success' => false, 'message' => sprintf(_r('Module %s not found'), $module)];
@@ -137,24 +137,45 @@ class InstallService
         if (self::isModuleCoreByFolder($module_data[$module]['folder'])) {
             return ['success' => false, 'message' => sprintf(_r('Cannot uninstall core module %s'), $module)];
         }
-
+        $messages = [];
         $module_path = MILK_DIR . '/Modules/' . $module_data[$module]['folder'];
-        
-        if (!is_dir($module_path) && !is_file($module_path)) {
-            return ['success' => false, 'message' => sprintf(_r('Module %s files not found'), $module)];
+        $module2_path = LOCAL_DIR . '/Modules/' . $module_data[$module]['folder'];
+        if (!is_dir($module_path) && !is_file($module_path) && !is_dir($module2_path) && !is_file($module2_path)) {
+            return ['success' => false, 'message' => sprintf(_r('Module %s files not found: %s or %s'), $module, $module_path, $module2_path)];
         }
 
         // Call the module's uninstall function using Cli::callFunction
-        Cli::callFunction($module . ":uninstall");
+        
+        try {
+            Cli::callFunction($module . ":uninstall");
+        } catch (\Exception $e) {
+            $messages[] = "Cli::callFunction error: " . $e->getMessage();
+        }
         // Remove the module files/directory regardless of uninstall function result
         if (is_dir($module_path)) {
             if (!self::removeDirectory($module_path)) {
-                return ['success' => false, 'message' => sprintf(_r('Error removing module %s'), $module)];
+                $messages[] = sprintf(_r('Error removing module %s'), $module);
+                return ['success' => false, 'message' => implode("\n", $messages)];
             }
         } else if (is_file($module_path)) {
             if (!unlink($module_path)) {
-                return ['success' => false, 'message' => sprintf(_r('Error removing module %s'), $module)];
+                $messages[] = sprintf(_r('Error removing module %s'), $module);
+                return ['success' => false, 'message' => implode("\n", $messages)];
             }
+        } 
+        if (is_dir($module2_path)) {
+            if (!self::removeDirectory($module2_path)) {
+                $messages[] = sprintf(_r('Error removing module %s'), $module);
+                return ['success' => false, 'message' => implode("\n", $messages)];
+            }
+        } else if (is_file($module2_path)) {
+            if (!unlink($module2_path)) {
+                $messages[] = sprintf(_r('Error removing module %s'), $module);
+                return ['success' => false, 'message' => implode("\n", $messages)];
+            }
+        } else {
+            $messages[] = sprintf(_r('Module %s files not found'), $module);
+            return ['success' => false, 'message' => implode("\n", $messages)];
         }
 
         // Remove module from settings module_version
@@ -166,8 +187,8 @@ class InstallService
 
         // Save uninstall action to settings (only last action, not a log)
         self::saveModuleAction($module, 'uninstalled');
-       
-        return ['success' => true, 'message' => sprintf(_r('Module %s uninstalled successfully'), $module)];
+        $messages[] = sprintf(_r('Module %s uninstalled successfully'), $module);
+        return ['success' => true, 'message' => implode ("\n ", $messages)];
 
     }
     
@@ -217,7 +238,7 @@ class InstallService
      */
     public static function getModuleStatusData()
     {
-        $current_versions = Config::get('module_version') ?: [];
+        $current_versions = Config::get('modules_active') ?: [];
         $settings_versions = Settings::get('module_version') ?: [];
         
         // Check if folder structure differs between current and settings
@@ -439,7 +460,7 @@ class InstallService
         }
        
         // Update settings with current versions
-        $current_versions = Config::get('module_version');
+        $current_versions = Config::get('modules_active');
         Settings::set('module_version', $current_versions);
         
         if (!empty($updated_modules)) {
@@ -1153,8 +1174,8 @@ class InstallService
             return false;
         }
        
-        // Verifica di sicurezza: la directory deve essere dentro /modules
-        $modulesPath = realpath(MILK_DIR . '/modules');
+        // Verifica di sicurezza: la directory deve essere dentro /Modules
+        $modulesPath = realpath(MILK_DIR . '/Modules');
         $targetPath = realpath($dir);
         
         if ($targetPath === false || strpos($targetPath, $modulesPath) !== 0 || $targetPath == $modulesPath) {
@@ -1231,7 +1252,7 @@ class InstallService
      */
     public static function downloadModule($module_name)
     {
-        $module_data = Config::get('module_version');
+        $module_data = Config::get('modules_active');
 
         if (!isset($module_data[$module_name])) {
             MessagesHandler::addError(sprintf(_r('Module %s not found'), $module_name));

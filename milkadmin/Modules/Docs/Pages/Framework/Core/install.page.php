@@ -17,7 +17,7 @@ namespace Modules\Docs\Pages;
     <h2>Initial Tutorial</h2>
     <p>If you want to customize the system for your project, you can release your versions and install them on new machines or update already installed versions for your clients</p>
     <p>In this short tutorial we see how to create a new version of the system</p>
-    <p>1. First of all we need to make a modification. Go inside /modules/posts/posts.object.php and add a field</p>
+    <p>1. First of all we need to make a modification. Go inside /Modules/posts/posts.object.php and add a field</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$this->rule('new_field', [
             'type' => 'text',
             'label' => 'New Field'

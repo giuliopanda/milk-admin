@@ -3,7 +3,7 @@ namespace App\Abstracts;
 
 use App\Modellist\ModelList;
 use App\Abstracts\Traits\RouteControllerTrait;
-use App\{Get, Hooks, MessagesHandler, Response, Route, Theme, Token};
+use App\{Get, Hooks, MessagesHandler, Response, Route, Token};
 
 !defined('MILK_DIR') && die(); // Prevent direct access
 
@@ -16,17 +16,21 @@ use App\{Get, Hooks, MessagesHandler, Response, Route, Theme, Token};
 
 abstract class AbstractController {
     use RouteControllerTrait;
-    
+
     var $page = null;
     var $access = 'registered';
     var $title = null;
     var $model = null;
     var $module = null;
+
+   
     /**
      * Constructor - sets up routing
+     *
      */
-    public function __construct() {
+    public function __construct() {      
         Hooks::set('init', [$this, 'hookInit']);
+
     }
 
     /**
@@ -39,10 +43,10 @@ abstract class AbstractController {
 
     /**
      * Set variables for routing from module
-     * It's called by the module to set the variables for routing 
+     * It's called by the module to set the variables for routing
      */
-    public function setHandleRoutes(AbstractModule $module): void { 
-        $this->module = $module; 
+    public function setHandleRoutes(AbstractModule $module): void {
+        $this->module = $module;
         $this->page = $module->getPage();
         $this->title = $module->getTitle();
         $this->model = $module->getModel();
@@ -229,7 +233,7 @@ abstract class AbstractController {
     /**
      * Used to automatically call table action functions.
      * Also verifies the table's security token.
-     * Used within the function that prints the table so you can set the actions to be performed in JSON.     
+     * Used within the function that prints the table so you can set the actions to be performed in JSON.
      */
      protected function callTableAction(string $table_id, array $actions) {
         $request = $_REQUEST[$table_id] ?? [];
@@ -239,7 +243,7 @@ abstract class AbstractController {
                     $ids = $request['table_ids'] ?? 0;
                     if (!is_array($ids)) {
                     $ids = [$ids];
-                    } 
+                    }
                     $this->$function($ids, $request);
                 } else {
                     MessagesHandler::addError('Invalid token');

@@ -123,7 +123,7 @@ class Route
      */
     public static function run($name) {
         if (array_key_exists($name, self::$functions) && is_callable(self::$functions[$name])) {
-            
+
             // Check permissions if a permission is set for this route
             if (isset(self::$permissions[$name])) {
                 $required_permission = self::$permissions[$name];
@@ -134,7 +134,7 @@ class Route
                     return true; // Return true because we handled the request (with redirect)
                 }
             }
-            
+
             $name = Hooks::run('route_before_run', $name);
             call_user_func(self::$functions[$name]);
             $name = Hooks::run('route_after_run', $name);

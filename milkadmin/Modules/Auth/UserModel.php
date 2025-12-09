@@ -2,7 +2,7 @@
 namespace Modules\Auth;
 use App\Permissions;
 use App\Abstracts\AbstractModel;
-use App\Attributes\BeforeSave;
+use App\Attributes\ToDatabaseValue;
 
 
 class UserModel extends AbstractModel {
@@ -32,12 +32,12 @@ class UserModel extends AbstractModel {
             ->select('locale', $languages)->default($default_language)->label('Language');
     }
 
-    #[BeforeSave('password')]
+    #[ToDatabaseValue('password')]
     public function sqlPassword($current_record_obj) {
         return password_hash($current_record_obj->password, PASSWORD_DEFAULT);
     }
 
-    #[BeforeSave('permissions')]
+    #[ToDatabaseValue('permissions')]
     public function sqlPermissions($current_record_obj) {
         $permissions = $current_record_obj->permissions;
         $permissions_groups = Permissions::getGroups();

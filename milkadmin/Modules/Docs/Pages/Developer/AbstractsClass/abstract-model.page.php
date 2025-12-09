@@ -17,7 +17,7 @@ use App\Route;
     <h2 class="mt-4">Defining a Model</h2>
 
     <div class="alert alert-info">
-        <strong>📘 Table Structure Documentation:</strong>
+        <strong>Table Structure Documentation:</strong>
         For complete information about defining table structures and using the RuleBuilder, see the <a href="<?php echo Route::url('?page=docs&action=Developer/AbstractsClass/abstract-model-rulebuilder'); ?>">RuleBuilder documentation</a>.
     </div>
 

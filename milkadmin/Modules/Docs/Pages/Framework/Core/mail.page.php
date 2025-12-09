@@ -17,7 +17,7 @@ namespace Modules\Docs\Pages;
     <p>The main method for sending emails is through the use of templates:</p>
     
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Send email with template
-Get::mail()->loadTemplate(MILK_DIR.'/modules/my_module/mails/email_template.php', [
+Get::mail()->loadTemplate(MILK_DIR.'/Modules/my_module/mails/email_template.php', [
     'name' => 'John Doe',
     'user' => $user_object,
     'url' => 'https://example.com/reset-password'
@@ -110,7 +110,7 @@ if (Get::mail()->getLastError()) {
     <h2 class="mt-4">Customizations System</h2>
     <p>The <code>load_template</code> function automatically searches for templates in the milkadmin_local directory first:</p>
     
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php"><?php echo htmlentities("// Original path:\n// modules/user/mails/welcome.php\n\n// Customizations path (has priority if exists):\n// milkadmin_local/modules/user/mails/welcome.php"); ?></code></pre>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php"><?php echo htmlentities("// Original path:\n// modules/user/mails/welcome.php\n\n// Customizations path (has priority if exists):\n// milkadmin_local/Modules/user/mails/welcome.php"); ?></code></pre>
 
     <h2 class="mt-4">Best Practices</h2>
     <ul>

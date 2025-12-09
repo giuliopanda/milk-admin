@@ -20,10 +20,22 @@ trait AttributeHookTrait {
 
         $this->buildHookMap();
         $this->hooksRegistered = true;
+
     }
 
     private function buildHookMap(): void {
-        $reflection = new ReflectionClass($this);
+        // Scan main Hook class methods
+        $this->scanHookAttributesFromClass($this);
+    }
+
+    /**
+     * Scan methods from a class/object for HookCallback attributes
+     *
+     * @param object $object The object to scan
+     * @return void
+     */
+    private function scanHookAttributesFromClass(object $object): void {
+        $reflection = new ReflectionClass($object);
         $methods = $reflection->getMethods(ReflectionMethod::IS_PUBLIC | ReflectionMethod::IS_PROTECTED);
 
         foreach ($methods as $method) {
@@ -36,7 +48,7 @@ trait AttributeHookTrait {
                 // Register the method as a hook callback
                 Hooks::set(
                     $hook->hook_name,
-                    [$this, $methodName],
+                    [$object, $methodName],
                     $hook->order
                 );
 
@@ -46,7 +58,8 @@ trait AttributeHookTrait {
                 }
                 $this->hookMap[$hook->hook_name][] = [
                     'method' => $methodName,
-                    'order' => $hook->order
+                    'order' => $hook->order,
+                    'source' => get_class($object)
                 ];
             }
         }

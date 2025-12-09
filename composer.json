@@ -8,6 +8,7 @@
             "Builders\\": "milkadmin/Builders/",
             "Theme\\": "milkadmin/Theme/",
             "Modules\\": "milkadmin/Modules/",
+            "Extensions\\": "milkadmin/Extensions/",
             "Local\\": "milkadmin_local/"
         }
     },

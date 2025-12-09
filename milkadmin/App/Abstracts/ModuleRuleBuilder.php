@@ -105,6 +105,12 @@ class ModuleRuleBuilder
     protected ?int $version = null;
 
     /**
+     * Extensions to load
+     * @var array|null
+     */
+    protected ?array $extensions = null;
+
+    /**
      * Additional models for the module
      * @var array|null
      */
@@ -232,6 +238,21 @@ class ModuleRuleBuilder
     public function permissions(array $permissions): self
     {
         $this->permissions = $permissions;
+        return $this;
+    }
+
+    /**
+     * Add permissions to existing ones
+     *
+     * @param array $permissions Additional permissions to add
+     * @return self
+     */
+    public function addPermissions(array $permissions): self
+    {
+        if ($this->permissions === null) {
+            $this->permissions = [];
+        }
+        $this->permissions = array_merge($this->permissions, $permissions);
         return $this;
     }
 
@@ -450,6 +471,18 @@ class ModuleRuleBuilder
         return $this;
     }
 
+    /**
+     * Set extensions to load
+     *
+     * @param array $extensions Array of extension names
+     * @return self
+     */
+    public function extensions(array $extensions): self
+    {
+        $this->extensions = $extensions;
+        return $this;
+    }
+
     // ========================================
     // Getters
     // ========================================
@@ -562,5 +595,10 @@ class ModuleRuleBuilder
     public function getHeaderLinksPosition(): string
     {
         return $this->header_links_position;
+    }
+
+    public function getExtensions(): ?array
+    {
+        return $this->extensions;
     }
 }

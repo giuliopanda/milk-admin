@@ -1,9 +1,18 @@
 'use strict';
 
 /**
- * Enhanced Table Component - Versione Unificata
+ * Enhanced Table Component - Formless Version
  * Manages interactive table functionality including row selection, pagination, 
  * sorting, bulk actions, and dynamic content loading via AJAX.
+ * 
+ * This version stores state internally and builds FormData dynamically,
+ * instead of relying on hidden form fields.
+ * 
+ * MIGRATION NOTES:
+ * - State is now stored in this.state object instead of hidden inputs
+ * - FormData is built dynamically in buildFormData()
+ * - Hooks now receive the Table instance instead of form element
+ * - custom_data replaces form_html_input_hidden (passed via data-custom attribute)
  */
 class Table {
     // DOM element containing the table
@@ -24,6 +33,23 @@ class Table {
     // Custom initialization callback function
     custom_init_fn = null;
 
+    // Internal state (replaces hidden form fields)
+    state = {
+        page: '',
+        action: '',
+        table_id: '',
+        token: '',
+        action_url: '',
+        table_action: '',
+        table_ids: '',
+        current_page: 1,
+        limit: 10,
+        order_field: '',
+        order_dir: '',
+        filters: '',
+        custom: {}
+    };
+
     /**
      * Constructor - Initialize table component
      * @param {HTMLElement} el_container - The container element for the table
@@ -39,17 +65,92 @@ class Table {
         this.el_scroll = el_container; // Default scroll target
         this.custom_init_fn = custom_init_fn;
         
+        // Initialize state from data attributes
+        this.initStateFromAttributes();
+        
         // Initialize component
         this.init();
         this.is_init = true;
         
         // Store component reference on DOM element for external access
         this.el_container.__itoComponent = this;
+        
         // Initialize loading plugin if loading element exists
         const loading_element = this.el_container.querySelector('.js-ito-loading');
         if (loading_element) {
             this.plugin_loading = new Loading(loading_element);
         }
+    }
+
+    /**
+     * Initialize state from data-* attributes on container
+     */
+    initStateFromAttributes() {
+        const container = this.el_container;
+        
+        this.state.page = container.getAttribute('data-page') || '';
+        this.state.action = container.getAttribute('data-action') || '';
+        this.state.table_id = container.getAttribute('data-table-id') || container.getAttribute('id') || '';
+        this.state.token = container.getAttribute('data-token') || '';
+        this.state.action_url = container.getAttribute('data-action-url') || '';
+        this.state.current_page = parseInt(container.getAttribute('data-current-page')) || 1;
+        this.state.limit = parseInt(container.getAttribute('data-limit')) || 10;
+        this.state.order_field = container.getAttribute('data-order-field') || '';
+        this.state.order_dir = container.getAttribute('data-order-dir') || '';
+        this.state.filters = container.getAttribute('data-filters') || '';
+        
+        // Parse custom data
+        const custom_json = container.getAttribute('data-custom');
+        if (custom_json) {
+            try {
+                this.state.custom = JSON.parse(custom_json);
+            } catch (e) {
+                console.warn('Invalid custom data JSON:', e);
+                this.state.custom = {};
+            }
+        }
+        
+        // Reset action fields
+        this.state.table_action = '';
+        this.state.table_ids = '';
+    }
+
+    /**
+     * Build FormData from internal state
+     * Maintains the same POST structure as the original form-based version
+     * @returns {FormData}
+     */
+    buildFormData() {
+        const formData = new FormData();
+        const table_id = this.state.table_id;
+        
+        // Base parameters
+        formData.append('page', this.state.page);
+        formData.append('action', this.state.action);
+        formData.append('page-output', 'json');
+        formData.append('is-inside-request', '1');
+        formData.append('table_id', table_id);
+        
+        // Token
+        formData.append('token', this.state.token);
+        
+        // Table-specific parameters (namespaced under table_id)
+        formData.append(`${table_id}[table_action]`, this.state.table_action);
+        formData.append(`${table_id}[table_ids]`, this.state.table_ids);
+        formData.append(`${table_id}[page]`, this.state.current_page);
+        formData.append(`${table_id}[limit]`, this.state.limit);
+        formData.append(`${table_id}[order_field]`, this.state.order_field);
+        formData.append(`${table_id}[order_dir]`, this.state.order_dir);
+        formData.append(`${table_id}[filters]`, this.state.filters);
+        
+        // Custom data parameters
+        if (this.state.custom && typeof this.state.custom === 'object') {
+            for (const [key, value] of Object.entries(this.state.custom)) {
+                formData.append(key, value);
+            }
+        }
+        
+        return formData;
     }
 
     /**
@@ -309,17 +410,49 @@ class Table {
     }
 
     /**
+     * Get the current state
+     * @returns {Object} Current state object
+     */
+    getState() {
+        return { ...this.state };
+    }
+
+    /**
+     * Get a specific state value
+     * @param {string} key - State key
+     * @returns {*} State value
+     */
+    getStateValue(key) {
+        return this.state[key];
+    }
+
+    /**
+     * Set a custom data value
+     * @param {string} key - Custom data key
+     * @param {*} value - Value to set
+     */
+    setCustomData(key, value) {
+        this.state.custom[key] = value;
+    }
+
+    /**
+     * Get a custom data value
+     * @param {string} key - Custom data key
+     * @returns {*} Custom data value
+     */
+    getCustomData(key) {
+        return this.state.custom[key];
+    }
+
+    /**
      * Add a filter to the table
      * @param {Object} filter - Filter object to add
      */
     filter_add(filter) {
-        let input_field = this.el_container.querySelector('.js-field-table-filters');
-        if (!input_field) return;
-
         let json_val = [];
-        if (input_field.value !== '') {
+        if (this.state.filters !== '') {
             try {
-                json_val = JSON.parse(input_field.value);
+                json_val = JSON.parse(this.state.filters);
             } catch (e) {
                 console.warn('Invalid filter JSON, resetting filters');
                 json_val = [];
@@ -327,17 +460,14 @@ class Table {
         }
         
         json_val.push(filter);
-        input_field.value = JSON.stringify(json_val);
+        this.state.filters = JSON.stringify(json_val);
     }
 
     /**
      * Clear all filters
      */
     filter_clear() {
-        let input_field = this.el_container.querySelector('.js-field-table-filters');
-        if (input_field) {
-            input_field.value = '';
-        }
+        this.state.filters = '';
     }
 
     /**
@@ -345,13 +475,10 @@ class Table {
      * @param {Object} filter - Filter object to remove
      */
     filter_remove(filter) {
-        let input_field = this.el_container.querySelector('.js-field-table-filters');
-        if (!input_field) return;
-
         let json_val = [];
-        if (input_field.value !== '') {
+        if (this.state.filters !== '') {
             try {
-                json_val = JSON.parse(input_field.value);
+                json_val = JSON.parse(this.state.filters);
             } catch (e) {
                 console.warn('Invalid filter JSON');
                 return;
@@ -361,7 +488,7 @@ class Table {
         let index = json_val.indexOf(filter);
         if (index > -1) {
             json_val.splice(index, 1);
-            input_field.value = JSON.stringify(json_val);
+            this.state.filters = JSON.stringify(json_val);
         }
     }
 
@@ -370,13 +497,10 @@ class Table {
      * @param {string} filter - Prefix to match for removal
      */
     filter_remove_start(filter) {
-        let input_field = this.el_container.querySelector('.js-field-table-filters');
-        if (!input_field) return;
-
         let json_val = [];
-        if (input_field.value !== '') {
+        if (this.state.filters !== '') {
             try {
-                json_val = JSON.parse(input_field.value);
+                json_val = JSON.parse(this.state.filters);
             } catch (e) {
                 console.warn('Invalid filter JSON');
                 return;
@@ -387,7 +511,22 @@ class Table {
             return !val.toString().startsWith(filter);
         });
         
-        input_field.value = JSON.stringify(new_json_val);
+        this.state.filters = JSON.stringify(new_json_val);
+    }
+
+    /**
+     * Get current filters as array
+     * @returns {Array} Current filters
+     */
+    filter_get() {
+        if (this.state.filters === '') {
+            return [];
+        }
+        try {
+            return JSON.parse(this.state.filters);
+        } catch (e) {
+            return [];
+        }
     }
 
     /**
@@ -395,10 +534,41 @@ class Table {
      * @param {number} page - Page number (defaults to 1)
      */
     set_page(page = 1) {
-        let input_field = this.el_container.querySelector('.js-field-table-page');
-        if (input_field) {
-            input_field.value = page;
-        }
+        this.state.current_page = page;
+    }
+
+    /**
+     * Get the current page
+     * @returns {number} Current page number
+     */
+    get_page() {
+        return this.state.current_page;
+    }
+
+    /**
+     * Set items per page limit
+     * @param {number} limit - Number of items per page
+     */
+    set_limit(limit) {
+        this.state.limit = limit;
+    }
+
+    /**
+     * Get items per page limit
+     * @returns {number} Current limit
+     */
+    get_limit() {
+        return this.state.limit;
+    }
+
+    /**
+     * Set order field and direction
+     * @param {string} field - Field name to order by
+     * @param {string} dir - Direction ('asc' or 'desc')
+     */
+    set_order(field, dir = 'asc') {
+        this.state.order_field = field;
+        this.state.order_dir = dir;
     }
 
     // ===========================================
@@ -410,10 +580,9 @@ class Table {
      * @param {HTMLElement} el - The clicked bulk action element
      */
     tableBulkAction(el) {
-        const input_action = this.el_container.querySelector('.js-field-table-action');
         const action_val = el.getAttribute('data-table-action');
         
-        if (!input_action || !action_val) {
+        if (!action_val) {
             console.warn('Bulk action configuration incomplete');
             return;
         }
@@ -425,30 +594,17 @@ class Table {
             ids.push(checkbox.value);
         });
 
-        const input_ids = this.el_container.querySelector('.js-field-table-ids');
-        if (input_ids) {
-            input_ids.value = ids.join(',');
-        }
-        const form = this.el_container.querySelector('.js-table-form');
-
         let should_proceed = true;
         if (typeof callHook === 'function') {
-            should_proceed = callHook(`table-action-${action_val}`, ids, el, form, true);
+            // Pass Table instance instead of form
+            should_proceed = callHook(`table-action-${action_val}`, ids, el, this, true);
         }
 
         if (should_proceed) {
-            const input_action = this.el_container.querySelector('.js-field-table-action');
-            const input_ids = this.el_container.querySelector('.js-field-table-ids');
-            
-            if (input_action && input_ids) {
-                input_action.value = action_val;
-                if (input_ids) {
-                    input_ids.value = ids.join(',');
-                }
-                this.sendForm();
-            }
+            this.state.table_action = action_val;
+            this.state.table_ids = ids.join(',');
+            this.sendForm();
         }
-      
     }
 
     /**
@@ -472,23 +628,17 @@ class Table {
             }
         }
 
-        const form = this.el_container.querySelector('.js-table-form');
-        
         // Check if hook allows action to proceed
         let should_proceed = true;
         if (typeof callHook === 'function') {
-            should_proceed = callHook(`table-action-${action_val}`, id_val, el, form, true);
+            // Pass Table instance instead of form
+            should_proceed = callHook(`table-action-${action_val}`, id_val, el, this, true);
         }
 
         if (should_proceed) {
-            const input_action = this.el_container.querySelector('.js-field-table-action');
-            const input_ids = this.el_container.querySelector('.js-field-table-ids');
-            
-            if (input_action && input_ids) {
-                input_action.value = action_val;
-                input_ids.value = id_val;
-                this.sendForm();
-            }
+            this.state.table_action = action_val;
+            this.state.table_ids = id_val;
+            this.sendForm();
         }
     }
 
@@ -549,17 +699,14 @@ class Table {
      * gestione dell'ordine delle colonne
      */
     tableChangeOrder(el) {
-        const input_field = this.el_container.querySelector('.js-field-table-order-field');
-        const input_order = this.el_container.querySelector('.js-field-table-order-dir');
-        
         const field_val = el.getAttribute('data-table-field');
         const order_val = el.getAttribute('data-table-dir');
 
-        if (input_field && input_order && field_val && order_val) {
-            input_field.value = field_val;
-            input_order.value = order_val;
+        if (field_val && order_val) {
+            this.state.order_field = field_val;
+            this.state.order_dir = order_val;
             
-            // Clear action and ID fields for sorting
+            // Clear action fields for sorting
             this.clearActionFields();
             this.sendForm();
         }
@@ -569,11 +716,10 @@ class Table {
      * gestione della paginazione
      */
     paginationClick(el) {
-        const input_page = this.el_container.querySelector('.js-field-table-page');
         const page_val = el.getAttribute('data-table-page');
 
-        if (input_page && page_val) {
-            input_page.value = page_val;
+        if (page_val) {
+            this.state.current_page = parseInt(page_val);
             this.clearActionFields();
             this.sendForm();
         }
@@ -583,14 +729,11 @@ class Table {
      * Handle pagination dropdown selection
      */
     paginationSelect(el) {
-        const input_page = this.el_container.querySelector('.js-field-table-page');
         const page_val = el[el.selectedIndex].value;
 
-        if (input_page) {
-            input_page.value = page_val;
-            this.clearActionFields();
-            this.sendForm();
-        }
+        this.state.current_page = parseInt(page_val);
+        this.clearActionFields();
+        this.sendForm();
     }
 
     /**
@@ -598,39 +741,28 @@ class Table {
      */
     paginationElPerPage(el) {
         // Reset to first page when changing items per page
-        const page_input = this.el_container.querySelector('.js-field-table-page');
-        if (page_input) {
-            page_input.value = '1';
-        }
-
-        const input_limit = this.el_container.querySelector('.js-field-table-limit');
-        const page_val = el[el.selectedIndex].value;
-
-        if (input_limit) {
-            input_limit.value = page_val;
-            this.clearActionFields();
-            this.sendForm();
-        }
+        this.state.current_page = 1;
+        
+        const limit_val = el[el.selectedIndex].value;
+        this.state.limit = parseInt(limit_val);
+        
+        this.clearActionFields();
+        this.sendForm();
     }
 
     /**
      * Clear action and ID fields
      */
     clearActionFields() {
-        const action_field = this.el_container.querySelector('.js-field-table-action');
-        const ids_field = this.el_container.querySelector('.js-field-table-ids');
-        
-        if (action_field) action_field.value = '';
-        if (ids_field) ids_field.value = '';
+        this.state.table_action = '';
+        this.state.table_ids = '';
     }
 
     /**
      * Set action field
      */
     setActionFields(action) {
-        const action_field = this.el_container.querySelector('.js-field-table-action');
-        
-        if (action_field) action_field.value = action;
+        this.state.table_action = action;
     }
 
     /**
@@ -647,28 +779,64 @@ class Table {
         return rect.top >= 0 && rect.top < window_height;
     }
 
-    getForm() {
-        return this.el_container.querySelector('.js-table-form');
+    /**
+     * Get the built FormData (for external use if needed)
+     * @returns {FormData}
+     */
+    getFormData() {
+        return this.buildFormData();
+    }
+
+    /**
+     * Update container data attributes with current state
+     * This ensures state persists across DOM updates
+     * @param {Object} state - State object to apply
+     */
+    updateContainerAttributes(state) {
+        this.el_container.setAttribute('data-current-page', state.current_page);
+        this.el_container.setAttribute('data-limit', state.limit);
+        this.el_container.setAttribute('data-order-field', state.order_field);
+        this.el_container.setAttribute('data-order-dir', state.order_dir);
+        this.el_container.setAttribute('data-filters', state.filters);
+
+        if (state.custom && Object.keys(state.custom).length > 0) {
+            this.el_container.setAttribute('data-custom', JSON.stringify(state.custom));
+        }
+    }
+
+    /**
+     * Reinitialize the table without creating a new instance
+     * Resets initialization flag and re-runs all initialization methods
+     */
+    reinitialize() {
+        // Reset initialization flag
+        this.is_init = false;
+
+        // Re-read state from updated attributes
+        this.initStateFromAttributes();
+
+        // Reinitialize loading plugin if needed
+        const loading_element = this.el_container.querySelector('.js-ito-loading');
+        if (loading_element) {
+            this.plugin_loading = new Loading(loading_element);
+        }
+
+        // Run initialization
+        this.init();
     }
 
     /**
      * invio del form tramite fetch
      */
     async sendForm() {
-        const form = this.el_container.querySelector('.js-table-form');
-        if (!form) {
-            console.error('Table form not found');
-            return;
-        }
-
         // Show loading indicator
         if (this.plugin_loading) {
             this.plugin_loading.show();
         }
 
         try {
-            const form_data = new FormData(form);
-            const response = await fetch(form.getAttribute('action'), {
+            const form_data = this.buildFormData();
+            const response = await fetch(this.state.action_url, {
                 method: 'POST',
                 credentials: 'same-origin',
                 body: form_data
@@ -683,6 +851,7 @@ class Table {
                 data.success = true;
             }
             const message_type = data.success ? 'success' : 'danger';
+
             if (data.success && data.offcanvas_end && typeof window.offcanvasEnd !== 'undefined' && data.offcanvas_end.title && data.offcanvas_end.body) {
                 window.offcanvasEnd.show(data.offcanvas_end.title, data.offcanvas_end.body);
                 if (data.offcanvas_end.size) window.offcanvasEnd.size(data.offcanvas_end.size);
@@ -690,24 +859,33 @@ class Table {
             if (data.success && data.modal && typeof window.modal !== 'undefined' && data.modal.title && data.modal.body) {
                 window.modal.show(data.modal.title, data.modal.body, data.modal.footer);
             }
+
             // Update table content
             if ('html' in data && data.html != '') {
+                // Save current state before updating DOM
+                const saved_state = { ...this.state };
+
                 this.el_container.innerHTML = data.html;
                 updateContainer(this.el_container);
+
+                // Update data attributes to reflect current state
+                this.updateContainerAttributes(saved_state);
+
+                // Reinitialize with saved state
+                this.reinitialize();
             } else {
-                this.plugin_loading.hide();
+                if (this.plugin_loading) {
+                    this.plugin_loading.hide();
+                }
             }
-            
-            // Reinitialize table with new content
-            new Table(this.el_container, this.custom_init_fn);
-            
+
             // Show success/error message if provided
             if (data.msg && data.msg !== '' && typeof window.toasts !== 'undefined') {
                 window.toasts.show(data.msg, message_type);
             }
 
             // Auto-scroll to table if not disabled and not already visible
-            if (!this.el_container.classList.contains('js-no-auto-scroll')) {
+            if (!this.el_container.hasAttribute('data-no-auto-scroll')) {
                 if (!this.isElementTopVisible(this.el_scroll)) {
                     this.el_scroll.scrollIntoView({ behavior: "smooth" });
                 }
@@ -715,12 +893,12 @@ class Table {
 
         } catch (error) {
             console.error('Table form submission failed:', error);
-            
+
             // Hide loading indicator on error
             if (this.plugin_loading) {
                 this.plugin_loading.hide();
             }
-            
+
             // Show error message if toast system is available
             if (typeof window.toasts !== 'undefined') {
                 window.toasts.show('An error occurred while updating the table', 'danger');
@@ -736,10 +914,9 @@ window.addEventListener('load', function() {
     });
 });
 
-//  document.dispatchEvent(new CustomEvent('updateContainer', { detail: { el: el } })
+// document.dispatchEvent(new CustomEvent('updateContainer', { detail: { el: el } })
 document.addEventListener('updateContainer', function(event) {
     event.detail.el.querySelectorAll('.js-table-container').forEach((el) => {
         new Table(el);
     });
-
 });

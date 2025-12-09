@@ -11,20 +11,13 @@ use App\Route;
 ?>
 <div class="bg-white p-4">
     <h1>Abstract Model - Overview</h1>
-    <p class="text-muted">Revision: 2025/10/13</p>
+    <p class="text-muted">Revision: 2025/12/01</p>
     <p class="lead">The <code>AbstractModel</code> class is the foundation for all data models in MilkAdmin. It provides a powerful and intuitive interface for interacting with database tables using a fluent query builder and comprehensive CRUD operations.</p>
 
     <div class="alert alert-info">
-        <strong>💡 New Architecture:</strong> The Model has been completely refactored using traits for better organization and maintainability:
-        <ul class="mb-0">
-            <li><strong>QueryBuilderTrait:</strong> Query building (<code>where</code>, <code>whereIn</code>, <code>whereHas</code>, <code>order</code>, <code>limit</code>)</li>
-            <li><strong>CrudOperationsTrait:</strong> CRUD operations (<code>getById</code>, <code>store</code>, <code>delete</code>)</li>
-            <li><strong>SchemaAndValidationTrait:</strong> Schema and validation (<code>buildTable</code>, <code>validate</code>)</li>
-            <li><strong>RelationshipsTrait:</strong> Relationships (<code>hasOne</code>, <code>belongsTo</code>, <code>hasMany</code>)</li>
-            <li><strong>CollectionTrait:</strong> Result set navigation and iteration</li>
-        </ul>
+        <strong>Table Structure Documentation:</strong>
+        For complete information about defining table structures and using the RuleBuilder, see the <a href="<?php echo Route::url('?page=docs&action=Developer/AbstractsClass/abstract-model-rulebuilder'); ?>">RuleBuilder documentation</a>.
     </div>
-
     <h2 class="mt-4">Defining a Model</h2>
 
     <p>To create a model, extend <code>AbstractModel</code> and implement the <code>configure()</code> method where you define your table structure using a fluent interface:</p>
@@ -189,15 +182,19 @@ if ($product->validate()) {
     // Validation failed - errors in MessagesHandler
     echo "Validation failed";
 }</code></pre>
-
-<h3>Attributes</h3>
-<p>You can manage the operations of individual fields by creating methods preceded by php 8+ attributes</p>
-<p>See <a href="?page=docs&action=Developer/AbstractsClass/abstract-model-attributes">Attributes</a> for more details</p>
-
     
     <h2 class="mt-4">Next Steps</h2>
 
-    <div class="alert alert-success">
+     <div class="alert alert-info">
+        <strong>💡 New Architecture:</strong> The Model has been completely refactored using traits for better organization and maintainability:
+        <ul class="mb-0">
+            <li><strong>QueryBuilderTrait:</strong> Query building (<code>where</code>, <code>whereIn</code>, <code>whereHas</code>, <code>order</code>, <code>limit</code>)</li>
+            <li><strong>CrudOperationsTrait:</strong> CRUD operations (<code>getById</code>, <code>store</code>, <code>delete</code>)</li>
+            <li><strong>SchemaAndValidationTrait:</strong> Schema and validation (<code>buildTable</code>, <code>validate</code>)</li>
+            <li><strong>RelationshipsTrait:</strong> Relationships (<code>hasOne</code>, <code>belongsTo</code>, <code>hasMany</code>)</li>
+            <li><strong>CollectionTrait:</strong> Result set navigation and iteration</li>
+        </ul>
+   
         <strong>📚 Explore More:</strong>
         <ul class="mb-0">
             <li><a href="?page=docs&action=Developer/GettingStarted/getting-started-model">Getting Started with Models</a> - Beginner tutorial</li>
@@ -205,6 +202,7 @@ if ($product->validate()) {
             <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-crud">CRUD Operations</a> - Detailed CRUD documentation</li>
             <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-relationships">Relationships</a> - hasOne, belongsTo, hasMany</li>
             <li><a href="?page=docs&action=Framework/Core/schema">Schema</a> - Table schema management</li>
+            <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-attributes">Attributes</a> - Manage operations of individual fields</li>
         </ul>
     </div>
 </div>

@@ -1,15 +1,29 @@
 <?php
 
-require_once(__DIR__.'/calendar.php');
-
 // Crea un'istanza del calendario con le variabili passate
 $calendar = new Calendar(
     $month ?? date('n'),           // Use passed month or current month
     $year ?? date('Y'),            // Use passed year or current year
     $locale ?? 'en_US',            // Use passed locale or default
-    $calendar_id ?? 'calendar'     // Use passed calendar_id or default
+    $calendar_id ?? 'calendar',    // Use passed calendar_id or default
+    $view_type ?? 'monthly'        // Use passed view_type or default to monthly
 );
 $calendar->setActionUrl($_SERVER['REQUEST_URI']);
+
+// Set weekly view settings if provided
+if (isset($view_type) && $view_type === 'weekly') {
+    if (isset($weekly_hour_start) || isset($weekly_hour_end) || isset($weekly_hour_height)) {
+        $calendar->setWeeklyViewSettings(
+            $weekly_hour_start ?? 0,
+            $weekly_hour_end ?? 24,
+            $weekly_hour_height ?? 60
+        );
+    }
+}
+if (isset($week_number)) {
+    $calendar->getData()->setWeekNumber($week_number);
+}
+
 
 // Set header customizations if provided
 if (isset($header_title)) {
@@ -89,15 +103,27 @@ if (isset($calendar_attrs) && is_array($calendar_attrs)) {
 }
 
 if (isset($events) && is_array($events)) {
+    // Get user timezone from config, default to UTC if not set
+    $userTimezone = new DateTimeZone(App\Config::get('time_zone', 'UTC'));
+
     foreach ($events as $event) {
         $id = $event->id;
         $title = $event->title;
         $start = $event->start_datetime;
         $end = $event->end_datetime;
-        $class = $event->class;
+        $class = $event->class ?? '';
 
-        // Ensure DateTime objects (handle string, DateTime, or other formats)
-        
+        // Ensure we have DateTime objects
+        if (!$start instanceof DateTime) {
+            $start = new DateTime($start ?? 'now');
+        }
+        if (!$end instanceof DateTime) {
+            $end = new DateTime($end ?? 'now');
+        }
+
+        // Convert to user's timezone
+        $start->setTimezone($userTimezone);
+        $end->setTimezone($userTimezone);
 
         $calendar->addAppointment($id, $start, $end, $title, $class);
     }

@@ -389,7 +389,11 @@ class MessagesHandler {
      */
     public static function successToString($br = false): string {
         $br = $br ? '<br>' : "\n";
-        return implode($br, self::$success_messages);
+        if (is_array(self::$success_messages)) {
+            $messages = array_unique(self::$success_messages);
+            return implode($br, $messages);
+        }
+        return self::$success_messages;
     }
 
     /**

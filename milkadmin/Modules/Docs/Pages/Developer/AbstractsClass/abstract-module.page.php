@@ -11,7 +11,7 @@ namespace Modules\Docs\Pages;
 <div class="bg-white p-4">
     <h1>Abstract Module Class</h1>
 
-    <p>When creating a new module, the first step is to create a folder inside <code>/modules/module-name</code>.
+    <p>When creating a new module, the first step is to create a folder inside <code>/Modules/module-name</code>.
         <br>Once the folder is created, you need to create a file <code>{module-name}Module.php</code><br />
         The module file is automatically loaded by <code>Get::loadModules()</code>;<br />
         Any PHP code written inside is therefore executed on every page. <br />
@@ -39,7 +39,7 @@ class PostsModule extends AbstractModule
         $rule->page('posts')
              ->title('Posts Management')
              ->access('authorized')
-             ->permission(['access' => 'Access Posts'])
+             ->permissions(['access' => 'Access Posts'])
              ->menu('Posts', '', 'bi bi-file-earmark-post-fill', 10)
              ->menu('Categories', 'action=categories', 'bi bi-tags-fill', 20)
              ->version(250901);
@@ -409,7 +409,7 @@ $reportsModel = $this->getAdditionalModels('Reports');
 </code></pre>
 
     <h2 class="mt-4">Module Installation</h2>
-    <p>Modules are installed by placing them in the <code>/modules/</code> folder. If the module has a model, it can use automatic CLI commands for installation:</p>
+    <p>Modules are installed by placing them in the <code>/Modules/</code> folder. If the module has a model, it can use automatic CLI commands for installation:</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-bash">php milkadmin/cli.php {module-name}:install
 php milkadmin/cli.php {module-name}:update
 php milkadmin/cli.php {module-name}:uninstall

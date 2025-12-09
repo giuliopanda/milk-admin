@@ -117,39 +117,20 @@ public function validateTitle($value) {
     return true;
 }</code></pre>
 
-   <h5 class="mt-3">#[ValidateField('field_name')]</h5>
-   <p>Alternative validation attribute for field-level validation. Applied to Model methods.</p>
-   <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">#[ValidateField('email')]
-public function validateEmail($value) {
-    return filter_var($value, FILTER_VALIDATE_EMAIL) !== false;
-}</code></pre>
 
-   <h5 class="mt-3">#[BeforeSave('field_name')]</h5>
+   <h5 class="mt-3">#[ToDatabaseValue('field_name')]</h5>
    <p>Transforms field value before saving to database. Applied to Model methods.</p>
-   <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">#[BeforeSave('password')]
+   <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">#[ToDatabaseValue('password')]
 public function hashPassword($value) {
     return password_hash($value, PASSWORD_DEFAULT);
 }</code></pre>
 
-   <h5 class="mt-3">#[GetSqlValue('field_name')]</h5>
-   <p>Customizes SQL value retrieval for a field. Applied to Model methods.</p>
-   <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">#[GetSqlValue('settings')]
-public function getSettingsSql($value) {
-    return json_encode($value);
-}</code></pre>
 
-   <h5 class="mt-3">#[GetFormattedValue('field_name')]</h5>
+   <h5 class="mt-3">#[ToDisplayValue('field_name')]</h5>
    <p>Formats field value for display. Applied to Model methods.</p>
-   <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">#[GetFormattedValue('created_at')]
+   <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">#[ToDisplayValue('created_at')]
 public function formatCreatedAt($value) {
     return date('Y-m-d H:i:s', $value);
-}</code></pre>
-
-   <h5 class="mt-3">#[GetRawValue('field_name')]</h5>
-   <p>Retrieves raw unformatted value from database. Applied to Model methods.</p>
-   <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">#[GetRawValue('settings')]
-public function getRawSettings($value) {
-    return json_decode($value, true);
 }</code></pre>
 
    <h5 class="mt-3">#[SetValue('field_name')]</h5>

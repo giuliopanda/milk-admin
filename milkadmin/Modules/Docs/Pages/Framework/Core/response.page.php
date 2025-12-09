@@ -106,7 +106,7 @@ Response::themePage('page_name');
 Response::themePage('page_name', '', 'content');
 
 // 3. pass the page name, template to load and variables for the template
-Response::themePage('theme_page', __DIR__ . '/assets/modules_page.php', ['my_vars' => '...']);</code></pre>
+Response::themePage('theme_page', __DIR__ . '/assets/Modules_page.php', ['my_vars' => '...']);</code></pre>
 
 
 

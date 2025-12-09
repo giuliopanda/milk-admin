@@ -18,6 +18,39 @@ use App\{Cli, Config, Hooks, MessagesHandler, Permissions, Settings};
  */
 trait InstallationTrait {
 
+    
+    /**
+     * Loaded Install extension instances
+     * @var array
+     */
+    private array $loaded_install_extensions = [];
+
+    /**
+     * Loaded Hook extension instances
+     * @var array
+     */
+    private array $loaded_hook_extensions = [];
+
+    /**
+     * Loaded Api extension instances
+     * @var array
+     */
+    private array $loaded_api_extensions = [];
+
+    /**
+     * Loaded Shell extension instances
+     * @var array
+     */
+    private array $loaded_shell_extensions = [];
+
+    /**
+     * Loaded Controller extension instances
+     * @var array
+     */
+    private array $loaded_controller_extensions = [];
+
+
+
     /**
      * Set up installation hooks
      *
@@ -27,7 +60,7 @@ trait InstallationTrait {
         // Se non c'è la versione vuol dire che il sistema deve essere ancora installato
         if (Config::get('version') == null || NEW_VERSION > Config::get('version')) {
             // function($html, $errors)
-            Hooks::set('install.get_html_modules', [$this, 'installGetHtmlModules'], 50);
+            Hooks::set('install.get_html_modules', [$this, '_installGetHtmlModules'], 50);
             // function($errors, $data)
             Hooks::set('install.check_data', [$this, 'installCheckData'], 50);
             // in fase di installazione salva la configurazione nel config.php così poi si fa il redirect
@@ -77,9 +110,20 @@ trait InstallationTrait {
      */
     public function shellInstallModule() {
         if (Cli::isCli() || Permissions::check('_user.is_admin')) {
-            $this->_installExecute();
+            $this->installExecute();
+            $this->installExtensionExecute();
         }
     }
+
+    public function shellUninstallModule() {
+        $this->_shellUninstallModule();
+       // $this->shellUninstallExtensionModule();
+    }
+
+    // Basta creare una nuova funzione che viene registrata nella shell???
+   // public function shellUninstallExtensionModule() {
+    //    $this->executeMethodExtension('install', 'shellUninstallModule');
+   // }
 
     /**
      * Uninstall the module
@@ -93,7 +137,7 @@ trait InstallationTrait {
      * php milkadmin/cli.php posts:uninstall
      * ```
      */
-    public function shellUninstallModule() {
+    public function _shellUninstallModule() {
         if (Cli::isCli() || Permissions::check('_user.is_admin')) {
 
             // Uninstall additional models first
@@ -155,6 +199,7 @@ trait InstallationTrait {
     public function shellUpdateModule() {
        if (Cli::isCli() || Permissions::check('_user.is_admin')) {
             $this->installUpdate('');
+            $this->installExtensionUpdate('');
         }
     }
 
@@ -188,14 +233,32 @@ trait InstallationTrait {
      * @param array $errors Any validation errors from the installation form
      * @return string The modified HTML
      */
-    public function installGetHtmlModules(string $html, $errors = []) {
+    public function _installGetHtmlModules(string $html, ?array $errors = []) {
         // Override in child classes to add custom form elements
+
+        $html = $this->executeMethodExtension('install', 'onInstallGetHtmlModules', $html, $errors); 
+      
+        return $this->installGetHtmlModules($html, $errors);
+    }
+
+    /**
+     * Modify the installation page HTML
+     *
+     * @param string $html The current HTML of the installation page
+     * @param array $errors Any validation errors from the installation form
+     * @return string The modified HTML
+     */
+    public function installGetHtmlModules(string $html, $errors = []) {
         return $html;
     }
 
+
     // Salva la configurazione in fase di prima installazione
     public function installExecuteConfig($data = []) {
-      return $data;
+
+        $data = $this->executeMethodExtension('install', 'onInstallExecuteConfig', $data);
+        
+        return $data;
     }
 
     /**
@@ -205,7 +268,13 @@ trait InstallationTrait {
      * @return void
      */
     public function installExecute($data = []) {
+       
         $this->_installExecute();
+        return $data;
+    }
+
+    public function installExtensionExecute($data = []) {
+        $data = $this->executeMethodExtension('install', 'installExecute', $data);
         return $data;
     }
 
@@ -287,6 +356,10 @@ trait InstallationTrait {
      */
     public function installCheckData($errors, $data = []) {
         // Override in child classes to add custom validation
+
+
+        $errors = $this->executeMethodExtension('install', 'onInstallCheckData', $errors, $data);
+
         return $errors;
     }
     /**
@@ -308,6 +381,10 @@ trait InstallationTrait {
      */
     public function installDone($html) {
         // Override in child classes to customize completion message
+
+
+        $html = $this->executeMethodExtension('install', 'onInstallDone',  $html);
+
         return $html;
     }
 
@@ -326,6 +403,21 @@ trait InstallationTrait {
         return $html;
     }
 
+    public function _installUninstall() {
+        $this->uninstallExecute();
+        $this->executeMethodExtension('install', 'uninstall'); 
+    }
+
+
+    public function uninstallExecute() {
+       
+    }
+
+    public function installExtensionUpdate($html) {
+        $html = $this->executeMethodExtension('install', 'installUpdate', $html); 
+        return $html;
+    }
+
     /**
      * Remove a directory and all its contents recursively
      * Only allows removal of directories within the modules folder for security
@@ -338,11 +430,15 @@ trait InstallationTrait {
             return false;
         }
 
-        // Verifica di sicurezza: la directory deve essere dentro /modules
+        // Verifica di sicurezza: la directory deve essere dentro /Modules oppure dentro local_dir
         $modulesPath = realpath(MILK_DIR . '/Modules');
         $targetPath = realpath($dir);
+        $dir1_check = $targetPath === false || strpos($targetPath, $modulesPath) !== 0;
 
-        if ($targetPath === false || strpos($targetPath, $modulesPath) !== 0) {
+        $modulesPath = realpath(LOCAL_DIR . '/Modules');
+        $dir2_check = $targetPath === false || strpos($targetPath, $modulesPath) !== 0;
+
+        if ($targetPath === false || ($dir1_check && $dir2_check)) {
             if (Cli::isCli()) {
                 Cli::error('Security error: Cannot remove directory outside modules folder');
             }
@@ -400,4 +496,51 @@ trait InstallationTrait {
             return $this->additional_models[$model_name] ?? [];
         }
     }
+
+     /**
+     * Execute a method on all extensions of a specific type
+     *
+     * @param string $type The type of extensions to execute the method on
+     * @param string $method The method to execute
+     * @param $args The arguments to pass to the method
+     * @return mixed
+     */
+    public function executeMethodExtension($type, $method, ...$args):  mixed {
+        if ($args == []) {
+            return null;
+        }
+        $first_value = array_shift($args);
+        
+        // Mappa type → proprietà dell’oggetto
+        $map = [
+            'install'    => 'loaded_install_extensions',
+            'hook'       => 'loaded_hook_extensions',
+            'api'        => 'loaded_api_extensions',
+            'controller' => 'loaded_controller_extensions',
+            'module'     => 'loaded_extensions',
+            'shell'      => 'loaded_shell_extensions',
+        ];
+
+        if (!isset($map[$type])) {
+            return  $first_value ;
+        }
+
+        $property = $map[$type];
+        if (!isset($this->$property) || !is_array($this->$property)) {
+            return  $first_value;
+        }
+
+        // Modalità pipeline: ritorna SOLO il valore finale
+        
+        
+        foreach ($this->$property as $extension) {
+            if (!method_exists($extension, $method)) {
+                continue;
+            }
+            $first_value = $extension->$method($first_value, ...$args);
+        }
+        return $first_value;
+    
+    }
+
 }

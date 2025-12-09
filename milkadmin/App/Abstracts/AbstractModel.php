@@ -2,9 +2,9 @@
 namespace App\Abstracts;
 
 use App\Database\{SQLite, MySql, ResultInterface};
-use App\{Get, Config};
-use App\Abstracts\Traits\{QueryBuilderTrait, CrudOperationsTrait, SchemaAndValidationTrait, DataFormattingTrait, RelationshipsTrait, CollectionTrait, CascadeSaveTrait, RelationshipDataHandlerTrait};
-use App\Attributes\{GetFormattedValue, BeforeSave, GetRawValue, SetValue, Validate};
+use App\{Get, Config, ExtensionLoader};
+use App\Abstracts\Traits\{QueryBuilderTrait, CrudOperationsTrait, SchemaAndValidationTrait, DataFormattingTrait, RelationshipsTrait, CollectionTrait, CascadeSaveTrait, RelationshipDataHandlerTrait, CopyRulesTrait, ExtensionManagementTrait};
+use App\Attributes\{ToDisplayValue, ToDatabaseValue , GetRawValue, SetValue, Validate};
 use ReflectionClass;
 use ReflectionMethod;
 use ArrayAccess;
@@ -45,6 +45,8 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
     use CollectionTrait;
     use CascadeSaveTrait;
     use RelationshipDataHandlerTrait;
+    use CopyRulesTrait;
+    use ExtensionManagementTrait;
 
     /**
      * Instance cache for methods with attributes defined in Models
@@ -101,7 +103,19 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
      */
     private ?RuleBuilder $rule_builder = null;
 
-   
+    /**
+     * List of extension names to load for this model
+     * Format: ['ExtensionName' => ['param1' => 'value1', 'param2' => 'value2']]
+     * or simple: ['ExtensionName'] (will be normalized to ['ExtensionName' => []])
+     * @var array
+     */
+    protected array $extensions = [];
+
+    /**
+     * Loaded extension instances
+     * @var array
+     */
+    protected array $loaded_extensions = [];
 
     /**
      * Current index in the result set (for navigation)
@@ -175,12 +189,41 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
         $this->is_data_instance = $is_data_instance;
 
         $this->rule_builder = new RuleBuilder();
+
+        // Normalize extensions to associative format
+        $this->extensions = $this->normalizeExtensions($this->extensions);
+
+        // Load extensions defined in property before configure
+        $this->loadExtensions();
+
         // Call configure() method for internal configuration
         $this->configure($this->rule_builder);
+
+
+
         $this->table = $this->rule_builder->getTable() ??  $this->table;
         $this->db_type = $this->rule_builder->getDbType() ?? $this->db_type;
         $this->primary_key = $this->rule_builder->getPrimaryKey() ?? $this->primary_key;
-      
+
+        // Merge extensions from rule_builder with existing extensions
+        if ($this->rule_builder->getExtensions() !== null) {
+            $new_extensions = $this->rule_builder->getExtensions();
+            $original_extensions = $this->extensions;
+
+            // Merge extensions using the new method
+            $this->extensions = $this->mergeExtensions($original_extensions, $new_extensions);
+
+            // Reload extensions if new ones were added
+            if (count($this->extensions) > count($original_extensions)) {
+                $this->loadExtensions();
+            }
+        }
+
+        // Call configure() on all loaded extensions (always, for every new instance)
+        ExtensionLoader::callHook($this->loaded_extensions, 'configure', [$this->rule_builder]);
+
+        
+
         // Handle database parameter
         if($this->db_type != '' && $this->db_type == 'db2') {
             $this->db = Get::db2();
@@ -197,6 +240,9 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
 
         // Scan and cache methods with attributes
         $this->scanAndCacheAttributeMethods();
+
+        // Call extension hook: after attribute methods scanned
+        ExtensionLoader::callHook($this->loaded_extensions, 'onAttributeMethodsScanned', []);
     }
 
 
@@ -211,7 +257,22 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
         // To be overridden by child classes
     }
 
-   
+    /**
+     * Load extensions defined in $this->extensions array
+     *
+     * @return void
+     * @throws \Exception If extension is not found
+     */
+    protected function loadExtensions(): void
+    {
+        if (empty($this->extensions)) {
+            return;
+        }
+
+        $this->loaded_extensions = ExtensionLoader::load($this->extensions, 'Model', $this);
+    }
+
+
     /**
      * Scan Model methods for attributes and cache them
      * Scans every time a new instance is created
@@ -232,15 +293,15 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
                 continue;
             }
 
-            // Check for GetFormattedValue attribute #[GetFormattedValue(field_name)]
-            $attributes = $method->getAttributes(GetFormattedValue::class);
+            // Check for ToDisplayValue attribute #[ToDisplayValue(field_name)]
+            $attributes = $method->getAttributes(ToDisplayValue::class);
             foreach ($attributes as $attribute) {
                 $instance = $attribute->newInstance();
                 $this->registerMethodHandler($instance->field_name, 'get_formatted', $method->getName());
             }
 
-            // Check for BeforeSave attribute #[BeforeSave(field_name)]
-            $attributes = $method->getAttributes(BeforeSave::class);
+            // Check for ToDatabaseValue (before save) attribute #[ToDatabaseValue (field_name)]
+            $attributes = $method->getAttributes(ToDatabaseValue::class);
             foreach ($attributes as $attribute) {
                 $instance = $attribute->newInstance();
                 $this->registerMethodHandler($instance->field_name, 'get_sql', $method->getName());
@@ -580,6 +641,7 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
         $data = $this->filterData($data);
 
        
+       
         if ($this->primary_key != null && ($this->primary_key != 0)) {
             if (isset($data[$this->primary_key]) && $data[$this->primary_key] !== 0 && $data[$this->primary_key] !== '') {
                 // verifico se già esiste tra i $this->records_array
@@ -600,13 +662,15 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
                 }
                 $this->dates_in_user_timezone = false;
                 $row = $this->db->getRow('SELECT * FROM '. $this->db->qn($this->table).' WHERE '. $this->db->qn($this->primary_key).' = ?', [$data[$this->primary_key]]);
+              
                 if ($row != null) {
                     $this->current_index = $this->getNextCurrentIndex();
-                    $this->records_array[$this->current_index]['___action'] = 'edit';
+                  
                     $this->dates_in_user_timezone = false;
                     foreach ($row as $key => $value) {
                         $this->setValueWithConversion($key, $value);
                     }
+                      $this->records_array[$this->current_index]['___action'] = 'edit';
                     // Merge existing data with new data (new data takes precedence)
                     // This ensures that fields not provided in $data retain their existing values
                     $this->dates_in_user_timezone = true;
@@ -617,10 +681,12 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
                     // è nuovo anche se c'è id? Questo codice va bene?
                      $this->cleanEmptyRecords();
                     $this->current_index = $this->getNextCurrentIndex();
-                    $this->records_array[$this->current_index]['___action'] = 'insert';
+                      $this->dates_in_user_timezone = true;
+                   
                     foreach ($data as $key => $value) {
                         $this->setValueWithConversion($key, $value);
                     }
+                     $this->records_array[$this->current_index]['___action'] = 'insert';
                     $this->invalidateKeysCache();
                 }
                 return $this;
@@ -634,6 +700,7 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
         foreach ($data as $key => $value) {
             $this->setValueWithConversion($key, $value);
         }
+       
         $this->invalidateKeysCache();
 
         return $this;
@@ -784,7 +851,7 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
         $record = $this->records_array[$this->current_index];
 
         // Se è un record originale o modificato (non 'create'), aggiungi la primary key ai deleted
-        if ($record['___action'] !== 'create' && isset($record[$this->primary_key])) {
+        if ($record['___action'] !== 'insert' && isset($record[$this->primary_key])) {
             $this->deleted_primary_keys[] = $record[$this->primary_key];
         }
 
@@ -833,6 +900,11 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
 
     public function getRuleBuilder(): RuleBuilder {
         return $this->rule_builder;
+    }
+
+
+    public function getLoadedExtension($extension_name): ?object {
+        return $this->loaded_extensions[$extension_name] ?? NULL;
     }
 
 }

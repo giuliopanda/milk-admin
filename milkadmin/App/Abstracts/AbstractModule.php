@@ -1,8 +1,8 @@
 <?php
 namespace App\Abstracts;
 
-use App\{Config, Hooks, Logs, Permissions, Route, Theme, Get, Lang};
-use App\Abstracts\Traits\{InstallationTrait, RouteControllerTrait, AttributeShellTrait, AttributeApiTrait, AttributeHookTrait};
+use App\{Config, Hooks, Logs, Permissions, Route, Theme, Get, Lang, ExtensionLoader};
+use App\Abstracts\Traits\{InstallationTrait, RouteControllerTrait, AttributeShellTrait, AttributeApiTrait, AttributeHookTrait, ExtensionManagementTrait};
 
 !defined('MILK_DIR') && die(); // Prevent direct access
 
@@ -42,6 +42,7 @@ abstract class AbstractModule {
     use AttributeShellTrait;
     use AttributeApiTrait;
     use AttributeHookTrait;
+    use ExtensionManagementTrait;
 
     /**
      * RuleBuilder instance for module configuration
@@ -247,10 +248,52 @@ abstract class AbstractModule {
 
     /**
      * Additional models for the module
-     * 
+     *
      * @var array|null
      */
     protected ?array $additional_models = null;
+
+    /**
+     * Extensions to load for this module
+     * @var array
+     */
+    protected array $extensions = [];
+
+    /**
+     * Loaded extension instances (Module extensions)
+     * @var array
+     */
+    private array $loaded_extensions = [];
+
+    /**
+     * Loaded Install extension instances
+     * @var array
+     */
+    private array $loaded_install_extensions = [];
+
+    /**
+     * Loaded Hook extension instances
+     * @var array
+     */
+    private array $loaded_hook_extensions = [];
+
+    /**
+     * Loaded Api extension instances
+     * @var array
+     */
+    private array $loaded_api_extensions = [];
+
+    /**
+     * Loaded Shell extension instances
+     * @var array
+     */
+    private array $loaded_shell_extensions = [];
+
+    /**
+     * Loaded Controller extension instances
+     * @var array
+     */
+    private array $loaded_controller_extensions = [];
 
     protected $bootstrap_loaded = false;
     
@@ -261,6 +304,13 @@ abstract class AbstractModule {
     function __construct() {
         // Initialize rule builder and call configure
         $this->rule_builder = new ModuleRuleBuilder();
+
+        // Normalize extensions to associative format
+        $this->extensions = $this->normalizeExtensions($this->extensions);
+
+
+
+        // Call module's configure method
         $this->configure($this->rule_builder);
 
         // Apply configuration from rule builder
@@ -270,6 +320,24 @@ abstract class AbstractModule {
         if ($this->rule_builder->getTitle() !== null) {
             $this->title = $this->rule_builder->getTitle();
         }
+
+         // Merge extensions from rule_builder with existing extensions
+        if ($this->rule_builder->getExtensions() !== null) {
+            $new_extensions = $this->rule_builder->getExtensions();
+            $original_extensions = $this->extensions;
+
+            // Merge extensions using the new method
+            $this->extensions = $this->mergeExtensions($original_extensions, $new_extensions);
+
+            // Reload extensions if new ones were added
+            if (count($this->extensions) > count($original_extensions)) {
+                $this->loadExtensions();
+
+                // Call hooks for newly loaded extensions
+                \App\ExtensionLoader::callHook($this->loaded_extensions, 'configure', [$this->rule_builder]);
+            }
+        }
+   
         if ($this->rule_builder->getMenuLinks() !== null) {
             $this->menu_links = $this->rule_builder->getMenuLinks();
         }
@@ -310,6 +378,8 @@ abstract class AbstractModule {
             $this->additional_models = $this->rule_builder->getAdditionalModels();
         }
 
+      
+
         // Set defaults if not configured
         if ($this->page == null) {
             $this->page = strtolower($this->getModuleName());
@@ -317,6 +387,7 @@ abstract class AbstractModule {
         if ($this->title == null) {
             $this->title = ucfirst($this->page);
         }
+
 
         Hooks::set('cli-init', [$this, '_cli_init'], 20);
         Hooks::set('cli-init', [$this, 'setupAttributeShell'], 40);
@@ -348,8 +419,8 @@ abstract class AbstractModule {
             Hooks::set('after_modules_loaded', [$this, 'afterInit'], 11);
         }
 
-        $folder = $this->getFolderCalled();
-        Config::append('module_version', [$this->page => ['version'=>$this->version, 'folder'=>$folder]]);
+        $folder = $this->getFolderOrFileCalled();
+        Config::append('modules_active', [$this->page => ['version'=>$this->version, 'folder'=>$folder]]);
         // Load the contract if present
         $module_name = $this->getModuleName();
         $childPath = $this->getChildClassPath();
@@ -365,6 +436,12 @@ abstract class AbstractModule {
             $this->hook->registerHooks();
         } else {
             $this->registerHooks();
+        }
+        // Call onRegisterHooks on all Hook extensions after registerHooks
+        foreach ($this->loaded_hook_extensions as $extension) {
+            if (method_exists($extension, 'onRegisterHooks')) {
+                $extension->onRegisterHooks();
+            }
         }
 
     }
@@ -422,7 +499,7 @@ abstract class AbstractModule {
 
     /**
      * Call always during module initialization
-     * 
+     *
      * This method is called during the 'init' hook phase.
      */
     public function _hook_init() {
@@ -454,7 +531,7 @@ abstract class AbstractModule {
             }
         }
 
-        $this->hookInit(); 
+        $this->hookInit();
     }
 
      /**
@@ -487,8 +564,21 @@ abstract class AbstractModule {
         $this->autoLoadApi();
 
         $this->bootstrap();
+
+        // Call onHandleRoutes hook on all Controller extensions (always, regardless of controller existence)
+        foreach ($this->loaded_controller_extensions as $extension) {
+            if (method_exists($extension, 'onHandleRoutes')) {
+                $extension->onHandleRoutes();
+            }
+        }
+
         if (is_object($this->controller) && method_exists($this->controller, 'setHandleRoutes')) {
             $this->controller->setHandleRoutes($this);
+
+            // Call hookInit to register the route (needed for CLI context where 'init' hook doesn't run)
+            if (method_exists($this->controller, 'hookInit')) {
+                $this->controller->hookInit();
+            }
         } elseif ($this->controller === null && method_exists($this, 'handleRoutes')) {
             // If no controller is set but module has handleRoutes method, use the module as controller
             $this->controller = $this;
@@ -499,18 +589,26 @@ abstract class AbstractModule {
 
     /**
      * Configures the shell for the module
-     * 
+     *
      * This method is called during the 'cli-init' hook phase.
      * It can be overridden in child classes to perform actions when the system is initialized
      * and all modules are loaded in CLI context.
      */
     public function setupAttributeShell() {
         $this->autoLoadShell();
-        
+
         $this->setupInstallClass();
 
         if ($this->shell !== null) {
             $this->shell->setHandleShell($this);
+
+            // Call onSetup hook on all Shell extensions after setHandleShell
+            foreach ($this->loaded_shell_extensions as $extension) {
+                if (method_exists($extension, 'onSetup')) {
+                    $extension->onSetup();
+                }
+            }
+
             $this->shell->setupAttributeShellTraitCliHooks();
         }  else {
             $this->setupAttributeShellTraitCliHooks();
@@ -519,7 +617,7 @@ abstract class AbstractModule {
 
     /**
      * Configures the API for the module
-     * 
+     *
      * This method is called during the 'api-init' hook phase.
      * It can be overridden in child classes to perform actions when the system is initialized
      * and all modules are loaded in API context.
@@ -529,6 +627,14 @@ abstract class AbstractModule {
 
         if ($this->api !== null) {
             $this->api->setHandleApi($this);
+
+            // Call onSetup hook on all Api extensions after setHandleApi
+            foreach ($this->loaded_api_extensions as $extension) {
+                if (method_exists($extension, 'onSetup')) {
+                    $extension->onSetup();
+                }
+            }
+
             $this->api->setupAttributeApiTraitHooks();
         } else {
             $this->setupAttributeApiTraitHooks();
@@ -573,7 +679,8 @@ abstract class AbstractModule {
      * ```
      */
     public function bootstrap() {
-        
+        // Call extension hook: after bootstrap
+        ExtensionLoader::callHook($this->loaded_extensions, 'bootstrap', []);
     }
 
     /**
@@ -617,8 +724,9 @@ abstract class AbstractModule {
      * }
      * ```
      */
-    public function init() {  
-      
+    public function init() {
+        // Call extension hook: after init
+        ExtensionLoader::callHook($this->loaded_extensions, 'init', []);
     }
 
 
@@ -774,6 +882,18 @@ abstract class AbstractModule {
         $this->autoLoadInstall();
         if (is_object($this->install) && method_exists($this->install, 'setHandleInstall')) {
             $this->install->setHandleInstall($this);
+
+            // Pass loaded extensions to Install class
+            if (method_exists($this->install, 'setLoadedExtensions')) {
+                $this->install->setLoadedExtensions($this->loaded_install_extensions);
+            }
+
+            // Call onSetup hook on all Install extensions after setHandleInstall
+            foreach ($this->loaded_install_extensions as $extension) {
+                if (method_exists($extension, 'onSetup')) {
+                    $extension->onSetup();
+                }
+            }
         }
         if ($this->install === null) {
             $this->setupInstallationCliHooks();
@@ -924,20 +1044,30 @@ abstract class AbstractModule {
      * 
      * @return string The folder name
      */
-    private function getFolderCalled() {
+    private function getFolderOrFileCalled() {
         $childClass = get_called_class();
         $reflection = new \ReflectionClass($childClass);
         $filePath = $reflection->getFileName();
         $directoryPath = dirname($filePath);
         
         // Check if the file is inside the modules directory
-        $modulesPath = MILK_DIR . '/modules';
+        $modulesPath = MILK_DIR . '/Modules';
         if (strpos($directoryPath, $modulesPath) === 0) {
             // Extract module name from path
             $relativePath = str_replace($modulesPath . '/', '', $directoryPath);
             $pathParts = explode('/', $relativePath);
+            if ($pathParts == 'Modules') {
+                // find filename
+                $file_name = basename($filePath);
+                return $file_name;
+            }
             return $pathParts[0]; // Return the first directory name (module name)
         } else {
+             if (basename($directoryPath) == 'Modules') {
+                // find filename
+                $file_name = basename($filePath);
+                return $file_name;
+            }
             // Return the directory name if not in modules
             return basename($directoryPath);
         }
@@ -945,18 +1075,36 @@ abstract class AbstractModule {
 
     /**
      * Automatically load controller file and class if they exist
-     * 
+     * Also loads Controller extensions and scans for #[RequestAction] attributes (always, even if Controller class doesn't exist)
+     *
      * @return void
      */
-    private function autoLoadController(): void 
+    private function autoLoadController(): void
     {
         if ($this->controller !== null) return;
-       
+
         $reflection = new \ReflectionClass($this);
-        $controllerClass = $reflection->getNamespaceName() . '\\' . 
+        $controllerClass = $reflection->getNamespaceName() . '\\' .
                        str_replace('Module', '', $reflection->getShortName()).'Controller';
+
+        // Load the Controller class if it exists
         if (class_exists($controllerClass)) {
             $this->controller = new $controllerClass();
+        }
+
+        // Load Controller extensions ALWAYS (even if Controller class doesn't exist)
+        if (!empty($this->extensions)) {
+            $this->loaded_controller_extensions = ExtensionLoader::load($this->extensions, 'Controller', $this);
+
+            // Call onInit hook on all Controller extensions
+            foreach ($this->loaded_controller_extensions as $extension) {
+                if (method_exists($extension, 'onInit')) {
+                    $extension->onInit();
+                }
+            }
+
+            // Scan and register #[RequestAction] attributes from extensions
+            $this->scanControllerExtensionsForAttributes();
         }
     }
 
@@ -980,76 +1128,142 @@ abstract class AbstractModule {
 
     /**
      * Automatically load shell file and class if they exist
-     * 
+     * Also loads Shell extensions and scans for #[Shell] attributes (always, even if Shell class doesn't exist)
+     *
      * @return void
      */
     private function autoLoadShell() {
 
         // Check if *Shell.php file exists in the module folder
         if ( $this->shell !== null) return;
-        
+
         $reflection = new \ReflectionClass($this);
-        $shellClass = $reflection->getNamespaceName() . '\\' . 
+        $shellClass = $reflection->getNamespaceName() . '\\' .
                        str_replace('Module', '', $reflection->getShortName()).'Shell';
-        
+
+        // Load the Shell class if it exists
         if (class_exists($shellClass)) {
             $this->shell = new $shellClass();
+        }
+
+        // Load Shell extensions ALWAYS (even if Shell class doesn't exist)
+        if (!empty($this->extensions)) {
+            $this->loaded_shell_extensions = ExtensionLoader::load($this->extensions, 'Shell', $this);
+
+            // Call onInit hook on all Shell extensions
+            foreach ($this->loaded_shell_extensions as $extension) {
+                if (method_exists($extension, 'onInit')) {
+                    $extension->onInit();
+                }
+            }
+
+            // Scan and register #[Shell] attributes from extensions
+            $this->scanShellExtensionsForAttributes();
         }
     }
 
     /**
      * Automatically load hooks file and class if they exist
-     * 
+     * Also loads Hook extensions and scans for #[HookCallback] attributes
+     *
      * @return void
      */
     private function autoLoadHook() {
-         // Check if *Hook.php file exists in the module folder
-         if ( $this->hook !== null) return;
-        
-         $reflection = new \ReflectionClass($this);
-         $hookClass = $reflection->getNamespaceName() . '\\' . 
+      
+        // Check if *Hook.php file exists in the module folder
+        if ( $this->hook !== null) return;
+
+        $reflection = new \ReflectionClass($this);
+        $hookClass = $reflection->getNamespaceName() . '\\' .
                         str_replace('Module', '', $reflection->getShortName()).'Hook';
+     
+        if (class_exists($hookClass)) {
+            $this->hook = new $hookClass();
+        } 
+        // Load Hook extensions
+        if (!empty($this->extensions)) {
+            
+            $this->loaded_hook_extensions = ExtensionLoader::load($this->extensions, 'Hook', $this);
+            
+            // Call onInit hook on all Hook extensions
+            foreach ($this->loaded_hook_extensions as $extension) {
+                if (method_exists($extension, 'onInit')) {
+                    $extension->onInit();
+                }
+            }
+
+            // Scan and register #[HookCallback] attributes from extensions
+            $this->scanHookExtensionsForAttributes();
+        }
          
-         if (class_exists($hookClass)) {
-             $this->hook = new $hookClass();
-         }
     }
         
 
     /**
      * Automatically load api file and class if they exist
-     * 
+     * Also loads Api extensions and scans for #[ApiEndpoint] attributes (always, even if Api class doesn't exist)
+     *
      * @return void
      */
     private function autoLoadApi() {
         // Check if *Api.php file exists in the module folder
         if ( $this->api !== null) return;
-        
+
         $reflection = new \ReflectionClass($this);
-        $apiClass = $reflection->getNamespaceName() . '\\' . 
+        $apiClass = $reflection->getNamespaceName() . '\\' .
                        str_replace('Module', '', $reflection->getShortName()).'Api';
-        
+
+        // Load the Api class if it exists
         if (class_exists($apiClass)) {
             $this->api = new $apiClass();
+        }
+
+        // Load Api extensions ALWAYS (even if Api class doesn't exist)
+        if (!empty($this->extensions)) {
+            $this->loaded_api_extensions = ExtensionLoader::load($this->extensions, 'Api', $this);
+
+            // Call onInit hook on all Api extensions
+            foreach ($this->loaded_api_extensions as $extension) {
+                if (method_exists($extension, 'onInit')) {
+                    $extension->onInit();
+                }
+            }
+
+            // Scan and register #[ApiEndpoint] attributes from extensions
+            $this->scanApiExtensionsForAttributes();
         }
     }
 
 
     /**
      * Automatically load install file and class if they exist
-     * 
+     * Also loads Install extensions (always, even if Install class doesn't exist)
+     *
      * @return void
      */
-    private function autoLoadInstall(): void 
+    private function autoLoadInstall(): void
     {
         if ($this->install !== null) return;
-        
+
         $reflection = new \ReflectionClass($this);
-        $installClass = $reflection->getNamespaceName() . '\\' . 
+        $installClass = $reflection->getNamespaceName() . '\\' .
                        str_replace('Module', '', $reflection->getShortName()).'Install';
-        
+
+        // Load the Install class if it exists
         if (class_exists($installClass)) {
             $this->install = new $installClass();
+        }
+
+        // Load Install extensions ALWAYS (even if Install class doesn't exist)
+        if (!empty($this->extensions)) {
+            $this->loaded_install_extensions = ExtensionLoader::load($this->extensions, 'Install', $this);
+
+            // Call onInit hook on all Install extensions
+            foreach ($this->loaded_install_extensions as $extension) {
+                if (method_exists($extension, 'onInit')) {
+                    $extension->onInit();
+                }
+            }
         }
     }
 
@@ -1062,6 +1276,190 @@ abstract class AbstractModule {
             'page' => $this->page,
             'title' => $this->title,
         ];
+    }
+
+    /**
+     * Load extensions defined in $this->extensions array
+     *
+     * @return void
+     * @throws \Exception If extension is not found
+     */
+    protected function loadExtensions(): void {
+        if (empty($this->extensions)) {
+            return;
+        }
+
+        $this->loaded_extensions = ExtensionLoader::load($this->extensions, 'Module', $this);
+    }
+
+    /**
+     * Get loaded extensions
+     *
+     * @return array
+     */
+    public function getLoadedExtensions(): array {
+        return $this->loaded_extensions;
+    }
+
+
+    /**
+     * Get loaded Controller extensions
+     * Controller extensions are managed by the Module, not the Controller
+     *
+     * @return array
+     */
+    public function getLoadedControllerExtensions(): array
+    {
+        return $this->loaded_controller_extensions;
+    }
+
+    /**
+     * Scan Hook extensions for #[HookCallback] attributes and register them
+     *
+     * @return void
+     */
+    private function scanHookExtensionsForAttributes(): void
+    {
+        foreach ($this->loaded_hook_extensions as $extension) {
+            $reflection = new \ReflectionClass($extension);
+            $methods = $reflection->getMethods(\ReflectionMethod::IS_PUBLIC | \ReflectionMethod::IS_PROTECTED);
+
+            foreach ($methods as $method) {
+                $attributes = $method->getAttributes(\App\Attributes\HookCallback::class);
+
+                foreach ($attributes as $attribute) {
+                    $hook = $attribute->newInstance();
+                    $methodName = $method->getName();
+
+                    // Register the method as a hook callback
+                    Hooks::set(
+                        $hook->hook_name,
+                        [$extension, $methodName],
+                        $hook->order
+                    );
+                }
+            }
+        }
+    }
+
+    /**
+     * Scan Api extensions for #[ApiEndpoint] attributes and register them
+     *
+     * @return void
+     */
+    private function scanApiExtensionsForAttributes(): void
+    {
+        if (!defined('MILK_API_CONTEXT')) {
+            return;
+        }
+
+        foreach ($this->loaded_api_extensions as $extension) {
+            $reflection = new \ReflectionClass($extension);
+            $methods = $reflection->getMethods(\ReflectionMethod::IS_PUBLIC | \ReflectionMethod::IS_PROTECTED);
+
+            foreach ($methods as $method) {
+                $attributes = $method->getAttributes(\App\Attributes\ApiEndpoint::class);
+
+                foreach ($attributes as $attribute) {
+                    $api = $attribute->newInstance();
+                    $methodName = $method->getName();
+
+                    // Register the API endpoint
+                    $options = array_merge($api->options, [
+                        'method' => $api->method ?? 'ANY'
+                    ]);
+                    \App\API::set($api->url, [$extension, $methodName], $options);
+
+                    // Check if this method also has ApiDoc attribute
+                    $docAttributes = $method->getAttributes(\App\Attributes\ApiDoc::class);
+                    if (!empty($docAttributes)) {
+                        $apiDoc = $docAttributes[0]->newInstance();
+                        \App\API::setDocumentation($api->url, $apiDoc->toArray());
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Scan Shell extensions for #[Shell] attributes and register them
+     *
+     * @return void
+     */
+    private function scanShellExtensionsForAttributes(): void
+    {
+        foreach ($this->loaded_shell_extensions as $extension) {
+            $reflection = new \ReflectionClass($extension);
+            $methods = $reflection->getMethods(\ReflectionMethod::IS_PUBLIC | \ReflectionMethod::IS_PROTECTED);
+
+            foreach ($methods as $method) {
+                $attributes = $method->getAttributes(\App\Attributes\Shell::class);
+
+                foreach ($attributes as $attribute) {
+                    $shell = $attribute->newInstance();
+                    $methodName = $method->getName();
+
+                    // Register the shell command
+                    if (isset($shell->system) && $shell->system === true) {
+                        // System command without module prefix
+                        \App\Cli::set($shell->command, [$extension, $methodName]);
+                    } else {
+                        // Module command with prefix
+                        if ($this->page) {
+                            \App\Cli::set($this->page . ":" . $shell->command, [$extension, $methodName]);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Scan Controller extensions for #[RequestAction] and #[AccessLevel] attributes and register them
+     *
+     * This method scans all loaded Controller extensions for #[RequestAction] attributes
+     * and stores them for later use by the Controller's RouteControllerTrait.
+     *
+     * @return void
+     */
+    private function scanControllerExtensionsForAttributes(): void
+    {
+        // Controller extensions are managed by the Module, not passed to the Controller
+        // The Module's overridden buildRouteMap() method (from RouteControllerTrait)
+        // will scan controller extensions when building routes
+        // This happens automatically when the Module acts as the route handler
+    }
+
+    /**
+     * Override RouteControllerTrait's buildRouteMap to include Controller extensions
+     * This ensures Controller extensions work even when no Controller class exists
+     *
+     * @return void
+     */
+    protected function buildRouteMap(): void
+    {
+        // Scan the module itself (if it has route methods)
+        if (method_exists($this, 'scanAttributesFromClass')) {
+            $this->scanAttributesFromClass($this);
+        }
+
+        // Scan module-level extensions
+        if (isset($this->loaded_extensions) && !empty($this->loaded_extensions)) {
+            foreach ($this->loaded_extensions as $extension) {
+                if (method_exists($this, 'scanAttributesFromClass')) {
+                    $this->scanAttributesFromClass($extension);
+                }
+            }
+        }
+
+        // Scan Controller extensions (managed by Module, not Controller)
+        if (isset($this->loaded_controller_extensions) && !empty($this->loaded_controller_extensions)) {
+            foreach ($this->loaded_controller_extensions as $extension) {
+                if (method_exists($this, 'scanAttributesFromClass')) {
+                    $this->scanAttributesFromClass($extension);
+                }
+            }
+        }
     }
 
 

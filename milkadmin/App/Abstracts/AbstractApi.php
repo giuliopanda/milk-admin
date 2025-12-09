@@ -1,7 +1,7 @@
 <?php
 namespace App\Abstracts;
 
-use App\{API, Hooks};
+use App\{API, Hooks, ExtensionLoader};
 use App\Abstracts\Traits\AttributeApiTrait;
 
 !defined('MILK_DIR') && die(); // Prevent direct access
@@ -57,6 +57,8 @@ abstract class AbstractApi {
 
     /**
      * Constructor
+     *
+     * @param array|null $extensions Optional array of extensions to load
      */
     public function __construct() {
         $this->setupAttributeApiTraitHooks();
@@ -64,7 +66,7 @@ abstract class AbstractApi {
 
     /**
      * Set the module that owns this API
-     * 
+     *
      * @param object $module The module instance
      * @return void
      */
@@ -136,7 +138,7 @@ abstract class AbstractApi {
 
     /**
      * Helper method to create error response
-     * 
+     *
      * @param string $message Error message
      * @param mixed $errors Additional error details
      * @return array
@@ -148,4 +150,5 @@ abstract class AbstractApi {
         }
         return $response;
     }
+    
 }

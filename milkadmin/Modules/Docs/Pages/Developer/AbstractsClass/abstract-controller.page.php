@@ -174,7 +174,7 @@ public function duplicatePost($ids, $request) {
 
     <h4 class="mt-3">Adding js or css </h4>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">protected function init() {
-        Theme::set('javascript', Route::url().'/modules/base-module/assets/base-module.js');
+        Theme::set('javascript', Route::url().'/Modules/base-module/assets/base-module.js');
     }</code></pre>
 
     <h4 class="mt-3">Adding footer and header graphics</h4>
@@ -271,7 +271,7 @@ public function singleView() {
 // Usage example in a child class:
 class PostsController extends \App\Abstract\AbstractController {
     public function init() {
-        Theme::set('javascript', Route::url().'/modules/posts/assets/posts.js');
+        Theme::set('javascript', Route::url().'/Modules/posts/assets/posts.js');
     }
 }
 new PostsController();

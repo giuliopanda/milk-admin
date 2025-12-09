@@ -2,10 +2,14 @@
 namespace Builders;
 
 use App\Form;
+use App\ExtensionLoader;
+use App\Abstracts\Traits\ExtensionManagementTrait;
 
 !defined('MILK_DIR') && die(); // Prevents direct access
 
 class SearchBuilder {
+    use ExtensionManagementTrait;
+
     private $table_id;
     private $fields = [];
     private $auto_execute = true;
@@ -15,9 +19,32 @@ class SearchBuilder {
     private $label_position = 'inline'; // 'inline' | 'none' | 'before'
     private $search_mode = 'onchange'; // 'onchange' or 'submit'
     private $show_search_buttons = false; // se mostrare automaticamente i pulsanti search/clear in modalità submit
-    
+
+    /**
+     * List of extension names to load for this builder
+     * Format: ['ExtensionName' => ['param1' => 'value1', 'param2' => 'value2']]
+     * or simple: ['ExtensionName'] (will be normalized to ['ExtensionName' => []])
+     * @var array
+     */
+    protected array $extensions = [];
+
+    /**
+     * Loaded extension instances
+     * @var array
+     */
+    protected array $loaded_extensions = [];
+
     public function __construct($table_id) {
         $this->table_id = $table_id;
+
+        // Normalize extensions to associative format
+        $this->extensions = $this->normalizeExtensions($this->extensions);
+
+        // Load extensions
+        $this->loadExtensions();
+
+        // Call configure hook on all extensions
+        ExtensionLoader::callHook($this->loaded_extensions, 'configure', [$this]);
     }
     
     /**
@@ -591,11 +618,61 @@ class SearchBuilder {
     
     /**
      * Static factory method
-     * 
+     *
      * @param string $table_id Table ID for filter connection
      * @return self
      */
     public static function create($table_id): self {
         return new self($table_id);
+    }
+
+    /**
+     * Load extensions defined in $this->extensions array
+     *
+     * @return void
+     * @throws \Exception If extension is not found
+     */
+    protected function loadExtensions(): void
+    {
+        if (empty($this->extensions)) {
+            return;
+        }
+
+        $this->loaded_extensions = ExtensionLoader::load($this->extensions, 'SearchBuilder', $this);
+    }
+
+    /**
+     * Set extensions to load for this builder (method chaining)
+     *
+     * @param array $extensions Extensions array
+     * @return self For method chaining
+     *
+     * @example ->extensions(['SoftDelete' => ['auto_filter' => true]])
+     * @example ->extensions(['SoftDelete'])
+     */
+    public function extensions(array $extensions): self
+    {
+        // Normalize and merge with existing extensions
+        $normalized = $this->normalizeExtensions($extensions);
+        $this->extensions = $this->mergeExtensions($this->extensions, $normalized);
+
+        // Reload extensions
+        $this->loadExtensions();
+
+        // Call configure hook on newly loaded extensions
+        ExtensionLoader::callHook($this->loaded_extensions, 'configure', [$this]);
+
+        return $this;
+    }
+
+    /**
+     * Get loaded extension by name
+     *
+     * @param string $extension_name Extension name
+     * @return object|null Extension instance or null if not found
+     */
+    public function getLoadedExtension(string $extension_name): ?object
+    {
+        return $this->loaded_extensions[$extension_name] ?? null;
     }
 }

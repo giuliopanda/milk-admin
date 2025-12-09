@@ -2,6 +2,7 @@
 namespace App\Abstracts;
 
 use App\Abstracts\Traits\InstallationTrait;
+use App\ExtensionLoader;
 
 !defined('MILK_DIR') && die(); // Prevent direct access
 
@@ -65,22 +66,34 @@ abstract class AbstractInstall {
      * @var bool
      */
     protected $is_core_module = false;
+
+    /**
+     * Extensions to load for this Install
+     * @var array
+     */
+    protected array $extensions = [];
+
+    /**
+     * Loaded extension instances
+     * @var array
+     */
+    private array $loaded_extensions = [];
+
     /**
      * Constructor
-     * 
-     * @param object $module The module instance
+     *
+     * @param array|null $extensions Optional array of extensions to load
      */
     public function __construct() {
-      
     }
 
     /**
      * Set handle install - provides access to module properties
-     * 
+     *
      * This method is called automatically by the AbstractModule after bootstrap
      * to provide the Install class with access to the module's properties and methods.
      * Similar to how the router gets access via setHandleRoutes.
-     * 
+     *
      * @param object $module The module instance
      */
     public function setHandleInstall($module) {
@@ -92,14 +105,37 @@ abstract class AbstractInstall {
         $this->path = $module->getChildClassPath();
         $this->disable_cli = $module->getDisableCli();
         $this->is_core_module = $module->isCoreModule();
+    }
 
+    /**
+     * Set loaded extensions
+     *
+     * This method is called by AbstractModule to pass the loaded Install extensions
+     * to this Install class so it can call hooks on them.
+     *
+     * @param array $extensions Loaded extension instances
+     * @return void
+     */
+    public function setLoadedExtensions(array $extensions): void
+    {
+        $this->loaded_extensions = $extensions;
+    }
+
+    /**
+     * Get loaded extensions
+     *
+     * @return array
+     */
+    public function getLoadedExtensions(): array
+    {
+        return $this->loaded_extensions;
     }
 
      /**
      * Get the file path of the child class
-     * 
+     *
      * Returns the directory path of the child module class.
-     * 
+     *
      * @return string Directory path
      */
     public function getChildClassPath() {
@@ -109,6 +145,5 @@ abstract class AbstractInstall {
         $directoryPath = dirname($filePath);
         return $directoryPath;
     }
-
 
 }

@@ -59,7 +59,7 @@ class InstallModule extends AbstractModule
         $version = Config::get('version');
         $system_needs_update = defined('NEW_VERSION') && NEW_VERSION > $version;
 
-        $current_versions = Config::get('module_version');
+        $current_versions = Config::get('modules_active');
         $settings_versions = Settings::get('module_version');
 
         // Verifica se ci sono moduli da aggiornare
@@ -391,7 +391,7 @@ class InstallModule extends AbstractModule
         $count = 0;
         $substr_version = substr($version, 0, 4);
 
-        if ($custom_version != '' && preg_match('/^[0-9]{2}(0[1-9]|1[0-2])([0-9]{2})$/', $custom_version)) {
+        if ($custom_version != '' && preg_match('/^[0-9]{2}(0[0-9]|1[0-9])([0-9]{2})$/', $custom_version)) {
             $new_version = $custom_version;
         } else {
             if ($substr_version == date('ym')) {
@@ -459,6 +459,9 @@ class InstallModule extends AbstractModule
         mkdir(MILK_DIR.'/../milk-admin-v'.$new_version.'/milkadmin_local');
         mkdir(MILK_DIR.'/../milk-admin-v'.$new_version.'/milkadmin_local/storage');
         mkdir(MILK_DIR.'/../milk-admin-v'.$new_version.'/milkadmin_local/media');
+        // add index to storage and media
+        File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/milkadmin_local/storage/index.php', '<?php // Silence is golden');
+        File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/milkadmin_local/media/index.php', '<?php // Silence is golden');
 
         // config
         $config_file = __DIR__.'/Assets/InstallFiles/installation_config_example.php';

@@ -15,7 +15,7 @@ use App\Theme;
 
 <div class="bg-white p-4">
    <h1>Cron Module Documentation</h1>
-   <?php if (!is_dir(MILK_DIR . '/modules/jobs')) : ?>
+   <?php if (!is_dir(MILK_DIR . '/Modules/jobs')) : ?>
       <div class="alert alert-danger">The <strong>jobs</strong> module is not installed. Please install it to use this module.</div>
    <?php else: ?>
       <p>This documentation provides a concise guide on how to implement scheduled tasks in your application using the Cron module.</p>

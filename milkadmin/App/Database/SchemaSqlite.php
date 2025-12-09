@@ -66,7 +66,18 @@ class SchemaSqlite {
         $field->primary_key = true;
         $this->primary_key = $name;  // per retrocompatibilità
         $this->primary_keys = [$name];
-        $this->fields[$name] = $field;
+        $this->fields = array_merge([$name => $field], $this->fields);
+        return $this;
+    }
+
+    public function removePrimaryKeys() {
+        foreach ($this->primary_keys as $pk) {
+            if (isset($this->fields[$pk])) {
+                unset($this->fields[$pk]);
+            }
+        }
+        $this->primary_keys = [];
+        $this->primary_key = null;
         return $this;
     }
 

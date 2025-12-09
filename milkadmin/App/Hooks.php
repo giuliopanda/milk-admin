@@ -154,4 +154,19 @@ class Hooks
         }
         return $new_args;
     }
+
+    /**
+     * Removes all registered functions for a specific hook
+     * 
+     * @param string $name The name of the hook to clear
+     * @return bool True if hooks were removed, false if the hook didn't exist
+     */
+    public static function remove($name): bool {
+        $name = _raz($name);
+        if (array_key_exists($name, self::$functions)) {
+            unset(self::$functions[$name]);
+            return true;
+        }
+        return false;
+    }
 }

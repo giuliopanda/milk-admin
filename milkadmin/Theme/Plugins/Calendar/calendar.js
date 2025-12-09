@@ -53,6 +53,7 @@ class Calendar {
         this.initialize_month_select();
         this.initialize_year_select();
         this.initialize_navigation_buttons();
+        this.initialize_week_select();
         this.initialize_appointment_clicks();
     }
 
@@ -97,22 +98,33 @@ class Calendar {
         const prev_button = this.el_container.querySelector('.js-calendar-prev');
         const next_button = this.el_container.querySelector('.js-calendar-next');
         const today_button = this.el_container.querySelector('.js-calendar-today');
-
+        
+        // Detecta se è vista settimanale
+        const isWeekly = this.el_container.querySelector('.weekly-view') !== null;
+        
         if (prev_button) {
             prev_button.addEventListener('click', () => {
-                const month = prev_button.getAttribute('data-month');
-                const year = prev_button.getAttribute('data-year');
-                this.set_month_year(month, year);
-                this.update_calendar();
+                if (isWeekly) {
+                    this.navigate_week(-1);
+                } else {
+                    const month = prev_button.getAttribute('data-month');
+                    const year = prev_button.getAttribute('data-year');
+                    this.set_month_year(month, year);
+                    this.update_calendar();
+                }
             });
         }
-
+        
         if (next_button) {
             next_button.addEventListener('click', () => {
-                const month = next_button.getAttribute('data-month');
-                const year = next_button.getAttribute('data-year');
-                this.set_month_year(month, year);
-                this.update_calendar();
+                if (isWeekly) {
+                    this.navigate_week(1);
+                } else {
+                    const month = next_button.getAttribute('data-month');
+                    const year = next_button.getAttribute('data-year');
+                    this.set_month_year(month, year);
+                    this.update_calendar();
+                }
             });
         }
 
@@ -126,10 +138,68 @@ class Calendar {
         }
     }
 
+    navigate_week(direction) {
+        const week_select = this.el_container.querySelector('.js-calendar-week-select');
+        if (!week_select) return;
+        
+        const current_week = parseInt(week_select.value);
+        const new_week = current_week + direction;
+        
+        // Se fuori range, cambia mese
+        if (new_week < 1) {
+            const month_select = this.el_container.querySelector('.js-calendar-month-value');
+            const year_select = this.el_container.querySelector('.js-calendar-year-select');
+            
+            let month = parseInt(month_select.value) - 1;
+            let year = parseInt(year_select.value);
+            
+            if (month < 1) {
+                month = 12;
+                year--;
+            }
+            
+            this.set_month_year(month, year);
+            // Imposta ultima settimana del mese precedente
+            week_select.value = 4; // Approssimazione
+        } else if (new_week > week_select.options.length) {
+            // Vai al mese successivo
+            const month_select = this.el_container.querySelector('.js-calendar-month-value');
+            const year_select = this.el_container.querySelector('.js-calendar-year-select');
+            
+            let month = parseInt(month_select.value) + 1;
+            let year = parseInt(year_select.value);
+            
+            if (month > 12) {
+                month = 1;
+                year++;
+            }
+            
+            this.set_month_year(month, year);
+            week_select.value = 1;
+        } else {
+            week_select.value = new_week;
+        }
+        
+        this.update_calendar();
+    }
+
+    // Aggiungere inizializzazione week select
+    initialize_week_select() {
+        const week_select = this.el_container.querySelector('.js-calendar-week-select');
+        
+        if (week_select) {
+            week_select.addEventListener('change', () => {
+                this.update_calendar();
+            });
+        }
+    }
+
     /**
      * Set month and year values in hidden fields and select elements
      */
     set_month_year(month, year) {
+        const isWeekly = this.el_container.querySelector('.weekly-view') !== null;
+        
         // Update hidden fields
         const month_field = this.el_container.querySelector('.js-field-calendar-month');
         const year_field = this.el_container.querySelector('.js-field-calendar-year');
@@ -138,11 +208,19 @@ class Calendar {
         if (year_field) year_field.value = year;
 
         // Update select elements
-        const month_select = this.el_container.querySelector('.js-calendar-month-select');
-        const year_select = this.el_container.querySelector('.js-calendar-year-select');
-
-        if (month_select) month_select.value = month;
-        if (year_select) year_select.value = year;
+        if (isWeekly) {
+            const month_value = this.el_container.querySelector('.js-calendar-month-value');
+            const year_select = this.el_container.querySelector('.js-calendar-year-select');
+            
+            if (month_value) month_value.value = month;
+            if (year_select) year_select.value = year;
+        } else {
+            const month_select = this.el_container.querySelector('.js-calendar-month-select');
+            const year_select = this.el_container.querySelector('.js-calendar-year-select');
+            
+            if (month_select) month_select.value = month;
+            if (year_select) year_select.value = year;
+        }
     }
 
     
@@ -160,23 +238,59 @@ class Calendar {
             console.error('Calendar form not found');
             return;
         }
-
+        
+        // Detecta se è vista settimanale
+        const isWeekly = this.el_container.querySelector('.weekly-view') !== null;
+        
         // Get current values from select elements
-        const month_select = this.el_container.querySelector('.js-calendar-month-select');
-        const year_select = this.el_container.querySelector('.js-calendar-year-select');
-
-        if (!month_select || !year_select) {
-            console.error('Calendar select elements not found');
-            return;
+        let month_select, year_select, week_select;
+        
+        if (isWeekly) {
+            // Vista settimanale: usa hidden field per mese e select per settimana
+            month_select = this.el_container.querySelector('.js-calendar-month-value');
+            week_select = this.el_container.querySelector('.js-calendar-week-select');
+            year_select = this.el_container.querySelector('.js-calendar-year-select');
+            
+            if (!month_select || !year_select || !week_select) {
+                console.error('Calendar weekly select elements not found');
+                return;
+            }
+        } else {
+            // Vista mensile: usa select per mese
+            month_select = this.el_container.querySelector('.js-calendar-month-select');
+            year_select = this.el_container.querySelector('.js-calendar-year-select');
+            
+            if (!month_select || !year_select) {
+                console.error('Calendar select elements not found');
+                return;
+            }
         }
 
         // Update hidden fields with current select values
         const month_field = this.el_container.querySelector('.js-field-calendar-month');
         const year_field = this.el_container.querySelector('.js-field-calendar-year');
+        const type_field = this.el_container.querySelector('.js-field-calendar-type');
+        const filters_field = this.el_container.querySelector('.js-field-calendar-filters');
 
         if (month_field) month_field.value = month_select.value;
         if (year_field) year_field.value = year_select.value;
 
+        // Update type field with current view type
+        if (type_field) {
+            type_field.value = isWeekly ? 'weekly' : 'monthly';
+        }
+
+        // Per vista settimanale, aggiungi week_number al form
+        if (isWeekly && week_select) {
+            let week_field = form.querySelector('input[name$="[week]"]');
+            if (!week_field) {
+                week_field = document.createElement('input');
+                week_field.type = 'hidden';
+                week_field.name = form.querySelector('input[name$="[month]"]').name.replace('[month]', '[week]');
+                form.appendChild(week_field);
+            }
+            week_field.value = week_select.value;
+        }
         // Show loading indicator
         if (this.plugin_loading) {
             this.plugin_loading.show();

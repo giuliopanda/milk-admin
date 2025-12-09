@@ -339,7 +339,7 @@ class Get
                             // Fallback for classes without namespace
                             new $class();
                         } else {
-                            die('Module not found: ' . $class);
+                            //die('Module not found: ' . $class);
                         }
                     });
                 }

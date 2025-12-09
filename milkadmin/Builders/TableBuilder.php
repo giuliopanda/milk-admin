@@ -1,9 +1,7 @@
 <?php
 namespace Builders;
 
-use App\Modellist\{ListStructure, ModelList};
-use App\{Get, MessagesHandler, Route, Config};
-use App\Database\{Query};
+use App\{Get,};
 use \Builders\Exceptions\BuilderException;
 
 !defined('MILK_DIR') && die(); // Prevents direct access
@@ -18,7 +16,9 @@ use \Builders\Exceptions\BuilderException;
 class TableBuilder extends GetDataBuilder
 {
 
-
+    protected $table_id = '';
+    protected $footer_data = [];
+    protected $table_attrs = [];
     /**
      * Get HTML table string
      * 

@@ -5,71 +5,21 @@ use App\{Get};
 
 !defined('MILK_DIR') && die(); // Prevents direct access
 
-/*
-Bozza parziale di documentazione:
-private $header_title = 'Calendar';
-private $header_icon = '';
-private $header_color_class = 'bg-primary';
-2. calendar.php:66-116 - Metodi di configurazione
-setHeaderTitle($title) - Imposta il titolo dell'header
-setHeaderIcon($icon) - Imposta l'icona (Bootstrap Icons)
-setHeaderColor($color) - Imposta il colore (accetta nomi predefiniti come 'primary', 'success', 'danger', ecc.)
-setHeaderColorClass($class) - Imposta una classe CSS custom
-3. calendar.php:296 - Header HTML migliorato
-Background colorato con classe dinamica
-Padding migliorato (15px 20px)
-Icona prima del titolo (opzionale)
-Bottoni con sfondo semi-trasparente bianco
-Testo bianco su sfondi scuri, testo scuro su sfondi chiari
-4. calendar.css:17-53 - Stili CSS
-Padding e border-radius
-Box-shadow con hover effect
-Styling per icone e bottoni
-Transizioni smooth
-5. CalendarBuilder.php:23-25 - Proprietà builder
-protected $header_title = 'Calendar';
-protected $header_icon = '';
-protected $header_color = 'primary';
-6. CalendarBuilder.php:111-153 - Metodi fluent
-->setHeaderTitle('Events Calendar')
-->setHeaderIcon('bi-calendar-event')
-->setHeaderColor('primary')
-7. EventsController.php:28-30 - Esempio d'uso
-->setHeaderTitle('Events Calendar')
-->setHeaderIcon('bi-calendar-event')
-->setHeaderColor('primary')
-Colori Predefiniti Disponibili
-primary (blu)
-secondary (grigio)
-success (verde)
-danger (rosso)
-warning (giallo)
-info (azzurro)
-light (chiaro)
-dark (scuro)
-Esempio Completo
-$calendar = CalendarBuilder::create($model, 'my_calendar')
-    ->setHeaderTitle('My Events')
-    ->setHeaderIcon('bi-calendar-check')
-    ->setHeaderColor('success')  // Header verde
-    ->setMonthYear(11, 2025)
-    ->render();
-
-*/
-
-
-
 /**
  * CalendarBuilder - Fluent interface for creating calendar views
  *
  * Extends GetDataBuilder to provide calendar-specific functionality with
  * automatic month/year filtering and event rendering.
+ * 
+ * UPDATED: Now supports both monthly and weekly views
  *
  * @package Builders
  * @author MilkAdmin
  */
 class CalendarBuilder extends GetDataBuilder
 {
+
+    protected $table_id = '';
     protected $month = null;
     protected $year = null;
     protected $locale = 'en_US';
@@ -97,6 +47,12 @@ class CalendarBuilder extends GetDataBuilder
 
     // Custom rendering
     protected $custom_cell_renderer = null;
+    
+    // View type and weekly settings
+    protected $view_type = 'monthly'; // 'monthly' or 'weekly'
+    protected $weekly_hour_start = 0;
+    protected $weekly_hour_end = 24;
+    protected $weekly_hour_height = 60;
 
     // Field mappings for event data
     protected $field_mappings = [
@@ -112,6 +68,106 @@ class CalendarBuilder extends GetDataBuilder
 
     // Calendar styling attributes
     protected $calendar_attrs = [];
+
+    protected $week_number = null;
+
+    // ========================================================================
+    // VIEW TYPE METHODS
+    // ========================================================================
+
+    /**
+     * Set the view type (monthly or weekly)
+     *
+     * @param string $type View type: 'monthly' or 'weekly'
+     * @return static For method chaining
+     *
+     * @example ->setViewType('weekly')
+     */
+    public function setViewType(string $type): static {
+        $this->resetFieldContext();
+        if (in_array($type, ['monthly', 'weekly'])) {
+            $this->view_type = $type;
+        }
+        return $this;
+    }
+
+    /**
+     * Set weekly view mode
+     * 
+     * Shortcut for setViewType('weekly')
+     *
+     * @return static For method chaining
+     *
+     * @example ->useWeeklyView()
+     */
+    public function useWeeklyView(): static {
+        return $this->setViewType('weekly');
+    }
+
+    /**
+     * Set monthly view mode
+     * 
+     * Shortcut for setViewType('monthly')
+     *
+     * @return static For method chaining
+     *
+     * @example ->useMonthlyView()
+     */
+    public function useMonthlyView(): static {
+        return $this->setViewType('monthly');
+    }
+
+    /**
+     * Configure weekly view settings
+     *
+     * @param int $hourStart Start hour (0-23)
+     * @param int $hourEnd End hour (1-24)
+     * @param int $hourHeight Height in pixels for each hour
+     * @return static For method chaining
+     *
+     * @example ->setWeeklyViewSettings(8, 20, 60) // Office hours: 8-20, 60px per hour
+     */
+    public function setWeeklyViewSettings(int $hourStart, int $hourEnd, int $hourHeight = 60): static {
+        $this->resetFieldContext();
+        $this->weekly_hour_start = max(0, min(23, $hourStart));
+        $this->weekly_hour_end = max(1, min(24, $hourEnd));
+        $this->weekly_hour_height = max(40, $hourHeight);
+        return $this;
+    }
+
+    /**
+     * Set weekly view hour range
+     *
+     * @param int $start Start hour (0-23)
+     * @param int $end End hour (1-24)
+     * @return static For method chaining
+     *
+     * @example ->setWeeklyHours(8, 20) // Show 8:00 to 20:00
+     */
+    public function setWeeklyHours(int $start, int $end): static {
+        $this->resetFieldContext();
+        $this->weekly_hour_start = max(0, min(23, $start));
+        $this->weekly_hour_end = max(1, min(24, $end));
+        return $this;
+    }
+
+    /**
+     * Set weekly view hour height
+     *
+     * @param int $height Height in pixels (minimum 40)
+     * @return static For method chaining
+     *
+     * @example ->setWeeklyHourHeight(80) // Larger cells
+     */
+    public function setWeeklyHourHeight(int $height): static {
+        $this->resetFieldContext();
+        $this->weekly_hour_height = max(40, $height);
+        return $this;
+    }
+
+    // ========================================================================
+    // EXISTING CALENDAR METHODS (unchanged)
+    // ========================================================================
 
     /**
      * Set the month to display (1-12)
@@ -472,6 +528,12 @@ class CalendarBuilder extends GetDataBuilder
         return $this;
     }
 
+    public function setWeekNumber($week) {
+        $this->resetFieldContext();
+        $this->week_number = $week;
+        return $this;
+    }
+
     /**
      * Map database fields to calendar event properties
      *
@@ -792,19 +854,20 @@ class CalendarBuilder extends GetDataBuilder
             $this->locale = Get::userLocale();
         }
 
-        // Apply filter before getting data
-        $this->applyMonthYearFilter();
+        // Filter already applied by setMonth/setYear, no need to apply again
         // remove limit filter
         $this->query->clean('limit');
-        // print query
-        //print "<p>".$this->query."</p>";
+
         // Get events data (processed rows)
         $rows = $this->getRowsData();
         $events = [];
 
+        // Get raw rows from DataProcessor
+        $rows_raw = $this->dataProcessor->getRawRows();
+
         // Use rows_raw for getting original datetime from database (MySQL format)
         foreach ($rows as $index => $row) {
-            $raw_row = $this->rows_raw[$index] ?? null;
+            $raw_row = $rows_raw[$index] ?? null;
 
             if (!$raw_row) {
                 continue;
@@ -924,7 +987,13 @@ class CalendarBuilder extends GetDataBuilder
             'show_prev_next_buttons' => $this->show_prev_next_buttons,
             'show_today_button' => $this->show_today_button,
             'custom_cell_renderer' => $this->custom_cell_renderer,
-            'calendar_attrs' => $this->calendar_attrs
+            'calendar_attrs' => $this->calendar_attrs,
+            // NEW: Weekly view settings
+            'view_type' => $this->view_type,
+            'weekly_hour_start' => $this->weekly_hour_start,
+            'weekly_hour_end' => $this->weekly_hour_end,
+            'weekly_hour_height' => $this->weekly_hour_height,
+            'week_number' => $this->week_number,
         ]);
     }
 

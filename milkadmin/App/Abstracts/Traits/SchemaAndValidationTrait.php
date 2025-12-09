@@ -368,7 +368,7 @@ trait SchemaAndValidationTrait
                  $handler = $this->getMethodHandler($field_name, 'validate');
                 if ($handler !== null) {
                     // #[Validate(field_name)]
-                    $error = $handler($this, $value);
+                    $error = $handler((object)$data);
                     if ($error) {
                         MessagesHandler::addError($error, $field_name);
                     }

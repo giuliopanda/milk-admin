@@ -16,9 +16,10 @@ namespace Modules\Docs\Pages;
     <h2>Key Features</h2>
     <ul>
         <li><strong>Database Integration</strong>: Automatically queries events from your database with proper date filtering</li>
+        <li><strong>Multiple Views</strong>: Monthly and weekly calendar views with automatic view type tracking</li>
         <li><strong>Query Manipulation</strong>: Full access to GetDataBuilder methods (where, orderBy, join, etc.)</li>
         <li><strong>Field Mapping</strong>: Map your database fields to calendar properties with support for callable functions</li>
-        <li><strong>AJAX Support</strong>: Built-in AJAX navigation for seamless month switching</li>
+        <li><strong>AJAX Support</strong>: Built-in AJAX navigation with automatic type and filter persistence</li>
         <li><strong>Localization</strong>: Multi-language support using PHP's IntlDateFormatter</li>
         <li><strong>Multi-day Events</strong>: Automatic handling of events spanning multiple days</li>
         <li><strong>Responsive Design</strong>: Bootstrap-based responsive calendar grid</li>
@@ -280,6 +281,30 @@ $calendar = CalendarBuilder::create($eventModel)
 
     <h2>Display Options</h2>
 
+    <h3>Calendar Views</h3>
+    <p>CalendarBuilder supports both monthly and weekly views. The view type is automatically tracked and persisted during AJAX navigation.</p>
+
+    <h4>Monthly View (Default)</h4>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$calendar = CalendarBuilder::create($eventModel)
+    ->useMonthlyView()  // or ->setViewType('monthly')
+    ->setMonthYear()
+    ->render();</code></pre>
+
+    <h4>Weekly View</h4>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$calendar = CalendarBuilder::create($eventModel)
+    ->useWeeklyView()  // or ->setViewType('weekly')
+    ->setWeeklyHours(8, 20)  // Show hours from 8:00 to 20:00
+    ->setWeeklyHourHeight(60)  // 60px per hour
+    ->setMonthYear()
+    ->render();
+
+// Or use the all-in-one method
+$calendar = CalendarBuilder::create($eventModel)
+    ->useWeeklyView()
+    ->setWeeklyViewSettings(8, 20, 60)  // start, end, height
+    ->setMonthYear()
+    ->render();</code></pre>
+
     <h3>Compact Mode</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$calendar = CalendarBuilder::create($eventModel)
     ->setCompact(true)  // Smaller calendar, no event details shown
@@ -399,8 +424,16 @@ $calendar = CalendarBuilder::create($eventModel)
 
     <h2>AJAX Implementation</h2>
 
-    <p>CalendarBuilder automatically handles AJAX requests for month navigation. Simply ensure your controller properly handles calendar requests:</p>
+    <p>CalendarBuilder automatically handles AJAX requests for navigation. The calendar automatically tracks and persists the view type (monthly/weekly) and any filters through hidden form fields during AJAX updates.</p>
 
+    <h3>Hidden Form Fields</h3>
+    <p>The calendar form includes two hidden fields that are automatically managed:</p>
+    <ul>
+        <li><code>type</code>: Stores the current view type ('monthly' or 'weekly')</li>
+        <li><code>filters</code>: Stores custom filter data as a string</li>
+    </ul>
+
+    <h3>Basic AJAX Handler</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// In your controller
 #[RequestAction('home')]
 public function calendarView()
@@ -410,8 +443,10 @@ public function calendarView()
 
     $month = (int)($calendar_params['month'] ?? date('n'));
     $year = (int)($calendar_params['year'] ?? date('Y'));
+    $type = $calendar_params['type'] ?? 'monthly';  // Get persisted view type
 
     $calendar = CalendarBuilder::create($this->model, $calendar_id)
+        ->setViewType($type)  // Restore view type
         ->setMonthYear($month, $year)
         ->setHeaderTitle('My Calendar')
         ->render();
@@ -429,6 +464,50 @@ public function calendarView()
     // Full page render
     Response::render(__DIR__ . '/Views/calendar.php', [
         'calendar' => $calendar
+    ]);
+}</code></pre>
+
+    <h3>AJAX with Custom Filters</h3>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// AJAX handler with filter persistence
+#[RequestAction('home')]
+public function calendarView()
+{
+    $calendar_id = 'my_calendar';
+    $calendar_params = $_REQUEST[$calendar_id] ?? [];
+
+    $month = (int)($calendar_params['month'] ?? date('n'));
+    $year = (int)($calendar_params['year'] ?? date('Y'));
+    $type = $calendar_params['type'] ?? 'monthly';
+    $filters = $calendar_params['filters'] ?? '';  // Get persisted filters
+
+    // Parse filters if needed
+    $category = $_GET['category'] ?? '';
+
+    $calendar = CalendarBuilder::create($this->model, $calendar_id)
+        ->setViewType($type)
+        ->setMonthYear($month, $year);
+
+    // Apply filters
+    if ($category) {
+        $calendar->where('category = ?', [$category])
+                 ->setFilters($category);  // Store filter for persistence
+    }
+
+    $html = $calendar->render();
+
+    // Handle AJAX request
+    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) &&
+        strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+
+        Response::json([
+            'success' => true,
+            'html' => $html
+        ]);
+    }
+
+    // Full page render
+    Response::render(__DIR__ . '/Views/calendar.php', [
+        'calendar' => $html
     ]);
 }</code></pre>
 
@@ -572,6 +651,59 @@ public function calendarView()
                 <td><code>mapFields()</code></td>
                 <td>array $mappings</td>
                 <td>Map database fields to event properties</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>View Type Methods</h3>
+    <table class="table table-bordered table-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>Method</th>
+                <th>Parameters</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>setViewType()</code></td>
+                <td>string $type</td>
+                <td>Set view type: 'monthly' or 'weekly'</td>
+            </tr>
+            <tr>
+                <td><code>useMonthlyView()</code></td>
+                <td>-</td>
+                <td>Shortcut for setViewType('monthly')</td>
+            </tr>
+            <tr>
+                <td><code>useWeeklyView()</code></td>
+                <td>-</td>
+                <td>Shortcut for setViewType('weekly')</td>
+            </tr>
+            <tr>
+                <td><code>setWeeklyViewSettings()</code></td>
+                <td>int $hourStart, int $hourEnd, int $hourHeight</td>
+                <td>Configure weekly view (start hour, end hour, px per hour)</td>
+            </tr>
+            <tr>
+                <td><code>setWeeklyHours()</code></td>
+                <td>int $start, int $end</td>
+                <td>Set hour range for weekly view (0-23, 1-24)</td>
+            </tr>
+            <tr>
+                <td><code>setWeeklyHourHeight()</code></td>
+                <td>int $height</td>
+                <td>Set hour cell height in pixels (min 40px)</td>
+            </tr>
+            <tr>
+                <td><code>setFilters()</code></td>
+                <td>string $filters</td>
+                <td>Set custom filters string (persisted in AJAX)</td>
+            </tr>
+            <tr>
+                <td><code>getViewType()</code></td>
+                <td>-</td>
+                <td>Get current view type</td>
             </tr>
         </tbody>
     </table>

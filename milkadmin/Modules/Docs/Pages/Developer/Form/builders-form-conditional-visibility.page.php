@@ -14,6 +14,19 @@ namespace Modules\Docs\Pages;
 
     <p>The FormBuilder class provides powerful methods to show or hide form fields based on the value of other fields. This allows you to create dynamic, user-friendly forms that only display relevant fields based on user selections.</p>
 
+    <div class="alert alert-info">
+        <h5 class="alert-heading">💡 Hiding Fields Permanently</h5>
+        <p class="mb-2">If you need to hide a field completely (not conditionally), you have two options:</p>
+        <ul class="mb-0">
+            <li><strong>In the Controller:</strong> Use <code>modifyField()</code> to set the field type as hidden:
+                <pre class="mb-2 mt-2"><code class="language-php">->modifyField('field_name', ['form-type' => 'hidden'])</code></pre>
+            </li>
+            <li><strong>In the Model:</strong> Use <code>hideFromEdit()</code> to hide the field from edit forms:
+                <pre class="mb-0 mt-2"><code class="language-php">->string('field_name', 100)->hideFromEdit()</code></pre>
+            </li>
+        </ul>
+    </div>
+
     <h2>Overview</h2>
     <p>Conditional visibility allows you to:</p>
     <ul>

@@ -172,7 +172,7 @@ class Response {
     /**
     * Check if the response should be in JSON format
     */
-    public static function isJson() {
+    public static function isJson(): bool {
         $outputType = 'html';
         if (isset($_REQUEST['page-output'])) {
             $outputType = $_REQUEST['page-output'];
@@ -195,7 +195,7 @@ class Response {
      * @return array The converted array
      */
     private static function csvConvertToArray(mixed $row): array {
-        if (is_object($row) && method_exists($row, 'toRawArray')) {
+        if (is_object($row) && method_exists($row, 'getFormattedData')) {
             $row = $row->getFormattedData('array');
         } else if (is_null($row) || !is_array($row)) {
             return [];
@@ -212,7 +212,7 @@ class Response {
     }
 
 
-    public static function denyAccess() {
+    public static function denyAccess(): void {
         if (self::isJson()) {
             self::json([
                 'success' => false,
@@ -221,6 +221,32 @@ class Response {
         }
         $queryString = Route::getQueryString();
         Route::redirect('?page=deny&redirect=' . Route::urlsafeB64Encode($queryString));
+    }
+
+
+    public static function error(string $msg): void {
+        if (self::isJson()) {
+            self::json([
+                'success' => false,
+                'msg' => $msg
+            ]);
+               Response::htmlJson(['success' => false, 'msg' => $msg]);
+        } else {
+            $msg = '<div class="alert alert-danger">' . _r($msg) . '</div>';
+            Response::themePage('default', $msg);
+        }
+    }
+
+    public static function success(string $msg): void {
+        if (self::isJson()) {
+            self::json([
+                'success' => true,
+                'msg' => $msg
+            ]);
+        } else {
+            $msg = '<div class="alert alert-success">' . _r($msg) . '</div>';
+            Response::themePage('default', $msg);
+        }
     }
 
 }

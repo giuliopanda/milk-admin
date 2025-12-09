@@ -11,7 +11,7 @@ $results_name_only = [];        // Risultati solo nel nome del file
 $results_content_only = [];     // Risultati solo nel contenuto
 
 ob_start();
-$array_pages = scandir(MILK_DIR . '/modules/docs/pages');
+$array_pages = scandir(MILK_DIR . '/Modules/docs/pages');
 $search = ($_REQUEST['search'] ?? '');
 
 // Se la ricerca è vuota, non proseguire
@@ -81,7 +81,7 @@ foreach ($array_pages as $page) {
 
 // Funzione per stampare i risultati trovati
 function printResult($page, $file_info, $search) {
-    echo '<h6><a href="' . Route::url('?page=docs&action=' . $page) . '">' . str_replace('/modules/docs/pages', '', $page) . '</a></h6>';
+    echo '<h6><a href="' . Route::url('?page=docs&action=' . $page) . '">' . str_replace('/Modules/Docs/Pages', '', $page) . '</a></h6>';
     
     $box = [];
     

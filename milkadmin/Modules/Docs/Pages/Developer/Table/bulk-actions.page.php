@@ -4,83 +4,108 @@ namespace Modules\Docs\Pages;
  * @title Bulk Actions
  * @guide developer
  * @order 20
- * @tags TableBuilder, bulk-actions, checkboxes, batch-operations, fetch, ajax, offcanvas
+ * @tags TableBuilder, bulk-actions, checkboxes, batch-operations, single-mode, batch-mode, showIfFilter
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>
 <div class="bg-white p-4">
     <h1>Bulk Actions Documentation</h1>
+    <p class="text-muted">Revision: 2025/12/02</p>
+    <h2>Overview</h2>
 
-    <p>The <code>setBulkActions()</code> method enables checkboxes in tables and allows executing actions on multiple selected rows. All operations are handled via fetch without page reload.</p>
+    <div class="alert alert-info">
+        <h5 class="alert-heading"><i class="bi bi-info-circle"></i> Actions vs Bulk Actions</h5>
+        <ul class="mb-0">
+            <li><strong>Row Actions:</strong> Actions column at the end of each table row for single record operations (edit, delete, view)</li>
+            <li><strong>Bulk Actions:</strong> Actions that appear when selecting multiple rows via checkboxes (bulk delete, export, update status)</li>
+            <li><strong>Checkboxes:</strong> Automatically appear when you define bulk actions using <code>setBulkActions()</code></li>
+        </ul>
+    </div>
 
-    <h2>Basic Usage</h2>
+    <h2>Basic Setup</h2>
 
-    <h3>Enabling Checkboxes</h3>
-    <p>Simply calling <code>setBulkActions()</code> automatically adds checkboxes to the table. When rows are selected, the bulk action dropdown appears.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">&lt;?php
+namespace Modules\Posts;
+use App\Abstracts\AbstractController;
+use Builders\TableBuilder;
 
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$table = \Builders\TableBuilder::create($model, 'table_id')
-    ->setBulkActions([
-        'action_name' => [
-            'label' => 'Action Label',
-            'action' => [$this, 'methodName']
-        ]
-    ])
-    ->getResponse();</code></pre>
+class PostsController extends AbstractController {
 
-    <h2>Action Modes</h2>
+    #[RequestAction('home')]
+    public function postsList() {
+        $response = ['page' => $this->page, 'title' => $this->title];
 
-    <h3>Standard Mode (Default)</h3>
-    <p>The action function is called once for each selected record individually. The table is automatically reloaded after execution.</p>
+        $tableBuilder = TableBuilder::create($this->model, 'idTablePosts')
+            ->setBulkActions([
+                'delete' => [
+                    'label' => 'Delete Selected',
+                    'action' => [$this, 'actionBulkDelete']
+                ]
+            ]);
 
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">'soft_delete' => [
-    'label' => 'Soft Delete',
-    'action' => [$this, 'actionSoftDelete']
-    // mode defaults to 'single'
-    // updateTable defaults to true
-]
-
-public function actionSoftDelete($record, $request) {
-    $record->deleted_at = date('Y-m-d H:i:s');
-    if ($record->save()) {
-        return ['success' => true, 'message' => 'Soft deleted successfully'];
+        $response = array_merge($response, $tableBuilder->getResponse());
+        Response::render(__DIR__ . '/Views/list_page.php', $response);
     }
-    return ['success' => false, 'message' => 'Soft delete failed'];
-}</code></pre>
 
-    <h3>Batch Mode</h3>
-    <p>Set <code>'mode' => 'batch'</code> to receive all selected records at once in a single call. Useful for comparisons or operations requiring all records together.</p>
-
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">'confronto' => [
-    'label' => 'Comparison',
-    'action' => [$this, 'actionComparison'],
-    'mode' => 'batch',          // Receives all records at once
-    'updateTable' => false       // Don't reload the table
-]
-
-public function actionComparison($records, $request) {
-    $records->setFormatted(); // Format records data
-    $fields = ['title', 'category', 'created_at', 'updated_at', 'deleted_at', 'content'];
-    $rows = '';
-
-    foreach ($fields as $field) {
-        $rows .= '<tr><th>' . $field . '</th>';
-        foreach ($records as $record) {
-            $rows .= '<td>' . ($record->$field ?? '-') . '</td>';
+    public function actionBulkDelete($record, $request) {
+        if ($record->delete($record->id)) {
+            return ['success' => true, 'msg' => 'Deleted successfully'];
         }
-        $rows .= '</tr>';
+        return ['success' => false, 'msg' => 'Delete failed'];
     }
-
-    return [
-        'success' => true,
-        'offcanvas_end' => [
-            'title' => 'Confronto',
-            'body' => '<table class="table table-bordered"><tbody>' . $rows . '</tbody></table>',
-            'size' => 'xl'
-        ]
-    ];
 }</code></pre>
 
-    <h2>Configuration Parameters</h2>
+    <div class="alert alert-warning">
+        <strong>Important:</strong> Always use <code>getResponse()</code> instead of <code>render()</code> when using bulk actions or row actions with callbacks. This ensures action return values are properly merged with the table response.
+    </div>
+
+    <h2>Configuration Methods</h2>
+
+    <div class="alert alert-info mb-3">
+        <h5 class="alert-heading"><i class="bi bi-info-circle"></i> addBulkAction() vs setBulkActions()</h5>
+        <ul class="mb-0">
+            <li><strong>addBulkAction($key, $action_data):</strong> Adds a single bulk action without modifying existing ones</li>
+            <li><strong>setBulkActions($actions):</strong> Replaces all bulk actions with the provided set (uses addBulkAction() internally)</li>
+        </ul>
+    </div>
+
+    <h3>setBulkActions() - Set All Actions</h3>
+    <p>Replaces all bulk actions with a new set:</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->setBulkActions([
+    'delete' => [
+        'label' => 'Delete',
+        'action' => [$this, 'actionDelete']
+    ],
+    'export' => [
+        'label' => 'Export',
+        'action' => [$this, 'actionExport'],
+        'mode' => 'batch',
+        'updateTable' => false
+    ]
+])</code></pre>
+
+    <h3>addBulkAction() - Add Single Action</h3>
+    <p>Add one action at a time without replacing existing ones:</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->addBulkAction('archive', [
+    'label' => 'Archive',
+    'action' => [$this, 'actionArchive']
+])
+
+// Chain multiple actions
+->addBulkAction('publish', ['label' => 'Publish', 'action' => [$this, 'actionPublish']])
+->addBulkAction('unpublish', ['label' => 'Unpublish', 'action' => [$this, 'actionUnpublish']])</code></pre>
+
+    <h3>getBulkActions() - Inspect Configured Actions</h3>
+    <p>Retrieve the list of all configured bulk actions:</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$tableBuilder = TableBuilder::create($model, 'idTablePosts')
+    ->addBulkAction('delete', ['label' => 'Delete', 'action' => [$this, 'actionDelete']])
+    ->addBulkAction('export', ['label' => 'Export', 'action' => [$this, 'actionExport']]);
+
+// Get all configured bulk actions
+$bulkActions = $tableBuilder->getBulkActions();
+// Returns: ['delete' => ['label' => 'Delete', 'action' => ...], 'export' => [...]]</code></pre>
+
+    <h2>Configuration Options</h2>
 
     <table class="table table-bordered table-sm">
         <thead class="table-dark">
@@ -108,26 +133,99 @@ public function actionComparison($records, $request) {
                 <td><code>mode</code></td>
                 <td>string</td>
                 <td>'single'</td>
-                <td><code>'single'</code> = one call per record<br><code>'batch'</code> = one call with all records</td>
+                <td><code>'single'</code> = called once per record<br><code>'batch'</code> = called once with all records</td>
             </tr>
             <tr>
                 <td><code>updateTable</code></td>
                 <td>bool</td>
                 <td>true</td>
-                <td>Whether to reload the table after execution</td>
+                <td>Whether to reload table after execution</td>
             </tr>
             <tr>
                 <td><code>showIfFilter</code></td>
                 <td>array</td>
                 <td>null</td>
-                <td>Conditional visibility based on active filters (see below)</td>
+                <td>Conditional visibility based on active filters</td>
             </tr>
         </tbody>
     </table>
 
+    <h2>Action Modes</h2>
+
+    <h3>Single Mode (Default)</h3>
+    <p>The action function is called <strong>once for each selected record</strong> individually:</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">'delete' => [
+    'label' => 'Delete',
+    'action' => [$this, 'actionDelete']
+    // mode defaults to 'single'
+]
+
+public function actionDelete($record, $request) {
+    // Called once per selected record
+    // $record is a single Model instance
+    if ($record->delete($record->id)) {
+        return ['success' => true, 'msg' => 'Deleted'];
+    }
+    return ['success' => false, 'msg' => 'Failed'];
+}</code></pre>
+
+    <h3>Batch Mode</h3>
+    <p>The action function is called <strong>once with all selected records</strong> together:</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">'export' => [
+    'label' => 'Export',
+    'action' => [$this, 'actionExport'],
+    'mode' => 'batch',
+    'updateTable' => false
+]
+
+public function actionExport($records, $request) {
+    // Called once with all records
+    // $records is a collection of Model instances
+    $records->setFormatted();
+
+    $csv = '';
+    foreach ($records as $record) {
+        $csv .= "{$record->id},{$record->title},{$record->status}\n";
+    }
+
+    return [
+        'success' => true,
+        'offcanvas_end' => [
+            'title' => 'Export Results',
+            'body' => '<pre>' . $csv . '</pre>'
+        ]
+    ];
+}</code></pre>
+
+    <h2>Action Method Signature</h2>
+
+    <h3>Single Mode</h3>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">public function actionMethodName($record, $request) {
+    // $record - Single Model instance of selected row
+    // $request - Full $_REQUEST array
+
+    // Perform operation on $record
+
+    // Return array with success and msg
+    return ['success' => true, 'msg' => 'Operation completed'];
+}</code></pre>
+
+    <h3>Batch Mode</h3>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">public function actionMethodName($records, $request) {
+    // $records - Collection of Model instances
+    // $request - Full $_REQUEST array
+
+    // Perform operation on all $records
+
+    // Return array with success and msg
+    return ['success' => true, 'msg' => 'Batch operation completed'];
+}</code></pre>
+
     <h2>Return Values</h2>
 
-    <p>Action functions must return an array. Common return parameters:</p>
+    <p>Action methods must return an associative array. Available keys:</p>
 
     <table class="table table-bordered table-sm">
         <thead class="table-dark">
@@ -141,420 +239,264 @@ public function actionComparison($records, $request) {
             <tr>
                 <td><code>success</code></td>
                 <td>bool</td>
-                <td>Operation success status</td>
+                <td>Whether the operation succeeded</td>
             </tr>
             <tr>
-                <td><code>message</code></td>
+                <td><code>msg</code></td>
                 <td>string</td>
-                <td>Feedback message to display</td>
+                <td>Feedback message to display (note: <code>msg</code> not <code>message</code>)</td>
             </tr>
             <tr>
                 <td><code>reload</code></td>
                 <td>bool</td>
-                <td>Force table reload (overrides <code>updateTable</code>)</td>
+                <td>Force table reload (overrides <code>updateTable</code> setting)</td>
             </tr>
             <tr>
                 <td><code>offcanvas_end</code></td>
                 <td>array</td>
-                <td>Opens offcanvas panel with content (see below)</td>
+                <td>Opens offcanvas panel with content: <code>['title' => '...', 'body' => '...', 'size' => 'xl']</code></td>
+            </tr>
+            <tr>
+                <td><code>modal</code></td>
+                <td>array</td>
+                <td>Opens modal dialog: <code>['title' => '...', 'body' => '...', 'footer' => '...']</code></td>
             </tr>
             <tr>
                 <td><code>redirect</code></td>
                 <td>string</td>
-                <td>URL to redirect to</td>
+                <td>URL to redirect to after operation</td>
             </tr>
         </tbody>
     </table>
 
-    <h3>Offcanvas Response</h3>
-    <p>Display results in a sliding panel from the right side:</p>
+    <h2>Practical Examples</h2>
 
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">return [
-    'success' => true,
-    'offcanvas_end' => [
-        'title' => 'Panel Title',
-        'body' => '<div>HTML content here</div>',
-        'size' => 'xl'  // 'sm', 'md', 'lg', 'xl'
+    <h3>Status Update</h3>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->setBulkActions([
+    'publish' => [
+        'label' => 'Publish',
+        'action' => [$this, 'actionPublish']
     ]
-];</code></pre>
+])
 
-    <h3>Modal Response</h3>
-    <p>Display results in a centered modal dialog:</p>
+public function actionPublish($record, $request) {
+    $record->status = 'published';
+    $record->published_at = date('Y-m-d H:i:s');
+    if ($record->save()) {
+        return ['success' => true, 'msg' => 'Published'];
+    }
+    return ['success' => false, 'msg' => 'Publish failed'];
+}</code></pre>
 
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">return [
-    'success' => true,
-    'modal' => [
-        'title' => 'Modal Title',
-        'body' => '<div>Modal content here</div>',
-        'footer' => '<button class="btn btn-primary">OK</button>' // Optional
+    <h3>Comparison (Batch Mode with Offcanvas)</h3>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->setBulkActions([
+    'compare' => [
+        'label' => 'Compare',
+        'action' => [$this, 'actionCompare'],
+        'mode' => 'batch',
+        'updateTable' => false
     ]
-];</code></pre>
+])
+
+public function actionCompare($records, $request) {
+    $records->setFormatted();
+    $fields = ['title', 'status', 'created_at'];
+
+    $html = '<table class="table table-bordered"><tbody>';
+    foreach ($fields as $field) {
+        $html .= '<tr><th>' . $field . '</th>';
+        foreach ($records as $record) {
+            $html .= '<td>' . ($record->$field ?? '-') . '</td>';
+        }
+        $html .= '</tr>';
+    }
+    $html .= '</tbody></table>';
+
+    return [
+        'success' => true,
+        'offcanvas_end' => [
+            'title' => 'Comparison',
+            'body' => $html,
+            'size' => 'xl'
+        ]
+    ];
+}</code></pre>
+
+    <h3>Using Built-in Delete Action</h3>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// You can use the built-in actionDeleteRow method:
+->setBulkActions([
+    'delete' => [
+        'label' => 'Delete',
+        'action' => [$tableBuilder, 'actionDeleteRow']
+    ]
+])
+
+// Or for default row actions with delete:
+->setDefaultActions() // Automatically includes edit and delete actions</code></pre>
 
     <h2>Conditional Visibility with showIfFilter</h2>
 
-    <p>The <code>showIfFilter</code> parameter allows you to conditionally display bulk actions based on the currently active table filters. This creates a context-aware interface that only shows relevant actions.</p>
+    <p>Show or hide bulk actions based on active table filters. Perfect for soft-delete patterns or status-based workflows.</p>
 
-    <h3>Basic Concept</h3>
-    <p>When a user applies filters to a table, you can configure bulk actions to appear or disappear based on those filter values. This is particularly useful for implementing soft-delete patterns or status-based operations.</p>
-
-    <h3>Syntax</h3>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">'showIfFilter' => ['filter_name' => 'filter_value']</code></pre>
-
-    <p><strong>Important:</strong> The action will only be visible when:</p>
-    <ul>
-        <li>The specified filter is active</li>
-        <li>The filter value exactly matches the specified value</li>
-        <li>Currently supports single filter condition (one key-value pair)</li>
-    </ul>
-
-    <h3>Practical Example: Soft Delete Pattern</h3>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Create a status filter with default value 'active'
+    <h3>Example: Soft Delete Pattern</h3>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Create status filter in SearchBuilder
 $searchBuilder = \Builders\SearchBuilder::create('idTablePosts')
     ->addActionList('status', 'Status:', [
-        'active' => 'Active Posts',
-        'deleted' => 'Deleted Posts'
-    ], 'active')
-    ->addSearch();
+        'active' => 'Active',
+        'deleted' => 'Deleted'
+    ], 'active');
 
-$tableBuilder = \Builders\TableBuilder::create($postModel, 'idTablePosts')
-    // Define the filter behavior
+// Configure table with conditional bulk actions
+$tableBuilder = TableBuilder::create($postModel, 'idTablePosts')
     ->filter('status', function($query, $value) {
         if ($value === 'deleted') {
             $query->where('deleted_at IS NOT NULL');
         } else {
             $query->where('deleted_at IS NULL');
         }
-    }, 'active')  // Default filter value
+    }, 'active')
 
-    // Configure bulk actions with conditional visibility
     ->setBulkActions([
         'soft_delete' => [
             'label' => 'Move to Trash',
             'action' => [$this, 'actionSoftDelete'],
-            'showIfFilter' => ['status' => 'active']  // Only when viewing active posts
+            'showIfFilter' => ['status' => 'active']  // Only when viewing active
         ],
         'hard_delete' => [
             'label' => 'Delete Permanently',
             'action' => [$this, 'actionHardDelete'],
-            'showIfFilter' => ['status' => 'deleted']  // Only when viewing deleted posts
+            'showIfFilter' => ['status' => 'deleted']  // Only when viewing deleted
         ],
         'restore' => [
             'label' => 'Restore',
             'action' => [$this, 'actionRestore'],
-            'showIfFilter' => ['status' => 'deleted']  // Only when viewing deleted posts
+            'showIfFilter' => ['status' => 'deleted']  // Only when viewing deleted
         ]
-    ]);</code></pre>
+    ]);
 
-    <h3>How It Works</h3>
-    <ol>
-        <li><strong>When filter is 'active':</strong> Users see only the "Move to Trash" bulk action</li>
-        <li><strong>When filter is 'deleted':</strong> Users see "Delete Permanently" and "Restore" bulk actions</li>
-        <li><strong>Dynamic UI:</strong> The dropdown automatically updates when filters change</li>
-    </ol>
-
-    <h3>Action Handler Implementation</h3>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">public function actionSoftDelete($record, $request) {
+public function actionSoftDelete($record, $request) {
     $record->deleted_at = date('Y-m-d H:i:s');
     if ($record->save()) {
-        return ['success' => true, 'message' => 'Moved to trash successfully'];
+        return ['success' => true, 'msg' => 'Moved to trash'];
     }
-    return ['success' => false, 'message' => 'Failed to move to trash'];
+    return ['success' => false, 'msg' => 'Failed'];
 }
 
 public function actionHardDelete($record, $request) {
-    // Only allow hard delete if already soft deleted
     if ($record->deleted_at !== null) {
         if ($record->delete($record->id)) {
-            return ['success' => true, 'message' => 'Permanently deleted'];
+            return ['success' => true, 'msg' => 'Permanently deleted'];
         }
     }
-    return ['success' => false, 'message' => 'Cannot delete active records'];
+    return ['success' => false, 'msg' => 'Cannot delete active records'];
 }
 
 public function actionRestore($record, $request) {
     $record->deleted_at = null;
     if ($record->save()) {
-        return ['success' => true, 'message' => 'Restored successfully'];
+        return ['success' => true, 'msg' => 'Restored'];
     }
-    return ['success' => false, 'message' => 'Restore failed'];
+    return ['success' => false, 'msg' => 'Restore failed'];
 }</code></pre>
 
-    <h3>Use Cases</h3>
-    <ul>
-        <li><strong>Soft Delete Systems:</strong> Different actions for active vs. deleted items</li>
-        <li><strong>Status Workflows:</strong> Status-specific bulk operations (draft → publish, pending → approve)</li>
-        <li><strong>Category Management:</strong> Category-specific batch operations</li>
-        <li><strong>Permission-Based Actions:</strong> Combined with filters, show actions only for specific item states</li>
-    </ul>
+    <div class="alert alert-info">
+        <h5 class="alert-heading"><i class="bi bi-lightbulb"></i> How It Works</h5>
+        <p><strong>When filter is 'active':</strong> Users see only "Move to Trash"</p>
+        <p><strong>When filter is 'deleted':</strong> Users see "Delete Permanently" and "Restore"</p>
+        <p class="mb-0"><strong>Dynamic UI:</strong> The dropdown updates automatically when filters change</p>
+    </div>
 
-    <h3>Best Practices</h3>
-    <ul>
-        <li>Always set a default filter value to ensure predictable initial state</li>
-        <li>Keep filter values simple and descriptive ('active', 'deleted', 'published')</li>
-        <li>Provide clear action labels that indicate what will happen ("Move to Trash" vs. "Delete")</li>
-        <li>Implement proper validation in action handlers to prevent misuse</li>
-        <li>Use confirmation messages for destructive operations</li>
-    </ul>
+    <h2>JavaScript Hooks</h2>
 
-    <h2>JavaScript Hooks for Custom Actions</h2>
-
-    <p>Use JavaScript hooks to intercept bulk actions and implement custom client-side behavior before the server request. This is useful for confirmations, custom downloads, redirects, or preventing default behavior.</p>
+    <p>Intercept bulk actions on the client side for confirmations, custom downloads, or preventing default behavior:</p>
 
     <h3>Hook Syntax</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-javascript">registerHook('table-action-{action_name}', function(ids, elclick, form, sendform) {
-    // Custom JavaScript logic
+    // ids: array of selected record IDs
+    // elclick: clicked button element
+    // form: table form element
+    // sendform: always true (legacy)
 
-    return true;   // Proceed with fetch request and table update
-    return false;  // Cancel request, no table update
+    return true;   // Proceed with server request
+    return false;  // Cancel request
 });</code></pre>
 
-    <h3>Hook Parameters</h3>
-    <table class="table table-bordered table-sm">
-        <thead class="table-dark">
-            <tr>
-                <th>Parameter</th>
-                <th>Type</th>
-                <th>Description</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td><code>ids</code></td>
-                <td>array|string</td>
-                <td>Selected record IDs (array for bulk, string for single action)</td>
-            </tr>
-            <tr>
-                <td><code>elclick</code></td>
-                <td>HTMLElement</td>
-                <td>The clicked action button element</td>
-            </tr>
-            <tr>
-                <td><code>form</code></td>
-                <td>HTMLFormElement</td>
-                <td>The table form element</td>
-            </tr>
-            <tr>
-                <td><code>sendform</code></td>
-                <td>boolean</td>
-                <td>Always <code>true</code> (legacy parameter)</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <h3>Return Values</h3>
-    <ul>
-        <li><strong>true</strong>: Proceed with fetch request to server and update table</li>
-        <li><strong>false</strong>: Cancel the request, table will not be updated</li>
-    </ul>
-
-    <h3>Example: Confirmation Dialog</h3>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-javascript">// Simple confirmation before delete
-registerHook('table-action-delete', function(ids, elclick, form, sendform) {
-    return confirm('Are you sure you want to delete this item? This action cannot be undone.');
+    <h3>Example: Confirmation</h3>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-javascript">registerHook('table-action-delete', function(ids, elclick, form, sendform) {
+    return confirm('Delete ' + ids.length + ' items? This cannot be undone.');
 });</code></pre>
 
-    <h3>Example: Custom File Download</h3>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-javascript">// Trigger download without table refresh
-registerHook('table-action-download', function(ids, elclick, form, sendform) {
-    // Create temporary form for file download
+    <h3>Example: Custom Download</h3>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-javascript">registerHook('table-action-download', function(ids, elclick, form, sendform) {
+    // Create download form
     const downloadForm = document.createElement('form');
     downloadForm.method = 'POST';
     downloadForm.action = milk_url;
     downloadForm.style.display = 'none';
 
-    // Add form fields
-    const fields = {
-        'ids': ids,
-        'action': 'download-data',
-        'page': 'posts'
-    };
+    const input = document.createElement('input');
+    input.name = 'ids';
+    input.value = ids.join(',');
+    downloadForm.appendChild(input);
 
-    Object.keys(fields).forEach(key => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = key;
-        input.value = fields[key];
-        downloadForm.appendChild(input);
-    });
-
-    // Submit to trigger download
     document.body.appendChild(downloadForm);
     downloadForm.submit();
     document.body.removeChild(downloadForm);
 
-    return false; // Don't send default fetch request
+    return false; // Don't send default request
 });</code></pre>
 
-    <h3>Example: Custom Redirect</h3>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-javascript">// Redirect to custom edit page instead of default action
-registerHook('table-action-edit-project', function(id, elclick, form, sendform) {
-    window.location.href = milk_url + '?page=projects&action=edit&id=' + id;
-    return false; // Prevent default table update
-});</code></pre>
+    <h2>Working with Links</h2>
 
-    <h3>Example: Custom UI with Offcanvas</h3>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-javascript">// Open offcanvas with custom form
-registerHook('table-action-edit', function(id, elclick, form, sendform) {
-    window.offcanvasEnd.show();
-    window.offcanvasEnd.loading_show();
+    <p>While bulk actions typically use callbacks, you can also create link-based actions with fetch:</p>
 
-    const formData = new FormData();
-    formData.append('id', id);
-    formData.append('action', 'edit-form');
-    formData.append('page', 'auth');
-    formData.append('page-output', 'json');
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Row action with link and fetch
+->setActions([
+    'restore' => [
+        'label' => 'Restore',
+        'link' => '?page=posts&action=restore&id=%id%',
+        'fetch' => 'post'  // Send link as POST via fetch
+    ]
+])
 
-    fetch(milk_url, {
-        method: 'POST',
-        credentials: 'same-origin',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        window.offcanvasEnd.loading_hide();
-        window.offcanvasEnd.body(data.html);
-        window.offcanvasEnd.title(data.title);
-    });
+// Or use activeFetch() to enable fetch mode for all links
+->activeFetch()
+->setActions([
+    'restore' => [
+        'label' => 'Restore',
+        'link' => '?page=posts&action=restore&id=%id%'
+        // fetch: 'post' is added automatically
+    ]
+])</code></pre>
 
-    return false; // Don't update table
-});</code></pre>
+    <h2>Best Practices</h2>
 
-    <h3>Best Practices</h3>
     <ul>
-        <li>Always return <code>true</code> or <code>false</code> explicitly to control default behavior</li>
-        <li>Use descriptive action names that match your PHP action configuration</li>
-        <li>Handle errors gracefully with try-catch blocks for async operations</li>
-        <li>Return <code>false</code> for actions that don't need table refresh (downloads, redirects)</li>
-        <li>Return <code>true</code> for actions that modify data and require table update</li>
-        <li>Use <code>confirm()</code> for destructive operations to prevent accidental deletions</li>
+        <li><strong>Mode Selection:</strong> Use 'single' for operations on individual records, 'batch' for operations requiring all records at once</li>
+        <li><strong>Table Updates:</strong> Set <code>updateTable => false</code> for actions that open offcanvas/modal or don't modify data</li>
+        <li><strong>Validation:</strong> Always validate operations in action handlers to prevent misuse</li>
+        <li><strong>Error Handling:</strong> Return detailed error messages in the <code>msg</code> field for better user feedback</li>
+        <li><strong>Built-in Actions:</strong> Use <code>[$tableBuilder, 'actionDeleteRow']</code> for standard delete operations</li>
+        <li><strong>Conditional Actions:</strong> Use <code>showIfFilter</code> to show/hide actions based on active filters (e.g., soft-delete patterns)</li>
     </ul>
 
-    <h2>Complete Example</h2>
+    <h2>Common Pitfalls</h2>
 
-    <h3>Module Implementation</h3>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">&lt;?php
-namespace Modules;
+    <div class="alert alert-danger">
+        <h5 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Common Mistakes</h5>
+        <ul class="mb-0">
+            <li><strong>Using 'message' instead of 'msg':</strong> The return key is <code>'msg'</code> not <code>'message'</code></li>
+            <li><strong>Using render() instead of getResponse():</strong> Action returns won't be merged with the table response</li>
+            <li><strong>Confusing modes:</strong> 'single' mode receives <code>$record</code> (singular), 'batch' receives <code>$records</code> (collection)</li>
+            <li><strong>Wrong addBulkAction() signature:</strong> Use <code>addBulkAction($key, $action_data)</code>, not <code>addBulkAction($action_data)</code></li>
+        </ul>
+    </div>
 
-use App\Abstracts\{AbstractModule, AbstractModel};
-use App\Attributes\RequestAction;
-use App\{Response, MessagesHandler};
-
-class BulkActionsModule extends AbstractModule {
-
-    protected function configure($rule): void
-    {
-        $rule->page('bulkActions')
-             ->title('Bulk Actions')
-             ->menu('Test Table 2')
-             ->access('public');
-    }
-
-    #[RequestAction('home')]
-    public function home() {
-        $response = [
-            'page' => $this->page,
-            'title' => $this->title,
-            'link_action_edit' => 'edit',
-            'table_id' => 'idTableTestTable2'
-        ];
-
-        $postModel = new \Modules\Posts\PostsModel();
-
-        // Create table with checkboxes and bulk actions
-        $tableBuilder = \Builders\TableBuilder::create($postModel, 'idTableTestTable2')
-            ->where('deleted_at IS NULL')
-            // Set bulk actions (these will show checkboxes automatically)
-            ->setBulkActions([
-                'soft_delete' => [
-                    'label' => 'Soft Delete',
-                    'action' => [$this, 'actionSoftDelete']
-                ],
-                'remove' => [
-                    'label' => 'Remove',
-                    'action' => [$this, 'actionRemove']],
-                'restore' => [
-                    'label' => 'Restore',
-                    'action' => [$this, 'actionRestore']],
-                'confronto' => [
-                    'label' => 'Comparison',
-                    'action' => [$this, 'actionComparison'],
-                    'mode' => 'batch', // passa tutti i record selezionati in una volta sola
-                    'updateTable' => false // non aggiorna la tabella
-                ]
-            ])
-            // Make title clickable
-            ->field('title')->Link('?page=' . $this->page . '&action=edit&id=%id%');
-
-        // Use getResponse() to merge table data with response
-        $response = [...$response, ...$tableBuilder->getResponse()];
-
-        Response::render(MILK_DIR . '/Modules/Posts/Views/list_page.php', $response);
-    }
-
-    public function actionRemove($record, $request) {
-        if ($record->deleted_at != null) {
-            return $record->delete($record->id);
-        }
-        return false;
-    }
-
-    public function actionSoftDelete($record, $request) {
-        $record->deleted_at = date('Y-m-d H:i:s');
-        if ($record->save()) {
-            return ['success' => true, 'message' => 'Soft deleted successfully'];
-        }
-        return ['success' => false, 'message' => 'Soft delete failed'];
-    }
-
-     public function actionRestore($record, $request) {
-        $record->deleted_at = null;
-        if ($record->save()) {
-            return ['success' => true, 'message' => 'Restored successfully'];
-        }
-        return ['success' => false, 'message' => 'Restore failed'];
-    }
-
-    public function actionComparison($records, $request) {
-        $records->setFormatted();
-        $fields = ['title', 'category', 'created_at', 'updated_at', 'deleted_at', 'content'];
-        $rows = '';
-        foreach ($fields as $field) {
-            $rows .= '<tr><th>' . $field . '</th>';
-            foreach ($records as $record) {
-                $rows .= '<td>' . ($record->$field ?? '-') . '</td>';
-            }
-            $rows .= '</tr>';
-        }
-
-        return [
-            'success' => true,
-            'offcanvas_end' => [
-                'title' => 'Confronto',
-                'body' => '<table class="table table-bordered"><tbody>' . $rows . '</tbody></table>',
-                'size' => 'xl'
-            ]
-        ];
-    }
-}</code></pre>
-
-    <h3>Model (PostsModel)</h3>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">&lt;?php
-namespace Modules\Posts;
-use App\Attributes\{Validate};
-use App\Abstracts\AbstractModel;
-
-class PostsModel extends AbstractModel
-{
-    protected function configure($rule): void
-    {
-        $rule->table('#__posts')
-            ->id()
-            ->title()
-            ->text('content')->formType('editor')
-            ->created_at()
-            ->timestamp('deleted_at')->nullable()
-            ->datetime('updated_at')->hideFromEdit()->saveValue(date('Y-m-d H:i:s'));
-    }
-}</code></pre>
-
+    <h2>Related Documentation</h2>
+    <ul>
+        <li><a href="?page=docs&action=Developer/Table/row-actions">Row Actions</a> - Single record actions in the actions column</li>
+        <li><a href="?page=docs&action=Developer/Table/builders-table">TableBuilder Overview</a> - Main table builder documentation</li>
+        <li><a href="?page=docs&action=Developer/Table/search-filters">Search & Filters</a> - Creating filters for showIfFilter</li>
+        <li><a href="?page=docs&action=Framework/Theme/theme-offcanvas">Offcanvas Component</a> - Offcanvas panel documentation</li>
+    </ul>
 </div>

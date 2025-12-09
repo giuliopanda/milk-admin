@@ -1,7 +1,7 @@
 <?php
 namespace App\Abstracts;
 
-use App\{Cli, Hooks};
+use App\{Cli, Hooks, ExtensionLoader};
 use App\Abstracts\Traits\AttributeShellTrait;
 
 !defined('MILK_DIR') && die(); // Prevent direct access
@@ -52,16 +52,10 @@ abstract class AbstractShell {
 
     protected $disable_cli = false;
 
-    /**
-     * Constructor
-     */
-    public function __construct() {
-        Hooks::set('cli-init', [$this, 'setupAttributeShellTraitCliHooks'], 90);
-    }
 
     /**
      * Set the module that owns this shell
-     * 
+     *
      * @param object $module The module instance
      * @return void
      */
@@ -93,4 +87,5 @@ abstract class AbstractShell {
     public function getModel(): ?object {
         return $this->model;
     }
+
 }

@@ -335,6 +335,8 @@ function jsonAction(data, container) {
             if (data.table.action == 'reload') {
                 table.reload();
             }
+        } else {
+            console.warn('error table reload id: '+data.table.id)
         }
     }
 

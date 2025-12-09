@@ -252,6 +252,13 @@ class ObjectToForm
              case 'time':
                 return Form::input('time', $rule['name'], $rule['label'], $value, $form_params, true);
                 break;
+            case 'timestamp':
+                // Convert Unix timestamp to datetime-local format (Y-m-d\TH:i)
+                if (is_numeric($value) && $value > 0) {
+                    $value = date('Y-m-d\TH:i', $value);
+                }
+                return Form::input('datetime-local', $rule['name'], $rule['label'], $value, $form_params, true);
+                break;
             case 'html':
                 return $rule['html'] ?? '';
                 break;

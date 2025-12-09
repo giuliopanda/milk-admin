@@ -41,11 +41,14 @@ trait CascadeSaveTrait
                 continue;
             }
 
-            // Only process belongsTo here (hasOne/hasMany after parent save)
-            if ($relationship['type'] !== 'belongsTo') {
+            // SKIP belongsTo: non ha senso modificare record correlati indipendenti
+            // belongsTo serve solo per leggere dati, non per modificarli
+            if ($relationship['type'] === 'belongsTo') {
                 continue;
             }
 
+            // Only process other relationship types here (if any in future)
+            // Currently we only support belongsTo in this phase, so this code won't execute
             // Save belongsTo related model
             $result = $this->saveBelongsToRelatedModel($relationship, $value, $record);
 
@@ -96,8 +99,20 @@ trait CascadeSaveTrait
                 continue;
             }
 
-            // Only process hasOne and hasMany here
-            if ($relationship['type'] !== 'hasOne' && $relationship['type'] !== 'hasMany') {
+            // Only process hasOne here
+            // SKIP hasMany: non ha senso modificare multipli record correlati tramite cascade
+            if ($relationship['type'] === 'hasMany') {
+                continue;
+            }
+
+            if ($relationship['type'] !== 'hasOne') {
+                continue;
+            }
+
+            // Check if cascade save is allowed for this hasOne relationship
+            $allowCascadeSave = $relationship['allowCascadeSave'] ?? false;
+            if (!$allowCascadeSave) {
+                // Skip: cascade save not explicitly enabled for this hasOne
                 continue;
             }
 
@@ -106,12 +121,8 @@ trait CascadeSaveTrait
                 continue;
             }
 
-            // Save related model(s)
-            if ($relationship['type'] === 'hasOne') {
-                $result = $this->saveHasOneRelatedModel($relationship, $value, $record);
-            } else {
-                $result = $this->saveHasManyRelatedModels($relationship, $value, $record);
-            }
+            // Save related model (hasOne only, and only if allowCascadeSave is true)
+            $result = $this->saveHasOneRelatedModel($relationship, $value, $record);
 
             if ($result !== null) {
                 $relationships_results[$field_name] = $result;

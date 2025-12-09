@@ -10,7 +10,7 @@
 [![Documentation](https://img.shields.io/badge/Docs-Online-green.svg)](https://milkadmin.org/milk-admin-v251100/?page=docs&action=Developer/GettingStarted/introduction)
 
 
-**Milk Admin** is a basic PHP administration component. Its goal is to provide a system for quickly creating control panels that can be integrated into core applications as a support tool.
+**Milk Admin** is a lightweight PHP admin that helps developers rapidly build CRUD-based admin panels and internal tools. It provides a stable, structured core with modern PHP 8+ code and minimal dependencies. 
 
 **However**, it's currently in the alpha stage, so I was wondering if I could try downloading it and using it for a personal project, such as a system for cataloging my favorite sites or projects. **Could you help me determine whether I'm heading in the right direction?**
 
@@ -21,22 +21,36 @@
 
 ## Key Features
 
-* **PHP 8+ Framework** - Clean, modern code that's easy to read and modify
-* **Ready-to-use Interface** - Complete admin template, just add your modules
-* **Web-based Setup** - Install like WordPress, manage via browser or CLI
-* **Dual Database** - MySQL for power, SQLite for simplicity
-* **Builder Classes** - Generate tables, forms, and searches in seconds
-* **Built-in Security** - CSRF, SQL Injection, XSS, brute force protection
-* **User Management** - Login, permissions, session handling included
-* **Public API** - Token or JWT authentication ready
-* **Cron Jobs** - Schedule automated tasks
+### **Builder Classes**
+
+Dedicated classes that simplify the creation of common CRUD components such as **tables, forms, lists, searches, filters, and custom views**. They provide a structured and consistent way to build administrative interfaces with minimal effort.
+
+### **Modular Architecture**
+
+Features are organized into **independent modules**, each containing its own model, controllers, and views. Modules can be installed, disabled, or updated individually. Ready-made downloadable modules are available to extend the system quickly.
+
+### **Extensions System**
+
+In addition to modules, Milk Admin includes an **extension system** that enhances existing modules with additional functionality. Extensions can be:
+
+* **Local**, created inside a module to keep code separated into logical units
+* **Global**, shared across the entire system and reusable in multiple modules
+
+### **Ready-to-Use Admin UI**
+
+A complete Bootstrap-based admin interface is provided out of the box, including login pages, a user profile screen, navigation structure, and access-control integration. This allows you to focus on application logic instead of UI setup.
+
 
 ## Technologies
-
+* **PHP 8+ Framework** - Clean, modern code that's easy to read and modify
 - **Backend**: PHP 8+, Composer (minimal dependencies)
 - **Database**: MySQL / SQLite  
+* **Built-in Security** - CSRF, SQL Injection, XSS, brute force protection
 - **Frontend**: Bootstrap 5, Vanilla JavaScript (no jQuery, no framework)
 - **Template**: Pure PHP (no template engine overhead)
+* **Web-based Setup** - Install like WordPress, manage via browser or CLI
+* **Public API** - Token or JWT authentication ready
+* **Cron Jobs** - Schedule automated tasks
 
 ---
 
@@ -202,7 +216,15 @@ Milk Admin is distributed under the [MIT License](LICENSE). Build whatever you w
 
 ## Changelog
 
-### v251124 (Current)
+### v251210 (Current)
+- New: Ability to create modules in milkadmin_local with use Local/Modules.
+- New: Extension management (example dev: Audit, Author, SoftDelete)
+- Refactoring of the builderTable
+- Minor and medium bug fixes
+- Improved documentation
+
+
+### v251124 
 - Refactored error handling in framework classes
 - Date formatting system refactor
 - Implementation of the timezone field in users
@@ -216,7 +238,6 @@ Milk Admin is distributed under the [MIT License](LICENSE). Build whatever you w
 
 
 ### v251101
-
 Major rewrite introducing modern PHP practices and professional architecture:
 
 **Core Changes:**
@@ -267,3 +288,4 @@ Major rewrite introducing modern PHP practices and professional architecture:
 -  [GitHub Repository](https://github.com/giuliopanda/milk-admin)
 
 ---
+

@@ -35,14 +35,14 @@ $data = json_decode('{"labels":[0,1,2,3],"datasets":[{"data":["78","66","42","77
   
     <p>This function allows you to add a custom link to the header.</p>
     <div class="border p-1" style="max-width:500px">
-        <img src="<?php echo BASE_URL ?>/modules/docs/assets/theme-header-link.jpg" alt="Header link" class="border w-100">
+        <img src="<?php echo BASE_URL ?>/Modules/docs/assets/theme-header-link.jpg" alt="Header link" class="border w-100">
     </div>
 
     <h5 class="mt-2">Adding a sidebar menu link</h5>
     <div class="d-flex align-items-center">
         <div class="flex-shrink-0 me-3">
             <div class="border p-1" style="max-width:80px">
-                <img src="<?php echo BASE_URL ?>/modules/docs/assets/theme-menu-sidebar.jpg" alt="Header link" class="border w-100">
+                <img src="<?php echo BASE_URL ?>/Modules/docs/assets/theme-menu-sidebar.jpg" alt="Header link" class="border w-100">
             </div>
         </div>
         <div class="flex-grow-1">

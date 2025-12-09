@@ -717,6 +717,9 @@ class Offcanvas_end
         document.getElementById('offCanvasBody').innerHTML = html;
         updateContainer(document.getElementById('offCanvasBody'));
     }
+    get_el() {
+        return  this.el_container;
+    }
 }
 
 
@@ -860,6 +863,9 @@ class Toasts {
             this.operationTimeout = null;
         }
     }
+    get_el() {
+        return this.toastEl;
+    }
 }
 
 class Modal {
@@ -965,6 +971,10 @@ class Modal {
         if (html !== undefined) {
             this.el_footer.innerHTML = html
         }
+    }
+
+    get_el() {
+        return this.dom_el;
     }
 }
 

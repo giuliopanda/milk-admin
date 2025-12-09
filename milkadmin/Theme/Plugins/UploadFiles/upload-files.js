@@ -86,7 +86,7 @@ class FileUploader {
         for (let i = 0; i < files.length; i++) {
             this.countI++
             let li = eI('<li class="list-group-item d-flex justify-content-between align-items-start js-groupitem'+this.countI+'"></li>')
-        
+            let input;
             let liContainer1 = eI('<div class="me-2 w-100"></div>')
             li.appendChild(liContainer1)
             liContainer1.appendChild(eI('<div>'+files[i].name+'</div>'))

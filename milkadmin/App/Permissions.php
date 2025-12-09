@@ -107,7 +107,7 @@ class Permissions
      * @param bool $exclusive Whether the group is exclusive (only one permission active at a time)
      * @return void
      */
-    public static function set($group, $permissions, $group_name = false, $exclusive = false) {
+    public static function set(string $group, array $permissions, string|bool $group_name = false, bool $exclusive = false): void {
         if (!array_key_exists($group, self::$permissions)) {
             self::$permissions[$group] = [];
         }
@@ -148,7 +148,7 @@ class Permissions
      * @param string $group Optional group name
      * @return array List of permissions
      */
-    public static function get($group = '') {
+    public static function get(string $group = ''): array {
         if ($group == '') {
             return self::$permissions;
         }
@@ -173,7 +173,7 @@ class Permissions
      * @param string $title The display title for the group
      * @return void
      */
-    public static function setGroupTitle($group, $title) {
+    public static function setGroupTitle(string $group, string $title):void {
         self::$group_title[$group] = $title;
     }
 
@@ -185,7 +185,7 @@ class Permissions
      * @param string $group The permission group name
      * @return string The group title or empty string if not set
      */
-    public static function getGroupTitle($group) {
+    public static function getGroupTitle(string $group): string {
         if (array_key_exists($group, self::$group_title)) {
             return self::$group_title[$group];
         }
@@ -203,7 +203,7 @@ class Permissions
      * @param bool $exclusive True if the group should be exclusive, false otherwise
      * @return void
      */
-    public static function setExclusiveGroup($group, $exclusive = true) {
+    public static function setExclusiveGroup(string $group, bool $exclusive = true): void {
         if ($exclusive) {
             self::$exclusive_groups[$group] = true;
             
@@ -231,7 +231,7 @@ class Permissions
      * @param string $group The permission group name
      * @return bool True if the group is exclusive, false otherwise
      */
-    public static function isExclusiveGroup($group) {
+    public static function isExclusiveGroup(string $group): bool {
         return isset(self::$exclusive_groups[$group]) && self::$exclusive_groups[$group];
     }
 
@@ -242,8 +242,14 @@ class Permissions
      *
      * @return array Array of group titles indexed by group name
      */
-    public static function getGroups() {
-        return self::$group_title;
+    public static function getGroups(): array {
+        $ris = [];
+        foreach (self::$group_title as $group => $group_title) {
+            if (is_array(self::get($group)) && count(self::get($group)) > 0) {
+                $ris[$group] = $group_title;
+            }
+        }
+        return $ris;
     }
 
     /**
@@ -279,7 +285,7 @@ class Permissions
      * @param string $hook Optional hook to run if the permission is granted (hook name without 'permission.check.') Per convention, the hook name should be the name of the page of the module 'permission.check.{$page}'
      * @return bool True if the user has the permission, false otherwise
      */
-    public static function check($permission, $hook = null)  {
+    public static function check(string $permission, ?string $hook = null): bool {
         $hook = (is_string($hook) && strlen(trim($hook)) > 0) ? 'permission.check.'.str_replace("permission.check.", "", $hook) : null;
         //var_dump(self::$user_permissions['_user']);
         //if ((self::$user_permissions['_user']['is_admin'] ?? false) && ($permission != '_user.is_guest')) {
@@ -288,7 +294,6 @@ class Permissions
      
         $permission = explode('.', $permission);
         if (count($permission) == 2) {
-           
             $group = $permission[0];
             $permission_name = $permission[1];
             if ($group == '_user') {
@@ -302,7 +307,6 @@ class Permissions
                 }
                 return (is_string($hook)) ? Hooks::run($hook, $ris) : $ris;
             } else if (self::$user_permissions['_user']['is_admin'] ?? false) {
-                
                 return (is_string($hook)) ? Hooks::run($hook, true) : true;
             }
 
@@ -322,7 +326,7 @@ class Permissions
      * @param string $custom_message Optional custom message to customizations default
      * @return void Outputs JSON response and exits
      */
-    public static function checkJson( $permission, $custom_message = ''): void {
+    public static function checkJson(string $permission, string $custom_message = ''): void {
         if (!self::check($permission)) { 
             http_response_code(403); // Set HTTP 403 Forbidden
             $action = $_REQUEST['action'] ? "You don't have permission for "._r($_REQUEST['action'])." action" : "You don't have permission for "._r($permission);
@@ -357,7 +361,7 @@ class Permissions
      * @param array $permissions Array of permissions as ['permission_name' => true|false]
      * @return void
      */
-    public static function setUserPermissions($group, $permissions) {
+    public static function setUserPermissions(string $group, array $permissions): void {
         if (!array_key_exists($group, self::$user_permissions)) {
             self::$user_permissions[$group] = [];
         }
@@ -392,7 +396,7 @@ class Permissions
      * 
      * @return array User permissions
      */
-    public static function getUserPermissions() {
+    public static function getUserPermissions(): array {
         return self::$user_permissions;
     }
 }

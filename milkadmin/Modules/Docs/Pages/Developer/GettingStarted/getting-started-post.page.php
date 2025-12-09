@@ -77,7 +77,8 @@ class PostsModel extends AbstractModel
     }
 
     #[Validate('title')]
-    public function validateTitle($current_record_obj, $value): string {
+    public function validateTitle($current_record_obj): string {
+        $value = $current_record_obj->title;
         if (strlen($value) < 5) {
             return 'Title must be at least 5 characters long';
         }

@@ -2,7 +2,7 @@
 namespace App\Abstracts\Traits;
 
 use App\{Logs, MessagesHandler, Database\Query};
-
+use App\{Get, Config, ExtensionLoader};
 
 !defined('MILK_DIR') && die();
 
@@ -316,12 +316,9 @@ trait CrudOperationsTrait
         $this->last_error = '';
         if ($this->primary_key != null && $id != null ) {
             $data[$this->primary_key] = $id;
-        } 
-            
+        }
         $new_class = new static();
-     
         $new_class->fill($data);
-      
         if ($new_class->validate()) {
             $new_class->save(true, false);
            
@@ -365,9 +362,26 @@ trait CrudOperationsTrait
             return true;
         }
         $this->cleanEmptyRecords();
+        $add = true;
+        if (ExtensionLoader::preventRecursion('beforeSave')) {
+            $add = ExtensionLoader::callReturnHook($this->loaded_extensions, 'beforeSave', [true, $this->records_array]);
+        } 
+        ExtensionLoader::freeRecursion('beforeSave');
+        if (!$add) return true;
 
         try {
             // 1. Processa le eliminazioni
+            // Hook beforeDelete (chiamato prima di cancellare i record)
+            if (!empty($this->deleted_primary_keys)) {
+                $add = true;
+                if (ExtensionLoader::preventRecursion('beforeDelete')) {
+                    $add = ExtensionLoader::callReturnHook($this->loaded_extensions, 'beforeDelete', [true, $this->deleted_primary_keys]);
+                } 
+                ExtensionLoader::freeRecursion('beforeDelete');
+                if (!$add) return true;
+              
+            }
+
             foreach ($this->deleted_primary_keys as $pk_value) {
                 // First, handle cascade delete for hasOne relationships
                 if ($cascade && method_exists($this, 'processCascadeDelete')) {
@@ -411,7 +425,13 @@ trait CrudOperationsTrait
                     'last_error' => ''
                 ];
             }
-          
+
+            // Hook afterDelete (chiamato dopo aver cancellato i record)
+            if (!empty($this->deleted_primary_keys)) {
+                ExtensionLoader::callHook($this->loaded_extensions, 'afterDelete', [$this->deleted_primary_keys]);
+            }
+
+            $after_save_data = [];
             // 2. Processa le creazioni e modifiche
             foreach ($this->records_array as $index => $record) {
                 // Salta i record originali non modificati
@@ -421,6 +441,7 @@ trait CrudOperationsTrait
              
                 // Process cascade relationships if enabled
                 if ($cascade && method_exists($this, 'processCascadeRelationships')) {
+                   
                     $record = $this->processCascadeRelationships($index, $record); 
                     if ($record === null) {
                         // Error occurred during cascade save
@@ -433,7 +454,7 @@ trait CrudOperationsTrait
                         return false;
                     }
                 }
-               
+                
                 // Extract cascade results if present
                 $cascade_results = $record['___cascade_results'] ?? null;
                 unset($record['___cascade_results']);
@@ -445,10 +466,10 @@ trait CrudOperationsTrait
                         $data[$key] = $value;
                     }
                 }
-              
+             
                 // Prepara i dati
+               
                 $data = $this->prepareData($data);
-
                 if ($record['___action'] === 'insert') {
                     // INSERT
                     // Se c'è una primary key e non è auto-increment, mantienila
@@ -501,7 +522,11 @@ trait CrudOperationsTrait
                     }
 
                     $this->save_results[] = $result_entry;
-
+                    if ($insert_id) {
+                        $data['___action'] = 'insert';
+                        $data[$this->primary_key] = $insert_id;
+                        $after_save_data[] = $data;
+                    }
                 } elseif ($record['___action'] === 'edit') {
                     // UPDATE
                     $pk_value = $record[$this->primary_key] ?? null;
@@ -516,60 +541,67 @@ trait CrudOperationsTrait
                             'last_error' => $this->last_error
                         ];
                         Logs::set('errors', 'ERROR', 'Update Error: ' . $this->last_error);
-                        return false;
-                    }
+                        //return false;
+                    } else {
+                   
+                        $success = $this->db->update(
+                            $this->table,
+                            $data,
+                            [$this->primary_key => $pk_value],
+                            1
+                        );
 
-                    $success = $this->db->update(
-                        $this->table,
-                        $data,
-                        [$this->primary_key => $pk_value],
-                        1
-                    );
+                        if (!$success) {
+                            $this->error = true;
+                            $this->last_error = "Failed to update record with {$this->primary_key} = {$pk_value}: " . $this->db->last_error;
+                            $this->save_results[] = [
+                                'id' => $pk_value,
+                                'action' => 'edit',
+                                'result' => false,
+                                'last_error' => $this->last_error
+                            ];
+                            Logs::set('errors', 'ERROR', 'Update Error: ' . $this->last_error);
+                          
+                        } else {
 
-                    if (!$success) {
-                        $this->error = true;
-                        $this->last_error = "Failed to update record with {$this->primary_key} = {$pk_value}: " . $this->db->last_error;
-                        $this->save_results[] = [
-                            'id' => $pk_value,
-                            'action' => 'edit',
-                            'result' => false,
-                            'last_error' => $this->last_error
-                        ];
-                        Logs::set('errors', 'ERROR', 'Update Error: ' . $this->last_error);
-                        return false;
-                    }
+                            $result_entry = [
+                                'id' => $pk_value,
+                                'action' => 'edit',
+                                'result' => true,
+                                'last_error' => ''
+                            ];
 
-                    $result_entry = [
-                        'id' => $pk_value,
-                        'action' => 'edit',
-                        'result' => true,
-                        'last_error' => ''
-                    ];
+                            // Add cascade results from belongsTo (processed before parent save)
+                            if ($cascade_results !== null) {
+                                foreach ($cascade_results as $rel_alias => $rel_result) {
+                                    $result_entry[$rel_alias] = $rel_result;
+                                }
+                            }
 
-                    // Add cascade results from belongsTo (processed before parent save)
-                    if ($cascade_results !== null) {
-                        foreach ($cascade_results as $rel_alias => $rel_result) {
-                            $result_entry[$rel_alias] = $rel_result;
+                            // Process hasOne relationships AFTER parent is updated (so we have the ID)
+                            if ($cascade && method_exists($this, 'processHasOneRelationships')) {
+                                $hasone_results = $this->processHasOneRelationships($index, $this->records_array[$index]);
+                                foreach ($hasone_results as $rel_alias => $rel_result) {
+                                    $result_entry[$rel_alias] = $rel_result;
+                                }
+                            }
+
+                            $this->save_results[] = $result_entry;
+                            $data['___action'] = 'edit';
+                            $after_save_data[] = $data;
                         }
-                    }
-
-                    // Process hasOne relationships AFTER parent is updated (so we have the ID)
-                    if ($cascade && method_exists($this, 'processHasOneRelationships')) {
-                        $hasone_results = $this->processHasOneRelationships($index, $this->records_array[$index]);
-                        foreach ($hasone_results as $rel_alias => $rel_result) {
-                            $result_entry[$rel_alias] = $rel_result;
+                        // Rimuovi cache
+                        if (isset($this->cache[$pk_value])) {
+                            unset($this->cache[$pk_value]);
                         }
-                    }
-
-                    $this->save_results[] = $result_entry;
-
-                    // Rimuovi cache
-                    if (isset($this->cache[$pk_value])) {
-                        unset($this->cache[$pk_value]);
                     }
                 }
+            }
 
-                // Resetta l'action a null (record ora è "original")
+           
+
+            // Azzera le action ora che abbiamo fatto la copia
+            foreach ($this->records_array as $index => $record) {
                 $this->records_array[$index]['___action'] = null;
             }
 
@@ -585,6 +617,9 @@ trait CrudOperationsTrait
                 }
                 $ids = array_unique($ids);
                 $this->setResultsByIds($ids);
+
+                ExtensionLoader::callHook($this->loaded_extensions, 'afterSave', [$after_save_data, $this->save_results]);
+
             }
 
             return $this->last_error === '';
@@ -676,6 +711,14 @@ trait CrudOperationsTrait
         $this->error = false;
         $this->last_error = '';
 
+        // Hook beforeDelete (chiamato prima di cancellare il record)
+        $ris = true;
+        if (ExtensionLoader::preventRecursion('beforeDelete')) {
+            $ris = ExtensionLoader::callReturnHook($this->loaded_extensions, 'beforeDelete',  [true, [$id]]);
+        } 
+        ExtensionLoader::freeRecursion('beforeDelete');
+        if (!$ris) return true;
+        
         try {
             // First, handle cascade delete for hasOne relationships
             if (method_exists($this, 'processCascadeDelete')) {
@@ -694,15 +737,24 @@ trait CrudOperationsTrait
 
             if ($success) {
                 unset($this->cache[$id]);
-            }
-            // rimuovo il record eliminato dall'array
-            if (is_array($this->records_array)) {
-                foreach ($this->records_array as $index => $record) {
-                    if ($record[$this->primary_key] === $id) {
-                        unset($this->records_array[$index]);
+
+                // rimuovo il record eliminato dall'array
+                if (is_array($this->records_array)) {
+                    foreach ($this->records_array as $index => $record) {
+                        if ($record[$this->primary_key] === $id) {
+                            unset($this->records_array[$index]);
+                        }
                     }
                 }
+
+                // Hook afterDelete (chiamato dopo aver cancellato il record)
+                if (ExtensionLoader::preventRecursion('afterDelete')) {
+                    ExtensionLoader::callReturnHook($this->loaded_extensions, 'afterDelete',  [[$id]]);
+                } 
+                ExtensionLoader::freeRecursion('afterDelete');
+               
             }
+
             return (bool)$success;
         } catch (\Exception $e) {
             $this->error = true;
@@ -741,6 +793,7 @@ trait CrudOperationsTrait
     {
         $prepared = [];
         $rules = $this->getRules('sql');
+
         foreach ($rules as $field_name => $rule) {
             $value = $data[$field_name] ?? null;
 

@@ -2,6 +2,7 @@
 namespace App\Abstracts;
 
 use App\Abstracts\Traits\AttributeHookTrait;
+use App\ExtensionLoader;
 
 !defined('MILK_DIR') && die(); // Prevent direct access
 
@@ -42,13 +43,17 @@ abstract class AbstractHook {
 
     use AttributeHookTrait;
 
+
     /**
      * Constructor
      *
      * Automatically registers all methods decorated with the HookCallback attribute
      * when the class is instantiated.
+
      */
     public function __construct() {
+
         $this->registerHooks();
     }
+
 }

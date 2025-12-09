@@ -14,31 +14,73 @@ namespace Modules\Docs\Pages;
 
     <p>This guide covers how to add, remove, modify, and organize fields in forms created with <strong>FormBuilder</strong>. FormBuilder provides flexible methods to manage form fields either automatically from your Model or manually.</p>
 
-    <h2>Two Approaches to Adding Fields</h2>
+    <h2>Method Summary</h2>
 
-    <p>FormBuilder supports two main approaches for adding fields to your form:</p>
+    <p>FormBuilder provides a complete set of methods for managing form fields. Here's a quick reference of all available methods:</p>
 
     <table class="table table-bordered">
         <thead class="table-dark">
             <tr>
-                <th>Approach</th>
                 <th>Method</th>
-                <th>Best For</th>
+                <th>Description</th>
+                <th>Parameters</th>
             </tr>
         </thead>
         <tbody>
             <tr>
-                <td><strong>Automatic</strong></td>
                 <td><code>addFieldsFromObject()</code></td>
-                <td>Standard CRUD forms based on Model definitions</td>
+                <td>Automatically add fields from Model definition</td>
+                <td><code>($object, $context)</code></td>
             </tr>
             <tr>
-                <td><strong>Manual</strong></td>
                 <td><code>addField()</code></td>
-                <td>Custom forms or when you need precise control</td>
+                <td>Manually add a field with optional positioning</td>
+                <td><code>($name, $type, $options, $position_before)</code></td>
+            </tr>
+            <tr>
+                <td><code>removeField()</code></td>
+                <td>Remove a field from the form</td>
+                <td><code>($field_name)</code></td>
+            </tr>
+            <tr>
+                <td><code>modifyField()</code></td>
+                <td>Modify existing field properties with optional repositioning</td>
+                <td><code>($field_name, $options, $position_before)</code></td>
+            </tr>
+            <tr>
+                <td><code>fieldOrder()</code></td>
+                <td>Set the display order of all fields</td>
+                <td><code>($field_names_array)</code></td>
+            </tr>
+            <tr>
+                <td><code>addRelatedField()</code></td>
+                <td>Add field from hasOne related table</td>
+                <td><code>('relation.field', 'Label')</code></td>
+            </tr>
+            <tr>
+                <td><code>addHtml()</code></td>
+                <td>Add custom HTML with precise positioning</td>
+                <td><code>($html, $position_before)</code></td>
+            </tr>
+            <tr>
+                <td><code>addHtmlBeforeFields()</code></td>
+                <td>Add HTML before all fields</td>
+                <td><code>($html)</code></td>
+            </tr>
+            <tr>
+                <td><code>addHtmlAfterFields()</code></td>
+                <td>Add HTML after all fields</td>
+                <td><code>($html)</code></td>
+            </tr>
+            <tr>
+                <td><code>addHtmlBeforeSubmit()</code></td>
+                <td>Add HTML before submit buttons</td>
+                <td><code>($html)</code></td>
             </tr>
         </tbody>
     </table>
+
+    <p>FormBuilder supports two main approaches for adding fields to your forms. You can use the <strong>automatic approach</strong> with <code>addFieldsFromObject()</code> to quickly generate fields from your Model definitions, which is ideal for standard CRUD forms. Alternatively, you can use the <strong>manual approach</strong> with <code>addField()</code> for custom forms or when you need precise control over each field. Both approaches can be combined in the same form for maximum flexibility.</p>
 
     <h2>Adding Fields Automatically from Model</h2>
 
@@ -317,16 +359,27 @@ class ProductModel extends AbstractModel {
 
     <h2>Modifying Existing Fields</h2>
 
-    <p>Use <code>modify_field()</code> to change properties of fields added by <code>addFieldsFromObject()</code>:</p>
+    <p>Use <code>modifyField()</code> to change properties of fields added by <code>addFieldsFromObject()</code>:</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Syntax
+->modifyField($field_name, $options = [], $position_before = '')
+
+// Parameters:
+// - $field_name: Name of the field to modify (required)
+// - $options: Array of field options to merge with existing ones (required)
+// - $position_before: Field name before which to reposition this field (optional)
+</code></pre>
+
+    <h3>Basic Usage</h3>
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
     // Change the label
-    ->modify_field('name', [
+    ->modifyField('name', [
         'label' => 'Full Name'
     ])
 
     // Add custom CSS class
-    ->modify_field('email', [
+    ->modifyField('email', [
         'form-params' => [
             'class' => 'form-control-lg',
             'placeholder' => 'your@email.com'
@@ -334,17 +387,32 @@ class ProductModel extends AbstractModel {
     ])
 
     // Change field type
-    ->modify_field('description', [
+    ->modifyField('description', [
         'form-type' => 'editor'  // Change from textarea to rich editor
     ])
 
     ->render();
 </code></pre>
 
+    <h3>Modifying with Repositioning</h3>
+    <p>You can also reposition a field while modifying it:</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
+    // Modify 'email' and move it BEFORE 'phone' field
+    ->modifyField('email', [
+        'label' => 'Email Address',
+        'form-params' => ['required' => true]
+    ], 'phone')  // <-- Position parameter
+
+    ->render();
+
+// Result field order: ..., name, email, phone, ...
+</code></pre>
+
     <h3>Modify Field Examples</h3>
 
     <h4>Making a Field Read-Only</h4>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->modify_field('username', [
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->modifyField('username', [
     'form-params' => [
         'readonly' => true,
         'class' => 'form-control-plaintext'
@@ -353,7 +421,7 @@ class ProductModel extends AbstractModel {
 </code></pre>
 
     <h4>Adding Help Text</h4>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->modify_field('api_key', [
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->modifyField('api_key', [
     'label' => 'API Key',
     'form-params' => [
         'help' => 'Your unique API key for integration. Keep it secret!',
@@ -363,7 +431,7 @@ class ProductModel extends AbstractModel {
 </code></pre>
 
     <h4>Changing Select Options</h4>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->modify_field('category', [
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->modifyField('category', [
     'options' => $this->getCategoryOptions(),  // Dynamic options
     'form-params' => [
         'class' => 'form-select-lg'
@@ -433,7 +501,7 @@ class UserModule extends AbstractModule {
             ->removeField('password_hash')
 
             // 3. Modify existing fields
-            ->modify_field('username', [
+            ->modifyField('username', [
                 'label' => 'Username (cannot be changed)',
                 'form-params' => [
                     'readonly' => $id > 0,  // Read-only when editing
@@ -441,13 +509,13 @@ class UserModule extends AbstractModule {
                 ]
             ])
 
-            ->modify_field('email', [
+            ->modifyField('email', [
                 'form-params' => [
                     'placeholder' => 'user@example.com'
                 ]
             ])
 
-            ->modify_field('bio', [
+            ->modifyField('bio', [
                 'form-type' => 'editor',  // Use rich text editor
                 'form-params' => [
                     'height' => '200px'
@@ -691,7 +759,7 @@ $form = FormBuilder::create($this->model, 'employees', '?page=employees')
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
     ->removeField('created_at')
     ->removeField('updated_at')
-    ->modify_field('name', ['label' => 'Full Name'])
+    ->modifyField('name', ['label' => 'Full Name'])
     ->fieldOrder(['id', 'name', 'email', 'phone'])
     ->addStandardActions()
     ->render();
@@ -702,7 +770,7 @@ $form = FormBuilder::create($this->model, 'employees', '?page=employees')
     <h3>1. Use addFieldsFromObject() as Starting Point</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Good - Start with Model fields, then customize
 ->removeField('created_at')
-->modify_field('name', ['label' => 'Full Name'])
+->modifyField('name', ['label' => 'Full Name'])
 
 // Not recommended - Manually adding all fields when you have a Model
 ->addField('id', [...])
@@ -727,8 +795,8 @@ $form = FormBuilder::create($this->model, 'employees', '?page=employees')
 ->removeField('updated_at')
 
 // Customize user fields
-->modify_field('username', [...])
-->modify_field('email', [...])
+->modifyField('username', [...])
+->modifyField('email', [...])
 
 // Add custom fields
 ->addField('new_password', [...])
@@ -768,7 +836,7 @@ $form = FormBuilder::create($this->model, 'employees', '?page=employees')
 
     <h3>Modified Field Not Showing Changes</h3>
     <ul>
-        <li>Ensure <code>modify_field()</code> is called after <code>addFieldsFromObject()</code></li>
+        <li>Ensure <code>modifyField()</code> is called after <code>addFieldsFromObject()</code></li>
         <li>Check that the field name matches exactly</li>
         <li>Verify the modification array structure is correct</li>
     </ul>

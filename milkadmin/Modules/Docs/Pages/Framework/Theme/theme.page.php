@@ -57,7 +57,7 @@ echo $var;
 <h5>Theme::for('javascript')</h5>
 <p>Contains the complete url of the js files to load. The scripts are loaded at the bottom of the page</p> 
 <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">Route::set('mypage', function() { 
-Theme::set('javascript', Route::url().'/modules/mypage/assets/mypage.js'); 
+Theme::set('javascript', Route::url().'/Modules/mypage/assets/mypage.js'); 
 // ...
 });</code></pre> 
 
@@ -116,7 +116,7 @@ Theme::set('header.links', ['url' => Route::url('?page=auth&action=logout'), 'ti
 <h2>How to add an image</h2>
 <pre class="pre-scrollable border p-2 text-bg-gray language-php"><code>&lt;img src="&lt;?php echo Get::uriPath(THEME_URL.'/Assets/logo-big.webp') ;?&gt;" alt="test" class="resized-logo"&gt;
 
-&lt;img src="&lt;?php echo Get::uriPath(Route::url().'/modules/my-module/assets/img.jpg') ;?&gt;" alt="test" class="resized-logo"&gt;
+&lt;img src="&lt;?php echo Get::uriPath(Route::url().'/Modules/my-module/assets/img.jpg') ;?&gt;" alt="test" class="resized-logo"&gt;
 
 </code></pre>
 <img src="<?php echo Get::uriPath(THEME_URL.'/Assets/logo-big.webp') ;?>" alt="test" class="resized-logo">

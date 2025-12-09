@@ -69,6 +69,24 @@ $groups = Permissions::getGroups();
 $has_permission = Permissions::check('auth.manage');
         </code></pre>
 
+        <div class="alert alert-warning">
+            <strong>Important:</strong> Before calling <code>Permissions::check()</code> in the module's <code>configure()</code> method, ensure the user has been initialized by calling <code>Get::make('Auth');</code> first. Without this initialization, the system will treat the user as an administrator by default.
+        </div>
+
+        <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
+// In module configure() method
+protected function configure($rule): void
+{
+    // Initialize the authenticated user first
+    Get::make('Auth');
+
+    // Now it's safe to check permissions
+    if (!Permissions::check('mymodule.access')) {
+        // Permission denied
+    }
+}
+        </code></pre>
+
         <h4>checkJson($permission)</h4>
         <p>Checks if the user has permission for a specific action and outputs a JSON response if the user does not have permission.</p>
         <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">Permissions::checkJson('auth.manage');

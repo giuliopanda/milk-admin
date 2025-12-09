@@ -19,6 +19,8 @@ require_once 'TableBuilder.php';
 class ListBuilder extends GetDataBuilder
 {
 
+    protected $box_template = '';
+    protected $box_attrs = [];
     /**
      * Get HTML list string
      *
@@ -30,18 +32,18 @@ class ListBuilder extends GetDataBuilder
             'info' => $data['info'],
             'rows' => $data['rows'],
             'page_info' => $data['page_info'],
-            'box_attrs' => $this->table_attrs  // Lista usa box_attrs invece di table_attrs
+            'box_attrs' => $this->box_attrs  // Lista usa box_attrs invece di table_attrs
         ]);
     }
 
     // Method chaining per configurazione lista (snake_case)
     public function setBoxAttrs(array $attrs): static {
-        $this->table_attrs = $attrs;
+        $this->box_attrs = $attrs;
         return $this;
     }
 
     public function addBoxAttr($element, $key, $value): static {
-        $this->table_attrs[$element][$key] = $value;
+        $this->box_attrs[$element][$key] = $value;
         return $this;
     }
 
@@ -52,7 +54,7 @@ class ListBuilder extends GetDataBuilder
      * @return static For method chaining
      */
     public function setFormAttr($key, $value): static {
-        $this->table_attrs['form'][$key] = $value;
+        $this->box_attrs['form'][$key] = $value;
         return $this;
     }
 
@@ -64,7 +66,7 @@ class ListBuilder extends GetDataBuilder
      * @return static For method chaining
      */
     public function containerClass($classes): static {
-        $this->table_attrs['container']['class'] = $classes;
+        $this->box_attrs['container']['class'] = $classes;
         return $this;
     }
 
@@ -74,7 +76,7 @@ class ListBuilder extends GetDataBuilder
      * @return static For method chaining
      */
     public function colClass($classes): static {
-        $this->table_attrs['col']['class'] = $classes;
+        $this->box_attrs['col']['class'] = $classes;
         return $this;
     }
 
@@ -94,7 +96,7 @@ class ListBuilder extends GetDataBuilder
 
         // Combina classi essenziali con quelle fornite
         $full_classes = implode(' ', $essential_classes) . ' ' . $classes;
-        $this->table_attrs['box']['class'] = trim($full_classes);
+        $this->box_attrs['box']['class'] = trim($full_classes);
         return $this;
     }
 
@@ -104,7 +106,7 @@ class ListBuilder extends GetDataBuilder
      * @return static For method chaining
      */
     public function boxHeaderClass($classes): static {
-        $this->table_attrs['box.header']['class'] = $classes;
+        $this->box_attrs['box.header']['class'] = $classes;
         return $this;
     }
 
@@ -114,7 +116,7 @@ class ListBuilder extends GetDataBuilder
      * @return static For method chaining
      */
     public function boxBodyClass($classes): static {
-        $this->table_attrs['box.body']['class'] = $classes;
+        $this->box_attrs['box.body']['class'] = $classes;
         return $this;
     }
 
@@ -124,7 +126,7 @@ class ListBuilder extends GetDataBuilder
      * @return static For method chaining
      */
     public function boxFooterClass($classes): static {
-        $this->table_attrs['box.footer']['class'] = $classes;
+        $this->box_attrs['box.footer']['class'] = $classes;
         return $this;
     }
 
@@ -168,7 +170,7 @@ class ListBuilder extends GetDataBuilder
      * @return static For method chaining
      */
     public function fieldRowClass($classes): static {
-        $this->table_attrs['field.row']['class'] = $classes;
+        $this->box_attrs['field.row']['class'] = $classes;
         return $this;
     }
 
@@ -178,7 +180,7 @@ class ListBuilder extends GetDataBuilder
      * @return static For method chaining
      */
     public function fieldLabelClass($classes): static {
-        $this->table_attrs['field.label']['class'] = $classes;
+        $this->box_attrs['field.label']['class'] = $classes;
         return $this;
     }
 
@@ -188,7 +190,7 @@ class ListBuilder extends GetDataBuilder
      * @return static For method chaining
      */
     public function fieldValueClass($classes): static {
-        $this->table_attrs['field.value']['class'] = $classes;
+        $this->box_attrs['field.value']['class'] = $classes;
         return $this;
     }
 
@@ -200,7 +202,7 @@ class ListBuilder extends GetDataBuilder
      */
     public function fieldClass($field_name, $classes): static {
         $key = 'field.' . str_replace(' ', '_', $field_name);
-        $this->table_attrs[$key]['class'] = $classes;
+        $this->box_attrs[$key]['class'] = $classes;
         return $this;
     }
 
@@ -287,8 +289,8 @@ class ListBuilder extends GetDataBuilder
         // Applica il colore al bordo del box
         if (isset($color_map[$color])) {
             $border_class = $color_map[$color];
-            $current_classes = $this->table_attrs['box']['class'] ?? 'card js-box-item';
-            $this->table_attrs['box']['class'] = trim($current_classes . ' ' . $border_class);
+            $current_classes = $this->box_attrs['box']['class'] ?? 'card js-box-item';
+            $this->box_attrs['box']['class'] = trim($current_classes . ' ' . $border_class);
         }
 
         // Applica il colore all'header
@@ -332,7 +334,7 @@ class ListBuilder extends GetDataBuilder
      * @return static For method chaining
      */
     public function checkboxWrapperClass($classes): static {
-        $this->table_attrs['checkbox.wrapper']['class'] = $classes;
+        $this->box_attrs['checkbox.wrapper']['class'] = $classes;
         return $this;
     }
 
@@ -372,7 +374,7 @@ class ListBuilder extends GetDataBuilder
 
         $field_name = $this->current_field;
         $key = 'field.' . str_replace(' ', '_', $field_name);
-        $this->table_attrs[$key]['class'] = $classes;
+        $this->box_attrs[$key]['class'] = $classes;
         return $this;
     }
 

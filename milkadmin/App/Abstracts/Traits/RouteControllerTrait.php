@@ -6,6 +6,7 @@ use App\Attributes\AccessLevel;
 use App\Route;
 use App\Theme;
 use App\Permissions;
+use App\ExtensionLoader;
 use ReflectionClass;
 use ReflectionMethod;
 
@@ -21,6 +22,11 @@ trait RouteControllerTrait {
     private array $accessLevelMap = [];
 
     public function handleRoutes() {
+
+        // Call extension hook: before handling routes
+        if (isset($this->loaded_extensions)) {
+            ExtensionLoader::callHook($this->loaded_extensions, 'onHandleRoutes', []);
+        }
 
         Theme::set('header.title', Theme::get('site.title')." - ". $this->title);
 
@@ -38,7 +44,14 @@ trait RouteControllerTrait {
                 Route::redirect('?page=deny');
                 return;
             }
-            $this->$attributeMethod();
+
+            // Support both string (method name) and callable (array with object and method)
+            if (is_array($attributeMethod)) {
+                [$obj, $method] = $attributeMethod;
+                $obj->$method();
+            } else {
+                $this->$attributeMethod();
+            }
             return;
         }
 
@@ -95,7 +108,7 @@ trait RouteControllerTrait {
 		]);
     }
 
-    private function findRouteMethod(string $action): ?string {
+    private function findRouteMethod(string $action): string|array|null {
         if (empty($this->routeMap)) {
             $this->buildRouteMap();
         }
@@ -104,7 +117,35 @@ trait RouteControllerTrait {
     }
 
     private function buildRouteMap(): void {
-        $reflection = new ReflectionClass($this);
+        // Scan the controller itself
+        $this->scanAttributesFromClass($this);
+
+        // Scan loaded extensions
+        if (isset($this->loaded_extensions) && !empty($this->loaded_extensions)) {
+            foreach ($this->loaded_extensions as $extension) {
+                $this->scanAttributesFromClass($extension);
+            }
+        }
+
+        // Scan Controller extensions from the Module (Controller extensions are Module-managed)
+        if (isset($this->module) && method_exists($this->module, 'getLoadedControllerExtensions')) {
+            $controller_extensions = $this->module->getLoadedControllerExtensions();
+            if (!empty($controller_extensions)) {
+                foreach ($controller_extensions as $extension) {
+                    $this->scanAttributesFromClass($extension);
+                }
+            }
+        }
+    }
+
+    /**
+     * Scan a class for RequestAction and AccessLevel attributes
+     *
+     * @param object $target The object to scan (controller or extension)
+     * @return void
+     */
+    private function scanAttributesFromClass(object $target): void {
+        $reflection = new ReflectionClass($target);
         $methods = $reflection->getMethods(ReflectionMethod::IS_PUBLIC | ReflectionMethod::IS_PROTECTED);
 
         foreach ($methods as $method) {
@@ -115,14 +156,27 @@ trait RouteControllerTrait {
 
             foreach ($attributes as $attribute) {
                 $route = $attribute->newInstance();
-                $this->routeMap[$route->action] = $methodName;
+
+                // If scanning an extension, store as callable [extension, method]
+                if ($target !== $this) {
+                    $this->routeMap[$route->action] = [$target, $methodName];
+                } else {
+                    $this->routeMap[$route->action] = $methodName;
+                }
             }
 
             // Build access level map from AccessLevel attributes
             $accessAttributes = $method->getAttributes(AccessLevel::class);
             if (!empty($accessAttributes)) {
                 $accessLevel = $accessAttributes[0]->newInstance();
-                $this->accessLevelMap[$methodName] = $accessLevel;
+
+                // Create unique key for extensions
+                if ($target !== $this) {
+                    $key = spl_object_id($target) . '::' . $methodName;
+                    $this->accessLevelMap[$key] = $accessLevel;
+                } else {
+                    $this->accessLevelMap[$methodName] = $accessLevel;
+                }
             }
         }
     }
@@ -137,23 +191,31 @@ trait RouteControllerTrait {
      * Check if the user has access to a specific method based on AccessLevel attribute
      * If no AccessLevel attribute is set, falls back to module-level access check
      *
-     * @param string $methodName The name of the method to check
+     * @param string|array $methodName The name of the method or callable [object, method] to check
      * @return bool True if access is granted, false otherwise
      */
-    private function checkMethodAccess(string $methodName): bool {
+    private function checkMethodAccess(string|array $methodName): bool {
         // Build maps if not already built
         if (empty($this->routeMap) && empty($this->accessLevelMap)) {
             $this->buildRouteMap();
         }
 
+        // Determine the access level map key
+        $accessKey = $methodName;
+        if (is_array($methodName)) {
+            // Extension method: use object ID + method name
+            [$obj, $method] = $methodName;
+            $accessKey = spl_object_id($obj) . '::' . $method;
+        }
+
         // If no AccessLevel attribute is set, fallback to module-level access
-        if (!isset($this->accessLevelMap[$methodName])) {
+        if (!isset($this->accessLevelMap[$accessKey])) {
             $moduleAccess = $this->access();
             return $moduleAccess;
         }
 
         // Method has specific AccessLevel - use it instead of module access
-        $accessLevel = $this->accessLevelMap[$methodName];
+        $accessLevel = $this->accessLevelMap[$accessKey];
         $level = $accessLevel->getBaseLevel();
         $hook = $this->page ?? null;
 
@@ -168,7 +230,14 @@ trait RouteControllerTrait {
 
             case 'authorized':
                 $permission_name = $this->module->getPermissionName();
+              
                 $result = Permissions::check($this->page.".".$permission_name, $hook);
+                if ($result) {
+                    $permission2 = $accessLevel->getPermission();
+                    if ($permission2) {
+                        return  Permissions::check($this->page.".".$permission2, $hook);
+                    }
+                }
                return $result;
 
             case 'admin':
