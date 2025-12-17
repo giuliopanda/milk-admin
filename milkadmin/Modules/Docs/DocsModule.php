@@ -25,6 +25,8 @@ class DocsModule extends AbstractModule
              ->menu('Documentation', 'guide=developer', 'bi bi-book', 90)
              ->headerTitle('Milk Admin Documentation')
              ->headerDescription('Comprehensive framework documentation')
+             ->setJs('Assets/colorcode.js')
+             ->setCss('Assets/colorcode.css')
              ->isCoreModule()
              ->version(251005);
     }
@@ -33,7 +35,7 @@ class DocsModule extends AbstractModule
         ob_start();
         require_once(MILK_DIR . '/Modules/Docs/views/partial-guide-navigation.php');
         $header_links = ob_get_clean();
-        
+
         Theme::set('header.top-left', $header_links);
     }
 }

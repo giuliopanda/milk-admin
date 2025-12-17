@@ -486,16 +486,25 @@ header~.main {
     border-radius: 0.25rem;
  }
 
+ /* Offcanvas size classes - aligned with modal sizes */
+ .offcanvas-size-ito-sm {
+    width: min(95vw, 400px) !important;
+ }
+
  .offcanvas-size-ito {
     width: min(95vw, 500px) !important;
+ }
+
+ .offcanvas-size-ito-lg {
+    width: min(95vw, 700px) !important;
  }
 
  .offcanvas-size-ito-xl {
     width: min(95vw, 900px) !important;
  }
 
- .offcanvas-size-ito-l {
-    width: min(95vw, 700px) !important;
+ .offcanvas-size-ito-fullscreen {
+    width: 90vw !important;
  }
 
 

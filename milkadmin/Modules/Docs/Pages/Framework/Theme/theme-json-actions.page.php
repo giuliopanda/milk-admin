@@ -500,10 +500,10 @@ registerHook('process_data', function(data) {
 <!-- ========== OTHER ACTIONS ========== -->
 <h2 class="mt-5 mb-3"><i class="bi bi-grid-3x3-gap"></i> Other Actions</h2>
 
-<h4 class="mt-4">Reload Table</h4>
+<h4 class="mt-4">Reload list (Table, list, calendar)</h4>
 <pre class="pre-scrollable border p-3 bg-light"><code class="language-json">{
-    "table": {
-        "id": "myTableId",
+    "list": {
+        "id": "myListId",
         "action": "reload"
     }
 }</code></pre>
@@ -536,7 +536,7 @@ registerHook('process_data', function(data) {
 
 <p>Execute multiple actions in a single response:</p>
 
-<pre class="pre-scrollable border p-3 bg-light"><code class="language-php">Response::json([
+<pre class="pre-scrollable border p-3 bg-light"><code class="language-html">Response::json([
     'success' => true,
 
     // Update multiple elements

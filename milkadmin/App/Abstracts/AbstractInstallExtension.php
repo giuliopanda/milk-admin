@@ -72,10 +72,6 @@ abstract class AbstractInstallExtension
                 // Check if the property exists
                 if ($reflection->hasProperty($key)) {
                     $property = $reflection->getProperty($key);
-
-                    // Make the property accessible (even if protected/private)
-                    $property->setAccessible(true);
-
                     // Set the value
                     $property->setValue($this, $value);
                 }

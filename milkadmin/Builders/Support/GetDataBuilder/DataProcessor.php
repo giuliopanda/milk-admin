@@ -248,6 +248,12 @@ class DataProcessor
             }
             $pageInfo->setBulkActions($labels);
         }
+
+        // Apply custom_data if set
+        $customData = $this->context->getCustomData();
+        if (!empty($customData)) {
+            $pageInfo['custom_data'] = $customData;
+        }
     }
 
     private function createFooterRow(): object

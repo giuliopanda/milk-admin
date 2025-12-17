@@ -1006,9 +1006,10 @@ class RuleBuilder
      *                         - CASCADE: Delete child records when parent is deleted
      *                         - SET NULL: Set foreign key to NULL in child records
      *                         - RESTRICT: Prevent parent deletion if child records exist
+     * @param bool $allowCascadeSave If true, allows automatic cascade save when parent is saved with $cascade=true
      * @return self
      */
-    public function hasMany(string $alias, string $related_model, string $foreign_key_in_related, string $onDelete = 'CASCADE'): self
+    public function hasMany(string $alias, string $related_model, string $foreign_key_in_related, string $onDelete = 'CASCADE', bool $allowCascadeSave = false): self
     {
         // Validate onDelete parameter
         $valid_onDelete = ['CASCADE', 'SET NULL', 'RESTRICT'];
@@ -1063,6 +1064,7 @@ class RuleBuilder
             'foreign_key' => $foreign_key_in_related, // Field in RELATED table (e.g., 'actor_id')
             'related_model' => $related_model,
             'onDelete' => $onDelete,                 // Delete behavior: CASCADE, SET NULL, RESTRICT
+            'allowCascadeSave' => $allowCascadeSave, // Allow automatic cascade save when parent is saved
         ];
 
         return $this;

@@ -3,7 +3,7 @@ namespace Builders;
 
 use App\{Get, MessagesHandler, ObjectToForm, Route, ExtensionLoader};
 use App\Abstracts\Traits\ExtensionManagementTrait;
-use Builders\Traits\FormBuilder\{FormFieldManagementTrait, FormSystemOperationsTrait, FormContainerManagementTrait, FormRelationshipTrait};
+use Builders\Traits\FormBuilder\{FieldFirstTrait, FormFieldManagementTrait, FormSystemOperationsTrait, FormContainerManagementTrait, FormRelationshipTrait};
 
 !defined('MILK_DIR') && die(); // Prevents direct access
 
@@ -17,6 +17,7 @@ use Builders\Traits\FormBuilder\{FormFieldManagementTrait, FormSystemOperationsT
  * @author MilkAdmin
  */
 class FormBuilder {
+    use FieldFirstTrait;
     use FormFieldManagementTrait;
     use FormSystemOperationsTrait;
     use FormContainerManagementTrait;
@@ -39,6 +40,15 @@ class FormBuilder {
     private $only_json = false;
     private $execute_actions = false;
     private $last_insert_id = 0;
+    private $response_type = null;
+    private $title_new = null;
+    private $title_edit = null;
+    private $executed_action = null;
+    private $action_success = false;
+    private $list_id = null;
+    private $dom_id = null;
+    private $size = null;
+    private $custom_data = [];
 
     /**
      * List of extension names to load for this builder
@@ -54,6 +64,7 @@ class FormBuilder {
      */
     protected array $loaded_extensions = [];
 
+    protected $model_class;
 
     /**
      * Constructor - Initialize FormBuilder
@@ -63,7 +74,9 @@ class FormBuilder {
      */
     public function __construct($model, $page = '', $url_success = null, $url_error = null, $only_json = false) {
         $this->page = ($page != '') ? $page : $_REQUEST['page'] ?? '';
-        $this->setModel($model);
+        $this->model_class = $model;
+        $this->model = new $model();
+        $this->addFieldsFromObject($this->model, 'edit');
         // torna all'elenco
         $this->url_success = (!is_null($url_success)) ? $url_success : '?page=' . $this->page;
         $this->url_error = (!is_null($url_error)) ? $url_error : Route::getQueryString();
@@ -194,22 +207,26 @@ class FormBuilder {
      * @example ->setModel($this->model)
      */
     private function setModel(object $model): self {
-
+       
         $data = Route::getSessionData();
         $id = $model->getPrimaryKey();
         $model->with();
-        
-        $this->model = $model->getByIdForEdit(_absint($_REQUEST[$id] ?? 0), ($data['data'] ?? []));
 
+        // Apply FormBuilder field configurations (including custom fields) to Model
+        // This must be done BEFORE getByIdForEdit() so custom fields can be populated
+      
+        $this->applyFieldConfigToModel($model);
+        $this->model = $model->getByIdForEdit(_absint($_REQUEST[$id] ?? 0), ($data['data'] ?? []));
+       
+        $this->addFieldsFromObject($this->model, 'edit');
+      
+        
         // Convert datetime fields to user timezone for form display
         // This only happens if Config 'use_user_timezone' is true
         $this->model->convertDatesToUserTimezone();
-
-        $this->addFieldsFromObject($this->model, 'edit');
-
-        // NOTE: Extensions are initialized in the extensions() method, not here
-        // because at this point (constructor) the extensions haven't been set yet
-
+     
+       
+  
         return $this;
     }
 
@@ -426,6 +443,14 @@ class FormBuilder {
     }
 
     /**
+     * set Url
+     */
+    public function url($url_success_or_json = null, $url_error = null) {
+        $this->url_success =  $url_success_or_json;
+        $this->url_error = $url_error;
+    }
+
+    /**
      * Active fetch mode
      * 
      */
@@ -457,6 +482,193 @@ class FormBuilder {
 
     public function getPage(): string {
         return $this->page;
+    }
+
+    /**
+     * Set response type to offcanvas
+     *
+     * @return self For method chaining
+     */
+    public function asOffcanvas(): self {
+        $this->response_type = 'offcanvas';
+        return $this;
+    }
+
+    /**
+     * Set response type to modal
+     *
+     * @return self For method chaining
+     */
+    public function asModal(): self {
+        $this->response_type = 'modal';
+        return $this;
+    }
+
+    /**
+     * Set response type to DOM element
+     *
+     * @param string $id The ID of the DOM element
+     * @return self For method chaining
+     */
+    public function asDom(string $id): self {
+        $this->response_type = 'dom';
+        $this->dom_id = $id;
+        return $this;
+    }
+
+    /**
+     * Set titles for new and edit modes
+     *
+     * @param string $new Title for new record
+     * @param string|null $edit Title for edit record (if null, uses $new for both)
+     * @return self For method chaining
+     */
+    public function setTitle(string $new, ?string $edit = null): self {
+        $this->title_new = $new;
+        $this->title_edit = $edit ?? $new;
+        return $this;
+    }
+
+    /**
+     * Set the list/table ID for reload functionality
+     *
+     * @param string $id The ID of the list/table to reload
+     * @return self For method chaining
+     */
+    public function dataListId(string $id): self {
+        $this->list_id = $id;
+        return $this;
+    }
+
+    /**
+     * Set the size for modal/offcanvas
+     *
+     * @param string $size Size option: 'sm', 'lg', 'xl', 'fullscreen'
+     * @return self For method chaining
+     */
+    public function size(string $size): self {
+        $this->size = $size;
+        return $this;
+    }
+
+    /**
+     * Add custom hidden field data to the form
+     *
+     * This method allows adding custom hidden fields that will be included in the form.
+     * If a field with the same name already exists (like 'page' or 'action'),
+     * the custom value will override the default value.
+     *
+     * @param string $key Field name
+     * @param mixed $value Field value
+     * @return self For method chaining
+     *
+     * @example ->customData('post_id', $post_id)
+     */
+    public function customData(string $key, $value): self {
+        $this->custom_data[$key] = $value;
+        return $this;
+    }
+
+    /**
+     * Get response array for offcanvas or other response types
+     *
+     * @return array Response array based on response_type
+     */
+    public function getResponse(): array {
+        // Determine if we are in new or edit mode
+        $is_new = true;
+        $primary_key = $this->model->getPrimaryKey();
+
+        if (isset($this->fields[$primary_key]['row_value']) && !empty($this->fields[$primary_key]['row_value'])) {
+            $is_new = false;
+        }
+
+        // Determine title
+        $title = $is_new ? $this->title_new : $this->title_edit;
+
+        // Generate form HTML
+        $form_html = $this->render();
+
+        // Build base response with action tracking
+        $response = [
+            'executed_action' => $this->executed_action ?? '',
+            'success' => $this->action_success ?? true
+        ];
+        if (($this->action_success ?? true)) {
+            $msg = MessagesHandler::getSuccesses();
+        } else {
+            $msg = MessagesHandler::getErrors(true);
+        }
+        if (is_array($msg) && count($msg) > 0) {
+             $response['msg'] = implode("\n<br>", $msg);
+        }
+
+
+
+        // Add list reload if list_id is set and action was successful
+        if ($this->list_id !== null && $this->action_success) {
+            $response['list'] = [
+                'id' => $this->list_id,
+                'action' => 'reload'
+            ];
+        }
+
+        // Build response based on response_type
+        if ($this->response_type === 'offcanvas') {
+            // Determine offcanvas action: hide if list_id is set and action was successful, otherwise show
+            $offcanvas_action = ($this->list_id !== null && $this->action_success) ? 'hide' : 'show';
+
+            $response['offcanvas_end'] = [
+                'title' => $title,
+                'action' => $offcanvas_action,
+                'body' => $form_html
+            ];
+
+            // Add size if set
+            if ($this->size !== null) {
+                $response['offcanvas_end']['size'] = $this->size;
+            }
+
+            return $response;
+        }
+
+        if ($this->response_type === 'modal') {
+            // Determine modal action: hide if list_id is set and action was successful, otherwise show
+            $modal_action = ($this->list_id !== null && $this->action_success) ? 'hide' : 'show';
+
+            $response['modal'] = [
+                'title' => $title,
+                'action' => $modal_action,
+                'body' => $form_html
+            ];
+
+            // Add size if set
+            if ($this->size !== null) {
+                $response['modal']['size'] = $this->size;
+            }
+
+            return $response;
+        }
+
+        if ($this->response_type === 'dom') {
+            // Determine DOM action: hide if list_id is set and action was successful, otherwise show
+            $dom_action = ($this->list_id !== null && $this->action_success) ? 'hide' : 'show';
+
+            // Prepend title to form HTML
+            $innerHTML = '<h2 class="mb-0 me-3">' . $title . '</h2>' . $form_html;
+
+            $response['element'] = [
+                'selector' => $this->dom_id,
+                'action' => $dom_action,
+                'innerHTML' => $innerHTML
+            ];
+
+            return $response;
+        }
+
+        // Default response (if no response_type is set)
+        $response['form'] = $form_html;
+        return $response;
     }
 
     /**

@@ -16,7 +16,8 @@ namespace Modules\Docs\Pages;
     <h2 class="mt-4">Main Usage</h2>
     <p>The main method for sending emails is through the use of templates:</p>
     
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Send email with template
+    <pre><code class="language-html language-php">&lt;?php
+        // Send email with template
 Get::mail()->loadTemplate(MILK_DIR.'/Modules/my_module/mails/email_template.php', [
     'name' => 'John Doe',
     'user' => $user_object,
@@ -26,7 +27,7 @@ Get::mail()->loadTemplate(MILK_DIR.'/Modules/my_module/mails/email_template.php'
 // Error handling
 if (Get::mail()->getLastError()) {
     echo Get::mail()->getLastError();
-}</code></pre>
+}?&gt;</code></pre>
 
     <h2 class="mt-4">Template Structure</h2>
     <p>Email templates must be built following this structure:</p>

@@ -33,9 +33,6 @@ $title = new \Builders\TitleBuilder('Page Title');
 
 // Factory method (recommended)
 $title = \Builders\TitleBuilder::create('Page Title');
-
-// Empty constructor, set title later
-$title = \Builders\TitleBuilder::fill()->title('My Page');
     </code></pre>
 
     <h3>Simple Title Creation</h3>

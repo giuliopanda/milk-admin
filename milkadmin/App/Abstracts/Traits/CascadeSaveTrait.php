@@ -16,58 +16,17 @@ trait CascadeSaveTrait
     /**
      * Process belongsTo relationships BEFORE saving parent
      *
+     * DEPRECATED: belongsTo relationships are no longer saved automatically
+     * This method is kept for backward compatibility but does nothing
+     *
      * @param int $index Record index
      * @param array $record Current record
      * @return array|null Updated record with foreign keys, or null on error
      */
     protected function processCascadeRelationships(int $index, array $record): ?array
     {
-        $relationships_results = [];
-
-        // Check each field to see if it's a relationship
-        foreach ($record as $field_name => $value) {
-            // Skip special fields
-            if (strpos($field_name, '___') === 0) {
-                continue;
-            }
-
-            // Check if this field is a relationship
-            if (!method_exists($this, 'hasRelationship') || !$this->hasRelationship($field_name)) {
-                continue;
-            }
-
-            $relationship = $this->getRelationship($field_name);
-            if (!$relationship) {
-                continue;
-            }
-
-            // SKIP belongsTo: non ha senso modificare record correlati indipendenti
-            // belongsTo serve solo per leggere dati, non per modificarli
-            if ($relationship['type'] === 'belongsTo') {
-                continue;
-            }
-
-            // Only process other relationship types here (if any in future)
-            // Currently we only support belongsTo in this phase, so this code won't execute
-            // Save belongsTo related model
-            $result = $this->saveBelongsToRelatedModel($relationship, $value, $record);
-
-            if ($result === null) {
-                return null; // Error
-            }
-
-            $relationships_results[$field_name] = $result;
-
-            // Update foreign key in parent
-            $foreign_key_column = $relationship['foreign_key'];
-            $record[$foreign_key_column] = $result['id'];
-        }
-
-        // Store results
-        if (!empty($relationships_results)) {
-            $record['___cascade_results'] = $relationships_results;
-        }
-
+        // belongsTo relationships are no longer saved automatically
+        // They are meant to reference existing records, not create/modify them
         return $record;
     }
 
@@ -99,20 +58,8 @@ trait CascadeSaveTrait
                 continue;
             }
 
-            // Only process hasOne here
-            // SKIP hasMany: non ha senso modificare multipli record correlati tramite cascade
-            if ($relationship['type'] === 'hasMany') {
-                continue;
-            }
-
-            if ($relationship['type'] !== 'hasOne') {
-                continue;
-            }
-
-            // Check if cascade save is allowed for this hasOne relationship
-            $allowCascadeSave = $relationship['allowCascadeSave'] ?? false;
-            if (!$allowCascadeSave) {
-                // Skip: cascade save not explicitly enabled for this hasOne
+            // Skip belongsTo (should never be saved)
+            if ($relationship['type'] === 'belongsTo') {
                 continue;
             }
 
@@ -121,11 +68,32 @@ trait CascadeSaveTrait
                 continue;
             }
 
-            // Save related model (hasOne only, and only if allowCascadeSave is true)
-            $result = $this->saveHasOneRelatedModel($relationship, $value, $record);
+            // Process hasOne and hasMany
+            if ($relationship['type'] === 'hasOne') {
+                // Check if cascade save is allowed for this hasOne relationship
+                $allowCascadeSave = $relationship['allowCascadeSave'] ?? false;
+                if (!$allowCascadeSave) {
+                    // Skip: cascade save not explicitly enabled for this hasOne
+                    continue;
+                }
 
-            if ($result !== null) {
-                $relationships_results[$field_name] = $result;
+                $result = $this->saveHasOneRelatedModel($relationship, $value, $record);
+                if ($result !== null) {
+                    $relationships_results[$field_name] = $result;
+                }
+            } elseif ($relationship['type'] === 'hasMany') {
+                // Check if cascade save is allowed for this hasMany relationship
+                $allowCascadeSave = $relationship['allowCascadeSave'] ?? false;
+                if (!$allowCascadeSave) {
+                    // Skip: cascade save not explicitly enabled for this hasMany
+                    continue;
+                }
+
+                // hasMany: save multiple related records
+                $results = $this->saveHasManyRelatedModels($relationship, $value, $record);
+                if (!empty($results)) {
+                    $relationships_results[$field_name] = $results;
+                }
             }
         }
 
@@ -134,51 +102,14 @@ trait CascadeSaveTrait
 
     /**
      * Save a belongsTo related model
+     *
+     * DEPRECATED: belongsTo relationships are no longer saved automatically
+     * This method is kept for backward compatibility but should not be used
      */
     protected function saveBelongsToRelatedModel(array $relationship, array $data, array $parent_record): ?array
     {
-        $related_class = $relationship['related_model'];
-        $foreign_key_column = $relationship['foreign_key'];
-
-        $existing_id = $parent_record[$foreign_key_column] ?? null;
-        $is_update = ($existing_id !== null && $existing_id !== '' && $existing_id !== 0);
-
-        try {
-            $related_model = new $related_class(true);
-
-            if ($is_update) {
-                $existing = $related_model->getById($existing_id);
-                if ($existing && !$existing->isEmpty()) {
-                    foreach ($data as $key => $value) {
-                        $existing->$key = $value;
-                    }
-                    if (!$existing->save()) {
-                        $this->error = true;
-                        $this->last_error = "Failed to update belongsTo '{$relationship['alias']}'";
-                        return null;
-                    }
-                    return ['id' => $existing_id, 'action' => 'edit', 'result' => true, 'last_error' => ''];
-                }
-                $is_update = false;
-            }
-
-            if (!$is_update) {
-                $related_model->fill($data);
-                if (!$related_model->save()) {
-                    $this->error = true;
-                    $this->last_error = "Failed to insert belongsTo '{$relationship['alias']}'";
-                    return null;
-                }
-                $save_results = $related_model->getCommitResults();
-                $inserted_id = $save_results[0]['id'] ?? null;
-                return ['id' => $inserted_id, 'action' => 'insert', 'result' => true, 'last_error' => ''];
-            }
-        } catch (\Exception $e) {
-            $this->error = true;
-            $this->last_error = "Exception saving belongsTo: " . $e->getMessage();
-            return null;
-        }
-
+        // belongsTo relationships are no longer saved automatically
+        // They are meant to reference existing records, not create/modify them
         return null;
     }
 

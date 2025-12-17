@@ -41,8 +41,8 @@ function updateInvalidFeedback(field) {
     if (!field.checkValidity()) {
 
         const message =
-            field.validationMessage ||
             field.dataset.errorMessage ||
+            field.validationMessage ||
             '';
 
         if (!feedback) {

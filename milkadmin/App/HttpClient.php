@@ -215,7 +215,6 @@ class HttpClient
         $response = curl_exec($ch);
         $info = curl_getinfo($ch);
         $error = curl_error($ch);
-        curl_close($ch);
 
         if ($error) {
             throw new HttpClientException("cURL error: {$error}");
@@ -347,7 +346,6 @@ class HttpClient
             }
 
             curl_multi_remove_handle($multi_handle, $ch);
-            curl_close($ch);
         }
 
         curl_multi_close($multi_handle);
@@ -569,7 +567,6 @@ class HttpClient
     {
         foreach ($curl_handles as $ch) {
             curl_multi_remove_handle($multi_handle, $ch);
-            curl_close($ch);
         }
 
         if ($multi_handle) {

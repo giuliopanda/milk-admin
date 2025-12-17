@@ -24,6 +24,7 @@ class BuilderContext
     private int $default_limit = 10;
     private array $filter_defaults = [];
     private array $sort_mappings = [];
+    private array $custom_data = [];
 
     public function __construct(AbstractModel $model, string $table_id, ?array $request = null)
     {
@@ -100,6 +101,11 @@ class BuilderContext
         return $this->filter_defaults;
     }
 
+    public function getCustomData(): array
+    {
+        return $this->custom_data;
+    }
+
     // ========================================================================
     // SETTERS
     // ========================================================================
@@ -135,6 +141,20 @@ class BuilderContext
     public function addFilterDefault(string $name, mixed $value): void
     {
         $this->filter_defaults[$name] = $value;
+    }
+
+    public function setCustomData(array $data): void
+    {
+        $this->custom_data = $data;
+    }
+
+    public function addCustomData(string $key, mixed $value): void
+    {
+        if ($value === null) {
+            unset($this->custom_data[$key]);
+        } else {
+            $this->custom_data[$key] = $value;
+        }
     }
 
     // ========================================================================

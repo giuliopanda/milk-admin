@@ -15,7 +15,7 @@ if (!validateSecurePath($full_path)) {
     exit('Access denied');
 }
 
-// Validate file extension
+// Validazione estensioni permesse
 $allowed_extensions = ['css', 'js', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'woff', 'woff2', 'ttf', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'xml', 'tab', 'json', 'txt', 'md', 'mp4', 'mp3', 'wav', 'avi', 'mov', 'wmv', 'flv', 'ico', 'svg', 'webm', 'zip', 'rar', '7z', 'tar', 'gz', 'bz2'];
 
 $file_extension = strtolower(pathinfo($full_path, PATHINFO_EXTENSION));
@@ -25,7 +25,7 @@ if (!in_array($file_extension, $allowed_extensions)) {
     exit('Forbidden file type');
 }
 
-// Validate file exists
+// Verifica che il file esista
 if (!file_exists($full_path) || !is_readable($full_path)) {
     // Debug info (rimuovi in produzione)
     http_response_code(404);
@@ -33,7 +33,7 @@ if (!file_exists($full_path) || !is_readable($full_path)) {
 }
 
 
-// Headers
+// Headers appropriati per ogni tipo di file
 $mime_types = [
     'css' => 'text/css',
     'js' => 'application/javascript',
@@ -48,24 +48,24 @@ $mime_types = [
     'webp' => 'image/webp'
 ];
 
-// ETag intelligent cache 
+// ETag per cache intelligente
 $file_mtime = filemtime($full_path);
 $file_size = filesize($full_path);
 $etag = md5($full_path . $file_mtime . $file_size);
 
-// Check if the client already has the cached version
+// Controlla se il client ha già la versione cached
 if (isset($_SERVER['HTTP_IF_NONE_MATCH']) && $_SERVER['HTTP_IF_NONE_MATCH'] === '"' . $etag . '"') {
     http_response_code(304);
     exit;
 }
 
-// Set common headers
+// Imposta headers comuni
 header('Content-Type: ' . ($mime_types[$file_extension] ?? 'application/octet-stream'));
 header('Cache-Control: public, max-age=31536000');
 header('Expires: ' . gmdate('D, d M Y H:i:s', time() + 31536000) . ' GMT');
 header('ETag: "' . $etag . '"');
 
-// Compression management for CSS and JS
+// Gestione compressione per CSS e JS
 if (in_array($file_extension, ['css', 'js'])) {
     $accept_encoding = $_SERVER['HTTP_ACCEPT_ENCODING'] ?? '';
     $use_gzip = strpos($accept_encoding, 'gzip') !== false;
@@ -96,7 +96,7 @@ if (in_array($file_extension, ['css', 'js'])) {
 
 
 function getCurrentUrl() {
-    // Determine the protocol
+    // Determina il protocollo
     $protocol = 'http://';
     if (
         (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
@@ -105,10 +105,14 @@ function getCurrentUrl() {
     ) {
         $protocol = 'https://';
     }
-
+    
+    // Ottieni l'host
     $host = $_SERVER['HTTP_HOST'];
+    
+    // Ottieni il percorso completo con query string
     $requestUri = $_SERVER['REQUEST_URI'];
     
+    // Costruisci l'URL completo
     $currentUrl = $protocol . $host . $requestUri;
     
     return $currentUrl;
@@ -119,13 +123,15 @@ function getFilePathFromUrl() {
     $fullUrl = getCurrentUrl();
    
     $urlPath = strtok($fullUrl, '?');
+    // Pulisci il path (rimuovi doppi slash iniziali)
     $urlPath =  ltrim($urlPath, '/');
+    // Costruisci il percorso fisico del file
     $searchPath = str_replace([BASE_URL,  rtrim(MILK_DIR, '/').'//'], [rtrim(MILK_DIR, '/').'/', rtrim(MILK_DIR, '/').'/'], $urlPath);
     
    
-    // Verify that the file exists
+    // Verifica che il file esista
     $realPath = realpath($searchPath);
-    // Security check: file must be in MILK_DIR or LOCAL_DIR
+    // Verifica sicurezza: il file deve essere dentro MILK_DIR
     if (strpos($realPath, realpath(MILK_DIR)) === 0) {
         return $realPath;
     } else {
@@ -141,15 +147,18 @@ function getFilePathFromUrl() {
 
 
 function validateSecurePath($path) {
+    // Usa MILK_DIR come base di default
      $baseDir = MILK_DIR;
+    // 1. Normalizza i percorsi
     $baseDir = rtrim($baseDir, '/') . '/';
     $baseDirReal = realpath($baseDir);
     
     if (!$baseDirReal) {
+        // La directory base non esiste
         return false;
     }
     
-    // Check for obvious directory traversal attempts
+    // 2. Controlla tentativi ovvi di directory traversal
     $dangerousPatterns = [
         '../',
         '..\\',
@@ -174,7 +183,8 @@ function validateSecurePath($path) {
         }
     }
     
-    // Remove dangerous characters
+    // 3. Rimuovi caratteri pericolosi
+    // Rimuovi null bytes
     $path = str_replace(chr(0), '', $path);
     
     $resolvedPath = realpath($path);
@@ -183,13 +193,13 @@ function validateSecurePath($path) {
         return false;
     }
     
-    // Verify that the resolved path is inside the base directory
+    // 5. Verifica che il percorso risolto sia dentro la base directory
     if (strpos($resolvedPath, $baseDirReal) !== 0) {
         error_log("SECURITY WARNING: Path escape attempt - Resolved: $resolvedPath | Base: $baseDirReal");
         return false;
     }
     
-    // Check that there are no symlinks leading out
+    // 6. Controlla che non ci siano symlink che portano fuori
     if (is_link($resolvedPath)) {
         $linkTarget = readlink($resolvedPath);
         if (strpos(realpath($linkTarget), $baseDirReal) !== 0) {

@@ -22,8 +22,7 @@ $version = Config::get('version');
     <link href="<?php echo THEME_URL; ?>/AssetsExtensions/Bootstrap/Css/bootstrap.min.css?v=<?php echo $version; ?>" rel="stylesheet" crossorigin="anonymous">
     <?php Template::getCss(); ?>
     <link href="<?php echo THEME_URL; ?>/AssetsExtensions/Bootstrap/Icons/Font/bootstrap-icons.min.css?v=<?php echo $version; ?>" rel="stylesheet" crossorigin="anonymous">
-    <link href="<?php echo THEME_URL; ?>/AssetsExtensions/Prism/prism.css?v=<?php echo $version; ?>" rel="stylesheet" crossorigin="anonymous">
-    <link href="<?php echo THEME_URL; ?>/AssetsExtensions/TrixEditor/trix.css?v=<?php echo $version; ?>" rel="stylesheet" crossorigin="anonymous">
+     <link href="<?php echo THEME_URL; ?>/AssetsExtensions/TrixEditor/trix.css?v=<?php echo $version; ?>" rel="stylesheet" crossorigin="anonymous">
     <link rel="icon" href="<?php echo THEME_URL; ?>/Assets/favicon.ico" type="image/x-icon">
     <script>
       var milk_url = "<?php _p(Route::url()); ?>";

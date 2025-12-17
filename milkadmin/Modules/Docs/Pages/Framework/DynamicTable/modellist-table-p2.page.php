@@ -320,7 +320,7 @@ $search_builder = $table_builder->createSearchBuilder()
         'tutorial' => 'Tutorial'
     ]);
     
-$search_html = $search_builder->render([], true);
+$search_html = $search_builder->render();
 ?&gt;</code></pre>
 
     <h3>Layout Configuration</h3>

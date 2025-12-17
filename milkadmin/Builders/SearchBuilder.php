@@ -12,11 +12,11 @@ class SearchBuilder {
 
     private $table_id;
     private $fields = [];
+    private $current_field = null; // chiave del campo corrente in $fields
     private $auto_execute = true;
     private $form_classes = '';
     private $container_classes = '';
     private $wrapper_class = 'd-flex align-items-center gap-2 flex-wrap'; // classe wrapper per layout inline
-    private $label_position = 'inline'; // 'inline' | 'none' | 'before'
     private $search_mode = 'onchange'; // 'onchange' or 'submit'
     private $show_search_buttons = false; // se mostrare automaticamente i pulsanti search/clear in modalità submit
 
@@ -47,128 +47,201 @@ class SearchBuilder {
         ExtensionLoader::callHook($this->loaded_extensions, 'configure', [$this]);
     }
     
+    // ==================== CREATOR METHODS ====================
+
     /**
-     * Adds a search input field
-     * 
-     * @param string $filter_type Filter type (search, status, action, etc.)
-     * @param string $label Label for the field
-     * @param array $options Additional options for the input field
-     * @return self
+     * Creates a search input field
      */
-    public function addSearch($filter_type = 'search', $label = 'Search', $options = []): self {
-        /*
-           $this->search_html = \App\Form::input('text', 'search', $label, '', [
-            'placeholder' => $placeholder,
-            'floating' => false, 
-            'class' => 'js-milk-filter-onchange',
-            'data-filter-id' => $filter_id,
-            'data-filter-type' => 'search',
-            'label-attrs-class' => 'p-0 pt-2 me-2'
-        ], true);
-        */
+    public function search($filter_type = 'search'): self {
         $this->fields[] = [
             'type' => 'search',
             'filter_type' => $filter_type,
-            'label' => $label,
-            'class' => 'js-milk-filter-onchange',
-            'options' => array_merge([
-                'data-filter-id' => $this->table_id,
-                'data-filter-type' => $filter_type,
-                'placeholder' => $label . '...',
-                'floating' => false
-            ], $options)
+            'label' => '',
+            'placeholder' => '',
+            'class' => '',
+            'layout' => 'inline',
+            'floating' => false,
+            'options' => []
         ];
+        $this->current_field = array_key_last($this->fields);
         return $this;
     }
-    
+
     /**
-     * Adds a select dropdown filter
-     * 
-     * @param string $filter_type Filter type identifier
-     * @param string $label Label for the select
-     * @param array $select_options Options for the select
-     * @param string $selected Currently selected value
-     * @param array $options Additional options
-     * @return self
+     * Creates a select dropdown filter
      */
-    public function addSelect($filter_type, $label, $select_options, $selected = '', $options = []): self {
+    public function select($filter_type): self {
         $this->fields[] = [
             'type' => 'select',
             'filter_type' => $filter_type,
-            'label' => $label,
-            'select_options' => $select_options,
-            'selected' => $selected,
-            'options' => array_merge([
-                'floating' => false
-            ], $options)
+            'label' => '',
+            'class' => '',
+            'layout' => 'inline',
+            'floating' => false,
+            'select_options' => [],
+            'selected' => '',
+            'options' => []
         ];
+        $this->current_field = array_key_last($this->fields);
         return $this;
     }
-    
+
     /**
-     * Adds an action list filter
-     * 
-     * @param string $filter_type Filter type identifier
-     * @param string $label Label for the action list
-     * @param array $list_options Options for the action list
-     * @param string $selected Currently selected value
-     * @param array $options Additional options for container
-     * @param array $input_options Additional options for hidden input
-     * @return self
+     * Creates an action list filter
      */
-    public function addActionList($filter_type, $label, $list_options, $selected = '', $options = [], $input_options = []): self {
+    public function actionList($filter_type): self {
         $this->fields[] = [
             'type' => 'action_list',
             'filter_type' => $filter_type,
-            'label' => $label,
-            'list_options' => $list_options,
-            'selected' => $selected,
-            'options' => $options,
-            'input_options' => $input_options
+            'label' => '',
+            'class' => '',
+            'layout' => 'inline',
+            'list_options' => [],
+            'selected' => '',
+            'options' => [],
+            'input_options' => []
         ];
+        $this->current_field = array_key_last($this->fields);
         return $this;
     }
-    
+
     /**
-     * Adds a generic input field
-     * 
-     * @param string $input_type HTML input type (text, email, number, etc.)
-     * @param string $filter_type Filter type identifier
-     * @param string $label Label for the field
-     * @param string $value Default value
-     * @param array $options Additional options
-     * @return self
+     * Creates a generic input field
      */
-    public function addInput($input_type, $filter_type, $label, $value = '', $options = []): self {
+    public function input($type, $filter_type): self {
         $this->fields[] = [
             'type' => 'input',
-            'input_type' => $input_type,
+            'input_type' => $type,
             'filter_type' => $filter_type,
-            'label' => $label,
-            'value' => $value,
-            'options' => array_merge([
-                'floating' => false
-            ], $options)
+            'label' => '',
+            'placeholder' => '',
+            'class' => '',
+            'layout' => 'inline',
+            'floating' => false,
+            'value' => '',
+            'options' => []
         ];
+        $this->current_field = array_key_last($this->fields);
         return $this;
     }
-    
+
     /**
-     * Adds a search button for manual execution
-     * 
-     * @param string $label Button label
-     * @param array $options Additional options
-     * @return self
+     * Creates a search button for manual execution
      */
-    public function addSearchButton($label = 'Search', $options = []): self {
+    public function searchButton(): self {
         $this->auto_execute = false;
         $this->fields[] = [
             'type' => 'search_button',
-            'label' => $label,
-            'options' => array_merge([
-                'class' => 'btn btn-primary'
-            ], $options)
+            'label' => 'Search',
+            'class' => 'btn btn-primary',
+            'options' => []
         ];
+        $this->current_field = array_key_last($this->fields);
+        return $this;
+    }
+
+    /**
+     * Creates a clear button that resets all filters
+     */
+    public function clearButton(): self {
+        $this->fields[] = [
+            'type' => 'clear_button',
+            'label' => 'Clear',
+            'class' => 'btn btn-secondary',
+            'options' => []
+        ];
+        $this->current_field = array_key_last($this->fields);
+        return $this;
+    }
+
+    // ==================== MODIFIER METHODS ====================
+
+    /**
+     * Sets the label for the current field
+     */
+    public function label(string $label): self {
+        if ($this->current_field !== null) {
+            $this->fields[$this->current_field]['label'] = $label;
+        }
+        return $this;
+    }
+
+    /**
+     * Sets the placeholder for the current field
+     */
+    public function placeholder(string $placeholder): self {
+        if ($this->current_field !== null) {
+            $this->fields[$this->current_field]['placeholder'] = $placeholder;
+        }
+        return $this;
+    }
+
+    /**
+     * Sets floating label mode for the current field
+     */
+    public function floating(bool $enabled = true): self {
+        if ($this->current_field !== null) {
+            $this->fields[$this->current_field]['floating'] = $enabled;
+        }
+        return $this;
+    }
+
+    /**
+     * Sets custom CSS class for the current field container
+     */
+    public function class(string $class): self {
+        if ($this->current_field !== null) {
+            $this->fields[$this->current_field]['class'] = $class;
+        }
+        return $this;
+    }
+
+    /**
+     * Sets layout for the current field (inline|stacked|full-width)
+     */
+    public function layout(string $layout): self {
+        if ($this->current_field !== null && in_array($layout, ['inline', 'stacked', 'full-width'])) {
+            $this->fields[$this->current_field]['layout'] = $layout;
+        }
+        return $this;
+    }
+
+    /**
+     * Sets options for select or action list
+     * @param array $options ['value' => 'label']
+     */
+    public function options(array $options): self {
+        if ($this->current_field !== null) {
+            $field_type = $this->fields[$this->current_field]['type'];
+            if ($field_type === 'select') {
+                $this->fields[$this->current_field]['select_options'] = $options;
+            } elseif ($field_type === 'action_list') {
+                $this->fields[$this->current_field]['list_options'] = $options;
+            }
+        }
+        return $this;
+    }
+
+    /**
+     * Sets the default value for input fields
+     */
+    public function value(mixed $value): self {
+        if ($this->current_field !== null) {
+            $this->fields[$this->current_field]['value'] = $value;
+        }
+        return $this;
+    }
+
+    /**
+     * Sets the selected value for select fields
+     */
+    public function selected($selected): self {
+        if ($this->current_field !== null) {
+            $field_type = $this->fields[$this->current_field]['type'];
+            if (in_array($field_type, ['select', 'action_list'])) {
+                $this->fields[$this->current_field]['selected'] = $selected;
+            }
+        }
         return $this;
     }
     
@@ -178,7 +251,7 @@ class SearchBuilder {
      * @param bool $auto_execute
      * @return self
      */
-    public function setAutoExecute($auto_execute = true): self {
+    public function setAutoExecute(bool $auto_execute = true): self {
         $this->auto_execute = $auto_execute;
         return $this;
     }
@@ -189,7 +262,7 @@ class SearchBuilder {
      * @param string $classes CSS classes
      * @return self
      */
-    public function setFormClasses($classes): self {
+    public function setFormClasses(string $classes): self {
         $this->form_classes = $classes;
         return $this;
     }
@@ -200,7 +273,7 @@ class SearchBuilder {
      * @param string $classes CSS classes
      * @return self
      */
-    public function setContainerClasses($classes): self {
+    public function setContainerClasses(string $classes): self {
         $this->container_classes = $classes;
         return $this;
     }
@@ -211,30 +284,19 @@ class SearchBuilder {
      * @param string $class CSS classes for the wrapper (default: 'd-flex align-items-center gap-2 flex-wrap')
      * @return self
      */
-    public function setWrapperClass($class = 'd-flex align-items-center gap-2 flex-wrap'): self {
+    public function setWrapperClass(string $class = 'd-flex align-items-center gap-2 flex-wrap'): self {
         $this->wrapper_class = $class;
         return $this;
     }
 
     /**
-     * Sets the label position for fields
-     *
-     * @param string $position 'inline' for label inside field, 'none' for no label, 'before' for label before field
-     * @return self
-     */
-    public function setLabelPosition($position = 'inline'): self {
-        $this->label_position = in_array($position, ['inline', 'none', 'before']) ? $position : 'inline';
-        return $this;
-    }
-    
-    /**
      * Sets the search mode (onchange or submit)
-     * 
+     *
      * @param string $mode 'onchange' for automatic search, 'submit' for manual search with buttons
      * @param bool $auto_buttons If true in submit mode, automatically adds Search and Clear buttons
      * @return self
      */
-    public function setSearchMode($mode = 'onchange', $auto_buttons = true): self {
+    public function setSearchMode(string $mode = 'onchange', bool $auto_buttons = true): self {
         $this->search_mode = in_array($mode, ['onchange', 'submit']) ? $mode : 'onchange';
         $this->auto_execute = ($this->search_mode === 'onchange');
         $this->show_search_buttons = ($this->search_mode === 'submit' && $auto_buttons);
@@ -242,46 +304,14 @@ class SearchBuilder {
     }
     
     /**
-     * Adds Search and Clear buttons (useful in submit mode)
-     * 
-     * @param string $search_label Label for search button
-     * @param string $clear_label Label for clear button  
-     * @return self
-     */
-    public function addSearchButtons($search_label = 'Search', $clear_label = 'Clear'): self {
-        $this->addSearchButton($search_label);
-        $this->addClearButton($clear_label);
-        return $this;
-    }
-    
-    /**
-     * Adds a clear button that resets all filters
-     * 
-     * @param string $label Button label
-     * @param array $options Additional options
-     * @return self
-     */
-    public function addClearButton($label = 'Clear', $options = []): self {
-        $this->fields[] = [
-            'type' => 'clear_button',
-            'label' => $label,
-            'options' => array_merge([
-                'class' => 'btn btn-secondary'
-            ], $options)
-        ];
-        return $this;
-    }
-    
-    /**
      * Renders the complete search form
      * 
      * @param array $container_options Options for the main container
-     * @param bool $return If true, returns HTML instead of echoing
      * @return string|void
      */
-    public function render($container_options = [], $return = false) {
+    public function render(array $container_options = []): string {
         if (empty($this->fields)) {
-            return $return ? '' : null;
+            return '';
         }
         
         $container_class = 'search-builder-container';
@@ -304,34 +334,16 @@ class SearchBuilder {
         
         // Aggiungi automaticamente i pulsanti Search/Clear se necessario
         if ($this->show_search_buttons) {
-            $this->addSearchButtons();
+            $this->searchButton();
+            $this->clearButton();
         }
 
         $html .= $this->renderFieldsInline();
 
         $html .= '</div>';
-        /*
-        // Reinitialize action lists if any were rendered
-        $html .= '<script>';
-        $html .= 'if (typeof initActionLists === \'function\') { ';
-        $html .= '  setTimeout(function() { initActionLists(); }, 10); ';
-        $html .= '} else if (typeof setupActionList === \'function\') { ';
-        $html .= '  setTimeout(function() { ';
-        $html .= '    document.querySelectorAll(\'.search-builder-container .js-action-list\').forEach(function(container) { ';
-        $html .= '      if (!container._action_list_initialized) { ';
-        $html .= '        setupActionList(container); ';
-        $html .= '        container._action_list_initialized = true; ';
-        $html .= '      } ';
-        $html .= '    }); ';
-        $html .= '  }, 10); ';
-        $html .= '}';
-        $html .= '</script>';
-        */
-        if ($return) {
-            return $html;
-        } else {
-            echo $html;
-        }
+           
+        return $html;
+    
     }
     
     /**
@@ -356,7 +368,7 @@ class SearchBuilder {
      * @param array $field Field configuration
      * @return string
      */
-    private function renderField($field) {
+    private function renderField(array $field) {
         $filter_class = $this->auto_execute ? 'js-milk-filter-onchange' : 'js-milk-filter';
 
         switch ($field['type']) {
@@ -390,53 +402,111 @@ class SearchBuilder {
      * @param string $filter_class CSS filter class
      * @return string
      */
-    private function renderSearchField($field, $filter_class) {
+    private function renderSearchField(array $field, string $filter_class): string {
         $options = $this->prepareFieldOptions($field, $filter_class);
-        $options['placeholder'] = $field['options']['placeholder'] ?? $field['label'];
-
-        // Remove floating label for inline layout
-        $options['floating'] = false;
+        $placeholder = $field['placeholder'] ?: $field['label'];
+        $layout = $field['layout'] ?? 'inline';
+        $custom_class = $field['class'] ?? '';
 
         $id = $options['id'];
-        $html = '<div class="input-group d-inline-flex" style="width: auto; vertical-align: middle;">';
-        $html .= '<input class="js-milk-filter-onchange form-control search-builder-search" type="search"';
+
+        // Container classes based on layout
+        $container_classes = 'search-field-container';
+        if ($custom_class) {
+            $container_classes .= ' ' . $custom_class;
+        }
+
+        switch ($layout) {
+            case 'stacked':
+                $container_classes .= ' d-flex flex-column';
+                $input_group_classes = 'input-group w-100';
+                break;
+            case 'full-width':
+                $container_classes .= ' d-block w-100';
+                $input_group_classes = 'input-group w-100';
+                break;
+            case 'inline':
+            default:
+                $container_classes .= ' d-inline-flex align-middle';
+                $input_group_classes = 'input-group w-auto';
+                break;
+        }
+
+        $html = '<div class="' . $container_classes . '">';
+
+        // Label if present
+        if (!empty($field['label'])) {
+            if ($layout === 'stacked' || $layout === 'full-width') {
+                $html .= '<label for="' . htmlspecialchars($id) . '" class="form-label">' . htmlspecialchars($field['label']) . '</label>';
+            } else {
+                $html .= '<span class="text-body-secondary me-2">' . htmlspecialchars($field['label']) . ':</span>';
+            }
+        }
+
+        // Input group
+        $html .= '<div class="' . $input_group_classes . '">';
+        $html .= '<input class="' . htmlspecialchars($options['class']) . ' form-control search-builder-search" type="search"';
         $html .= ' name="search"';
         $html .= ' id="' . htmlspecialchars($id) . '"';
-        $html .= ' placeholder="' . htmlspecialchars($options['placeholder']) . '"';
+        $html .= ' placeholder="' . htmlspecialchars($placeholder) . '"';
         $html .= ' data-filter-id="' . htmlspecialchars($this->table_id) . '"';
         $html .= ' data-filter-type="' . htmlspecialchars($field['filter_type']) . '"';
-        $html .= ' class="' . htmlspecialchars($options['class']) . '"';
         $html .= '>';
 
         // Add clear button
-        $html .= '<button class="btn btn-outline-secondary js-milk-clear-search" type="button" data-id="' . _r($id) . '">';
+        $html .= '<button class="btn btn-outline-secondary js-milk-clear-search" type="button" data-id="' . htmlspecialchars($id) . '">';
         $html .= '<i class="bi bi-x-lg"></i>';
         $html .= '</button>';
 
-        $html .= '</div>';
+        $html .= '</div>'; // input-group
+        $html .= '</div>'; // container
 
         return $html;
     }
 
     /**
-     * Renders a select field for inline layout
+     * Renders a select field
      *
      * @param array $field Field configuration
      * @param string $filter_class CSS filter class
      * @return string
      */
-    private function renderSelectField($field, $filter_class) {
+    private function renderSelectField(array $field, string $filter_class): string {
         $options = $this->prepareFieldOptions($field, $filter_class);
-        $options['floating'] = false;
+        $options['floating'] = $field['floating'] ?? false;
+        $layout = $field['layout'] ?? 'inline';
+        $custom_class = $field['class'] ?? '';
 
-        $html = '';
-
-        // Add label before if needed
-        if ($this->label_position === 'before' && !empty($field['label'])) {
-            $html .= '<span class="text-body-secondary me-2">' . htmlspecialchars($field['label']) . ':</span>';
+        // Container classes based on layout
+        $container_classes = 'select-field-container';
+        if ($custom_class) {
+            $container_classes .= ' ' . $custom_class;
         }
 
-        $html .= '<div class="d-inline-block" style="width: auto;">';
+        switch ($layout) {
+            case 'stacked':
+                $container_classes .= ' d-flex flex-column';
+                break;
+            case 'full-width':
+                $container_classes .= ' d-block w-100';
+                break;
+            case 'inline':
+            default:
+                $container_classes .= ' d-inline-block w-auto';
+                break;
+        }
+
+        $html = '<div class="' . $container_classes . '">';
+
+        // Label if present
+        if (!empty($field['label'])) {
+            if ($layout === 'stacked' || $layout === 'full-width') {
+                $html .= '<label for="' . htmlspecialchars($options['id']) . '" class="form-label">' . htmlspecialchars($field['label']) . '</label>';
+            } else {
+                $html .= '<span class="text-body-secondary me-2">' . htmlspecialchars($field['label']) . ':</span>';
+            }
+        }
+
         $html .= Form::select('filter_' . $field['filter_type'], '', $field['select_options'], $field['selected'], $options, true);
         $html .= '</div>';
 
@@ -450,18 +520,46 @@ class SearchBuilder {
      * @param string $filter_class CSS filter class
      * @return string
      */
-    private function renderActionListField($field, $filter_class) {
+    private function renderActionListField(array $field, string $filter_class): string {
         $input_options = $this->prepareActionListInputOptions($field, $filter_class);
         $input_id = $this->table_id . 'SearchForm' . ucfirst($field['filter_type']);
+        $layout = $field['layout'] ?? 'inline';
+        $custom_class = $field['class'] ?? '';
 
-        $html = '';
-
-        // Add label if provided
-        if (!empty($field['label'])) {
-            $html .= '<label for="' . htmlspecialchars($input_id) . '" class="text-body-secondary me-2">' . htmlspecialchars($field['label']) . '</label>';
+        // Container classes based on layout
+        $container_classes = 'action-list-field-container';
+        if ($custom_class) {
+            $container_classes .= ' ' . $custom_class;
         }
 
-        // Hidden input for the filter value (BEFORE the container as per Form::actionList)
+        switch ($layout) {
+            case 'stacked':
+                $container_classes .= ' d-flex flex-column';
+                $action_list_classes = 'js-action-list action-list-container d-flex align-items-center gap-2';
+                break;
+            case 'full-width':
+                $container_classes .= ' d-block w-100';
+                $action_list_classes = 'js-action-list action-list-container d-flex align-items-center gap-2 w-100';
+                break;
+            case 'inline':
+            default:
+                $container_classes .= ' d-inline-block';
+                $action_list_classes = 'js-action-list action-list-container d-inline-flex align-items-center gap-2';
+                break;
+        }
+
+        $html = '<div class="' . $container_classes . '">';
+
+        // Label if present
+        if (!empty($field['label'])) {
+            if ($layout === 'stacked' || $layout === 'full-width') {
+                $html .= '<label for="' . htmlspecialchars($input_id) . '" class="form-label">' . htmlspecialchars($field['label']) . '</label>';
+            } else {
+                $html .= '<span class="text-body-secondary me-2">' . htmlspecialchars($field['label']) . ':</span>';
+            }
+        }
+
+        // Hidden input for the filter value
         $html .= '<input type="hidden"';
         $html .= ' id="' . htmlspecialchars($input_id) . '"';
         $html .= ' name="filter_' . htmlspecialchars($field['filter_type']) . '"';
@@ -472,7 +570,7 @@ class SearchBuilder {
         $html .= '>';
 
         // Action list container with standard js-action-list class
-        $html .= '<div class="js-action-list action-list-container d-inline-flex align-items-center gap-2" data-target-input="' . htmlspecialchars($input_id) . '">';
+        $html .= '<div class="' . $action_list_classes . '" data-target-input="' . htmlspecialchars($input_id) . '">';
 
         // Render action items with standard js-action-item class
         foreach ($field['list_options'] as $value => $label) {
@@ -486,30 +584,56 @@ class SearchBuilder {
             $html .= '</span>';
         }
 
-        $html .= '</div>';
+        $html .= '</div>'; // action-list
+        $html .= '</div>'; // container
 
         return $html;
     }
 
     /**
-     * Renders a generic input field for inline layout
+     * Renders a generic input field
      *
      * @param array $field Field configuration
      * @param string $filter_class CSS filter class
      * @return string
      */
-    private function renderInputField($field, $filter_class) {
+    private function renderInputField(array $field, string $filter_class): string {
         $options = $this->prepareFieldOptions($field, $filter_class);
-        $options['floating'] = false;
+        $options['floating'] = $field['floating'] ?? false;
+        $options['placeholder'] = $field['placeholder'] ?? '';
+        $layout = $field['layout'] ?? 'inline';
+        $custom_class = $field['class'] ?? '';
 
-        $html = '';
-
-        // Add label before if needed
-        if ($this->label_position === 'before' && !empty($field['label'])) {
-            $html .= '<span class="text-body-secondary me-2">' . htmlspecialchars($field['label']) . ':</span>';
+        // Container classes based on layout
+        $container_classes = 'input-field-container';
+        if ($custom_class) {
+            $container_classes .= ' ' . $custom_class;
         }
 
-        $html .= '<div class="d-inline-block" style="width: auto;">';
+        switch ($layout) {
+            case 'stacked':
+                $container_classes .= ' d-flex flex-column';
+                break;
+            case 'full-width':
+                $container_classes .= ' d-block w-100';
+                break;
+            case 'inline':
+            default:
+                $container_classes .= ' d-inline-block w-auto';
+                break;
+        }
+
+        $html = '<div class="' . $container_classes . '">';
+
+        // Label if present
+        if (!empty($field['label'])) {
+            if ($layout === 'stacked' || $layout === 'full-width') {
+                $html .= '<label for="' . htmlspecialchars($options['id']) . '" class="form-label">' . htmlspecialchars($field['label']) . '</label>';
+            } else {
+                $html .= '<span class="text-body-secondary me-2">' . htmlspecialchars($field['label']) . ':</span>';
+            }
+        }
+
         $html .= Form::input($field['input_type'], 'filter_' . $field['filter_type'], '', $field['value'], $options, true);
         $html .= '</div>';
 
@@ -522,9 +646,10 @@ class SearchBuilder {
      * @param array $field Field configuration
      * @return string
      */
-    private function renderSearchButton($field) {
+    private function renderSearchButton(array $field): string {
+        $class = $field['class'] . ' js-milk-filter-onclick';
         $options = array_merge($field['options'], [
-            'class' => $field['options']['class'] . ' js-milk-filter-onclick',
+            'class' => $class,
             'data-filter-id' => $this->table_id
         ]);
         return '<button type="button"' . Form::attr($options) . '>' . htmlspecialchars($field['label']) . '</button>';
@@ -536,9 +661,10 @@ class SearchBuilder {
      * @param array $field Field configuration
      * @return string
      */
-    private function renderClearButton($field) {
+    private function renderClearButton(array $field): string {
+        $class = $field['class'] . ' js-milk-filter-clear';
         $options = array_merge($field['options'], [
-            'class' => $field['options']['class'] . ' js-milk-filter-clear',
+            'class' => $class,
             'data-filter-id' => $this->table_id
         ]);
         return '<button type="button"' . Form::attr($options) . '>' . htmlspecialchars($field['label']) . '</button>';
@@ -550,7 +676,7 @@ class SearchBuilder {
      * @param string $filter_class CSS class for filter behavior
      * @return array
      */
-    private function prepareFieldOptions($field, $filter_class) {
+    private function prepareFieldOptions(array $field, string $filter_class): array {
         $options = $field['options'] ?? [];
         
         // Generate unique ID based on table ID and filter type
@@ -581,7 +707,7 @@ class SearchBuilder {
      * @param array $field Field configuration
      * @return array
      */
-    private function prepareActionListOptions($field) {
+    private function prepareActionListOptions(array $field): string {
         $options = $field['options'] ?? [];
 
         // Generate unique ID based on table ID and filter type for action lists too
@@ -599,7 +725,7 @@ class SearchBuilder {
      * @param string $filter_class CSS class for filter behavior
      * @return array
      */
-    private function prepareActionListInputOptions($field, $filter_class) {
+    private function prepareActionListInputOptions(array $field, string $filter_class): string {
         $input_options = $field['input_options'] ?? [];
         
         // Add required data attributes to the hidden input
@@ -622,7 +748,7 @@ class SearchBuilder {
      * @param string $table_id Table ID for filter connection
      * @return self
      */
-    public static function create($table_id): self {
+    public static function create(string $table_id): self {
         return new self($table_id);
     }
 
@@ -675,4 +801,14 @@ class SearchBuilder {
     {
         return $this->loaded_extensions[$extension_name] ?? null;
     }
+
+      /**
+     * Magic method to render calendar when object is cast to string
+     *
+     * @return string Complete HTML calendar ready for display
+     */
+    public function __toString(): string {
+        return $this->render() ?? '';
+    }
+
 }

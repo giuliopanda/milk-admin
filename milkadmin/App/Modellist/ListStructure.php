@@ -104,9 +104,15 @@ class ListStructure implements \ArrayAccess, \Iterator, \Countable {
     }
 
     public function setAction($options = [], $label = 'Action') {
+        // Rimuovi 'action' se esiste già (per spostarlo alla fine)
+        if (isset($this->properties['action'])) {
+            unset($this->properties['action']);
+        }
+
+        // Ri-aggiungi 'action' alla fine
         $this->properties['action'] = [
-            'label' => $label, 
-            'type' => 'action', 
+            'label' => $label,
+            'type' => 'action',
             'options' => $options
         ];
         $this->keys = array_keys($this->properties);

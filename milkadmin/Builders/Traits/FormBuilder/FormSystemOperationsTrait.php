@@ -14,6 +14,71 @@ use App\{MessagesHandler, ObjectToForm, Route, Config};
 trait FormSystemOperationsTrait {
 
     /**
+     * Apply FormBuilder field configurations to Model rules
+     *
+     * This method modifies the Model's validation rules to match the configurations
+     * set in FormBuilder (e.g., required, errorMessage). It also adds custom fields
+     * that don't exist in the Model with 'sql' => false to prevent database operations.
+     *
+     * @param object $model The model instance to apply configurations to
+     * @return void
+     *
+     * @example $form_builder->applyFieldConfigToModel($model)
+     */
+    public function applyFieldConfigToModel(object $model): void {
+        // Get current model rules
+        $model_rules = $model->getRules();
+        // Apply FormBuilder field configurations to model rules
+        foreach ($this->fields as $field_name => $field_config) {
+            // If field doesn't exist in model, add it as a custom field
+            if (!isset($model_rules[$field_name])) {
+                // Create a new rule for this custom field
+                $model_rules[$field_name] = [
+                    'type' => $field_config['type'] ?? 'string',
+                    'length' => $field_config['length'] ?? null,
+                    'precision' => null,
+                    'nullable' => true,
+                    'default' => $field_config['default'] ?? null,
+                    'primary' => false,
+                    'label' => $field_config['label'] ?? $field_name,
+                    'options' => $field_config['options'] ?? null,
+                    'index' => false,
+                    'unique' => false,
+                    'list' => true,
+                    'edit' => true,
+                    'view' => true,
+                    'sql' => false,  // Don't save to database (custom field)
+                    'form-type' => $field_config['form-type'] ?? null,
+                    'form-label' => $field_config['form-label'] ?? null,
+                    'form-params' => $field_config['form-params'] ?? [],
+                    'timezone_conversion' => false,
+                ];
+            } else {
+                // Field exists in model, just update configurations
+
+                // Apply 'required' configuration
+                if (isset($field_config['form-params']['required'])) {
+                    if (!isset($model_rules[$field_name]['form-params'])) {
+                        $model_rules[$field_name]['form-params'] = [];
+                    }
+                    $model_rules[$field_name]['form-params']['required'] = $field_config['form-params']['required'];
+                }
+
+                // Apply 'invalid-feedback' (custom error message)
+                if (isset($field_config['form-params']['invalid-feedback'])) {
+                    if (!isset($model_rules[$field_name]['form-params'])) {
+                        $model_rules[$field_name]['form-params'] = [];
+                    }
+                    $model_rules[$field_name]['form-params']['invalid-feedback'] = $field_config['form-params']['invalid-feedback'];
+                }
+            }
+        }
+
+        // Set modified rules back to model
+        $model->setRules($model_rules);
+    }
+
+    /**
      * Default save operation for forms
      * MessagesHandler for messages errors and success
      *
@@ -41,9 +106,12 @@ trait FormSystemOperationsTrait {
             // Get or create record and merge with form data
             // DateTime parsing timezone is controlled by Config 'use_user_timezone'
             $obj = $this->model->getByIdAndUpdate($id, $request);
+
+            // Apply FormBuilder field configurations (required, errorMessage, etc.) to Model rules
+            $this->applyFieldConfigToModel($obj);
+
             // Convert all datetime fields from user timezone to UTC before saving to database
             // This only happens if Config 'use_user_timezone' is true
-           
             $obj->convertDatesToUTC();
             // Handle file uploads before saving - stop if file operations fail
             $file_result = $this->moveUploadedFile($obj);
@@ -51,7 +119,7 @@ trait FormSystemOperationsTrait {
                 MessagesHandler::addError($file_result['message']);
                 return false;
             }
-    
+
             if ( $obj->validate()) {
                 // Save data
                 if ($obj->save()) {
@@ -277,6 +345,8 @@ trait FormSystemOperationsTrait {
      * @return string Complete HTML form
      */
     public function render(): string {
+      
+         $this->setModel($this->model_class);
         // Check if any action was triggered before rendering
         $this->ActionExecution();
 
@@ -286,7 +356,7 @@ trait FormSystemOperationsTrait {
         }
 
         // Start form
-        $html = ObjectToForm::start($this->page,  $this->current_action, $this->form_attributes, $this->only_json);
+        $html = ObjectToForm::start($this->page,  $this->current_action, $this->form_attributes, $this->only_json, $this->custom_data);
 
         // Add custom HTML before fields
         if (isset($this->custom_html['before_fields'])) {
@@ -389,7 +459,7 @@ trait FormSystemOperationsTrait {
 
 
     /**
-     * Check if any action was executed and call its callback
+     * Execute the action associated with the pressed button
      * 
      */
     public function ActionExecution(): self {
@@ -408,9 +478,16 @@ trait FormSystemOperationsTrait {
             }
            
             if ($button_pressed && isset($action_config['callback']) && is_callable($action_config['callback'])) {
-                 
+
                 $this->function_results = call_user_func($action_config['callback'], $this, $_REQUEST['data']);
+
+                // Track which action was executed
+                $this->executed_action = $action_key;
+
                 if (is_array($this->function_results) && isset($this->function_results['success']) && isset($this->function_results['message'])) {
+                    // Track if action was successful
+                    $this->action_success = $this->function_results['success'];
+
                     if ($this->function_results['success']) {
                         MessagesHandler::addSuccess($this->function_results['message']);
                     } else {
@@ -461,10 +538,7 @@ trait FormSystemOperationsTrait {
                 } elseif (isset($this->fields[$field_name]['value'])) {
                     $field_value = $this->fields[$field_name]['value'];
                 }
-                print "<pre>";
-                var_dump($this->fields);
-                print "</pre><br>";
-                die ($field_name." = ". $field_value );
+
                 // Evaluate condition based on operator
                 switch ($operator) {
                     case 'empty':

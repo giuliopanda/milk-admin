@@ -880,9 +880,11 @@ class Table {
             }
 
             // Show success/error message if provided
+            /*
             if (data.msg && data.msg !== '' && typeof window.toasts !== 'undefined') {
                 window.toasts.show(data.msg, message_type);
             }
+            */
 
             // Auto-scroll to table if not disabled and not already visible
             if (!this.el_container.hasAttribute('data-no-auto-scroll')) {
@@ -890,6 +892,9 @@ class Table {
                     this.el_scroll.scrollIntoView({ behavior: "smooth" });
                 }
             }
+
+            jsonAction(data);
+
 
         } catch (error) {
             console.error('Table form submission failed:', error);

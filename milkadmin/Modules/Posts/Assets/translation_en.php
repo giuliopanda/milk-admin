@@ -1,0 +1,12 @@
+<?php
+// Translation file for Posts Module
+return [
+    "This is a sample module to show how to create a basic module on Milk Admin. Go to the modules/posts folder to see the code." => "Questo è un modulo di esempio per mostrare come si crea un modulo di base su Milk Admin. Vai nella cartella modules/posts per vedere il codice",
+    "Posts" => "Articoli",
+    "Add New" => "Aggiungi nuovo",
+    "Search" => "Cerca",
+    "Elements per page:" => "Elementi per pagina",
+    "Title" => "Titolo",
+    "Are you sure you want to delete this user? This action cannot be undone." => "Sei sicuro?",
+    "Hello %s" => "Ciao %s",
+];

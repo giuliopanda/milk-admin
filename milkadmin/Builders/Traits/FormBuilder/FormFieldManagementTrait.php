@@ -129,7 +129,7 @@ trait FormFieldManagementTrait {
      *
      * @example ->addFieldsFromObject($data, 'edit', $_POST)
      */
-    public function addFieldsFromObject(object $object, string $context = 'edit', array $values = []): self {
+    public function addFieldsFromObject(object $object, string $context = 'edit', array $values = []): self {       
         if (method_exists($object, 'getRules')) {
             foreach ($object->getRules($context, true) as $key => $rule) {
                 if (isset($rule["form-type"])) {
@@ -142,6 +142,10 @@ trait FormFieldManagementTrait {
                     }
                 }
                 $value = $values[$key] ?? '';
+                if (isset( $this->fields[$key]['set_value'])) {
+                    $value =  $this->fields[$key]['set_value'];
+                    $object->$key = $value;
+                }
                 $this->fields[$key] = array_merge($rule, [
                     'name' => $key,
                     'value' => $value, // il valore di default del campo
@@ -150,7 +154,6 @@ trait FormFieldManagementTrait {
                 ]);
             }
         }
-
 
         return $this;
     }

@@ -13,6 +13,59 @@ namespace Modules\Docs\Pages;
 
     <p>The <code>setActions()</code> method configures action buttons that appear for each row in your table. Actions can be simple navigation links or complex server-side operations with callbacks.</p>
 
+    <h2>Quick Reference: Action Methods</h2>
+
+    <table class="table table-bordered table-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>Method</th>
+                <th>Parameters</th>
+                <th>Description</th>
+                <th>Behavior</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>addAction()</code></td>
+                <td><code>string $key, array $config</code></td>
+                <td>Adds a single row action without removing existing actions</td>
+                <td><span class="badge bg-success">Preserves existing</span></td>
+            </tr>
+            <tr>
+                <td><code>setActions()</code></td>
+                <td><code>array $actions</code></td>
+                <td>Sets all row actions at once</td>
+                <td><span class="badge bg-warning">Replaces all</span></td>
+            </tr>
+            <tr>
+                <td><code>setDefaultActions()</code></td>
+                <td><code>array $customActions = []</code></td>
+                <td>Adds default Edit and Delete actions, preserving any previously added actions</td>
+                <td><span class="badge bg-success">Preserves existing</span> + Adds defaults</td>
+            </tr>
+            <tr>
+                <td><code>addBulkAction()</code></td>
+                <td><code>array $config</code></td>
+                <td>Adds a single bulk action for multiple row selection</td>
+                <td><span class="badge bg-success">Preserves existing</span></td>
+            </tr>
+            <tr>
+                <td><code>setBulkActions()</code></td>
+                <td><code>array $actions</code></td>
+                <td>Sets all bulk actions at once</td>
+                <td><span class="badge bg-warning">Replaces all</span></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="alert alert-info mt-3">
+        <h5 class="alert-heading"><i class="bi bi-lightbulb"></i> Method Chaining Order</h5>
+        <p><strong>Recommended pattern:</strong> Use <code>addAction()</code> to add custom actions first, then call <code>setDefaultActions()</code> to append Edit and Delete buttons.</p>
+        <pre class="mb-0"><code class="language-php">$table->addAction('view', [...])
+      ->addAction('duplicate', [...])
+      ->setDefaultActions(); // Adds Edit and Delete after custom actions</code></pre>
+    </div>
+
     <h2>Action Types</h2>
 
     <h3>Link Actions</h3>
@@ -30,6 +83,28 @@ namespace Modules\Docs\Pages;
             'target' => '_blank',
         ]
     ]);</code></pre>
+
+    <h3>Adding Actions Incrementally</h3>
+    <p>Use <code>addAction()</code> to add individual actions without replacing existing ones. This is useful when you want to add custom actions and then append default actions:</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Add custom actions first
+$table = \Builders\TableBuilder::create($model, 'table_id')
+    ->addAction('comment', [
+        'label' => 'Comments',
+        'link' => '?page=posts&action=comments&id=%id%'
+    ])
+    ->addAction('preview', [
+        'label' => 'Preview',
+        'link' => '/post/%slug%',
+        'target' => '_blank'
+    ])
+    ->setDefaultActions(); // Adds Edit and Delete after custom actions
+
+// Result: Actions appear in order: Comments, Preview, Edit, Delete</code></pre>
+
+    <div class="alert alert-success">
+        <p class="mb-0"><strong>Best Practice:</strong> Use <code>addAction()</code> when you want to preserve action order and combine custom actions with defaults. Use <code>setActions()</code> when you want complete control over all actions.</p>
+    </div>
 
     <h3>Callback Actions</h3>
     <p>Callback actions execute server-side functions when clicked. Ideal for operations like Delete, Publish, or Archive.</p>
@@ -355,7 +430,7 @@ public function actionRestore($record, $request) {
 
     <h2>Default Actions Helper</h2>
 
-    <p>For common CRUD operations, use <code>setDefaultActions()</code> to automatically generate Edit and Delete actions:</p>
+    <p>For common CRUD operations, use <code>setDefaultActions()</code> to automatically generate Edit and Delete actions. This method <strong>preserves any actions you've already added</strong>, making it easy to combine custom actions with standard CRUD operations.</p>
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Simple default actions
 $table = \Builders\TableBuilder::create($model, 'table_id')
@@ -370,7 +445,16 @@ $table = \Builders\TableBuilder::create($model, 'table_id')
     ->setPage('posts')
     ->setDefaultActions();
 
-// Add additional actions
+// Combine custom actions with defaults (RECOMMENDED)
+$table = \Builders\TableBuilder::create($model, 'table_id')
+    ->addAction('comment', [
+        'label' => 'Comments',
+        'link' => '?page=posts&action=comments&id=%id%'
+    ])
+    ->setDefaultActions();
+// Result: Comment, Edit, Delete (in that order)
+
+// Add additional actions via parameter
 $table = \Builders\TableBuilder::create($model, 'table_id')
     ->setDefaultActions([
         'view' => [
@@ -378,7 +462,13 @@ $table = \Builders\TableBuilder::create($model, 'table_id')
             'link' => '?page=posts&action=view&id=%id%',
             'target' => '_blank'
         ]
-    ]);</code></pre>
+    ]);
+// Result: Edit, Delete, View (defaults first, then custom)</code></pre>
+
+    <div class="alert alert-warning">
+        <h5 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Important: Action Order</h5>
+        <p class="mb-0">When you call <code>setDefaultActions()</code>, it adds Edit and Delete actions <strong>after</strong> any actions you've already added with <code>addAction()</code>. Actions passed as parameter to <code>setDefaultActions()</code> are added <strong>last</strong>.</p>
+    </div>
 
     <h2>Opening Offcanvas from Row Actions</h2>
 

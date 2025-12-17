@@ -145,6 +145,7 @@ window.getCSRFToken = function() {
 /**
  * MilkActions - JSON Action Response System
  * Handles structured JSON responses for controlling frontend via AJAX
+ * @TODO container ?
  */
 function jsonAction(data, container) {
     // 1. HTML replacement Removed
@@ -347,8 +348,23 @@ function jsonAction(data, container) {
             if (data.calendar.action == 'reload') {
                 calendar.reload();
             }
+        } else {
+            console.warn('error table reload id: '+data.table.id)
         }
     }
+
+    // GENERIC RELOAD LIST!
+    if ('list' in data && data.list.id) {
+        const list = getComponent(data.list.id);
+        if (list) {
+            if (data.list.action == 'reload') {
+                list.reload();
+            }
+        } else {
+            console.warn('error list reload id: '+data.table.id)
+        }
+    }
+
 
     // 11. JavaScript Hooks
     if (data.hook) {
@@ -555,6 +571,5 @@ function updateContainer(el) {
     // Auto-dismiss alerts after 8 seconds
     autoDismissAlerts(8000, container);
 
-   
     document.dispatchEvent(new CustomEvent('updateContainer', { detail: { el: el } }));
 }

@@ -18,10 +18,10 @@ use ReflectionClass;
  *     public function configure($builder): void
  *     {
  *         // Add search fields
- *         $builder->addActionList('status', 'Status:', [
- *             'active' => 'Active',
- *             'inactive' => 'Inactive'
- *         ], 'active');
+ *         $builder->actionList('status')
+ *             ->label('Status:')
+ *             ->options(['active' => 'Active', 'inactive' => 'Inactive'])
+ *             ->selected('active');
  *     }
  * }
  * ```

@@ -131,7 +131,7 @@ class AuthController extends AbstractController
 
         // Create search builder
         $searchBuilder = AccessLogsService::getSearchBuilder($table_id, $users_options);
-        $search_html = $searchBuilder->render([], true);
+        $search_html = $searchBuilder->render();
 
         // Get response from table builder
         $response = $tableBuilder->getResponse();

@@ -23,7 +23,7 @@ use App\Route;
 
     <p>To create a model, extend <code>AbstractModel</code> and implement the <code>configure()</code> method:</p>
 
-    <pre class="language-php"><code>namespace Modules\Products;
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">namespace Modules\Products;
 use App\Abstracts\AbstractModel;
 
 class ProductsModel extends AbstractModel
@@ -404,8 +404,7 @@ class ProductsModel extends AbstractModel
 
     <h3 class="mt-3" id="fill"><code>fill(array|object|null $data = null)</code></h3>
     <p>Fills the model with data from an array or object. This is the primary method for loading data into a model instance.</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
-/**
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">/**
  * @param array|object|null $data Data to fill the model with
  * @return static Returns the model instance for method chaining
  */
@@ -458,8 +457,7 @@ if ($product->validate()) {
 
     <h3 class="mt-3" id="store"><code>store(array $data, $id = null)</code></h3>
     <p>Saves a single record directly to the database (immediate save). This is different from <code>save()</code> which handles batch operations.</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
-/**
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">/**
  * @param array $data Data to save
  * @param mixed $id Primary key for update, null for insert
  * @return bool True if successful, false otherwise
@@ -502,8 +500,7 @@ if ($success) {
 
     <h3 class="mt-3" id="getById"><code>getById($id, $use_cache = true)</code></h3>
     <p>Retrieves a single record by primary key. Returns a Model instance with one record or null if not found.</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
-/**
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">/**
  * @param mixed $id Primary key value
  * @param bool $use_cache Whether to use cache for data
  * @return static|null Returns Model instance with the record, or null if not found
@@ -533,8 +530,7 @@ if ($product && $product->count() > 0) {
 
     <h3 class="mt-3" id="getByIdAndUpdate"><code>getByIdAndUpdate($id, array $merge_data = [], $mysql_array = false)</code></h3>
     <p>Returns a record by primary key, otherwise returns an empty object</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
-    /**
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">    /**
     * @param mixed $id Primary key value
     * @param array $merge_data Optional data to merge with the record
     * @param bool $mysql_array Whether to return the record as a MySQL array (default: <code>false</code>)
@@ -563,8 +559,7 @@ if ($product && $product->count() > 0) {
 
     <h3 class="mt-3" id="getEmpty"><code>getEmpty(array $data = [], $mysql_array = false)</code></h3>
     <p>Returns an empty model object for creating new records</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
-    /**
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">    /**
     * @param array $data Data to use to initialize the object
     * @param bool $mysql_array Whether to return the record as a MySQL array (default: <code>false</code>)
     * @return object Returns an empty model object
@@ -593,8 +588,7 @@ if ($product && $product->count() > 0) {
     <p>Retrieves a record for editing, applying edit rules.</p>
     <br>
     <h4 class="mt-3">Example 1: Edit a record</h4>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
-    protected function actionEditProject() {
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">    protected function actionEditProject() {
         $id = _absint($_REQUEST['id'] ?? 0);
         // Retrieve the record and apply edit rules
         $data = $this->model->getByIdForEdit($id, Route::getSessionData());
@@ -611,8 +605,7 @@ if ($product && $product->count() > 0) {
             'url_success' => '?page='.$this->page."&action=list-projects",
             'action_save' => 'save_projects'
         ]);
-    }
-    </code></pre>
+    }</code></pre>
     <ul>
         <li><strong>Input parameters:</strong>
             <ul>
@@ -629,8 +622,7 @@ if ($product && $product->count() > 0) {
 
     <h3 class="mt-3" id="save"><code>save(bool $cascade = true, $reset_save_result = true)</code></h3>
     <p>Saves all tracked changes (batch operation). Processes all inserts, updates, and deletes marked through <code>fill()</code> and <code>detach()</code>.</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
-    /**
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">    /**
     * @param bool $cascade If true, saves related hasOne relationships
     * @param bool $reset_save_result If true, reset save results after commit
     * @return bool True if all operations succeeded, false otherwise

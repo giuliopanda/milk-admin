@@ -91,6 +91,7 @@ class Route
      * @return void
      */
     public static function set($name, $function, $permission = null) {
+        $name = $name ?? ''; // Converti null in stringa vuota
         self::$functions[$name] = $function;
         if ($permission !== null) {
             self::$permissions[$name] = $permission;

@@ -134,7 +134,6 @@ trait CopyRulesTrait
                     // Use reflection to access protected rules array
                     $reflection = new \ReflectionClass($destination_rule);
                     $rulesProperty = $reflection->getProperty('rules');
-                    $rulesProperty->setAccessible(true);
                     $rules_array = $rulesProperty->getValue($destination_rule);
                     $rules_array[$field_name][$prop_key] = $prop_value;
                     $rulesProperty->setValue($destination_rule, $rules_array);

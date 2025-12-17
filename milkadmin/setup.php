@@ -72,7 +72,7 @@ define('STORAGE_DIR', realpath(LOCAL_DIR.'/'.Config::get('storage_dir', 'storage
  * Version identifier in format AAmmXX (YearMonth + sequence)
  * @global string NEW_VERSION
  */
-define('NEW_VERSION', '251200');
+define('NEW_VERSION', '251201');
 
 Token::config(Config::get('secret_key'), Config::get('token_key'));
 

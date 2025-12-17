@@ -32,7 +32,7 @@ class TableBuilder extends GetDataBuilder
             'page_info' => $data['page_info'],
             'table_attrs' => $this->table_attrs
         ]);
-       
+
     }
 
     // Method chaining per configurazione tabella (snake_case)

@@ -50,14 +50,14 @@ class Form
      * // Email input with validation
      * Form::input('email', 'user_email', 'Email Address', '', [
      *     'required' => true,
-     *     'placeholder' => 'your.email@example.com',
-     *     'invalid-feedback' => 'Please enter a valid email address'
+     *     'invalid-feedback' => 'Please enter a valid email address',
+     *     'help-text' => 'We will never share your email with anyone else'
      * ]);
      *
      * // Input with datalist
      * Form::input('text', 'browser', 'Browser', '', [
      *     'list' => ['Chrome', 'Firefox', 'Safari', 'Edge'],
-     *     'placeholder' => 'Select or type a browser'
+     *     'help-text' => 'Select from the list or type a browser name'
      * ]);
      *
      * // Input with conditional visibility (wrapping div will have data-togglefield and data-togglevalue)
@@ -75,8 +75,8 @@ class Form
      *   - 'id' => string Custom ID (auto-generated if not provided)
      *   - 'class' => string Additional CSS classes
      *   - 'required' => bool Whether the field is required
-     *   - 'placeholder' => string Placeholder text
      *   - 'invalid-feedback' => string in a div with class "invalid-feedback" Error message for validation
+     *   - 'help-text' => string Small descriptive text displayed below the field
      *   - 'list' => array Options for datalist
      *   - 'toggle-field' => string Name of the field to watch for changes
      *   - 'toggle-value' => string Value that will make this field visible
@@ -121,14 +121,20 @@ class Form
             }
         }
       
-      
+
         $id = self::id($options, $name);
-        $placeholer = ($options['placeholder'] ?? '');
+        $placeholer = ($options['placeholder'] ?? ($floating ? $label : ''));
         $label_html = ($label != '' && $type != "hidden") ? '<label for="'.$id.'"'.self::attr(self::getLabelOptions($options)).'>'. _rh($label).'</label>' : '';
         $field = ($floating) ? '<div class="form-floating">' : (($label != '') ? $label_html  : '');
         $field .= '<input type="'.$type.'" name="'._r($name).'" placeholder="'._r($placeholer).'"'.($value != '' ? ' value="'._r($value).'"' : '').' ';
 
         $field .= ' id="'.$id.'"';
+
+        // Add data-error-message attribute if invalid-feedback is set
+        if (array_key_exists('invalid-feedback', $options)) {
+            $field .= ' data-error-message="'._r($options['invalid-feedback']).'"';
+        }
+
         $field .= self::attr($options);
         /**
          * The list attribute refers to a datalist element that contains pre-defined options for an input element.
@@ -150,10 +156,15 @@ class Form
         if ($floating) {
             $field .= $label_html ;
         }
-       
+
         if (array_key_exists('invalid-feedback', $options)) {
             $field .= '<div class="invalid-feedback">'._rh($options['invalid-feedback']).'</div>';
         }
+
+        if (array_key_exists('help-text', $options)) {
+            $field .= '<div class="form-text">'._rh($options['help-text']).'</div>';
+        }
+
         $field .=  ($floating) ? '</div>' : '';
       
         // hook per modificare il campo
@@ -214,6 +225,11 @@ class Form
 
         $field .= ' id="'.$id.'"';
 
+        // Add data-error-message attribute if invalid-feedback is set
+        if (array_key_exists('invalid-feedback', $options)) {
+            $field .= ' data-error-message="'._r($options['invalid-feedback']).'"';
+        }
+
         // To set a custom height on your <textarea>, do not use the rows attribute. Instead, set an explicit height (either inline or via custom CSS).
         
         $rows = _absint(((int)$rows > 20) ? 20 : $rows);
@@ -235,6 +251,11 @@ class Form
         if (array_key_exists('invalid-feedback', $options)) {
             $field .= '<div class="invalid-feedback">'._rh($options['invalid-feedback']).'</div>';
         }
+
+        if (array_key_exists('help-text', $options)) {
+            $field .= '<div class="form-text">'._rh($options['help-text']).'</div>';
+        }
+
         $field .=  ($floating) ? '</div>' : '';
         // hook per modificare il campo
         $field = Hooks::run('form_textarea', $field, $name, $label, $value, $rows, $options);
@@ -592,6 +613,12 @@ class Form
         $field = ($floating) ? '<div class="form-floating">' : $label_dom;
         $field .= '<select name="'._r($name).'"';
         $field .= ' id="'._r($id).'"';
+
+        // Add data-error-message attribute if invalid-feedback is set
+        if (array_key_exists('invalid-feedback', $options)) {
+            $field .= ' data-error-message="'._r($options['invalid-feedback']).'"';
+        }
+
         $field .= self::attr($options);
         $field .= '>';
         // select_options is an associative array that accepts option groups
@@ -620,6 +647,11 @@ class Form
         if (array_key_exists('invalid-feedback', $options)) {
             $field .= '<div class="invalid-feedback">'._rt($options['invalid-feedback']).'</div>';
         }
+
+        if (array_key_exists('help-text', $options)) {
+            $field .= '<div class="form-text">'._rt($options['help-text']).'</div>';
+        }
+
         $field .= ($floating) ? '</div>' : '';
         // hook per modificare il campo
         $field = Hooks::run('form_select', $field, $name, $label, $options, $selected);
@@ -814,7 +846,7 @@ class Form
             // Skip toggle-* as they're handled above
             // Skip in-container as it's only for internal logic
             if ($key != _r($key) || in_array($key, $array_attributes) ||
-                $key == 'floating' || $key == 'invalid-feedback' ||
+                $key == 'floating' || $key == 'invalid-feedback' || $key == 'help-text' ||
                 $key == 'toggle-field' || $key == 'toggle-value' ||
                 $key == 'in-container') {
                 continue;

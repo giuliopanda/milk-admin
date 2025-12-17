@@ -38,11 +38,9 @@ class SearchBuilder extends AbstractSearchBuilderExtension
      */
     public function configure(object $builder): void
     {
-        $builder->addActionList(
-            $this->filter_name,
-            $this->label,
-           ['active' => 'Active','deleted' => 'Deleted' ],
-            'active'
-        );
+        $builder->actionList($this->filter_name)
+            ->label($this->label)
+            ->options(['active' => 'Active', 'deleted' => 'Deleted'])
+            ->selected('active');
     }
 }

@@ -942,15 +942,7 @@ class CalendarBuilder extends GetDataBuilder
         return $this->table_id;
     }
 
-    /**
-     * Magic method to render calendar when object is cast to string
-     *
-     * @return string Complete HTML calendar ready for display
-     */
-    public function __toString(): string {
-        return $this->render();
-    }
-
+   
     /**
      * Generate calendar HTML with events
      *

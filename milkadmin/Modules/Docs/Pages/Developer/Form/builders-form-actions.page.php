@@ -11,33 +11,53 @@ namespace Modules\Docs\Pages;
 ?>
 <div class="bg-white p-4">
     <h1>FormBuilder - Action Management</h1>
-    <p class="text-muted">Revision: 2025/11/21</p>
-    <p>Manage form buttons with submit, link, custom callbacks and conditional visibility.</p>
 
-    <h2>Methods</h2>
+    <p>FormBuilder actions allow you to manage form buttons (save, delete, cancel, etc.) with advanced features such as custom callbacks, conditional visibility, and validation.</p>
+
+    <h2>Available Methods</h2>
 
     <table class="table table-bordered">
-        <thead>
+        <thead class="table-dark">
             <tr>
-                <th>Method</th>
-                <th>Description</th>
+                <th style="width: 35%">Method</th>
+                <th style="width: 40%">Description</th>
+                <th style="width: 25%">Example</th>
             </tr>
         </thead>
         <tbody>
             <tr>
-                <td><code>addStandardActions($include_delete, $cancel_link)</code></td>
-                <td>Adds pre-configured save/delete/cancel buttons</td>
+                <td><code>addStandardActions(bool $include_delete, string $cancel_link)</code></td>
+                <td>Adds pre-configured Save/Delete/Cancel buttons</td>
+                <td><code>->addStandardActions(true, '?page=posts')</code></td>
             </tr>
             <tr>
-                <td><code>setActions($actions)</code></td>
+                <td><code>setActions(array $actions)</code></td>
                 <td>Replaces all existing actions</td>
+                <td><code>->setActions([...])</code></td>
             </tr>
             <tr>
-                <td><code>addActions($actions)</code></td>
+                <td><code>addActions(array $actions)</code></td>
                 <td>Adds actions without replacing existing ones</td>
+                <td><code>->addActions([...])</code></td>
             </tr>
         </tbody>
     </table>
+
+    <h2>Basic Usage</h2>
+
+    <p>The simplest way to add buttons to the form is to use <code>addStandardActions()</code>:</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = FormBuilder::create($model, $this->page)
+    ->field('title')->label('Title')->required()
+    ->field('content')->formType('textarea')
+    ->addStandardActions(false, '?page=posts')  // Only Save and Cancel
+    ->getForm();
+</code></pre>
+
+    <p>To include the Delete button as well:</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->addStandardActions(true, '?page=posts')  // Save, Delete and Cancel
+</code></pre>
 
     <h2>Action Parameters</h2>
 
@@ -180,56 +200,50 @@ namespace Modules\Docs\Pages;
         </tbody>
     </table>
 
-    <h2>Examples</h2>
+    <h2>Examples by Action Type</h2>
 
-    <h3>Standard Actions (Quick Setup)</h3>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Adds Save and Cancel buttons
-->addStandardActions(false, '?page=posts')
-
-// Adds Save, Delete and Cancel buttons
-->addStandardActions(true, '?page=posts')</code></pre>
-
-    <h3>Custom Actions</h3>
+    <h3>Basic Submit Action</h3>
+    <p>A submit button with standard save action:</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->setActions([
     'save' => [
         'label' => 'Save',
         'class' => 'btn btn-primary',
         'action' => \Builders\FormBuilder::saveAction()
-    ],
-    'delete' => [
-        'label' => 'Delete',
-        'class' => 'btn btn-danger',
-        'action' => \Builders\FormBuilder::deleteAction(),
-        'validate' => false,
-        'confirm' => 'Are you sure?',
-        'showIf' => ['id', 'not_empty', 0]
-    ],
-    'cancel' => [
-        'label' => 'Cancel',
-        'type' => 'link',
-        'class' => 'btn btn-secondary',
-        'link' => '?page=posts'
     ]
-])</code></pre>
+])
+</code></pre>
 
-    <h3>Custom Callback</h3>
+    <h3>Action with Custom Callback</h3>
+    <p>A button that executes a custom callback before or after saving:</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->addActions([
     'publish' => [
         'label' => 'Publish',
         'class' => 'btn btn-success',
         'action' => function($fb, $request) {
+            // Save the data
             $result = $fb->save($request);
+
+            // If save is successful, update the status
             if ($result['success']) {
                 $fb->getModel()->update(['status' => 'published']);
+                $result['message'] = 'Post published successfully!';
             }
-            return $result;
-        },
-        'showIf' => ['status', '=', 'draft']
-    ]
-])</code></pre>
 
-    <h3>Link with Target</h3>
+            return $result;
+        }
+    ]
+])
+</code></pre>
+
+    <h3>Link Action</h3>
+    <p>A button that works as a link (does not submit):</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->addActions([
+    'cancel' => [
+        'label' => 'Cancel',
+        'type' => 'link',
+        'class' => 'btn btn-secondary',
+        'link' => '?page=posts'
+    ],
     'preview' => [
         'label' => 'Preview',
         'type' => 'link',
@@ -237,20 +251,170 @@ namespace Modules\Docs\Pages;
         'link' => '?page=posts&action=view&id=' . $id,
         'target' => '_blank'
     ]
-])</code></pre>
+])
+</code></pre>
 
-    <h3>Button with Custom Attributes</h3>
+    <h3>Action with Confirmation</h3>
+    <p>Button that requires confirmation before execution:</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->addActions([
+    'delete' => [
+        'label' => 'Delete',
+        'class' => 'btn btn-danger',
+        'action' => \Builders\FormBuilder::deleteAction(),
+        'validate' => false,
+        'confirm' => 'Are you sure you want to delete this item?'
+    ]
+])
+</code></pre>
+
+    <h3>Action with Conditional Visibility</h3>
+    <p>Buttons that appear only when specific conditions are met:</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->addActions([
+    'delete' => [
+        'label' => 'Delete',
+        'class' => 'btn btn-danger',
+        'action' => \Builders\FormBuilder::deleteAction(),
+        'showIf' => ['id', 'not_empty', 0]  // Show only if ID exists
+    ],
+    'publish' => [
+        'label' => 'Publish',
+        'class' => 'btn btn-success',
+        'action' => function($fb, $request) { /* ... */ },
+        'showIf' => ['status', '=', 'draft']  // Show only if status is draft
+    ],
+    'archive' => [
+        'label' => 'Archive',
+        'class' => 'btn btn-warning',
+        'action' => function($fb, $request) { /* ... */ },
+        'showIf' => ['status', '=', 'published']  // Show only if published
+    ]
+])
+</code></pre>
+
+    <h3>Action with Custom Attributes</h3>
+    <p>Buttons with custom HTML attributes for custom JavaScript:</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->addActions([
     'export' => [
         'label' => 'Export',
         'type' => 'button',
         'class' => 'btn btn-info',
+        'onclick' => 'exportData()',
         'attributes' => [
             'data-action' => 'export',
             'data-format' => 'csv',
+            'data-id' => $model->id,
             'title' => 'Export to CSV'
         ]
     ]
-])</code></pre>
+])
+</code></pre>
+
+    <h2>Difference between setActions() and addActions()</h2>
+
+    <ul>
+        <li><code>setActions()</code>: Completely replaces all existing actions. Useful when you want total control over the buttons.</li>
+        <li><code>addActions()</code>: Adds new actions to existing ones. Useful for adding custom buttons after using <code>addStandardActions()</code>.</li>
+    </ul>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Use addStandardActions for base buttons
+->addStandardActions(true, '?page=posts')
+
+// Then add custom buttons with addActions
+->addActions([
+    'publish' => [
+        'label' => 'Publish',
+        'class' => 'btn btn-success',
+        'action' => function($fb, $request) { /* ... */ },
+        'showIf' => ['status', '=', 'draft']
+    ]
+])
+</code></pre>
+
+    <h2>Complete Example</h2>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">namespace Modules\Posts;
+
+use App\Abstracts\AbstractController;
+use App\{Response, Route};
+use Builders\FormBuilder;
+
+class PostsController extends AbstractController
+{
+    public function edit() {
+        $response = $this->getCommonData();
+
+        $response['form'] = FormBuilder::create($this->model, $this->page)
+            // Field configuration
+            ->field('title')
+                ->label('Post Title')
+                ->required()
+
+            ->field('content')
+                ->formType('editor')
+                ->label('Content')
+                ->required()
+
+            ->field('status')
+                ->formType('select')
+                ->options([
+                    'draft' => 'Draft',
+                    'published' => 'Published',
+                    'archived' => 'Archived'
+                ])
+                ->value('draft')
+
+            // Standard buttons
+            ->addStandardActions(true, '?page=posts')
+
+            // Additional custom buttons
+            ->addActions([
+                // Publish button - visible only for draft
+                'publish' => [
+                    'label' => 'Publish',
+                    'class' => 'btn btn-success',
+                    'action' => function($fb, $request) {
+                        $result = $fb->save($request);
+                        if ($result['success']) {
+                            $fb->getModel()->update(['status' => 'published']);
+                            $result['message'] = 'Post published successfully!';
+                        }
+                        return $result;
+                    },
+                    'showIf' => ['status', '=', 'draft']
+                ],
+
+                // Archive button - visible only for published
+                'archive' => [
+                    'label' => 'Archive',
+                    'class' => 'btn btn-warning',
+                    'action' => function($fb, $request) {
+                        $result = $fb->save($request);
+                        if ($result['success']) {
+                            $fb->getModel()->update(['status' => 'archived']);
+                        }
+                        return $result;
+                    },
+                    'confirm' => 'Archive this post?',
+                    'showIf' => ['status', '=', 'published']
+                ],
+
+                // Preview link in new window
+                'preview' => [
+                    'label' => 'Preview',
+                    'type' => 'link',
+                    'class' => 'btn btn-outline-primary',
+                    'link' => '?page=posts&action=view&id=' . ($this->model->id ?? ''),
+                    'target' => '_blank',
+                    'showIf' => ['id', 'not_empty', 0]
+                ]
+            ])
+
+            ->getForm();
+
+        $response['title'] = 'Edit Post';
+        Response::render(__DIR__ . '/Views/edit_page.php', $response);
+    }
+}
+</code></pre>
 
 </div>

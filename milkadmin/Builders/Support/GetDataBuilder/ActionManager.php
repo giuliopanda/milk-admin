@@ -15,6 +15,7 @@ class ActionManager
     private BuilderContext $context;
     private array $row_actions = [];
     private array $bulk_actions = [];
+    private array $action_functions = []; // Store callable actions
     private mixed $function_results = null;
     private array $action_response = [];
     private bool $update_table = true;
@@ -39,22 +40,24 @@ class ActionManager
 
         $actionConfig = $this->buildRowActionConfig($key, $config);
         $this->row_actions[$key] = $actionConfig;
+
+        // Store callable action for later execution
+        if (isset($config['action']) && is_callable($config['action'])) {
+            $this->action_functions[$key] = $config['action'];
+        }
     }
 
     public function setRowActions(array $actions): void
     {
         $this->row_actions = [];
-        $actionFunctions = [];
+        $this->action_functions = []; // Reset also action_functions
 
         foreach ($actions as $key => $config) {
             $this->addRowAction($key, $config);
-
-            if (isset($config['action']) && is_callable($config['action'])) {
-                $actionFunctions[$key] = $config['action'];
-            }
+            // addRowAction already stores callable in $this->action_functions
         }
 
-        $this->executeRowActionIfRequested($actionFunctions);
+        $this->executeRowActionIfRequested($this->action_functions);
     }
 
     public function getRowActions(): array
@@ -129,7 +132,7 @@ class ActionManager
             ]
         ];
 
-        $this->setRowActions(array_merge($defaults, $customActions));
+        $this->setRowActions(array_merge($this->row_actions, $defaults, $customActions));
     }
 
     // ========================================================================
@@ -143,6 +146,11 @@ class ActionManager
 
     public function getActionResults(): array
     {
+        // Execute row actions if not already executed
+        if (!$this->executed && !empty($this->action_functions)) {
+            $this->executeRowActionIfRequested($this->action_functions);
+        }
+
         $response = [];
 
         if ($this->function_results !== null) {

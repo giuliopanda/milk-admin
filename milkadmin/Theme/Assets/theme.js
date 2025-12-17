@@ -659,18 +659,35 @@ class Offcanvas_end
     }
 
     /**
-     * @param {string} size 'xl' | empty
+     * Set offcanvas size
+     * @param {string} size - 'sm' | 'lg' | 'xl' | 'fullscreen' | empty for default
      */
     size(size) {
+        // Remove all size classes
         this.el_container.classList.remove('offcanvas-size-ito')
+        this.el_container.classList.remove('offcanvas-size-ito-sm')
+        this.el_container.classList.remove('offcanvas-size-ito-lg')
         this.el_container.classList.remove('offcanvas-size-ito-xl')
-        this.el_container.classList.remove('offcanvas-size-ito-l')
-        if (size == 'xl') {
-            this.el_container.classList.add('offcanvas-size-ito-xl')
-        } else  if (size == 'l') {
-            this.el_container.classList.add('offcanvas-size-ito-l')
-        } else {
-            this.el_container.classList.add('offcanvas-size-ito')
+        this.el_container.classList.remove('offcanvas-size-ito-fullscreen')
+
+        // Add new size class if specified
+        switch(size) {
+            case 'sm':
+                this.el_container.classList.add('offcanvas-size-ito-sm')
+                break;
+            case 'lg':
+                this.el_container.classList.add('offcanvas-size-ito-lg')
+                break;
+            case 'xl':
+                this.el_container.classList.add('offcanvas-size-ito-xl')
+                break;
+            case 'fullscreen':
+                this.el_container.classList.add('offcanvas-size-ito-fullscreen')
+                break;
+            default:
+                // default size (no additional class or empty string)
+                this.el_container.classList.add('offcanvas-size-ito')
+                break;
         }
     }
 
@@ -711,6 +728,7 @@ class Offcanvas_end
 
     title(html) {
         document.getElementById('offCanvasTitle').innerHTML = html
+        updateContainer(document.getElementById('offCanvasTitle'));
     }
 
     body(html) {

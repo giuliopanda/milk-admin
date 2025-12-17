@@ -47,7 +47,7 @@ trait CrudOperationsTrait
 
         $query = $this->query();
         $new_model = new static();
-
+        $new_model->setRules($this->getRules());
         // Propagate include_relationships from current model to new model
         if (!empty($this->include_relationships)) {
             $new_model->with($this->include_relationships);
@@ -97,6 +97,7 @@ trait CrudOperationsTrait
         $placeholders = str_repeat('?,', count($id_array) - 1) . '?';
         $query = $this->query();
         $new_model = new static();
+        $new_model->setRules($this->getRules());
         // Propagate include_relationships from current model to new model
         if (!empty($this->include_relationships)) {
             $new_model->with($this->include_relationships);
@@ -200,6 +201,7 @@ trait CrudOperationsTrait
     public function getByIdAndUpdate($id, array $merge_data = []): static {
         $this->dates_in_user_timezone = false;
         $model = $this->getById($id);
+        
         if ($model->isEmpty()) {
             // Empty model - fill with merge_data
             // Dates in merge_data are in user timezone (from form submission)
@@ -223,6 +225,7 @@ trait CrudOperationsTrait
             }
             $model->setRules($rules);
         }
+
         return $model;
     }
 
@@ -271,10 +274,11 @@ trait CrudOperationsTrait
      */
     public function getEmpty(array $data = []): static {
         // Create a new Model instance
-        $model = new static();
+        $new_model = new static();
+        $new_model->setRules($this->getRules());
         // Create an empty record in records_array
-        $model->fill($data);
-        return $model;
+        $new_model->fill($data);
+        return $new_model;
     }
 
     /**
@@ -286,10 +290,13 @@ trait CrudOperationsTrait
      */
     public function get(Query $query, ?array $params = []) : \App\Abstracts\AbstractModel|array|null|false {
         if ($query instanceof Query) {
-            $query->setModelClass((new static()));
+            $new_model = new static();
+            $new_model->setRules($this->getRules());
+            $query->setModelClass($new_model);
             return $query->getResults();
         } else {
             $model = new static();
+            $model->setRules($this->getRules());
             $results = $this->db->query($query, $params);
             $model->setResult($results);
             return $model;
@@ -318,6 +325,7 @@ trait CrudOperationsTrait
             $data[$this->primary_key] = $id;
         }
         $new_class = new static();
+        $new_class->setRules($this->getRules());
         $new_class->fill($data);
         if ($new_class->validate()) {
             $new_class->save(true, false);
@@ -347,11 +355,11 @@ trait CrudOperationsTrait
      * Esegue INSERT per i record con ___action = 'insert'
      * Esegue UPDATE per i record con ___action = 'edit'
      *
-     * @param bool $cascade If true, saves hasOne relationships before saving parent record
+     * @param bool $cascade If true, saves hasOne and hasMany relationships after saving parent record
      * @param bool $reset_save_result If true, reset save results after commit
      * @return bool True se tutte le operazioni hanno successo, false altrimenti
      */
-    public function save(bool $cascade = true, $reset_save_result = true): bool
+    public function save(bool $cascade = false, $reset_save_result = true): bool
     {
         $this->error = false;
         $this->last_error = '';
@@ -383,7 +391,7 @@ trait CrudOperationsTrait
             }
 
             foreach ($this->deleted_primary_keys as $pk_value) {
-                // First, handle cascade delete for hasOne relationships
+                // First, handle cascade delete for hasOne and hasMany relationships
                 if ($cascade && method_exists($this, 'processCascadeDelete')) {
                     $cascade_delete_result = $this->processCascadeDelete($pk_value);
                     if (!$cascade_delete_result) {
@@ -506,14 +514,14 @@ trait CrudOperationsTrait
                         'last_error' => ''
                     ];
 
-                    // Add cascade results from belongsTo (processed before parent save)
+                    // Add cascade results (currently empty as belongsTo is no longer saved)
                     if ($cascade_results !== null) {
                         foreach ($cascade_results as $rel_alias => $rel_result) {
                             $result_entry[$rel_alias] = $rel_result;
                         }
                     }
 
-                    // Process hasOne relationships AFTER parent is saved (so we have the ID)
+                    // Process hasOne and hasMany relationships AFTER parent is saved (so we have the ID)
                     if ($cascade && method_exists($this, 'processHasOneRelationships')) {
                         $hasone_results = $this->processHasOneRelationships($index, $this->records_array[$index]);
                         foreach ($hasone_results as $rel_alias => $rel_result) {
@@ -571,14 +579,14 @@ trait CrudOperationsTrait
                                 'last_error' => ''
                             ];
 
-                            // Add cascade results from belongsTo (processed before parent save)
+                            // Add cascade results (currently empty as belongsTo is no longer saved)
                             if ($cascade_results !== null) {
                                 foreach ($cascade_results as $rel_alias => $rel_result) {
                                     $result_entry[$rel_alias] = $rel_result;
                                 }
                             }
 
-                            // Process hasOne relationships AFTER parent is updated (so we have the ID)
+                            // Process hasOne and hasMany relationships AFTER parent is updated (so we have the ID)
                             if ($cascade && method_exists($this, 'processHasOneRelationships')) {
                                 $hasone_results = $this->processHasOneRelationships($index, $this->records_array[$index]);
                                 foreach ($hasone_results as $rel_alias => $rel_result) {
@@ -687,10 +695,10 @@ trait CrudOperationsTrait
 
     /**
      * Delete a record from the database
-     * This method deletes the record immediately with cascade delete for hasOne relationships
+     * This method deletes the record immediately with cascade delete for hasOne and hasMany relationships
      *
-     * IMPORTANT: This method automatically applies cascade delete for hasOne relationships:
-     * - hasOne: Child records are deleted
+     * IMPORTANT: This method automatically applies cascade delete for hasOne and hasMany relationships:
+     * - hasOne/hasMany: Child records are deleted
      * - belongsTo: Related records are NOT deleted (only the parent)
      *
      * @example
@@ -720,7 +728,7 @@ trait CrudOperationsTrait
         if (!$ris) return true;
         
         try {
-            // First, handle cascade delete for hasOne relationships
+            // First, handle cascade delete for hasOne and hasMany relationships
             if (method_exists($this, 'processCascadeDelete')) {
                 $cascade_delete_result = $this->processCascadeDelete($id);
                 if (!$cascade_delete_result) {

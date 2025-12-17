@@ -242,6 +242,36 @@ class GetDataBuilder
         return $this;
     }
 
+    /**
+     * Set custom data array that will be passed to the table as data-custom attribute
+     *
+     * @param array $data Array of custom data
+     * @return static For method chaining
+     *
+     * @example ->setCustomData(['post_id' => 123, 'status' => 'active'])
+     */
+    public function setCustomData(array $data): static
+    {
+        $this->context->setCustomData($data);
+        return $this;
+    }
+
+    /**
+     * Add, modify or remove a single custom data key-value pair
+     *
+     * @param string $key The key to add/modify/remove
+     * @param mixed $value The value to set. If null, removes the key
+     * @return static For method chaining
+     *
+     * @example ->customData('post_id', 123)
+     * @example ->customData('post_id', null) // removes the key
+     */
+    public function customData(string $key, mixed $value): static
+    {
+        $this->context->addCustomData($key, $value);
+        return $this;
+    }
+
     public function extensions(array $extensions): static
     {
         $normalized = $this->normalizeExtensions($extensions);
@@ -251,6 +281,17 @@ class GetDataBuilder
 
         return $this;
     }
+
+     /**
+     * Magic method to render calendar when object is cast to string
+     *
+     * @return string Complete HTML calendar ready for display
+     */
+    public function __toString(): string {
+        return $this->render()  ?? '';
+    }
+
+
 
     /**
      * Reset current field context (for subclasses)

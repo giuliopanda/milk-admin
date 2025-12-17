@@ -89,19 +89,32 @@ class ObjectToForm
      * @param array $attributes Additional form attributes
      * @return string The HTML for the form opening tag and hidden fields
      */
-    public static function start(string $page, string $action_save = 'save', array $attributes = [], bool $json = false ): string {
-       
+    public static function start(string $page, string $action_save = 'save', array $attributes = [], bool $json = false, array $custom_data = [] ): string {
+
         if (!isset($attributes['id'])) {
             $attributes['id'] = 'form' . $page;
-        } 
+        }
         if ($json) {
              $attributes['data-ajax-submit'] = 'true';
         }
         $attributes['class'] = (array_key_exists('class', $attributes)) ? $attributes['class']." ".'needs-validation js-needs-validation' : 'needs-validation js-needs-validation';
         $html = '<form method="post" novalidate action="' . Route::url() . '"' . Form::attr($attributes) . '>';
         $html .= Token::input('token_' . $page);
-        $html .= '<input type="hidden" name="page" value="' . _r($page) . '">';
-        $html .= '<input type="hidden" name="action" value="' . _r($action_save) . '">';
+
+        // Prepare hidden fields with defaults
+        $hidden_fields = [
+            'page' => $page,
+            'action' => $action_save
+        ];
+
+        // Merge with custom data (custom data overrides defaults)
+        $hidden_fields = array_merge($hidden_fields, $custom_data);
+
+        // Generate hidden inputs
+        foreach ($hidden_fields as $name => $value) {
+            $html .= '<input type="hidden" name="' . _r($name) . '" value="' . _r($value) . '">';
+        }
+
         return $html;
     }
 

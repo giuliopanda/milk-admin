@@ -10,8 +10,8 @@ namespace Modules\Docs\Pages;
 ?>
 <div class="bg-white p-4">
     <h1>Creating Posts Module in Milk Admin - Complete Tutorial</h1>
-    <p class="text-muted">Revision: 2025/10/29</p>
-    <p>This guide will walk you through creating a complete "Posts" module in Milk Admin. This is a minimal CRUD module that demonstrates all the necessary steps to create a fully functional module with database management, list view, and edit forms.</p>
+    <p class="text-muted">Revision: 2025/12/15</p>
+    <p>This guide will walk you through creating a complete "Posts" module in Milk Admin. This is a minimal CRUD module that demonstrates all the necessary steps to create a fully functional module with database management, list view, and edit forms using the shared view architecture.</p>
 
     <h2>Module Structure</h2>
     <p>The Posts module is located in <code>milkadmin/Modules/Posts/</code> and consists of the following files:</p>
@@ -19,9 +19,12 @@ namespace Modules\Docs\Pages;
         <li><code>PostsModule.php</code> - Main module configuration</li>
         <li><code>PostsModel.php</code> - Database model and validation</li>
         <li><code>PostsController.php</code> - Controller for handling actions and routing</li>
-        <li><code>Views/list_page.php</code> - List view</li>
-        <li><code>Views/edit_page.php</code> - Edit/create form view</li>
     </ul>
+
+    <div class="alert alert-info mt-3">
+        <h5 class="alert-heading"><i class="bi bi-info-circle"></i> Shared Views</h5>
+        <p class="mb-0">The module uses shared views located in <code>milkadmin/Theme/SharedViews/</code> for list and edit pages. This promotes code reuse and consistency across all modules. You can still create custom views in your module's <code>Views/</code> folder when needed.</p>
+    </div>
 
     <h2>Step 1: Create the Module File</h2>
     <p>Create <code>milkadmin/Modules/Posts/PostsModule.php</code>:</p>
@@ -157,20 +160,22 @@ class PostsController extends AbstractController
 {
     #[RequestAction('home')]
     public function postsList() {
-        $response = ['page' => $this->page, 'title' => $this->title, 'link_action_edit' => 'edit', 'table_id' => 'idTablePosts'];
+        $response = $this->getCommonData(); // Sets 'page' and 'title' from module config
+        $response['table_id'] = 'idTablePosts';
+        $response['link_action_edit'] = 'edit';
         $response['html'] = TableBuilder::create($this->model, 'idTablePosts')
             ->asLink('title', '?page='.$this->page.'&amp;action=edit&amp;id=%id%')
-             ->setDefaultActions() // edit | delete
+            ->setDefaultActions() // edit | delete
             ->render();
-        Response::render(__DIR__ . '/Views/list_page.php', $response);
+        $response['title_btns'] = [['label' => 'Add New', 'link' => '?page='.$this->page.'&amp;action=edit']];
+        Response::render(MILK_DIR . '/Theme/SharedViews/list_page.php', $response);
     }
 
     #[RequestAction('edit')]
     public function postEdit() {
-        $response = ['page' => $this->page, 'title' => $this->title];
-        $response['form'] = FormBuilder::create($this->model, $this->page)
-        ->getForm();
-        Response::render(__DIR__ . '/Views/edit_page.php', $response);
+        $response = $this->getCommonData(); // Sets 'page' and 'title' from module config
+        $response['form'] = FormBuilder::create($this->model, $this->page)->getForm();
+        Response::render(MILK_DIR . '/Theme/SharedViews/edit_page.php', $response);
     }
 }
 </code></pre>
@@ -180,12 +185,14 @@ class PostsController extends AbstractController
         <li><strong>Extends AbstractController</strong> - Provides base routing functionality and access to <code>$this->page</code>, <code>$this->title</code>, and <code>$this->model</code></li>
         <li><strong>#[RequestAction('home')]</strong> - Attribute-based routing: this method is called when no action parameter is specified (default action)</li>
         <li><strong>#[RequestAction('edit')]</strong> - This method is called when <code>?action=edit</code> is in the URL</li>
+        <li><strong>$this->getCommonData()</strong> - Helper method that returns an array with <code>page</code> and <code>title</code> from the module configuration. This replaces manually setting these values.</li>
         <li><strong>postsList()</strong> - Builds the table using TableBuilder:
             <ul>
                 <li><code>TableBuilder::create($this->model, 'idTablePosts')</code> - Creates table from model</li>
                 <li><code>asLink('title', '...')</code> - Makes the title column clickable, linking to edit page</li>
                 <li><code>setDefaultActions()</code> - Adds edit and delete action buttons</li>
                 <li><code>render()</code> - Generates the HTML table</li>
+                <li><code>$response['title_btns']</code> - Array of buttons to display in the page header (e.g., "Add New")</li>
             </ul>
         </li>
         <li><strong>postEdit()</strong> - Builds the form using FormBuilder:
@@ -194,7 +201,7 @@ class PostsController extends AbstractController
                 <li><code>getForm()</code> - Returns the HTML form with validation</li>
             </ul>
         </li>
-        <li><strong>Response::render()</strong> - Renders the view template with provided data</li>
+        <li><strong>Response::render(MILK_DIR . '/Theme/SharedViews/...')</strong> - Renders the shared view template located in the Theme/SharedViews folder. This promotes code reuse across all modules.</li>
     </ul>
 
     <div class="alert alert-info mt-3">
@@ -205,73 +212,46 @@ class PostsController extends AbstractController
             <li><code>$this->title</code> - Set automatically from the module's title configuration</li>
             <li><code>$this->model</code> - Set automatically from the module's model instance</li>
             <li><code>$this->module</code> - Reference to the parent AbstractModule instance</li>
+            <li><code>$this->getCommonData()</code> - Helper method that returns <code>['page' => $this->page, 'title' => $this->title]</code></li>
         </ul>
-        <p class="mt-2 mb-0">These properties are populated when the module is initialized, so you don't need to manually set them in your controller.</p>
+        <p class="mt-2 mb-0">These properties are populated when the module is initialized, so you don't need to manually set them in your controller. Use <code>getCommonData()</code> as a starting point for your <code>$response</code> array.</p>
     </div>
 
-    <h2>Step 5: Create the List View</h2>
-    <p>Create <code>milkadmin/Modules/Posts/Views/list_page.php</code>:</p>
+    <h2>Step 5: Understanding Shared Views</h2>
+    <p>The module uses <strong>shared views</strong> located in <code>milkadmin/Theme/SharedViews/</code>. These views are reusable across all modules and automatically handle the display of lists and forms.</p>
 
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">&lt;?php
-namespace Modules\Posts\Views;
+    <div class="alert alert-success">
+        <h5 class="alert-heading"><i class="bi bi-check-circle"></i> No View Creation Needed!</h5>
+        <p class="mb-0">You <strong>don't need to create view files</strong> for basic CRUD operations. The framework provides shared views that work with the data from your controller's <code>$response</code> array.</p>
+    </div>
 
-use Builders\TitleBuilder;
-
-!defined('MILK_DIR') &amp;&amp; die(); // Avoid direct access
-
-?>
-&lt;div class="card">
-    &lt;div class="card-header">
-    &lt;?php
-    echo TitleBuilder::create($title)
-            ->addButton('Add New', '?page='.$page.'&amp;action='.$link_action_edit, 'primary')
-            ->addSearch($table_id, 'Search...', 'Search');
-    ?>
-    &lt;/div>
-    &lt;div class="card-body">
-        &lt;p class="text-body-secondary mb-3">&lt;?php _pt('This is a sample module to show how to create a basic module on Milk Admin. Go to the modules/posts folder to see the code.') ?>&lt;/p>
-        &lt;?php _ph($html); ?>
-    &lt;/div>
-&lt;/div>
-</code></pre>
-
-    <p><strong>Explanation:</strong></p>
+    <h3>Shared List View (<code>list_page.php</code>)</h3>
+    <p>The shared list view automatically displays:</p>
     <ul>
-        <li><code>TitleBuilder::create($title)</code> - Creates the page title</li>
-        <li><code>addButton()</code> - Adds an "Add New" button</li>
-        <li><code>addSearch()</code> - Adds a search box for the table</li>
-        <li><code>_pt()</code> - Translation function for text</li>
-        <li><code>_ph($html)</code> - Outputs the table HTML (provided by the framework)</li>
+        <li><strong>Title</strong> from <code>$response['title']</code></li>
+        <li><strong>Action buttons</strong> from <code>$response['title_btns']</code> array (e.g., "Add New")</li>
+        <li><strong>Search box</strong> for the table (using <code>$response['table_id']</code>)</li>
+        <li><strong>Table HTML</strong> from <code>$response['html']</code> (generated by TableBuilder)</li>
+        <li><strong>Optional description</strong> from <code>$response['description']</code></li>
     </ul>
 
-    <h2>Step 6: Create the Edit View</h2>
-    <p>Create <code>milkadmin/Modules/Posts/Views/edit_page.php</code>:</p>
-
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">&lt;?php
-namespace Modules\Posts\Views;
-use Builders\TitleBuilder;
-
-!defined('MILK_DIR') &amp;&amp; die(); // Avoid direct access
-?>
-&lt;div class="card">
-    &lt;div class="card-header">
-        &lt;?php  echo TitleBuilder::create(($_REQUEST['id'] ?? 0) > 0 ? 'Edit Post' : 'Add Post'); ?>
-        &lt;/div>
-        &lt;div class="card-body">
-            &lt;div class="form-group col-xl-6">
-                &lt;?php echo $form; ?>
-            &lt;/div>
-        &lt;/div>
-    &lt;/div>
-&lt;/div>
-</code></pre>
-
-    <p><strong>Explanation:</strong></p>
+    <h3>Shared Form View (<code>edit_page.php</code>)</h3>
+    <p>The shared form view automatically displays:</p>
     <ul>
-        <li>The title changes based on whether we're editing (id > 0) or creating a new post</li>
-        <li><code>$form</code> - Contains the automatically generated form based on the model configuration</li>
-        <li>The form is wrapped in a card with a 6-column width (col-xl-6)</li>
+        <li><strong>Title</strong> from <code>$response['title']</code></li>
+        <li><strong>Form HTML</strong> from <code>$response['form']</code> (generated by FormBuilder)</li>
+        <li>Automatically wraps the form in a card layout</li>
     </ul>
+
+    <h3>When to Create Custom Views</h3>
+    <p>You only need to create custom views in your module's <code>Views/</code> folder when:</p>
+    <ul>
+        <li>You need a completely different layout (e.g., gallery view, card-based layout)</li>
+        <li>You have complex UI requirements not covered by TableBuilder/FormBuilder</li>
+        <li>You need custom JavaScript or CSS specific to that view</li>
+    </ul>
+
+    <p><strong>Example of custom view:</strong> The Lessons module uses a custom <code>list_page.php</code> because it displays courses as cards instead of a table.</p>
 
     <p>Once you have completed all the steps and run the installation command, you can access the Posts module from the sidebar menu.</p>
 
