@@ -296,7 +296,5 @@ Use it freely for personal or commercial projects.
 
 * Website: [https://www.milkadmin.org/](https://www.milkadmin.org/)
 * Documentation: [https://milkadmin.org/milk-admin-v251100/](https://milkadmin.org/milk-admin-v251100/)
-* Live Demo: [https://milkadmin.org/demo/](https://milkadmin.org/demo/)
-* GitHub: [https://github.com/giuliopanda/milk-admin](https://github.com/giuliopanda/milk-admin)
 
 ```
