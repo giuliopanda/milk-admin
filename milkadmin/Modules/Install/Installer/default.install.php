@@ -18,9 +18,12 @@ Hooks::set('install.get_html_modules', function($html, $errors) {
         <div class="card" style="max-width: 960px;">
             <div class="card-body">
             <h5 class="card-title">Site</h5>
-                <?php 
+                <?php
                 $http  = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') ? 'https://' : 'http://';
-                $base_url = $_REQUEST['base_url'] ?? $http . $_SERVER['HTTP_HOST'] . dirname($_SERVER['REQUEST_URI']).'/';
+                // Use SCRIPT_NAME for more reliable base path detection
+                $base_path = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
+                $default_base_url = $http . rtrim($_SERVER['HTTP_HOST'], '/') . $base_path . '/';
+                $base_url = $_REQUEST['base_url'] ?? $default_base_url;
                 Form::input('text', 'base_url', 'Base Url', $base_url, $options);
                 Form::input('text', 'site-title', 'Title',  $_REQUEST['site-title'] ?? 'Milk Admin', $options);
                 Form::input('email', 'admin-email', 'Admin email',  $_REQUEST['admin-email'] ?? 'admin@example.com', $options);
@@ -56,4 +59,3 @@ Hooks::set('install.execute_config', function($data) {
     Install::setConfigFile('', $default_data);
     return $data;
 }, 3);
-
