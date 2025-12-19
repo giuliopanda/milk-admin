@@ -61,7 +61,7 @@ HTML;
      * @return string Form HTML
      */
     protected function renderForm() {
-        $action_url = $this->data->getActionUrl() ?: $_SERVER['REQUEST_URI'];
+        $action_url = $this->data->getActionUrl() ?: App\Route::url('?page='.$_REQUEST['page']);
         $calendar_id = $this->data->getCalendarId();
         $month = $this->data->getMonth();
         $year = $this->data->getYear();
