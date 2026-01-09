@@ -131,6 +131,14 @@ class PageInfo implements \ArrayAccess, \Iterator, \Countable {
         $this->properties['action'] = $action;
         return $this;
     }
+
+    /**
+     * Imposta la primary key
+     */
+    public function setPrimaryKey($primaryKey) {
+        $this->properties['primary_key'] = $primaryKey;
+        return $this;
+    }
     
     /**
      * Imposta il limite di righe per pagina

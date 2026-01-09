@@ -27,6 +27,9 @@ class List {
     // Initialization state flag
     is_init = false;
 
+    // Skip auto-scroll for the next reload
+    skip_auto_scroll_once = false;
+
     // Loading plugin instance
     plugin_loading = null;
 
@@ -825,7 +828,11 @@ class List {
             }
 
             // Auto-scroll to list if not disabled and not already visible
-            if (!this.el_container.hasAttribute('data-no-auto-scroll')) {
+            const skip_auto_scroll = this.skip_auto_scroll_once === true;
+            if (skip_auto_scroll) {
+                this.skip_auto_scroll_once = false;
+            }
+            if (!skip_auto_scroll && !this.el_container.hasAttribute('data-no-auto-scroll')) {
                 if (!this.isElementTopVisible(this.el_scroll)) {
                     this.el_scroll.scrollIntoView({ behavior: "smooth" });
                 }

@@ -854,6 +854,10 @@ class CalendarBuilder extends GetDataBuilder
             $this->locale = Get::userLocale();
         }
 
+        // Apply custom filters from calendar request (not handled by getRowsData).
+        $calendar_params = $_REQUEST[$this->getId()] ?? [];
+        $this->modellist_service->applyFilters($this->query, $calendar_params);
+
         // Filter already applied by setMonth/setYear, no need to apply again
         // remove limit filter
         $this->query->clean('limit');

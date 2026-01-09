@@ -16,6 +16,8 @@ class ColumnManager
     private array $hidden_columns = [];
     private array $column_properties = [];
     private ?string $current_field = null;
+    private ?string $current_order_field = null;
+    private ?string $old_current_order_field = null;
 
     public function __construct(BuilderContext $context)
     {
@@ -31,7 +33,20 @@ class ColumnManager
         if ($key === '') {
             throw BuilderException::invalidField($key);
         }
+
+        $this->ensureDefaultLabel($key);
+
+        // Salva il vecchio current_order_field in old_current_order_field
+        $this->old_current_order_field = $this->current_order_field;
+
+        // Se c'è un current_order_field, posiziona il nuovo campo dopo di esso
+        if ($this->current_order_field !== null) {
+            $this->moveAfter($key, $this->current_order_field);
+        }
+
+        // Imposta il nuovo campo come current_field e current_order_field
         $this->current_field = $key;
+        $this->current_order_field = $key;
     }
 
     public function getCurrentField(): ?string
@@ -52,6 +67,28 @@ class ColumnManager
         return $this->current_field;
     }
 
+    private function ensureDefaultLabel(string $key): void
+    {
+        $modelList = $this->context->getModelList();
+        $existing = $modelList->list_structure->getColumn($key);
+        $custom = $this->custom_columns[$key] ?? null;
+
+        $needs_config = ($existing === null);
+        if ($custom && ($custom['action'] ?? null) === 'delete') {
+            $needs_config = true;
+        }
+        if (in_array($key, $this->hidden_columns, true)) {
+            $needs_config = true;
+        }
+
+        if (!$needs_config) {
+            return;
+        }
+
+        $label = $custom['label'] ?? ($existing['label'] ?? $key);
+        $this->configure($key, ['label' => $label]);
+    }
+
     // ========================================================================
     // COLUMN CONFIGURATION
     // ========================================================================
@@ -62,6 +99,9 @@ class ColumnManager
         $action = $existing ? 'modify' : 'add';
 
         if (!isset($this->custom_columns[$key])) {
+            $this->custom_columns[$key] = ['action' => $action];
+        } else if (isset($this->custom_columns[$key]['action']) && $this->custom_columns[$key]['action'] === 'delete') {
+            // If column was marked for deletion, reset it and set proper action
             $this->custom_columns[$key] = ['action' => $action];
         }
 
@@ -123,6 +163,45 @@ class ColumnManager
             'action' => 'reorder',
             'column_order' => $order
         ];
+    }
+
+    public function moveBefore(string $fieldToMove, string $beforeField): void
+    {
+        $this->custom_columns['_move_before_' . $fieldToMove] = [
+            'action' => 'move_before',
+            'field_to_move' => $fieldToMove,
+            'before_field' => $beforeField
+        ];
+
+        // Quando fai moveBefore, il campo successivo deve andare dopo il campo precedente
+        // e non seguire lo spostamento, quindi resettiamo current_order_field a old_current_order_field
+        $this->current_order_field = $this->old_current_order_field;
+    }
+
+    public function moveAfter(string $fieldToMove, string $afterField): void
+    {
+        $this->custom_columns['_move_after_' . $fieldToMove] = [
+            'action' => 'move_after',
+            'field_to_move' => $fieldToMove,
+            'before_field' => $afterField
+        ];
+    }
+
+    /**
+     * Reset all fields - marks all existing columns for deletion
+     * Useful when you want to start with a clean slate and only show specific columns
+     *
+     * @return void
+     */
+    public function resetFields(): void
+    {
+        $modelList = $this->context->getModelList();
+        $allColumns = array_keys($modelList->list_structure->toArray());
+
+        // Mark all columns for deletion
+        foreach ($allColumns as $column) {
+            $this->delete($column);
+        }
     }
 
     // ========================================================================
@@ -224,8 +303,76 @@ class ColumnManager
             'modify' => $this->applyModifyColumn($key, $config, $modelList),
             'delete' => $modelList->list_structure->deleteColumn($key),
             'reorder' => $modelList->list_structure->reorderColumns($config['column_order'] ?? []),
+            'move_before' => $this->applyMoveBefore($config, $modelList),
+            'move_after' => $this->applyMoveAfter($config, $modelList),
             default => null
         };
+    }
+
+    private function applyMoveBefore(array $config, $modelList): void
+    {
+        $fieldToMove = $config['field_to_move'] ?? null;
+        $beforeField = $config['before_field'] ?? null;
+
+        if (!$fieldToMove || !$beforeField) {
+            return;
+        }
+
+        $structure = $modelList->list_structure;
+
+        // Get current column order from the properties array
+        $currentColumns = array_keys($structure->toArray());
+
+        if (!in_array($fieldToMove, $currentColumns) || !in_array($beforeField, $currentColumns)) {
+            return;
+        }
+
+        // Remove field from current position
+        $currentColumns = array_diff($currentColumns, [$fieldToMove]);
+
+        // Rebuild array with field in new position
+        $newOrder = [];
+        foreach ($currentColumns as $column) {
+            if ($column === $beforeField) {
+                $newOrder[] = $fieldToMove;
+            }
+            $newOrder[] = $column;
+        }
+
+        $structure->reorderColumns($newOrder);
+    }
+
+    private function applyMoveAfter(array $config, $modelList): void
+    {
+        $fieldToMove = $config['field_to_move'] ?? null;
+        $afterField = $config['before_field'] ?? null; // before_field contiene il campo "after" per riuso struttura
+
+        if (!$fieldToMove || !$afterField) {
+            return;
+        }
+
+        $structure = $modelList->list_structure;
+
+        // Get current column order from the properties array
+        $currentColumns = array_keys($structure->toArray());
+
+        if (!in_array($fieldToMove, $currentColumns) || !in_array($afterField, $currentColumns)) {
+            return;
+        }
+
+        // Remove field from current position
+        $currentColumns = array_diff($currentColumns, [$fieldToMove]);
+
+        // Rebuild array with field in new position (after the specified field)
+        $newOrder = [];
+        foreach ($currentColumns as $column) {
+            $newOrder[] = $column;
+            if ($column === $afterField) {
+                $newOrder[] = $fieldToMove;
+            }
+        }
+
+        $structure->reorderColumns($newOrder);
     }
 
     private function applyAddColumn(string $key, array $config, $modelList): void

@@ -65,8 +65,12 @@ window.fetch = function (...args) {
     }
 
     try {
+        console.log ('fetch chiamato');
+        console.log ('url:', url);
+        console.log ('options:', options);
         return originalFetch.apply(this, [url, options])
             .then(response => {
+                console.log ('fetch completato');
                 const clone = response.clone();
                 clone.json().then(data => {
                     if (data.permission_denied) {

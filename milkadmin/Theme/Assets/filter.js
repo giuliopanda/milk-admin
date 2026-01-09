@@ -10,7 +10,7 @@
  * js-milk-filter-clear Clear all filters and reload table
  * 
  * Data attributes:
- * data-filter-id (required) The ID of the table to filter
+ * data-filter-id (required) The ID of the table to filter (comma-separated list supported)
  * data-filter-type (required for js-milk-filter-onchange or js-milk-filter-onclick) The type of the filter
  *
  * @example
@@ -34,19 +34,21 @@ function build_filters() {
         // se è un select o un checkbox o un radio uso change altrimenti uso input
         if (filter.tagName == 'SELECT' || filter.tagName == 'INPUT' && (filter.type == 'checkbox' || filter.type == 'radio')) {
             filter.addEventListener('change', function() {
-                var component = build_filter_helper(this);
-                if (!component) {
+                var components = build_filter_helper(this);
+                if (!components.length) {
                     console.warn('Component not found!');
                 } else {
-                    component.set_page(1);
-                    component.reload(); 
+                    reload_components(components, true);
                 }
             });
         } else {
             filter.addEventListener('input', function() {
-                var component = build_filter_helper(this);
-                component.set_page(1);
-                component.reload(); 
+                var components = build_filter_helper(this);
+                if (!components.length) {
+                    console.warn('Component not found!');
+                } else {
+                    reload_components(components, true);
+                }
             });
         }
     }
@@ -74,13 +76,19 @@ function build_filters() {
                 console.warn('Missing data-filter-id');
                 return;
             }
-            var table = getComponent(table_id);
-            if (typeof table === 'undefined' || table == null) {
+            var table_ids = normalize_filter_ids(table_id);
+            if (!table_ids.length) {
                 console.warn('Table component not found: ' + table_id);
                 return;
             }
-            table.set_page(1);
-            table.reload();
+            var components = table_ids.map(function(id) {
+                return getComponent(id);
+            }).filter(Boolean);
+            if (!components.length) {
+                console.warn('Table component not found: ' + table_id);
+                return;
+            }
+            reload_components(components, true);
         });
     }
     
@@ -103,14 +111,27 @@ function build_filters() {
             clear_all_filters(table_id);
             
             // Ricarica la tabella
-            var table = getComponent(table_id);
-            if (typeof table === 'undefined' || table == null) {
+            var table_ids = normalize_filter_ids(table_id);
+            if (!table_ids.length) {
                 console.warn('Table component not found: ' + table_id);
                 return;
             }
-            table.filter_clear();
-            table.set_page(1);
-            table.reload();
+            table_ids.forEach(function(id) {
+                var table = getComponent(id);
+                if (typeof table === 'undefined' || table == null) {
+                    console.warn('Table component not found: ' + id);
+                    return;
+                }
+                if (typeof table.filter_clear === 'function') {
+                    table.filter_clear();
+                }
+                if (typeof table.set_page === 'function') {
+                    table.set_page(1);
+                }
+                if (typeof table.reload === 'function') {
+                    table.reload();
+                }
+            });
         });
     }
 }   
@@ -120,17 +141,28 @@ function build_filter_helper(el) {
     var filter_type = el.getAttribute('data-filter-type');
     if (table_id == null || filter_type == null) {
         console.warn('Missing data-filter-id or data-filter-type');
-        return;
+        return [];
     }
-    var component = getComponent(table_id);
-    if (typeof component === 'undefined' || component == null) {
+    var components = [];
+    var table_ids = normalize_filter_ids(table_id);
+    if (!table_ids.length) {
         console.warn('Table component not found: ' + table_id);
-        return;
+        return components;
     }
-    component.filter_remove_start(filter_type + ':');
-    var value = el.value;
-    component.filter_add(filter_type + ':' + value);
-    return component;
+    table_ids.forEach(function(id) {
+        var component = getComponent(id);
+        if (typeof component === 'undefined' || component == null) {
+            console.warn('Table component not found: ' + id);
+            return;
+        }
+        if (typeof component.filter_remove_start === 'function' && typeof component.filter_add === 'function') {
+            component.filter_remove_start(filter_type + ':');
+            var value = el.value;
+            component.filter_add(filter_type + ':' + value);
+        }
+        components.push(component);
+    });
+    return components;
 }
 
 /**
@@ -198,6 +230,54 @@ function clear_all_filters(table_id) {
             var event = new Event('change', { bubbles: true });
             element.dispatchEvent(event);
         });
+    });
+}
+
+function normalize_filter_ids(raw_value) {
+    if (!raw_value) {
+        return [];
+    }
+    var value = raw_value.toString().trim();
+    if (value === '') {
+        return [];
+    }
+    if (value[0] === '[') {
+        try {
+            var parsed = JSON.parse(value);
+            if (Array.isArray(parsed)) {
+                return parsed.map(function(id) {
+                    return id.toString().trim();
+                }).filter(Boolean);
+            }
+        } catch (e) {
+            // Fallback to comma parsing.
+        }
+    }
+    return value.split(',').map(function(id) {
+        return id.trim();
+    }).filter(Boolean);
+}
+
+function reload_components(components, reset_page) {
+    if (components.length > 1) {
+        mark_skip_auto_scroll(components);
+    }
+    components.forEach(function(component) {
+        if (!component) {
+            return;
+        }
+        if (reset_page && typeof component.set_page === 'function') {
+            component.set_page(1);
+        }
+        if (typeof component.reload === 'function') {
+            component.reload();
+        }
+    });
+}
+
+function mark_skip_auto_scroll(components) {
+    components.forEach(function(component) {
+        component.skip_auto_scroll_once = true;
     });
 }
 

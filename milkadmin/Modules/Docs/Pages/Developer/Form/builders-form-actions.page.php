@@ -14,31 +14,35 @@ namespace Modules\Docs\Pages;
 
     <p>FormBuilder actions allow you to manage form buttons (save, delete, cancel, etc.) with advanced features such as custom callbacks, conditional visibility, and validation.</p>
 
-    <h2>Available Methods</h2>
+    <h2>Method Reference Summary</h2>
 
     <table class="table table-bordered">
         <thead class="table-dark">
             <tr>
-                <th style="width: 35%">Method</th>
-                <th style="width: 40%">Description</th>
-                <th style="width: 25%">Example</th>
+                <th style="width: 40%">Method</th>
+                <th style="width: 60%">Description</th>
             </tr>
         </thead>
         <tbody>
             <tr>
-                <td><code>addStandardActions(bool $include_delete, string $cancel_link)</code></td>
-                <td>Adds pre-configured Save/Delete/Cancel buttons</td>
-                <td><code>->addStandardActions(true, '?page=posts')</code></td>
+                <td><code>addStandardActions(bool $include_delete = false, ?string $cancel_link = null)</code></td>
+                <td>Adds pre-configured Save/Delete/Cancel buttons. Quick helper for common form actions.</td>
             </tr>
             <tr>
                 <td><code>setActions(array $actions)</code></td>
-                <td>Replaces all existing actions</td>
-                <td><code>->setActions([...])</code></td>
+                <td>Replaces all existing actions with new ones. Use when you want complete control over buttons.</td>
             </tr>
             <tr>
                 <td><code>addActions(array $actions)</code></td>
-                <td>Adds actions without replacing existing ones</td>
-                <td><code>->addActions([...])</code></td>
+                <td>Adds actions without replacing existing ones. Useful for adding custom buttons after <code>addStandardActions()</code>.</td>
+            </tr>
+            <tr>
+                <td><code>setMessageSuccess(string $message)</code></td>
+                <td>Customizes the success message shown after successful save operation. Default: "Save successful"</td>
+            </tr>
+            <tr>
+                <td><code>setMessageError(string $message)</code></td>
+                <td>Customizes the error message shown when save fails. Default: "Save failed"</td>
             </tr>
         </tbody>
     </table>
@@ -329,6 +333,27 @@ namespace Modules\Docs\Pages;
     ]
 ])
 </code></pre>
+
+    <h2>Customizing Success and Error Messages</h2>
+
+    <p>You can customize the messages displayed when a save operation succeeds or fails using <code>setMessageSuccess()</code> and <code>setMessageError()</code>:</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = FormBuilder::create($model, $this->page)
+    ->field('title')->label('Title')->required()
+    ->field('content')->formType('textarea')
+    ->setMessageSuccess('Lesson saved successfully!')
+    ->setMessageError('Unable to save the lesson. Please try again.')
+    ->addStandardActions(false, '?page=lessons')
+    ->getForm();
+</code></pre>
+
+    <p>These messages work both with:</p>
+    <ul>
+        <li><strong>JSON mode</strong> (<code>only_json = true</code>): The message is returned in the JSON response</li>
+        <li><strong>Redirect mode</strong>: The message is shown as a flash message after redirect</li>
+    </ul>
+
+    <p>This is particularly useful when you want domain-specific messages instead of generic "Save successful" or "Save failed".</p>
 
     <h2>Complete Example</h2>
 

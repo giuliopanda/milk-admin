@@ -5,7 +5,7 @@ use App\Route;
  * @title Introduction 
  * @guide developer
  * @order 10
- * @tags Introduction, Getting Started, Framework, MVC, MilkCore, hello-world, Route::set, _pt, module, theme, Response::theme_page, modules, milkadmin_local, externalLibrary, lang, media, storage, config.php, functions.php, WordPress, Laravel, Bootstrap, admin-panel, PHP, CSRF, SQL-injection, cron-jobs, APIs, email, users, permissions, CRUD, webapp, installation, update
+ * @tags Introduction, Getting Started, Framework, MVC, MilkCore, hello-world, Route::set, _pt, module, theme, Response::theme_page, modules, milkadmin_local, lang, media, storage, config.php, functions.php, WordPress, Laravel, Bootstrap, admin-panel, PHP, CSRF, SQL-injection, cron-jobs, APIs, email, users, permissions, CRUD, webapp, installation, update
  */
 
  !defined('MILK_DIR') && die(); // Avoid direct access
@@ -140,8 +140,7 @@ public function myCustomSecondPage() {
 <h4 class="mt-4">Milk Admin</h4>
 <p>Contains the core, modules and template of the project.</p>
 <pre><code class="language-text">Milk Admin/
-├── milkadmin_local/ # Space dedicated to customization of the distributed system
-├── externalLibrary/ # Downloaded libraries     
+├── milkadmin_local/ # Space dedicated to customization of the distributed system  
 ├── app/ # The framework
 ├── modules/ # Here you find all the system code development
 ├── storage/ # Sqlite if used and other storage data

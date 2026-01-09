@@ -300,7 +300,7 @@ class Form
         $field .= ' id="'.$id.'"';
         $field .= self::attr($options);
         $field .= '>';
-        $field .= '<label class="form-check-label" for="'.$id.'">'._rh($label).'</label>';
+        $field .= '<label class="form-check-label ms-2" for="'.$id.'">'._rh($label).'</label>';
         if (array_key_exists('invalid-feedback', $options)) {
             $field .= '<div class="invalid-feedback">'._rh($options['invalid-feedback']).'</div>';
         }
@@ -444,7 +444,7 @@ class Form
         $field .= ' id="'.$id.'"';
         $field .= self::attr($options);
         $field .= '>';
-        $field .= '<label class="form-check-label" for="'.$id.'">'._rt($label).'</label>';
+        $field .= '<label class="form-check-label ms-2" for="'.$id.'">'._rt($label).'</label>';
         if (array_key_exists('invalid-feedback', $options)) {
             $field .= '<div class="invalid-feedback">'._rt($options['invalid-feedback']).'</div>';
         }

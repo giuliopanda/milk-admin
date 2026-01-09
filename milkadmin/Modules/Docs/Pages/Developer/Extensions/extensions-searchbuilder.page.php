@@ -4,7 +4,7 @@ use App\Route;
 /**
 * @title SearchBuilder Extensions
 * @order 14
-* @tags extensions, searchbuilder-extensions, AbstractSearchBuilderExtension, search-hooks, configure, addActionList, addSearchField, search-filters
+* @tags extensions, searchbuilder-extensions, AbstractSearchBuilderExtension, search-hooks, configure, actionList, addSearchField, search-filters
 */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>
@@ -30,7 +30,7 @@ class SearchBuilder extends AbstractSearchBuilderExtension
     public function configure(object $builder): void
     {
         // Add search fields and filters
-        $builder->addActionList(
+        $builder->actionList(
             $this->filter_name,
             $this->label,
             ['active' => 'Active', 'inactive' => 'Inactive'],
@@ -93,7 +93,7 @@ class SearchBuilder extends AbstractSearchBuilderExtension
       </thead>
       <tbody>
          <tr>
-            <td><code>addActionList()</code></td>
+            <td><code>actionList()</code></td>
             <td><code>string $name, string $label, array $options, mixed $default</code></td>
             <td>Add a dropdown filter with predefined options</td>
          </tr>
@@ -143,7 +143,7 @@ class SearchBuilder extends AbstractSearchBuilderExtension
     public function configure(object $builder): void
     {
         // Add action list filter
-        $builder->addActionList(
+        $builder->actionList(
             $this->filter_name,
             $this->label,
             [
@@ -170,7 +170,7 @@ class SearchBuilder extends AbstractSearchBuilderExtension
 
     public function configure(object $builder): void
     {
-        $builder->addActionList(
+        $builder->actionList(
             $this->filter_name,
             $this->label,
             [
@@ -208,7 +208,7 @@ class SearchBuilder extends AbstractSearchBuilderExtension
         }
 
         // Add filter with dynamic options
-        $builder->addActionList(
+        $builder->actionList(
             $this->filter_name,
             $this->label,
             $categories,
@@ -295,7 +295,7 @@ class SearchBuilder extends AbstractSearchBuilderExtension
             return;
         }
 
-        $builder->addActionList(
+        $builder->actionList(
             $this->filter_name,
             $this->label,
             $users,

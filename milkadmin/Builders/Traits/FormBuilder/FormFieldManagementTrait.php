@@ -21,6 +21,8 @@ trait FormFieldManagementTrait {
      */
     public function removeField(string $name): self {
         unset($this->fields[$name]);
+        // Track removed fields to prevent re-adding them in addFieldsFromObject()
+        $this->removed_fields[$name] = true;
         return $this;
     }
 
@@ -129,15 +131,21 @@ trait FormFieldManagementTrait {
      *
      * @example ->addFieldsFromObject($data, 'edit', $_POST)
      */
-    public function addFieldsFromObject(object $object, string $context = 'edit', array $values = []): self {       
+    public function addFieldsFromObject(object $object, string $context = 'edit', array $values = []): self {
         if (method_exists($object, 'getRules')) {
             foreach ($object->getRules($context, true) as $key => $rule) {
+                // Skip fields that have been explicitly removed
+                if (isset($this->removed_fields[$key])) {
+                    continue;
+                }
+
                 if (isset($rule["form-type"])) {
                     if ($rule["form-type"] === "checkbox") {
                         if ($rule["type"] === "bool") {
                             $values[$key] = 1;
                         } else {
-                            $values[$key] = $rule["value"];
+                            // Use checkbox_checked if defined, otherwise fallback to default or '1'
+                            $values[$key] = $rule["checkbox_checked"] ?? $rule["default"] ?? '1';
                         }
                     }
                 }
@@ -146,12 +154,31 @@ trait FormFieldManagementTrait {
                     $value =  $this->fields[$key]['set_value'];
                     $object->$key = $value;
                 }
-                $this->fields[$key] = array_merge($rule, [
+
+                // Merge: start with Model rule, then apply FormBuilder changes (FormBuilder has priority)
+                $merged = array_merge($rule, $this->fields[$key] ?? []);
+
+                // Set required defaults only if not present
+                $merged['value'] = $value;
+                $merged['row_value'] = $object->$key ?? '';
+                if (!isset($merged['name'])) $merged['name'] = $key;
+                // Always update record_object with current object to ensure relationships are accessible
+                $merged['record_object'] = $object;
+
+                $this->fields[$key] = $merged;
+            }
+        }
+
+        // Handle custom fields that don't exist in Model (no record_object set)
+        foreach ($this->fields as $key => $field) {
+            if (!isset($field['record_object'])) {
+                // Custom field not in Model, set defaults
+                $this->fields[$key] = array_merge([
                     'name' => $key,
-                    'value' => $value, // il valore di default del campo
-                    'row_value' =>  $object->$key ?? '', // il valore del record
-                    'record_object' => $object // l'oggetto completo del record per accedere ai relationships
-                ]);
+                    'type' => '',
+                    'value' => '',
+                    'row_value' => ''
+                ], $field);
             }
         }
 
@@ -253,15 +280,30 @@ trait FormFieldManagementTrait {
             return $this->fields;
         }
 
+        // First pass: identify all fields inside containers
+        $containerized_fields = [];
+        foreach ($this->fields as $name => $field) {
+            if (isset($field['form-params']['in-container']) &&
+                $field['form-params']['in-container'] === true &&
+                !str_starts_with($name, 'HCNT')) {
+                $containerized_fields[$name] = true;
+            }
+        }
+
+        // Remove containerized fields from field_order to prevent breaking container structure
+        $effective_field_order = array_filter($this->field_order, function($name) use ($containerized_fields) {
+            return !isset($containerized_fields[$name]);
+        });
+
         $ordered = [];
-        // Add fields in specified order
-        foreach ($this->field_order as $name) {
+        // Add fields in specified order (excluding containerized ones)
+        foreach ($effective_field_order as $name) {
             if (isset($this->fields[$name])) {
                 $ordered[$name] = $this->fields[$name];
             }
         }
 
-        // Add any remaining fields not in order
+        // Add any remaining fields not in order (including container structures)
         foreach ($this->fields as $name => $field) {
             if (!isset($ordered[$name])) {
                 $ordered[$name] = $field;

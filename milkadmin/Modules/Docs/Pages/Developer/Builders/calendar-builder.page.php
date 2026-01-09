@@ -936,6 +936,7 @@ public function calendarView()
         <li><strong>Use Auto-Detection</strong>: Call <code>setMonthYear()</code> without parameters to auto-detect from request</li>
         <li><strong>Set Calendar ID</strong>: Always provide a unique calendar ID when using multiple calendars on the same page</li>
         <li><strong>Map Fields Properly</strong>: Ensure your database has datetime fields for start_datetime and end_datetime</li>
+        <li><strong>Call mapFields Before setMonthYear</strong>: <code>setMonthYear()</code> applies the month filter using the mapped date fields, so call <code>mapFields()</code> first if your columns are named differently (e.g. <code>data</code>)</li>
         <li><strong>Use Callable Mapping</strong>: For dynamic event classes or titles, use callable functions in mapFields()</li>
         <li><strong>Filter Efficiently</strong>: Add WHERE conditions before calling setMonthYear() for better performance</li>
         <li><strong>Handle AJAX</strong>: Always check for AJAX requests and return JSON for smooth navigation</li>

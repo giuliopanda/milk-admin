@@ -15,15 +15,96 @@ $data = json_decode('{"labels":[0,1,2,3],"datasets":[{"data":["78","66","42","77
 <div class="bg-white p-4">
     <h1>Chart</h1>
 
-    <div class="alert alert-warning">Under review</div>
+    <p class="text-muted">Revision: 2026-01-05</p>
     <p>The Chart plugin allows you to display graphs or tables with static or dynamic data.</p>
     <p>Charts are managed with the <a href="https://www.chartjs.org/" target="_blank">Chart.js</a> library and tables with a custom template class. This way the data structure is the same.</p>
     <p>For tables, datasets indicate columns, while labels indicate rows. For charts, datasets indicate series, while labels indicate categories.</p>
-    <p>Custom options for tables are:
-        <ul>
-            <li><code>firstCellText</code>: text for the first cell</li>
-            <li><code>preset</code>: additional class for the table that defines its appearance. Possible values are <b>default, compact, dark, or hoverable</b></li>
-        </ul>
+
+    <h3 class="mt-4">Quick Start (Module)</h3>
+    <p>Create a module and render a chart or table directly in your page action:</p>
+    <pre class="bg-light p-2"><code class="language-php">
+&lt;?php
+namespace Modules\ChartDemo;
+
+use App\Abstracts\AbstractModule;
+use App\Attributes\RequestAction;
+use App\Response;
+use App\Get;
+
+class ChartDemoModule extends AbstractModule {
+
+    protected function configure($rule): void {
+        $rule->page('chart-demo')
+             ->title('Chart Demo')
+             ->menu('Chart Demo', '', 'bi bi-graph-up', 50)
+             ->access('admin');
+    }
+
+    #[RequestAction('home')]
+    public function home(): void {
+        $data = [
+            'labels' => ['Jan', 'Feb', 'Mar'],
+            'datasets' => [
+                ['label' => 'Sales', 'data' => [12, 19, 8], 'type' => 'bar'],
+                ['label' => 'Leads', 'data' => [7, 11, 5], 'type' => 'bar'],
+            ],
+        ];
+
+        $chart = Get::themePlugin('chart', [
+            'id' => 'sales_chart',
+            'type' => 'bar',
+            'data' => $data,
+            'options' => [
+                'legend_position' => 'top',
+                'start_by_zero' => true,
+            ],
+        ]);
+
+        $table = Get::themePlugin('chart', [
+            'id' => 'sales_table',
+            'type' => 'table',
+            'data' => $data,
+            'options' => [
+                'preset' => 'hoverable',
+                'firstCellText' => '#',
+            ],
+        ]);
+
+        Response::render($chart . $table);
+    }
+}
+    </code></pre>
+
+    <h3 class="mt-4">Data Structure</h3>
+    <pre class="bg-light p-2"><code class="language-json">
+{
+  "labels": ["A", "B", "C"],
+  "datasets": [
+    { "label": "Series 1", "data": [1, 2, 3], "type": "bar" },
+    { "label": "Series 2", "data": [2, 1, 4], "type": "bar" }
+  ]
+}
+    </code></pre>
+
+    <h3 class="mt-4">Table Options</h3>
+    <ul>
+        <li><code>firstCellText</code>: text for the first cell</li>
+        <li><code>preset</code>: additional class for the table that defines its appearance. Possible values are <b>default, compact, dark, or hoverable</b></li>
+        <li><code>showLabels</code>: show or hide labels</li>
+        <li><code>cellClass</code>: array of classes applied to individual columns</li>
+        <li><code>itemsPerPage</code>: rows per page (0 disables pagination)</li>
+        <li><code>headerClass</code>: class for the table header</li>
+    </ul>
+
+    <h3 class="mt-4">Chart Options (Common)</h3>
+    <ul>
+        <li><code>legend_position</code>: top, left, bottom, right</li>
+        <li><code>start_by_zero</code>: start Y axis from zero</li>
+        <li><code>scale_x</code>/<code>scale_y</code>: set axis type or hide with <code>hide</code></li>
+        <li><code>title_x</code>/<code>title_y</code>: axis titles</li>
+        <li><code>height</code>: fixed height for the chart container (e.g. <code>260px</code>)</li>
+    </ul>
+
     <p>You can generate a chart or table through the <code>chart</code> plugin in Ito.</p>
     <pre class="bg-light p-2"><code class="language-php">
 $data = json_decode('{"labels":[0,1,2,3],"datasets":[{"data":["78","66","42","77"],"label":"age","type":"bar"},{"data":["60","70","67","80"],"label":"weight","type":"bar"}]}', true);
@@ -103,7 +184,7 @@ function updateData(el) {
         itoCharts.getLoader('table').hide();
         itoCharts.getLoader('chart').hide();
         el.disabled = false;
-    }, 5000);
+    }, 3000);
 }
     </code></pre>
     <div class="row my-2">
@@ -156,7 +237,7 @@ function updateData(el) {
         itoCharts.getLoader('myTableData').hide();
         itoCharts.getLoader('myChart').hide();
         el.disabled = false;
-    }, 5000);
+    }, 3000);
   
 }
 </script>

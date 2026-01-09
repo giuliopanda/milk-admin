@@ -2,7 +2,6 @@
 use App\{Config, Get, Hooks, Lang, Route, Settings};
 
 require 'milkadmin.php';
-
 require MILK_DIR . '/autoload.php';
 Get::loadModules();
 
@@ -23,6 +22,7 @@ require_once THEME_DIR.'/Template.php';
 // Accept only a-z0-9A-Z -_ as characters for the page name
 $page = preg_replace('/[^a-zA-Z0-9-_]/', '', $_REQUEST['page']);
 if (empty($page)) $page = '404';
+
 if (!Route::run($page)) {
     $page_not_found = Config::get('page_not_found', '404');
     Route::run($page_not_found);
@@ -31,5 +31,4 @@ if (!Route::run($page)) {
 Hooks::run('end-page'); 
 
 Settings::save();
-Get::db()->close();
-Get::db2()->close();
+Get::closeConnections();

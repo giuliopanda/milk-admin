@@ -190,6 +190,48 @@ add_filter('post_content', function($content) {
     The <code>config.php</code> file in <code>milkadmin_local</code> contains installation-specific settings like database credentials, site URL, and custom constants.
 </p>
 
+<h3>Available Configuration Parameters</h3>
+
+<p>Beyond the standard database and environment settings, you can define additional configuration parameters in <code>milkadmin_local/config.php</code>:</p>
+
+<table class="table table-bordered">
+    <thead class="table-dark">
+        <tr>
+            <th>Parameter</th>
+            <th>Description</th>
+            <th>Example</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>$conf['page_info_limit']</code></td>
+            <td>Default number of rows per page for all tables created with TableBuilder</td>
+            <td><code>$conf['page_info_limit'] = 50;</code></td>
+        </tr>
+    </tbody>
+</table>
+
+<h4>Example Configuration</h4>
+
+<pre><code class="language-php">// milkadmin_local/config.php
+
+// Database settings
+$conf['db_type'] = 'sqlite';
+$conf['db_host'] = '';
+$conf['db_name'] = 'storage/milk_conf_01b0eb8b68.db';
+
+// Table defaults
+$conf['page_info_limit'] = 50;  // Default rows per page for TableBuilder
+
+// Other custom settings
+$conf['site_name'] = 'My Custom Site';
+$conf['timezone'] = 'Europe/Rome';
+</code></pre>
+
+<div class="alert alert-info">
+    <strong>Note:</strong> Configuration parameters defined here are globally accessible throughout your application via the <code>$conf</code> array.
+</div>
+
 <h2>Storage Directory</h2>
 
 <p>

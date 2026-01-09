@@ -145,5 +145,4 @@ if (Cli::isCli()) {
 // Pulizia finale
 Hooks::run('end-cli');
 Settings::save();
-Get::db()->close();
-Get::db2()->close();
+Get::closeConnections();

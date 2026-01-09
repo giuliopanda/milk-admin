@@ -30,6 +30,7 @@ class FormBuilder {
     private $current_action = 'edit';
     private $form_attributes = [];
     private $fields = [];
+    private $removed_fields = [];
     private $submit_text = 'Save';
     private $submit_attributes = [];
     private $custom_html = [];
@@ -49,6 +50,10 @@ class FormBuilder {
     private $dom_id = null;
     private $size = null;
     private $custom_data = [];
+    private $custom_model_data = null;
+    private $id_request = 'id';
+    private $message_success = null;
+    private $message_error = null;
 
     /**
      * List of extension names to load for this builder
@@ -209,15 +214,23 @@ class FormBuilder {
     private function setModel(object $model): self {
        
         $data = Route::getSessionData();
-        $id = $model->getPrimaryKey();
-        $model->with();
+        if ($this->custom_model_data !== null) {
+            $this->model = $this->custom_model_data;
+            if (isset($data['data']) && is_array($data['data'])) {
+                foreach ($data['data'] as $key => $value) {
+                    $this->model->$key = $value;
+                }
+            }
+        } else {
+           
+            $model->with();
 
-        // Apply FormBuilder field configurations (including custom fields) to Model
-        // This must be done BEFORE getByIdForEdit() so custom fields can be populated
-      
-        $this->applyFieldConfigToModel($model);
-        $this->model = $model->getByIdForEdit(_absint($_REQUEST[$id] ?? 0), ($data['data'] ?? []));
+            // Apply FormBuilder field configurations (including custom fields) to Model
+            // This must be done BEFORE getByIdForEdit() so custom fields can be populated
+            $this->applyFieldConfigToModel($model);
+            $this->model = $model->getByIdForEdit(_absint($_REQUEST[$this->id_request] ?? 0), ($data['data'] ?? []));
        
+        }
         $this->addFieldsFromObject($this->model, 'edit');
       
         
@@ -229,6 +242,8 @@ class FormBuilder {
   
         return $this;
     }
+
+
 
     /**
      * Get model instance
@@ -252,28 +267,33 @@ class FormBuilder {
         return function(FormBuilder $form_builder, array $request): array {
             $redirect_success = $form_builder->url_success;
             $redirect_error = $form_builder->url_error;
+
+            // Get custom messages or use defaults
+            $success_message = $form_builder->message_success ?? _r('Save successful');
+            $error_message = $form_builder->message_error ?? _r('Save failed');
+
             if ($form_builder->save($request)) {
                 if ($form_builder->only_json === true) {
-                    return ['success' => true, 'message' => _r('Save successful')];
+                    return ['success' => true, 'message' => $success_message];
                 } else {
                     $redirect_success = Route::replaceUrlPlaceholders($redirect_success, [...$request, 'id' =>  $form_builder->last_insert_id, $form_builder->model->getPrimaryKey() =>  $form_builder->last_insert_id]);
                     if ($redirect_success != '') {
-                        Route::redirectSuccess($redirect_success, _r('Save successful'));
+                        Route::redirectSuccess($redirect_success, $success_message);
                     }
                     return [];
                 }
-            } 
+            }
 
             if ($form_builder->only_json === true) {
-                return ['success' => false, 'message' => _r('Save failed')];
-            } else {  
+                return ['success' => false, 'message' => $error_message];
+            } else {
                 $redirect_error = Route::replaceUrlPlaceholders($redirect_error, [...$request]);
                 if ($redirect_error != '') {
-                    Route::redirectError($redirect_error, _r('Save failed'));
+                    Route::redirectError($redirect_error, $error_message);
                 }
                 return [];
             }
-            return ['success' => false, 'message' => _r('Save failed')];
+            return ['success' => false, 'message' => $error_message];
         };
     }
 
@@ -570,6 +590,32 @@ class FormBuilder {
     }
 
     /**
+     * Set custom success message for save action
+     *
+     * @param string $message Custom success message
+     * @return self For method chaining
+     *
+     * @example ->setMessageSuccess('Record saved successfully')
+     */
+    public function setMessageSuccess(string $message): self {
+        $this->message_success = $message;
+        return $this;
+    }
+
+    /**
+     * Set custom error message for save action
+     *
+     * @param string $message Custom error message
+     * @return self For method chaining
+     *
+     * @example ->setMessageError('Unable to save the record')
+     */
+    public function setMessageError(string $message): self {
+        $this->message_error = $message;
+        return $this;
+    }
+
+    /**
      * Get response array for offcanvas or other response types
      *
      * @return array Response array based on response_type
@@ -579,15 +625,14 @@ class FormBuilder {
         $is_new = true;
         $primary_key = $this->model->getPrimaryKey();
 
+        // Generate form HTML
+        $form_html = $this->render();
+
         if (isset($this->fields[$primary_key]['row_value']) && !empty($this->fields[$primary_key]['row_value'])) {
             $is_new = false;
         }
-
         // Determine title
         $title = $is_new ? $this->title_new : $this->title_edit;
-
-        // Generate form HTML
-        $form_html = $this->render();
 
         // Build base response with action tracking
         $response = [

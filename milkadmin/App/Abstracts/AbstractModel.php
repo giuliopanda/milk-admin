@@ -3,8 +3,8 @@ namespace App\Abstracts;
 
 use App\Database\{SQLite, MySql, ResultInterface};
 use App\{Get, Config, ExtensionLoader};
-use App\Abstracts\Traits\{QueryBuilderTrait, CrudOperationsTrait, SchemaAndValidationTrait, DataFormattingTrait, RelationshipsTrait, CollectionTrait, CascadeSaveTrait, RelationshipDataHandlerTrait, CopyRulesTrait, ExtensionManagementTrait};
-use App\Attributes\{ToDisplayValue, ToDatabaseValue , GetRawValue, SetValue, Validate};
+use App\Abstracts\Traits\{QueryBuilderTrait, CrudOperationsTrait, SchemaAndValidationTrait, DataFormattingTrait, RelationshipsTrait, CollectionTrait, CascadeSaveTrait, RelationshipDataHandlerTrait, CopyRulesTrait, ExtensionManagementTrait, ScopeTrait};
+use App\Attributes\{ToDisplayValue, ToDatabaseValue , GetRawValue, SetValue, Validate, DefaultQuery, Query as QueryAttribute};
 use ReflectionClass;
 use ReflectionMethod;
 use ArrayAccess;
@@ -47,6 +47,7 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
     use RelationshipDataHandlerTrait;
     use CopyRulesTrait;
     use ExtensionManagementTrait;
+    use ScopeTrait;
 
     /**
      * Instance cache for methods with attributes defined in Models
@@ -124,19 +125,53 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
     protected int $current_index = 0;
 
     /**
-     * l'Array di record 
+     * Array di record con Model objects per le relazioni
      * Ogni elemento è un array con:
      * - ___action: null='original', 'edit'='modificato', 'create'='nuovo'
-     * - campi del record
+     * - campi del record (possono essere valori scalari o Model instances)
      * @var array|null
      */
-    protected ?array $records_array = null;
+    protected ?array $records_objects = null;
+
+    /**
+     * Profondità di annidamento per evitare cicli infiniti nelle relazioni
+     * Parte da 1, incrementa ad ogni livello di relazione
+     * Blocca a 5 per prevenire ricorsione infinita
+     * @var int
+     */
+    protected int $depth = 1;
 
     /**
      * Array delle primary key dei record da eliminare
      * @var array
      */
     protected array $deleted_primary_keys = [];
+
+    /**
+     * Default query scopes - applied automatically to all SELECT queries
+     * Format: ['scope_name' => callable]
+     * @var array
+     */
+    protected array $default_queries = [];
+
+    /**
+     * Named query scopes - can be applied on-demand with withQuery()
+     * Format: ['query_name' => callable]
+     * @var array
+     */
+    protected array $named_queries = [];
+
+    /**
+     * Disabled global scopes (persistent until re-enabled)
+     * @var array
+     */
+    protected array $disabled_scopes = [];
+
+    /**
+     * Active named queries to apply to the next query only (temporary)
+     * @var array
+     */
+    protected array $active_named_queries = [];
 
     /**
      * Temporary storage for relationship data during fill()
@@ -168,7 +203,7 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
     protected ?string $user_timezone = null;
 
     /**
-     * Flag to track if dates in records_array are currently in user timezone or UTC
+     * Flag to track if dates in records_objects are currently in user timezone or UTC
      * false = dates are in UTC (default when loaded from database)
      * true = dates have been converted to user timezone
      * @var bool
@@ -199,8 +234,6 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
         // Call configure() method for internal configuration
         $this->configure($this->rule_builder);
 
-
-
         $this->table = $this->rule_builder->getTable() ??  $this->table;
         $this->db_type = $this->rule_builder->getDbType() ?? $this->db_type;
         $this->primary_key = $this->rule_builder->getPrimaryKey() ?? $this->primary_key;
@@ -227,8 +260,10 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
         // Handle database parameter
         if($this->db_type != '' && $this->db_type == 'db2') {
             $this->db = Get::db2();
+            $this->db_type = 'db2';
         } else {
              $this->db = Get::db();
+             $this->db_type = 'db';
         }
 
 
@@ -241,6 +276,20 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
         // Scan and cache methods with attributes
         $this->scanAndCacheAttributeMethods();
 
+        // Register withCount scopes from rules
+        $this->registerWithCountScopes();
+
+        // Scan rules for withCount definitions and register them as default queries
+        foreach ($this->rule_builder as $field_name => $rule) {
+            if (isset($rule['withCount']) && is_array($rule['withCount'])) {
+                foreach ($rule['withCount'] as $with_count_config) {
+                    $alias = $with_count_config['alias'];
+                    // Register as a special default query with prefix "withCount:"
+                    $this->default_queries['withCount:' . $alias] = $with_count_config;
+                }
+            }
+        }
+
         // Call extension hook: after attribute methods scanned
         ExtensionLoader::callHook($this->loaded_extensions, 'onAttributeMethodsScanned', []);
     }
@@ -252,7 +301,7 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
      *
      * @return void
      */
-    protected function configure($rule_builder): void
+    protected function configure(RuleBuilder $rule_builder): void
     {
         // To be overridden by child classes
     }
@@ -281,15 +330,30 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
      */
     protected function scanAndCacheAttributeMethods(): void
     {
-        $class_name = static::class;
+        // Scan the model itself
+        $this->scanAttributesFromClass($this);
 
-        // Get reflection of the Model class
-        $reflection = new ReflectionClass($class_name);
-        $methods = $reflection->getMethods(ReflectionMethod::IS_PUBLIC);
+        // Scan all loaded extensions
+        foreach ($this->loaded_extensions as $extension) {
+            $this->scanAttributesFromClass($extension);
+        }
+    }
+
+    /**
+     * Scan a specific class (model or extension) for attribute methods
+     *
+     * @param object $target The object to scan (model or extension instance)
+     * @return void
+     */
+    protected function scanAttributesFromClass(object $target): void
+    {
+        $reflection = new ReflectionClass($target);
+        $methods = $reflection->getMethods(ReflectionMethod::IS_PUBLIC | ReflectionMethod::IS_PROTECTED);
 
         foreach ($methods as $method) {
-            // Skip methods inherited from AbstractModel
-            if ($method->getDeclaringClass()->getName() === self::class) {
+            // Skip methods inherited from AbstractModel or AbstractModelExtension base classes
+            $declaring_class = $method->getDeclaringClass()->getName();
+            if ($declaring_class === AbstractModel::class || $declaring_class === AbstractModelExtension::class) {
                 continue;
             }
 
@@ -297,28 +361,94 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
             $attributes = $method->getAttributes(ToDisplayValue::class);
             foreach ($attributes as $attribute) {
                 $instance = $attribute->newInstance();
-                $this->registerMethodHandler($instance->field_name, 'get_formatted', $method->getName());
+                // If scanning an extension, register the extension's method
+                $callable = ($target !== $this) ? [$target, $method->getName()] : $method->getName();
+                $this->registerMethodHandler($instance->field_name, 'get_formatted', $callable);
             }
 
             // Check for ToDatabaseValue (before save) attribute #[ToDatabaseValue (field_name)]
             $attributes = $method->getAttributes(ToDatabaseValue::class);
             foreach ($attributes as $attribute) {
                 $instance = $attribute->newInstance();
-                $this->registerMethodHandler($instance->field_name, 'get_sql', $method->getName());
+                // If scanning an extension, register the extension's method
+                $callable = ($target !== $this) ? [$target, $method->getName()] : $method->getName();
+                $this->registerMethodHandler($instance->field_name, 'get_sql', $callable);
             }
 
             // Check for SetValue attribute #[SetValue(field_name)]
             $attributes = $method->getAttributes(SetValue::class);
             foreach ($attributes as $attribute) {
                 $instance = $attribute->newInstance();
-                $this->registerMethodHandler($instance->field_name, 'set_value', $method->getName());
+                // If scanning an extension, register the extension's method
+                $callable = ($target !== $this) ? [$target, $method->getName()] : $method->getName();
+                $this->registerMethodHandler($instance->field_name, 'set_value', $callable);
             }
 
             // Check for Validate attribute #[Validate(field_name)]
             $attributes = $method->getAttributes(Validate::class);
             foreach ($attributes as $attribute) {
                 $instance = $attribute->newInstance();
-                $this->registerMethodHandler($instance->field_name, 'validate', $method->getName());
+                // If scanning an extension, register the extension's method
+                $callable = ($target !== $this) ? [$target, $method->getName()] : $method->getName();
+                $this->registerMethodHandler($instance->field_name, 'validate', $callable);
+            }
+
+            // Check for DefaultQuery attribute #[DefaultQuery]
+            $attributes = $method->getAttributes(DefaultQuery::class);
+            foreach ($attributes as $attribute) {
+                // Use method name as scope name
+                $scope_name = $method->getName();
+
+                // For extensions, we need to wrap the protected method in a closure
+                // that can access it via reflection
+                if ($target !== $this) {
+                    // Create a closure that invokes the method via reflection
+                    $callable = function($query) use ($method, $target) {
+                        return $method->invoke($target, $query);
+                    };
+                    $this->default_queries[$scope_name] = $callable;
+                } else {
+                    // For model's own methods, use regular callable
+                    $this->default_queries[$scope_name] = [$this, $method->getName()];
+                }
+            }
+
+            // Check for Query attribute #[Query('name')]
+            $attributes = $method->getAttributes(QueryAttribute::class);
+            foreach ($attributes as $attribute) {
+                $instance = $attribute->newInstance();
+                $query_name = $instance->name;
+
+                // For extensions, we need to wrap the protected method in a closure
+                // that can access it via reflection
+                if ($target !== $this) {
+                    // Create a closure that invokes the method via reflection
+                    $callable = function($query) use ($method, $target) {
+                        return $method->invoke($target, $query);
+                    };
+                    $this->named_queries[$query_name] = $callable;
+                } else {
+                    // For model's own methods, use regular callable
+                    $this->named_queries[$query_name] = [$this, $method->getName()];
+                }
+            }
+        }
+    }
+
+    /**
+     * Register withCount definitions from rules as default queries
+     * Called from constructor after configure()
+     */
+    protected function registerWithCountScopes(): void
+    {
+        $rules = $this->rule_builder->getRules();
+        foreach ($rules as $field_name => $rule) {
+            if (isset($rule['withCount']) && is_array($rule['withCount'])) {
+                foreach ($rule['withCount'] as $with_count_config) {
+                    $alias = $with_count_config['alias'];
+                    // Register as a special default query with prefix "withCount:"
+                    $this->default_queries['withCount:' . $alias] = $with_count_config;
+                }
             }
         }
     }
@@ -419,23 +549,29 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
 
   
     /**
-     * Convert all datetime fields in records_array from UTC to user timezone
+     * Convert all datetime fields in records_objects from UTC to user timezone
      * Only converts fields with timezone_conversion = true
      * Modifies DateTime objects in-place for performance
      * Only performs conversion if Config 'use_user_timezone' is true AND dates are currently in UTC
+     * Also calls convertDatesToUserTimezone recursively on nested models
      *
      * @return self For method chaining
      */
     public function convertDatesToUserTimezone(): self
     {
+
+        if ($this->dates_in_user_timezone) {
+            return $this;
+        }
+
         // Only convert if Config says to use user timezone for forms
         if (!Config::get('use_user_timezone', false)) {
             return $this;
         }
 
-       
+
         // No data to convert
-        if (empty($this->records_array)) {
+        if (empty($this->records_objects)) {
             return $this;
         }
 
@@ -443,8 +579,26 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
         $timezone_obj = new \DateTimeZone($user_timezone);
         $rules = $this->getRules();
 
-        foreach ($this->records_array as $index => &$record) {
-            foreach ($rules as $field_name => $rule) {
+        foreach ($this->records_objects as $index => &$record) {
+            foreach ($record as $field_name => $field_value) {
+                // Skip ___action field
+                if ($field_name === '___action') {
+                    continue;
+                }
+
+                // If field is a model, call convertDatesToUserTimezone on it
+                if ($field_value instanceof AbstractModel) {
+                    $field_value->convertDatesToUserTimezone();
+                    continue;
+                }
+
+                // Check if this field is in rules and is a datetime field
+                if (!isset($rules[$field_name])) {
+                    continue;
+                }
+
+                $rule = $rules[$field_name];
+
                 // Only datetime/date/time fields with timezone_conversion
                 if (!in_array($rule['type'], ['datetime', 'date'])) {
                     continue;
@@ -455,7 +609,7 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
                 }
 
                 // Field exists and is a DateTime object?
-                if (!isset($record[$field_name]) || !is_a($record[$field_name], \DateTime::class)) {
+                if (!is_a($field_value, \DateTime::class)) {
                     continue;
                 }
 
@@ -471,10 +625,11 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
     }
 
     /**
-     * Convert all datetime fields in records_array from user timezone to UTC
+     * Convert all datetime fields in records_objects from user timezone to UTC
      * Only converts fields with timezone_conversion = true
      * Modifies DateTime objects in-place for performance
      * Only performs conversion if Config 'use_user_timezone' is true AND dates are in user timezone
+     * Also calls convertDatesToUTC recursively on nested models
      *
      * @return self For method chaining
      */
@@ -486,15 +641,33 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
         }
 
         // No data to convert
-        if (empty($this->records_array)) {
+        if (empty($this->records_objects)) {
             return $this;
         }
 
         $utc_timezone = new \DateTimeZone('UTC');
         $rules = $this->getRules();
 
-        foreach ($this->records_array as $index => &$record) {
-            foreach ($rules as $field_name => $rule) {
+        foreach ($this->records_objects as $index => &$record) {
+            foreach ($record as $field_name => $field_value) {
+                // Skip ___action field
+                if ($field_name === '___action') {
+                    continue;
+                }
+
+                // If field is a model, call convertDatesToUTC on it
+                if ($field_value instanceof AbstractModel) {
+                    $field_value->convertDatesToUTC();
+                    continue;
+                }
+
+                // Check if this field is in rules and is a datetime field
+                if (!isset($rules[$field_name])) {
+                    continue;
+                }
+
+                $rule = $rules[$field_name];
+
                 // Only datetime/date/time fields with timezone_conversion
                 if (!in_array($rule['type'], ['datetime', 'date', 'time'])) {
                     continue;
@@ -505,7 +678,7 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
                 }
 
                 // Field exists and is a DateTime object?
-                if (!isset($record[$field_name]) || !is_a($record[$field_name], \DateTime::class)) {
+                if (!is_a($field_value, \DateTime::class)) {
                     continue;
                 }
 
@@ -584,18 +757,18 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
 
     /**
      * Clears the record array and set the results from a ResultInterface object
-     * 
+     *
      * @param array $result Record data
      * @return void
      */
     public function setResults(array $result): void {
-        $this->records_array = [];
+        $this->records_objects = [];
         $counter = 0;
         if (is_array($result) && count($result) > 0) {
             foreach ($result as $row) {
                 $data = $this->filterDataByRules($row);
                 $data['___action'] = null; // null = originale, non modificato
-                $this->records_array[$counter] = $data;
+                $this->records_objects[$counter] = $data;
                 $counter++;
             }
         }
@@ -605,32 +778,32 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
 
     /**
      * Clears the record array and sets the record from an array or object
-     * 
+     *
      * @param array|object|null $data Record data
      * @return void
      */
     public function setRow(array|object|null $data): void {
-        $this->records_array = [];
+        $this->records_objects = [];
         $this->dates_in_user_timezone = false;
         $data = $this->filterDataByRules($data);
         $data['___action'] = null; // null = originale, non modificato
-      
-        $this->records_array[] = $data;
-      
-        $this->current_index = array_key_last($this->records_array);
+
+        $this->records_objects[] = $data;
+
+        $this->current_index = array_key_last($this->records_objects);
         $this->cleanEmptyRecords();
         $this->invalidateKeysCache();
     }
 
     /**
      * Add a single record new or update from an associative array
-     * Used for prepare record from an array or an object without cycling through the model 
+     * Used for prepare record from an array or an object without cycling through the model
      *
      * @param array $data Record data
      * @return static
      */
     public function fill(array|object|null $data=null): static {
-        
+
         $this->error = false;
         $this->last_error = '';
         // Extract relationship data before filtering
@@ -640,20 +813,24 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
 
         $data = $this->filterData($data);
 
-       
-       
+
+
         if ($this->primary_key != null && ($this->primary_key != 0)) {
             if (isset($data[$this->primary_key]) && $data[$this->primary_key] !== 0 && $data[$this->primary_key] !== '') {
-                // verifico se già esiste tra i $this->records_array
+                // verifico se già esiste tra i $this->records_objects
                 $this->dates_in_user_timezone = true;
-                if (is_array($this->records_array)) {
-                    foreach ($this->records_array as $key => $value) {
+                if (is_array($this->records_objects)) {
+                    foreach ($this->records_objects as $key => $value) {
                         if ($value[$this->primary_key] == $data[$this->primary_key]) {
-                            $this->records_array[$this->current_index]['___action'] = 'edit';
+                            $this->records_objects[$this->current_index]['___action'] = 'edit';
                             // Merge existing data with new data (new data takes precedence)
                             // This ensures that fields not provided in $data retain their existing values
                             $this->current_index = $key;
                             foreach ($data as $key => $value) {
+                                // Skip model instances - cannot set models in fill
+                                if ($value instanceof AbstractModel) {
+                                    continue;
+                                }
                                 $this->setValueWithConversion($key, $value);
                             }
                             return $this;
@@ -662,19 +839,23 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
                 }
                 $this->dates_in_user_timezone = false;
                 $row = $this->db->getRow('SELECT * FROM '. $this->db->qn($this->table).' WHERE '. $this->db->qn($this->primary_key).' = ?', [$data[$this->primary_key]]);
-              
+
                 if ($row != null) {
                     $this->current_index = $this->getNextCurrentIndex();
-                  
+
                     $this->dates_in_user_timezone = false;
                     foreach ($row as $key => $value) {
                         $this->setValueWithConversion($key, $value);
                     }
-                      $this->records_array[$this->current_index]['___action'] = 'edit';
+                      $this->records_objects[$this->current_index]['___action'] = 'edit';
                     // Merge existing data with new data (new data takes precedence)
                     // This ensures that fields not provided in $data retain their existing values
                     $this->dates_in_user_timezone = true;
                     foreach ($data as $key => $value) {
+                        // Skip model instances - cannot set models in fill
+                        if ($value instanceof AbstractModel) {
+                            continue;
+                        }
                         $this->setValueWithConversion($key, $value);
                     }
                 } else {
@@ -682,56 +863,68 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
                      $this->cleanEmptyRecords();
                     $this->current_index = $this->getNextCurrentIndex();
                       $this->dates_in_user_timezone = true;
-                   
+
                     foreach ($data as $key => $value) {
+                        // Skip model instances - cannot set models in fill
+                        if ($value instanceof AbstractModel) {
+                            continue;
+                        }
                         $this->setValueWithConversion($key, $value);
                     }
-                     $this->records_array[$this->current_index]['___action'] = 'insert';
+                     $this->records_objects[$this->current_index]['___action'] = 'insert';
                     $this->invalidateKeysCache();
                 }
                 return $this;
             }
         }
-     
+
         $this->cleanEmptyRecords();
         $this->current_index = $this->getNextCurrentIndex();
-        $this->records_array[$this->current_index]['___action'] = 'insert';
+        $this->records_objects[$this->current_index]['___action'] = 'insert';
         $this->dates_in_user_timezone = true;
         foreach ($data as $key => $value) {
+            // Skip model instances - cannot set models in fill
+            if ($value instanceof AbstractModel) {
+                continue;
+            }
             $this->setValueWithConversion($key, $value);
         }
-       
+
         $this->invalidateKeysCache();
 
         return $this;
     }
 
     protected function cleanEmptyRecords(): void {
-        if ($this->records_array == null) {
+        if ($this->records_objects == null) {
             return;
         }
-        foreach ($this->records_array as $key => $value) {
+        foreach ($this->records_objects as $key => $value) {
             $count_params = 0;
-            foreach ($value as $k => $_) {
+            foreach ($value as $k => $v) {
                 if ($k != '___action') {
+                    // If value is a model, call cleanEmptyRecords on it
+                    if ($v instanceof AbstractModel) {
+                        $v->cleanEmptyRecords();
+                    }
                     $count_params++;
                 }
             }
             if ($count_params == 0) {
-                unset($this->records_array[$key]);
+                unset($this->records_objects[$key]);
             }
         }
     }
 
     public function getNextCurrentIndex(): int {
         $index = $this->current_index;
-        if (!is_array($this->records_array) || count($this->records_array) == 0) {
+        if (!is_array($this->records_objects) || count($this->records_objects) == 0) {
             $index = 0;
         } else {
-            $index = array_key_last($this->records_array);
+            $index = array_key_last($this->records_objects);
             do {
                 $index++;
-            } while (isset($this->records_array[$index]));
+            } while (isset($this->records_objects[$index]));
         }
         return $index;
     }
@@ -844,11 +1037,11 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
     public function detach(): bool
     {
         // Verifica che esista il record corrente
-        if (!isset($this->records_array[$this->current_index])) {
+        if (!isset($this->records_objects[$this->current_index])) {
             return false;
         }
 
-        $record = $this->records_array[$this->current_index];
+        $record = $this->records_objects[$this->current_index];
 
         // Se è un record originale o modificato (non 'create'), aggiungi la primary key ai deleted
         if ($record['___action'] !== 'insert' && isset($record[$this->primary_key])) {
@@ -856,16 +1049,16 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
         }
 
         // Rimuovi dall'array (l'indice rimane vuoto per stabilità)
-        unset($this->records_array[$this->current_index]);
+        unset($this->records_objects[$this->current_index]);
         $this->invalidateKeysCache();
         return true;
     }
 
     public function isEmpty() {
-        if ($this->records_array == null) {
+        if ($this->records_objects == null) {
             return true;
         }
-        foreach ($this->records_array as $record) {
+        foreach ($this->records_objects as $record) {
             foreach ($record as $key=> $value) {
                 if ( $key != '___action' && $value != null) {
                     return false;
@@ -906,5 +1099,10 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
     public function getLoadedExtension($extension_name): ?object {
         return $this->loaded_extensions[$extension_name] ?? NULL;
     }
+
+    public function getDbType(): string {
+        return $this->db_type;
+    }
+
 
 }

@@ -223,7 +223,7 @@ $db->multiQuery($sql);</code></pre>
     <h4 class="text-primary mt-4">lastQuery() : string</h4>
     <p>Returns last executed SQL query.</p>
 
-    <h4 class="text-primary mt-4">debugPreparedQuery(string $query, array $params) : string</h4>
+    <h4 class="text-primary mt-4">toSql(string $query, array $params) : string</h4>
     <p>Returns query with substituted parameters (debug only, NOT for execution).</p>
 
     <h4 class="text-primary mt-4">qn(string $val) : string</h4>

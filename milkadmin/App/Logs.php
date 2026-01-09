@@ -11,16 +11,16 @@ namespace App;
  * @example
  * ```php
  * // Basic log entry
- * Logs::set('system', 'INFO', 'Application started');
+ * Logs::set('SYSTEM',  'Application started','INFO');
  * 
  * // Log with parameters
- * Logs::set('user', 'LOGIN', 'User login attempt', [
+ * Logs::set('USER', 'LOGIN', 'User login attempt', [
  *     'username' => 'john.doe',
  *     'ip' => '192.168.1.1'
  * ]);
  * 
  * // Log without file path tracking
- * Logs::set('performance', 'BENCHMARK', 'Query execution time', ['time' => 0.023], false);
+ * Logs::set('PERFORMANCE', 'Query execution time: 0.023"  'BENCHMARK');
  * ```
  *
  * @package     App
@@ -47,47 +47,46 @@ class Logs
      * @example
      * ```php
      * // Simple error log
-     * Logs::set('errors', 'ERROR', 'Database connection failed');
+     * Logs::set('DATABASE', 'Database connection failed',  'ERROR');
      * 
      * // Detailed log with parameters
-     * Logs::set('security', 'WARNING', 'Invalid access attempt', [
-     *     'ip' => $_SERVER['REMOTE_ADDR'],
-     *     'user_agent' => $_SERVER['HTTP_USER_AGENT']
-     * ]);
+     * Logs::set('SECURITY', 'Invalid access attempt: ip :'. $_SERVER['REMOTE_ADDR']. ' user_agent: '. $_SERVER['HTTP_USER_AGENT'], 'WARNING');
      * ```
      *
-     * @param string $group The log group name (also used as filename when writing to disk)
-     * @param string $msgType The message type (free text, typically uppercase like 'ERROR', 'INFO')
+     * @param string $group The log group name (also used as filename when writing to disk) QUERY|SYSTEM|API|ROUTE|SESSION|FILE|MODULE_NAME
+     * @param string $msgType INFO|ERROR|WARNING|DEBUG|FATAL|SUCCESS
      * @param string $msg Optional message text to log
      * @param mixed $params Optional parameters to store with the log entry
      * @param bool|array $path Whether to include file paths that led to this log call, or custom paths
      * @return void
      */
-    public static function set($group, $msgType, $msg = "", $params = "", $path = true): void {
-        $in = false;
-        if (is_array($path)) {
-            $in = $path;
+    public static function set($group, $msg = "", $msgType = "INFO"): void {
+        $in = [];
+
+        $debug = (debug_backtrace());
+        if (count ($debug) > 0) {
+            array_shift($debug);
         }
-        if ($path === true) {
-            $debug = (debug_backtrace());
-            if (count ($debug) > 0) {
-                array_shift($debug);
-            }
-            if (count ($debug) > 0) {
-                $in = array();
-                foreach ($debug as $d) {
-                    if (array_key_exists('file', $d) && array_key_exists('line', $d)) {
-                        $in[] = $d['file'].":".$d['line'];
-                    } else if (array_key_exists('file', $d)) {
-                        $in[] = $d['file'];
-                    }
+        if (count ($debug) > 0) {
+
+            foreach ($debug as $d) {
+                if (array_key_exists('file', $d) && array_key_exists('line', $d)) {
+                    $in[] = $d['file'].":".$d['line'];
+                } else if (array_key_exists('file', $d)) {
+                    $in[] = $d['file'];
                 }
             }
-        } 
+        }
+
         if (!array_key_exists($group, self::$logs)) {
             self::$logs[$group] = array();
         }
-        self::$logs[$group][] = array('msgType'=>$msgType, 'msg'=>$msg, 'params' =>$params, 'time'=>date('YmdHis'), "in"=> $in);
+        $logEntry = array('msgType'=>$msgType, 'msg'=>$msg, 'time'=>date('YmdHis'), "in"=> $in);
+        self::$logs[$group][] = $logEntry;
+
+        // Trigger hook for log interception (e.g., DebugPanel)
+        \App\Hooks::run('after_log_set', $group, $logEntry);
+        
     }
     
     /**

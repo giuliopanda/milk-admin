@@ -207,7 +207,7 @@ class CSRFProtection {
        
         $context = $has_files ? 'file upload' : 'form submission';
         $post_keys = implode(', ', array_keys($original_post));
-        Logs::set('security', 'WARNING', "CSRF token mismatch on {$context} from IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown') . " (POST keys: {$post_keys})");
+        Logs::set('SECURITY', "CSRF token mismatch on {$context} from IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown') . " (POST keys: {$post_keys})",  'WARNING');
         
     }
     

@@ -44,13 +44,13 @@ class Api extends AbstractApiExtension
         // Access page: $this->module->getPage()
 
         // Example: Log API initialization
-        // \App\Logs::set('audit', 'INFO', 'API initialized for: ' . $this->module->getPage());
+        // \App\Logs::set('AUDIT', 'API initialized for MY MODULE ' );
     }
     
     // OK
     #[ApiEndpoint('/audit/test', 'GET')]
     public function testEndpoint()
     {
-        return ['status' => 'ok', 'module' => $this->module->getPage()];
+        return ['status' => 'ok', 'module' => 'API initialized for MY MODULE'];
     }
 }

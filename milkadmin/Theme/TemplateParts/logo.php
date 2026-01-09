@@ -10,4 +10,4 @@ if (!isset($path) || $path == '') {
 if (!isset($custom_class) || $custom_class == '') {
     $custom_class = 'resized-logo';
 }
-?><img src="<?php echo Get::uriPath($path) ;?>" alt="MilkGraph logo"<?php echo ($custom_class ?? '') ? ' class="'.$custom_class.'"' : '';?>>
+?><img src="<?php echo Get::uriPath($path) ;?>" alt="Milk Admin logo"<?php echo ($custom_class ?? '') ? ' class="'.$custom_class.'"' : '';?>>

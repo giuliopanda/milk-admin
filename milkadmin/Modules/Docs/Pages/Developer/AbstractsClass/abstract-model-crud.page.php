@@ -359,15 +359,15 @@ protected function tableActionDeleteProduct($id, $request) {
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$product = $model->getById(1);
 
 // Set formatted mode (for display)
-$product->setFormatted();
+$product->setOutputMode('formatted');
 echo $product->created_at;  // DateTime object
 
 // Set SQL mode (for database)
-$product->setSql();
+$product->setOutputMode('sql');
 echo $product->created_at;  // '2025-01-15 10:30:00' string
 
 // Set raw mode
-$product->setRaw();
+$product->setOutputMode('raw');
 echo $product->created_at;  // Original value
 
 // Get as array

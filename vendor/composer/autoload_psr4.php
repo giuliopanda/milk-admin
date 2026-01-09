@@ -7,6 +7,7 @@ $baseDir = dirname($vendorDir);
 
 return array(
     'Theme\\' => array($baseDir . '/milkadmin/Theme'),
+    'PHPMailer\\PHPMailer\\' => array($vendorDir . '/phpmailer/phpmailer/src'),
     'Modules\\' => array($baseDir . '/milkadmin/Modules'),
     'Local\\' => array($baseDir . '/milkadmin_local'),
     'Extensions\\' => array($baseDir . '/milkadmin/Extensions'),

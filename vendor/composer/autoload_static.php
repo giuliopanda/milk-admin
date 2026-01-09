@@ -4,57 +4,65 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInitcde682fdf38dac6f30d5bde9f4ff4a2b
+class ComposerStaticInitf5029bf977f615468196791bc0f73808
 {
     public static $prefixLengthsPsr4 = array (
-        'T' => 
+        'T' =>
         array (
             'Theme\\' => 6,
         ),
-        'M' => 
+        'P' =>
+        array (
+            'PHPMailer\\PHPMailer\\' => 20,
+        ),
+        'M' =>
         array (
             'Modules\\' => 8,
         ),
-        'L' => 
+        'L' =>
         array (
             'Local\\' => 6,
         ),
-        'E' => 
+        'E' =>
         array (
             'Extensions\\' => 11,
         ),
-        'B' => 
+        'B' =>
         array (
             'Builders\\' => 9,
         ),
-        'A' => 
+        'A' =>
         array (
             'App\\' => 4,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
-        'Theme\\' => 
+        'Theme\\' =>
         array (
             0 => __DIR__ . '/../..' . '/milkadmin/Theme',
         ),
-        'Modules\\' => 
+        'PHPMailer\\PHPMailer\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/phpmailer/phpmailer/src',
+        ),
+        'Modules\\' =>
         array (
             0 => __DIR__ . '/../..' . '/milkadmin/Modules',
         ),
-        'Local\\' => 
+        'Local\\' =>
         array (
             0 => __DIR__ . '/../..' . '/milkadmin_local',
         ),
-        'Extensions\\' => 
+        'Extensions\\' =>
         array (
             0 => __DIR__ . '/../..' . '/milkadmin/Extensions',
         ),
-        'Builders\\' => 
+        'Builders\\' =>
         array (
             0 => __DIR__ . '/../..' . '/milkadmin/Builders',
         ),
-        'App\\' => 
+        'App\\' =>
         array (
             0 => __DIR__ . '/../..' . '/milkadmin/App',
         ),
@@ -67,9 +75,9 @@ class ComposerStaticInitcde682fdf38dac6f30d5bde9f4ff4a2b
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInitcde682fdf38dac6f30d5bde9f4ff4a2b::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInitcde682fdf38dac6f30d5bde9f4ff4a2b::$prefixDirsPsr4;
-            $loader->classMap = ComposerStaticInitcde682fdf38dac6f30d5bde9f4ff4a2b::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInitf5029bf977f615468196791bc0f73808::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInitf5029bf977f615468196791bc0f73808::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticInitf5029bf977f615468196791bc0f73808::$classMap;
 
         }, null, ClassLoader::class);
     }

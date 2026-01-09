@@ -44,6 +44,7 @@ class SchemaMysql {
 
     private array $differences = [];
     private \App\Database\MySql $db;
+    private array $rename_fields = [];
 
     public function __construct(string $table, ?\App\Database\MySql $db = null) {
         $this->table = $table;
@@ -297,8 +298,27 @@ class SchemaMysql {
         return $this;
     }
 
-    public function index(string $name, array $columns, bool $unique = false): self {
+    public function index(string $name, array $columns = [], bool $unique = false): self {
+        if (empty($columns)) {
+            $columns = [$name];
+        }
         $this->indices[$name] = new IndexMysql($this->db, $name, $columns, $unique);
+        return $this;
+    }
+
+    public function renameField(string $from, string $to): self {
+        $this->rename_fields[$from] = $to;
+        return $this;
+    }
+
+    public function removePrimaryKeys(): self {
+        foreach ($this->primary_keys as $pk) {
+            if (isset($this->fields[$pk])) {
+                unset($this->fields[$pk]);
+            }
+        }
+        $this->primary_keys = [];
+        $this->primary_key = null;
         return $this;
     }
 
@@ -508,6 +528,8 @@ class SchemaMysql {
     private function prepareAlterCommands(array $current_fields, array $current_indices): array {
         $alter_commands = [];
         $debug_info = [];
+        $rename_from = array_keys($this->rename_fields);
+        $rename_to = array_values($this->rename_fields);
         
         // DEBUG: Stato iniziale
         $debug_info[] = "=== PREPARE ALTER COMMANDS DEBUG ===";
@@ -538,7 +560,7 @@ class SchemaMysql {
         
         // 3. Drop campi rimossi
         foreach ($current_fields as $name => $field) {
-            if (!isset($this->fields[$name]) && !$field->primary_key) {
+            if (!isset($this->fields[$name]) && !$field->primary_key && !in_array($name, $rename_from, true)) {
                 $alter_commands[] = "DROP COLUMN " . $this->db->qn($name);
                 $debug_info[] = "DROP COLUMN: $name";
             }
@@ -549,7 +571,7 @@ class SchemaMysql {
         $defined_field_order = array_keys($this->fields);
         
         foreach ($this->fields as $name => $field) {
-            if (!isset($current_fields[$name])) {
+            if (!isset($current_fields[$name]) && !in_array($name, $rename_to, true)) {
                 $debug_info[] = "Nuovo campo da aggiungere: $name";
                 
                 // Trova dove posizionare il nuovo campo
@@ -586,6 +608,16 @@ class SchemaMysql {
                 // Ripristina l'after originale
                 $field->after = $original_after;
             }
+        }
+
+        // 4.5. Rename fields
+        foreach ($this->rename_fields as $from => $to) {
+            if (!isset($current_fields[$from]) || !isset($this->fields[$to])) {
+                continue;
+            }
+            $field = $this->fields[$to];
+            $sql = "CHANGE COLUMN " . $this->db->qn($from) . " " . $field->toSql();
+            $alter_commands[] = $sql;
         }
         
         // 5. Prepara comandi MODIFY solo per campi che necessitano modifiche

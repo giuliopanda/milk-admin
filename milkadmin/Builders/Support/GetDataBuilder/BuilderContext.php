@@ -21,7 +21,7 @@ class BuilderContext
     private ?string $page;
     private string $request_action = '';
     private bool $fetch_mode = false;
-    private int $default_limit = 10;
+    private int $default_limit = 0;
     private array $filter_defaults = [];
     private array $sort_mappings = [];
     private array $custom_data = [];
@@ -32,7 +32,7 @@ class BuilderContext
         $this->table_id = $table_id;
         $this->request = $request ?? $this->getRequestParams($table_id);
         $this->page = $_REQUEST['page'] ?? null;
-
+        $this->default_limit = \App\Config::get('page_info_limit', 20);
         $this->initializeModelList();
         $this->initializeQuery();
     }
@@ -281,8 +281,34 @@ class BuilderContext
 
     private function initializeQuery(): void
     {
-        $this->query = $this->modellist->getQueryFromRequestWithoutFilters();
+        // Use the model's query() method to apply default scopes (including withCount)
+        $this->query = $this->model->query();
         $this->query->clean('order');
+        $this->query->clean('limit');
+
+        // Set ModelList pagination properties from request
+        $request = $this->request;
+        $limit = _absint($request['limit'] ?? $this->default_limit);
+        $page = _absint($request['page'] ?? 1);
+
+        $limit = max(1, $limit);
+        $page = max(1, $page);
+
+        $this->modellist->limit = $limit;
+        $this->modellist->page = $page;
+
+        // Set order properties
+        if (!$this->modellist->default_order_field) {
+            $this->modellist->default_order_field = $this->modellist->primary_key;
+            $this->modellist->default_order_dir = 'desc';
+        }
+
+        $orderField = $request['order_field'] ?? $this->modellist->default_order_field;
+        $orderDir = $request['order_dir'] ?? $this->modellist->default_order_dir;
+
+        $this->modellist->order_field = $orderField;
+        $this->modellist->order_dir = $orderDir;
+
         $this->refreshQueryPagination();
     }
 

@@ -201,8 +201,8 @@ class ModelList
         if (!isset($request)) {
             $request = $_REQUEST[$this->table_id] ?? [];
         }
-        $this->order_field = $request['order_field'] ?? $this->default_order_field;
-        $this->order_dir = $request['order_dir'] ?? $this->default_order_dir;
+        $this->order_field =  !empty($request['order_field'])  ? $request['order_field'] : $this->default_order_field;
+        $this->order_dir =  !empty($request['order_dir'])  ? $request['order_dir'] : $this->default_order_dir;
     }
 
     /**
@@ -293,8 +293,8 @@ class ModelList
      * Filter the query for search
      */
     public function filterSearch(Query $query, $search) {
-        $list_structure = $this->getTableStructure();
-        if (empty($list_structure)) {
+        $table_structure = $this->getTableStructure();
+        if (empty($table_structure)) {
             return;
         }
         $search = trim($search);
@@ -303,13 +303,86 @@ class ModelList
         }
         $string_where = [];
         $array_var = [];
-        foreach ($list_structure as $field => $row) {
+        foreach ($table_structure as $field => $row) {
             $string_where[] = $this->db->qn($field) . ' LIKE ? ';
             $array_var[] = '%'.$search.'%';
         }
         if (count($string_where) > 0) {
             $query->where(implode(" OR ", $string_where), $array_var);
         }
+
+        if ($this->static_model === null || !method_exists($this->static_model, 'getRules')) {
+            return;
+        }
+
+        $rules = $this->static_model->getRules();
+        $relationship_aliases = [];
+        $related_fields = [];
+        foreach ($rules as $rule) {
+            if (!isset($rule['relationship'])) {
+                continue;
+            }
+            $relationship = $rule['relationship'];
+            if (($relationship['type'] ?? '') !== 'belongsTo') {
+                continue;
+            }
+            $alias = $relationship['alias'] ?? '';
+            if ($alias === '') {
+                continue;
+            }
+            $relationship_aliases[$alias] = true;
+            $display_field = $relationship['auto_display_field'] ?? '';
+            if ($display_field === '') {
+                $related_model = $relationship['related_model'] ?? '';
+                if ($related_model !== '') {
+                    try {
+                        $related_instance = new $related_model();
+                        if (method_exists($related_instance, 'getRules')) {
+                            $related_rules = $related_instance->getRules();
+                            foreach ($related_rules as $field_name => $related_rule) {
+                                if (($related_rule['_is_title_field'] ?? false) || ($related_rule['title'] ?? false)) {
+                                    $display_field = $field_name;
+                                    break;
+                                }
+                            }
+                        }
+                    } catch (\Throwable) {
+                        // Ignore relationship introspection errors
+                    }
+                }
+            }
+            if ($display_field !== '') {
+                $related_fields[$alias][$display_field] = true;
+            }
+        }
+
+        if ($this->list_structure instanceof ListStructure) {
+            foreach ($this->list_structure->toArray() as $field => $config) {
+                if (!str_contains($field, '.')) {
+                    continue;
+                }
+                [$alias, $related_field] = explode('.', $field, 2);
+                if ($alias === '' || $related_field === '') {
+                    continue;
+                }
+                if (!isset($relationship_aliases[$alias])) {
+                    continue;
+                }
+                $related_fields[$alias][$related_field] = true;
+            }
+        }
+        if (empty($related_fields)) {
+            return;
+        }
+
+        $search_value = '%'.$search.'%';
+        foreach ($related_fields as $alias => $fields) {
+            foreach (array_keys($fields) as $field) {
+                $query->whereHas($alias, $this->db->qn($field) . ' LIKE ?', [$search_value], 'OR');
+            }
+        }
+
+       
     }
 
     function setRequest($request) {
@@ -370,13 +443,14 @@ class ModelList
         $dataset = [];
         foreach ($data as $row) {
             foreach ($structure as $field => $structure_field) {
+                $value = property_exists($row, $field) ? $row->$field : null;
                 if ($structure_field['axis'] ?? 'y' == 'x') {
-                    $labels[] = $row->$field;
+                    $labels[] = $value ?? '';
                 } else {
                     if (!isset($dataset[$field])) {
                         $dataset[$field] = [];
                     }
-                    $dataset[$field][] = $row->$field;
+                    $dataset[$field][] = $value;
                 }
                 
             }

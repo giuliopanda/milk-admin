@@ -126,14 +126,28 @@ class MySql
 
     /**
      * List of columns for each table (cache)
-     * 
+     *
      * @var null|array
      */
-     private $show_columns_list = null; 
+     private $show_columns_list = null;
 
-     /** 
+     /**
+      * Static query log for debugging
+      *
+      * @var array
+      */
+     public static $query_log = [];
+
+     /**
+      * Enable/disable query logging
+      *
+      * @var bool
+      */
+     public static $enable_query_log = false;
+
+     /**
      * Constructor that initializes the connection with an optional table prefix
-     * 
+     *
      * @param string $prefix Optional prefix for database tables
      */
     function __construct($prefix = '') {
@@ -188,16 +202,54 @@ class MySql
         $this->affected_rows = 0;
         $this->query_columns = [];
 
+        // Log query if enabled
+        if (self::$enable_query_log) {
+            $start_time = microtime(true);
+            $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 10);
+            self::$query_log[] = [
+                'sql' => $sql,
+                'params' => $params,
+                'start_time' => $start_time,
+                'backtrace' => $backtrace
+            ];
+        }
+
+        $normalizedSql = strtoupper(trim($sql));
+        if ( $params === null && (
+                $normalizedSql === 'START TRANSACTION' ||
+                $normalizedSql === 'BEGIN' ||
+                $normalizedSql === 'COMMIT' ||
+                $normalizedSql === 'ROLLBACK'
+            )
+        ) {
+            // Esecuzione diretta (NO prepared statement)
+            if (!$this->mysqli->query($sql)) {
+                $errorMsg = $this->mysqli->error;
+                Logs::set('DATABASE',  "MYSQL Direct Query: '".$sql."' error:". $errorMsg, 'ERROR');
+                $this->error = true;
+                $this->last_error = $errorMsg;
+
+                throw new DatabaseException(
+                    $this->last_error,
+                    'mysql',
+                    ['query' => $sql]
+                );
+            }
+
+        Logs::set('DATABASE', 'MYSQL::Query (direct)', $sql);
+        return true;
+    }
+
         try {
             $stmt = $this->mysqli->prepare($sql);
 
             if ($stmt === false) {
                 $errorMsg = $this->mysqli->error;
-                Logs::set('system', 'ERROR', "MYSQL Prepare: '".$sql."' error:". $errorMsg);
+                Logs::set('DATABASE', "MYSQL Prepare: '".$sql."' error:". $errorMsg, 'ERROR');
                 $this->error = true;
                 $this->last_error = $errorMsg;
                 if (Config::get('debug', false)) {
-                    $this->last_error .= " \n<br> ".$this->debugPreparedQuery($sql, $params);
+                    $this->last_error .= " \n<br> ".$this->toSql($sql, $params);
                 }
 
                 throw new DatabaseException(
@@ -231,14 +283,16 @@ class MySql
                 $stmt->bind_param($types, ...$values);
             }
 
+            $sql_to_log = $this->toSql($sql, $params);
+
             // Execute the statement
             if (!$stmt->execute()) {
                 $errorMsg = $stmt->error;
-                Logs::set('system', 'ERROR', "MYSQL Execute: '".$sql."' error:". $errorMsg);
+                Logs::set('DATABASE', "MYSQL Execute: '".$sql_to_log."' error:". $errorMsg, 'ERROR');
                 $this->error = true;
                 $this->last_error = $errorMsg;
                 if (Config::get('debug', false)) {
-                    $this->last_error .= " \n<br> ".$this->debugPreparedQuery($sql, $params);
+                    $this->last_error .= " \n<br> ".$sql_to_log;
                 }
                 $stmt->close();
 
@@ -259,17 +313,24 @@ class MySql
                 $ris = true;
             }
 
-            Logs::set('system', 'MYSQL::Query', $sql);
+            Logs::set('DATABASE', 'MYSQL::Query', $sql_to_log);
             $stmt->close();
+
+            // Update query log with execution time
+            if (self::$enable_query_log && !empty(self::$query_log)) {
+                $last_index = count(self::$query_log) - 1;
+                self::$query_log[$last_index]['end_time'] = microtime(true);
+                self::$query_log[$last_index]['duration'] = self::$query_log[$last_index]['end_time'] - self::$query_log[$last_index]['start_time'];
+            }
 
             // Check for any mysqli errors after execution
             if ($this->mysqli->error != '') {
                 $errorMsg = $this->mysqli->error;
-                Logs::set('system', 'ERROR', "MYSQL Query error: '".$sql."' error:". $errorMsg);
+                Logs::set('DATABASE', "MYSQL Query error: '".$sql."' error:". $errorMsg, 'ERROR');
                 $this->error = true;
                 $this->last_error = $errorMsg;
                 if (Config::get('debug', false)) {
-                    $this->last_error .= " \n<br> ".$this->debugPreparedQuery($sql, $params);
+                    $this->last_error .= " \n<br> ".$this->toSql($sql, $params);
                 }
 
                 throw new DatabaseException(
@@ -285,11 +346,11 @@ class MySql
             // Re-throw come DatabaseException se non lo è già
             if (!($e instanceof DatabaseException)) {
                 $errorMsg = $e->getMessage();
-                Logs::set('system', 'ERROR', "MYSQL Exception: '".$sql."' error:". $errorMsg);
+                Logs::set('DATABASE', "MYSQL Exception: '".$sql."' error:". $errorMsg, 'ERROR');
                 $this->error = true;
                 $this->last_error = $errorMsg;
                 if (Config::get('debug', false)) {
-                    $this->last_error .= " \n<br> ".$this->debugPreparedQuery($sql, $params);
+                    $this->last_error .= " \n<br> ".$this->toSql($sql, $params);
                 }
 
                 throw new DatabaseException(
@@ -306,7 +367,7 @@ class MySql
      * Get the SQL query string with parameters replaced (for debug purposes only)
      * 
      * Note: This implementation is specifically for MySQL. If you have a Query
-     * object instance, use the getSql() method instead for a more complete solution.
+     * object instance, use the toSql() method instead for a more complete solution.
      * 
      * @param string $query The SQL query with placeholders (?)
      * @param array $params The parameters to replace in the query
@@ -315,10 +376,10 @@ class MySql
      * @example
      * $sql = "SELECT * FROM users WHERE id = ? AND name = ?";
      * $params = [123, 'John'];
-     * echo $this->debugPreparedQuery($sql, $params);
+     * echo $this->toSql($sql, $params);
      * // Output: SELECT * FROM users WHERE id = 123 AND name = 'John'
      */
-    public function debugPreparedQuery(string $query, array $params): string {
+    public function toSql(string $query, array|null $params = null): string {
         if (!is_array($params) || count($params) == 0) {
             return $query;
         }
@@ -436,7 +497,7 @@ class MySql
 
             $stmt->close();
         } catch (\Exception $e) {
-            Logs::set('system', 'ERROR', "MYSQL Query: '".$sql."' error:". $this->mysqli->error);
+            Logs::set('DATABASE', "MYSQL Query: '".$sql."' error:". $this->mysqli->error, 'ERROR');
             $this->error = true;
             $this->last_error = $this->mysqli->error;
             if (Config::get('debug', false)) {
@@ -959,7 +1020,7 @@ class MySql
             return false;
         }
         $sql = $this->sqlPrefix($sql);
-        Logs::set('system', 'MYSQL::multy_query', $sql);
+        Logs::set('DATABASE', 'MYSQL::multiQuery'. $sql);
         return $this->mysqli->multi_query($sql);
     }
 
@@ -1219,7 +1280,7 @@ class MySql
         $this->mysqli =  mysqli_init( );
         if (!$this->mysqli->options( MYSQLI_OPT_CONNECT_TIMEOUT, $timeout ) ) {
             $errorMsg = "Cannot setup connection timeout";
-            Logs::set('system', 'MYSQL', $errorMsg);
+            Logs::set('DATABASE', "MYSQL Connect: ".$errorMsg, 'ERROR');
             $this->error =  true;
             $this->last_error = $errorMsg;
 
@@ -1237,7 +1298,7 @@ class MySql
              $this->mysqli->real_connect($ip, $login, $pass, $dbname);
         } catch (\Exception $e) {
             $errorMsg = "MySQL connection failed: " . $e->getMessage();
-            Logs::set('system', 'ERROR', "MYSQL Connect. ip:".$ip." login:". $login." dbname:".$dbname." error:".$e->getMessage());
+            Logs::set('DATABASE', "MYSQL Connect. ip:".$ip." login:". $login." dbname:".$dbname." error:".$e->getMessage(), 'ERROR');
             $this->error =  true;
             $this->last_error = $errorMsg;
 
@@ -1255,7 +1316,7 @@ class MySql
         // è connesso?
         if ($this->mysqli->connect_error) {
             $errorMsg = "MySQL connection error: " . $this->mysqli->connect_error;
-            Logs::set('system', 'ERROR', "MYSQL Connect. ip:".$ip." login:". $login." dbname:".$dbname." error:".$this->mysqli->connect_error);
+            Logs::set('DATABASE', "MYSQL Connect. ip:".$ip." login:". $login." dbname:".$dbname." error:".$this->mysqli->connect_error, 'ERROR');
             $this->error =  true;
             $this->last_error = $errorMsg;
 

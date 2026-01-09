@@ -12,6 +12,7 @@ class Calendar {
     component_name = 'Calendar';
     is_init = false;
     plugin_loading = null;
+    filters = '';
 
     constructor(el_container) {
         if (!el_container) {
@@ -20,6 +21,7 @@ class Calendar {
 
         console.log('Initializing Calendar component');
         this.el_container = el_container;
+        this.initFiltersFromForm();
 
         this.init();
         this.is_init = true;
@@ -55,6 +57,18 @@ class Calendar {
         this.initialize_navigation_buttons();
         this.initialize_week_select();
         this.initialize_appointment_clicks();
+    }
+
+    initFiltersFromForm() {
+        const filters_field = this.el_container.querySelector('.js-field-calendar-filters');
+        this.filters = filters_field ? (filters_field.value || '') : '';
+    }
+
+    syncFiltersField() {
+        const filters_field = this.el_container.querySelector('.js-field-calendar-filters');
+        if (filters_field) {
+            filters_field.value = this.filters;
+        }
     }
 
     /**
@@ -279,6 +293,9 @@ class Calendar {
         if (type_field) {
             type_field.value = isWeekly ? 'weekly' : 'monthly';
         }
+        if (filters_field) {
+            filters_field.value = this.filters;
+        }
 
         // Per vista settimanale, aggiungi week_number al form
         if (isWeekly && week_select) {
@@ -323,6 +340,10 @@ class Calendar {
                 const new_calendar = temp_div.querySelector('.js-calendar-container');
 
                 if (new_calendar) {
+                    const new_filters_field = new_calendar.querySelector('.js-field-calendar-filters');
+                    if (new_filters_field) {
+                        new_filters_field.value = this.filters;
+                    }
                     // Replace entire container with new one
                     this.el_container.replaceWith(new_calendar);
 
@@ -369,6 +390,58 @@ class Calendar {
     /**
      * Public API methods
      */
+
+    filter_add(filter) {
+        const filters = this.getFiltersArray();
+        filters.push(filter);
+        this.setFiltersArray(filters);
+    }
+
+    filter_clear() {
+        this.setFiltersArray([]);
+    }
+
+    filter_remove(filter) {
+        const filters = this.getFiltersArray();
+        const index = filters.indexOf(filter);
+        if (index > -1) {
+            filters.splice(index, 1);
+            this.setFiltersArray(filters);
+        }
+    }
+
+    filter_remove_start(filter) {
+        const filters = this.getFiltersArray();
+        const new_filters = filters.filter((val) => {
+            return !val.toString().startsWith(filter);
+        });
+        this.setFiltersArray(new_filters);
+    }
+
+    filter_get() {
+        return this.getFiltersArray();
+    }
+
+    getFiltersArray() {
+        if (this.filters === '') {
+            return [];
+        }
+        try {
+            return JSON.parse(this.filters);
+        } catch (e) {
+            console.warn('Invalid filter JSON, resetting filters');
+            return [];
+        }
+    }
+
+    setFiltersArray(filters) {
+        if (!Array.isArray(filters) || filters.length === 0) {
+            this.filters = '';
+        } else {
+            this.filters = JSON.stringify(filters);
+        }
+        this.syncFiltersField();
+    }
 
     // Get current month
     get_month() {

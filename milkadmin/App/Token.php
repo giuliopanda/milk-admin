@@ -300,7 +300,7 @@ class Token {
             $res = openssl_pkey_new($config);
             if (!$res) {
                 self::$last_error = "Error generating keys: " . openssl_error_string();
-                Logs::set('token', 'ERROR', self::$last_error);
+                Logs::set('TOKEN', self::$last_error, 'ERROR');
                 return false;
             }
             
@@ -322,7 +322,7 @@ class Token {
             ];
         } catch (\Exception $e) {
             self::$last_error = $e->getMessage();
-            Logs::set('token', 'ERROR', "Error generating keys: " . self::$last_error);
+            Logs::set('TOKEN', "Error generating keys: " . self::$last_error, 'ERROR');
             return false;
         }
     }
@@ -363,7 +363,7 @@ class Token {
             return self::signJwt($payload);
         } catch (\Exception $e) {
             self::$last_error = $e->getMessage();
-            Logs::set('System', 'ERROR', "Error generating token: " . self::$last_error);
+            Logs::set('TOKEN', "Error generating token: " . self::$last_error, 'ERROR');
             return false;
         }
     }
@@ -399,7 +399,7 @@ class Token {
             $pk = openssl_pkey_get_private(self::$private_key);
             if ($pk === false) {
                 self::$last_error = "Invalid private key: " . openssl_error_string();
-                Logs::set('token', 'ERROR', self::$last_error);
+                Logs::set('TOKEN', "Invalid private key: " . self::$last_error, 'ERROR');
                 return false;
             }
             
@@ -408,7 +408,7 @@ class Token {
             
             if ($sign_result === false) {
                 self::$last_error = "Signing failed: " . openssl_error_string();
-                Logs::set('token', 'ERROR', self::$last_error);
+                Logs::set('TOKEN', "Signing failed: " . self::$last_error, 'ERROR');
                 return false;
             }
             
@@ -418,7 +418,7 @@ class Token {
             return $header_encoded . '.' . $payload_encoded . '.' . $signature_encoded;
         } catch (\Exception $e) {
             self::$last_error = "Error signing JWT: " . $e->getMessage();
-            Logs::set('token', 'ERROR', self::$last_error);
+            Logs::set('TOKEN', "Error signing JWT: " . self::$last_error, 'ERROR');
             return false;
         }
     }
@@ -482,7 +482,7 @@ class Token {
             return $payload;
         } catch (\Exception $e) {
             self::$last_error = $e->getMessage();
-            Logs::set('token', 'ERROR', "Error verifying token: " . self::$last_error);
+            Logs::set('TOKEN', "Error verifying token: " . self::$last_error, 'ERROR');
             return false;
         }
     }

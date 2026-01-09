@@ -4,9 +4,6 @@ namespace App;
 use PHPMailer\PHPMailer\PHPMailer;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
-require MILK_DIR.'/ExternalLibrary/phpmailer/src/Exception.php';
-require MILK_DIR.'/ExternalLibrary/phpmailer/src/PHPMailer.php';
-require MILK_DIR.'/ExternalLibrary/phpmailer/src/SMTP.php';
 
 /**
  * Wrapper for PHPMailer class
@@ -219,7 +216,7 @@ class Mail
         if (is_file ( $page )) {
             require $page;
         } else {
-            Logs::set('mail', 'ERROR', 'Template not found: '.$page);
+            Logs::set('MAIL',  'Template not found: '.$page, 'ERROR');
             die ("Template not found: ". $path);
         }
         ob_end_clean();

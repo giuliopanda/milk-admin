@@ -391,6 +391,7 @@ abstract class AbstractModule {
 
         Hooks::set('cli-init', [$this, '_cli_init'], 20);
         Hooks::set('cli-init', [$this, 'setupAttributeShell'], 40);
+        Hooks::set('test-init', [$this, '_test_init'], 20);
         Hooks::set('api-init', [$this, '_api_init'], 20);
         Hooks::set('api-init', [$this, 'setupAttributeApi'], 40);
         Hooks::set('jobs-init', [$this, '_jobs_init'], 20);
@@ -417,6 +418,12 @@ abstract class AbstractModule {
             Hooks::set('after_modules_loaded', [$this, 'init'], 10);
             Hooks::set('after_modules_loaded', [$this, 'setStylesAndScripts'], 15);
             Hooks::set('after_modules_loaded', [$this, 'afterInit'], 11);
+
+            // Set selected menu if configured
+            $selected_menu = $this->rule_builder->getSelectedMenu();
+            if ($selected_menu !== null) {
+                Theme::set('sidebar.selected', $selected_menu);
+            }
         }
 
         $folder = $this->getFolderOrFileCalled();
@@ -480,6 +487,11 @@ abstract class AbstractModule {
     public function _cli_init() {
         if (!$this->bootstrap_loaded)$this->_bootstrap();
         $this->cliInit();
+    }
+
+    public function _test_init() {
+        if (!$this->bootstrap_loaded)$this->_bootstrap();
+        $this->testInit();
     }
 
     public function _api_init() {
@@ -554,6 +566,10 @@ abstract class AbstractModule {
      */
     public function cliInit() {
         // This method is called during the 'cli-init' hook phase
+    }
+
+    public function testInit() {
+        // This method is called during the 'test-init' hook phase
     }
 
     public function _bootstrap() {
@@ -774,6 +790,9 @@ abstract class AbstractModule {
             $path = ltrim($path, './');
             // Get module folder relative to MILK_DIR
             $relative_module = str_replace(MILK_DIR . '/', '', $module_folder);
+            if (strpos(LOCAL_DIR, $module_folder) !== false) {
+                $relative_module = str_replace(LOCAL_DIR . '/', '', $relative_module);
+            }
             return Route::url() . '/' . $relative_module . '/' . ltrim($path, '/');
         }
 
@@ -784,6 +803,7 @@ abstract class AbstractModule {
 
         // Otherwise, treat it as relative to the module folder
         $relative_module = str_replace(MILK_DIR . '/', '', $module_folder);
+        $relative_module = str_replace(LOCAL_DIR . '/', '', $relative_module);
         return Route::url() . '/' . $relative_module . '/' . $path;
     }
 
@@ -831,7 +851,7 @@ abstract class AbstractModule {
         $position = $this->rule_builder->getHeaderLinksPosition();
 
         // Create LinksBuilder instance
-        $builder = \Builders\LinksBuilder::fill();
+        $builder = \Builders\LinksBuilder::create();
 
         // Add each link
         foreach ($links as $link) {
@@ -939,7 +959,7 @@ abstract class AbstractModule {
         } else if (class_exists($class)) {
             $class = new $class();
         } else {
-            Logs::set('system', 'WARNING', 'Class not found: ' . $class);
+            Logs::set('SYSTEM', 'Class not found: ' . $class, 'WARNING');
             $class = null;
         }
     }

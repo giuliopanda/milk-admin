@@ -35,6 +35,12 @@ class RuleBuilder
      * @var string|null
      */
     protected ?string $primary_key = null;
+
+    /**
+     * Field rename map (from => to)
+     * @var array<string, string>
+     */
+    protected array $rename_fields = [];
     /**
      * Table name
      * @var string|null
@@ -54,6 +60,14 @@ class RuleBuilder
     protected ?array $extensions = null;
 
     /**
+     * Track if we are currently defining a relationship
+     * Used to validate that where() is called immediately after a relationship method
+     * Format: ['type' => 'withCount|hasMany|hasOne|belongsTo', 'field' => 'field_name', 'index' => 0]
+     * @var array|null
+     */
+    protected ?array $active_relationship = null;
+
+    /**
      * Start defining a new field
      *
      * @param string $name Field name
@@ -62,6 +76,7 @@ class RuleBuilder
      */
     public function field(string $name, string $type = 'string'): self
     {
+        $this->deactivateRelationship();
         $this->current_field = $name;
         $this->rules[$name] = [
             'type' => $type,// tipo PHP e SQL (primary, text, string, int, float, bool, date, datetime, time, list, enum, array)
@@ -83,6 +98,9 @@ class RuleBuilder
             'form-type' => null,   // tipo di campo per il form
             'form-label' => null,  // etichetta per il form
             'timezone_conversion' => false,
+            // checkbox values
+            'checkbox_checked' => null,   // valore quando checkbox è selezionato
+            'checkbox_unchecked' => null, // valore quando checkbox non è selezionato
         ];
         return $this;
     }
@@ -93,8 +111,9 @@ class RuleBuilder
      * @param string $name Field name
      * @return self
      */
-    public function ChangeCurrentField($name) {
+    public function ChangeCurrentField($name): self {
         $this->current_field = $name;
+        return $this;
     }
 
     /**
@@ -151,6 +170,19 @@ class RuleBuilder
     public function db(string $name): self
     {
         $this->db_type = $name;
+        return $this;
+    }
+
+    /**
+     * Rename a field in the schema (from => to)
+     *
+     * @param string $from Existing field name
+     * @param string $to New field name
+     * @return self
+     */
+    public function renameField(string $from, string $to): self
+    {
+        $this->rename_fields[$from] = $to;
         return $this;
     }
 
@@ -630,6 +662,26 @@ class RuleBuilder
     }
 
     /**
+     * Define checkbox values (checked and unchecked)
+     *
+     * Use this method to specify the values for checkboxes with non-boolean values.
+     * Common patterns: 'S'/'N', 'Y'/'N', '1'/'0'
+     *
+     * @param mixed $checked_value Value when checkbox is checked (e.g., 'S', 'Y', '1')
+     * @param mixed $unchecked_value Value when checkbox is unchecked (e.g., 'N', 'N', '0')
+     * @return self
+     *
+     * @example ->string('active', 1)->formType('checkbox')->checkboxValues('Y', 'N')
+     * @example ->string('enabled', 1)->formType('checkbox')->checkboxValues('S', 'N')
+     */
+    public function checkboxValues($checked_value, $unchecked_value = null): self
+    {
+        $this->rules[$this->current_field]['checkbox_checked'] = $checked_value;
+        $this->rules[$this->current_field]['checkbox_unchecked'] = $unchecked_value;
+        return $this;
+    }
+
+    /**
      * Set a value that will always be saved
      *
      * @param mixed $value Value to save
@@ -989,6 +1041,12 @@ class RuleBuilder
             'allowCascadeSave' => $allowCascadeSave, // Allow automatic cascade save when parent is saved
         ];
 
+        // Activate relationship for potential where() call
+        $this->active_relationship = [
+            'type' => 'hasOne',
+            'field' => $local_key,
+        ];
+
         return $this;
     }
 
@@ -1023,38 +1081,14 @@ class RuleBuilder
         // Current field should be the local key (typically primary key)
         $local_key = $this->current_field;
 
+
         // Ensure the local key field exists in rules
         if (!isset($this->rules[$local_key])) {
             throw new \InvalidArgumentException("Local key field must be defined before calling hasMany()");
         }
 
-        // Instantiate the related model to verify foreign key exists
-        $related_instance = new $related_model();
-        $related_rules = $related_instance->getRules();
-
-        // Verify the foreign key exists in related model
-        if (!isset($related_rules[$foreign_key_in_related])) {
-            throw new \InvalidArgumentException(
-                "Foreign key '$foreign_key_in_related' not found in related model '$related_model'"
-            );
-        }
-
-        // Verify type compatibility between local key and foreign key in related table
-        $local_type = $this->rules[$local_key]['type'];
-        $foreign_type = $related_rules[$foreign_key_in_related]['type'];
-
-        // Map compatible types
-        $compatible_types = [
-            'id' => ['int', 'id', 'string'],
-            'int' => ['int', 'id', 'string'],
-            'string' => ['string', 'int', 'id'],
-        ];
-
-        if (isset($compatible_types[$local_type]) && !in_array($foreign_type, $compatible_types[$local_type])) {
-            throw new \InvalidArgumentException(
-                "Local key '$local_key' type ($local_type) is not compatible with foreign key '$foreign_key_in_related' type ($foreign_type) in model '$related_model'"
-            );
-        }
+        // Skip validation to prevent circular instantiation during configuration
+        // Validation will be done at runtime when relationships are actually used
 
         // Store relationship configuration in the local key field
         $this->rules[$local_key]['relationship'] = [
@@ -1065,6 +1099,72 @@ class RuleBuilder
             'related_model' => $related_model,
             'onDelete' => $onDelete,                 // Delete behavior: CASCADE, SET NULL, RESTRICT
             'allowCascadeSave' => $allowCascadeSave, // Allow automatic cascade save when parent is saved
+        ];
+
+        // Activate relationship for potential where() call
+        $this->active_relationship = [
+            'type' => 'hasMany',
+            'field' => $local_key,
+        ];
+
+        return $this;
+    }
+
+    /**
+     * Define a withCount aggregate relationship
+     *
+     * withCount: Adds a subquery COUNT to the SELECT clause without loading the actual related records.
+     * This is useful for displaying counts in lists and allows ordering by the count.
+     *
+     * Example SQL generated:
+     * SELECT authors.*,
+     * (SELECT COUNT(*) FROM books WHERE books.author_id = authors.id) AS books_count
+     * FROM authors
+     *
+     * @param string $alias Field name for the count (e.g., 'books_count')
+     * @param string $related_model Related model class name
+     * @param string $foreign_key_in_related Foreign key field name in the related table
+     * @return self
+     */
+    public function withCount(string $alias, string $related_model, string $foreign_key_in_related): self
+    {
+        // Current field should be the local key (typically primary key)
+        $local_key = $this->current_field;
+
+        // Ensure the local key field exists in rules
+        if (!isset($this->rules[$local_key])) {
+            throw new \InvalidArgumentException("Local key field must be defined before calling withCount()");
+        }
+
+        // Initialize withCount array if not exists
+        if (!isset($this->rules[$local_key]['withCount'])) {
+            $this->rules[$local_key]['withCount'] = [];
+        }
+
+        // Store withCount configuration
+        $this->rules[$local_key]['withCount'][] = [
+            'alias' => $alias,
+            'local_key' => $local_key,
+            'foreign_key' => $foreign_key_in_related,
+            'related_model' => $related_model,
+        ];
+
+        // Add the alias as a virtual field in rules so it's preserved by filterDataByRules()
+        $this->rules[$alias] = [
+            'type' => 'int',
+            'virtual' => true,
+            'withCount' => true,
+            'sql' => false,  // Not a real database field
+            'nullable' => true,
+            'label' => ucfirst(str_replace('_', ' ', $alias)),
+        ];
+
+        // Activate relationship for potential where() call
+        $index = count($this->rules[$local_key]['withCount']) - 1;
+        $this->active_relationship = [
+            'type' => 'withCount',
+            'field' => $local_key,
+            'index' => $index,
         ];
 
         return $this;
@@ -1091,58 +1191,129 @@ class RuleBuilder
             throw new \InvalidArgumentException("Foreign key field must be defined before calling belongsTo()");
         }
 
-        // Instantiate the related model to get its configuration
-        $related_instance = new $related_model();
-        $related_rules = $related_instance->getRules();
+        // Skip validation to prevent circular instantiation during configuration
+        // Validation will be done at runtime when relationships are actually used
 
-        // Get the related primary key rule
-        $related_pk_rule = $related_rules[$related_key] ?? null;
-
-        if (!$related_pk_rule) {
-            throw new \InvalidArgumentException("Related key '$related_key' not found in model '$related_model'");
-        }
-
-        // Verify type compatibility
-        $fk_type = $this->rules[$foreign_key]['type'];
-        $pk_type = $related_pk_rule['type'];
-
-        // Map compatible types
-        $compatible_types = [
-            'id' => ['int', 'id', 'string'],
-            'int' => ['int', 'id', 'string'],
-            'string' => ['string', 'int', 'id'],
-        ];
-
-        if (isset($compatible_types[$pk_type]) && !in_array($fk_type, $compatible_types[$pk_type])) {
-            throw new \InvalidArgumentException(
-                "Foreign key '$foreign_key' type ($fk_type) is not compatible with related key '$related_key' type ($pk_type) in model '$related_model'"
-            );
-        }
-
-        // Auto-detect title field in related model
+        // Auto-detect title field in related model - will be done lazy at runtime
         $auto_display_field = null;
-        foreach ($related_rules as $field_name => $field_rule) {
-            if (isset($field_rule['_is_title_field']) && $field_rule['_is_title_field'] === true) {
-                $auto_display_field = $field_name;
-                break;
-            }
-        }
-
-        // Store relationship configuration in the foreign key field
+       
+        // Store relationship configuration first
         $this->rules[$foreign_key]['relationship'] = [
             'type' => 'belongsTo',
             'alias' => $alias,
-            'foreign_key' => $foreign_key,
-            'related_model' => $related_model,
-            'related_key' => $related_key,
+            'foreign_key' => $foreign_key,           // Field in THIS table (e.g., 'actor_id')
+            'related_key' => $related_key,           // Field in RELATED table (usually 'id')
+            'related_model' => $related_model
+        ];
+    
+
+        // Now try to get auto_display_field - wrapped in try/catch to prevent loops
+        $auto_display_field = null;
+        try {
+            static $instantiating = [];
+            $key = $related_model;
+
+            if (!isset($instantiating[$key])) {
+                $instantiating[$key] = true;
+                $related_instance = new $related_model();
+                $related_rules = $related_instance->getRules();
+
+                // Find title field
+                foreach ($related_rules as $field_name => $rule) {
+                    if (($rule['title'] ?? false) === true) {
+                        $auto_display_field = $field_name;
+                        break;
+                    }
+                }
+                unset($instantiating[$key]);
+            }
+        } catch (\Throwable) {
+            // Ignore errors during auto-detect to prevent circular loops
+        }
+
+        // Update with auto_display_field if found
+        if ($auto_display_field) {
+            $this->rules[$foreign_key]['relationship']['auto_display_field'] = $auto_display_field;
+        }
+
+        // Activate relationship for potential where() call
+        $this->active_relationship = [
+            'type' => 'belongsTo',
+            'field' => $foreign_key,
         ];
 
-        // Store auto-detected display field if found
-        if ($auto_display_field !== null) {
-            $this->rules[$foreign_key]['_auto_display_field'] = $auto_display_field;
+        return $this;
+    }
+
+    /**
+     * Add a WHERE condition to the active relationship
+     *
+     * This method can only be called immediately after a relationship method
+     * (withCount, hasMany, hasOne, belongsTo). It allows filtering the related
+     * records in the relationship query.
+     *
+     * @example
+     * ```php
+     * // Filter withCount to only count available lessons
+     * $rule_builder
+     *     ->ChangeCurrentField($rule_builder->getPrimaryKey())
+     *     ->withCount('lezioni_disponibili', LezioniModel::class, 'MATR_CRS')
+     *         ->where('DISPONIBILE = ?', ['D']);
+     *
+     * // Multiple conditions with AND
+     * $rule_builder
+     *     ->ChangeCurrentField($rule_builder->getPrimaryKey())
+     *     ->withCount('lezioni_attive', LezioniModel::class, 'MATR_CRS')
+     *         ->where('DISPONIBILE = ? AND BLOCCO != ?', ['D', 'S']);
+     * ```
+     *
+     * @param string $condition SQL WHERE condition with ? placeholders
+     * @param array $params Parameters to bind to the placeholders
+     * @return self
+     * @throws \LogicException if called without an active relationship
+     */
+    public function where(string $condition, array $params = []): self
+    {
+        if ($this->active_relationship === null) {
+            throw new \LogicException(
+                "where() can only be called immediately after a relationship method " .
+                "(withCount, hasMany, hasOne, belongsTo). " .
+                "Example: ->withCount('lezioni', LezioniModel::class, 'MATR_CRS')->where('DISPONIBILE = ?', ['D'])"
+            );
+        }
+
+        $type = $this->active_relationship['type'];
+        $field = $this->active_relationship['field'];
+
+        if ($type === 'withCount') {
+            $index = $this->active_relationship['index'];
+
+            // Store the where condition in the withCount config
+            $this->rules[$field]['withCount'][$index]['where'] = [
+                'condition' => $condition,
+                'params' => $params,
+            ];
+        } elseif (in_array($type, ['hasMany', 'hasOne', 'belongsTo'])) {
+            // Store the where condition in the relationship config
+            $this->rules[$field]['relationship']['where'] = [
+                'condition' => $condition,
+                'params' => $params,
+            ];
         }
 
         return $this;
+    }
+
+    /**
+     * Deactivate the current relationship context
+     * This is called automatically when defining a new field to ensure
+     * that where() can only be used immediately after relationship methods
+     *
+     * @return void
+     */
+    protected function deactivateRelationship(): void
+    {
+        $this->active_relationship = null;
     }
 
     /**
@@ -1207,6 +1378,16 @@ class RuleBuilder
         }
 
         return $this->rules;
+    }
+
+    /**
+     * Get all field renames
+     *
+     * @return array<string, string>
+     */
+    public function getRenameFields(): array
+    {
+        return $this->rename_fields;
     }
 
     public function setRules(array $rules): self

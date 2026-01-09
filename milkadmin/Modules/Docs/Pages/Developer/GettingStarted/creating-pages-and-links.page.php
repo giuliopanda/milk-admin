@@ -139,7 +139,7 @@ class MyPagesController extends AbstractController {
     }
 
     private function links() {
-        $navbar = LinksBuilder::fill()
+        $navbar = LinksBuilder::create()
             ->addGroup('Menu', 'My Menu')
                 ->add('Other Pages', '?page='.$this->page.'&action=other-page')
                 ->add('Page 3', '?page='.$this->page.'&action=page3')

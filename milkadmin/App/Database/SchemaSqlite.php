@@ -41,6 +41,7 @@ class SchemaSqlite {
 
     private array $differences = [];
     private \App\Database\SQLite $db;
+    private array $rename_fields = [];
 
     public function __construct(string $table, ?\App\Database\SQLite $db = null) {
         $this->table = $table;
@@ -237,6 +238,11 @@ class SchemaSqlite {
         return $this;
     }
 
+    public function renameField(string $from, string $to): self {
+        $this->rename_fields[$from] = $to;
+        return $this;
+    }
+
     // CREATION
     public function create(): bool {
     
@@ -299,9 +305,18 @@ class SchemaSqlite {
         $current_fields = $this->getCurrentFields();
         $current_indices = $this->getCurrentIndices();
         $diff = $this->checkDifferencesBetweenFields($current_fields);
+        $needs_reorder = $this->needsFieldReordering($current_fields);
         if (empty($diff) && !$force_update) {
             // Nessuna modifica necessaria
-            return true;
+            if (!$needs_reorder) {
+                return true;
+            }
+        }
+        if ($needs_reorder) {
+            $diff['reorder'] = [
+                'from' => $this->getCurrentFieldOrder(),
+                'to' => array_keys($this->fields),
+            ];
         }
         $this->differences = ['action' => 'modify', 'fields' => $diff, 'table' => $this->table];
         return $this->reconstructTable($current_fields, $current_indices);
@@ -527,6 +542,7 @@ class SchemaSqlite {
     private function buildMigrationQuery(string $temp_table, array $migration_plan, array $current_fields): string {
         $select_parts = [];
         $all_new_fields = array_keys($this->fields);
+        $rename_fields = $this->rename_fields;
         
         // 1. Gestisci campi da copiare (esistenti in entrambe le tabelle)
         foreach ($migration_plan['copy_fields'] as $name => $field_info) {
@@ -535,6 +551,19 @@ class SchemaSqlite {
             
             // Gestisci conversioni di tipo se necessario
             $select_parts[$name] = $this->buildFieldConversion($name, $old_field, $new_field);
+        }
+
+        // Rename fields: map old column to new column name
+        foreach ($rename_fields as $old_name => $new_name) {
+            if (!isset($current_fields[$old_name]) || !isset($this->fields[$new_name])) {
+                continue;
+            }
+            $old_field = $current_fields[$old_name];
+            $new_field = $this->fields[$new_name];
+            $select_parts[$new_name] = $this->buildFieldConversionFrom($old_name, $old_field, $new_field);
+            if (isset($migration_plan['new_fields'][$new_name])) {
+                unset($migration_plan['new_fields'][$new_name]);
+            }
         }
         
         // 2. Gestisci campi nuovi (che non esistevano nella vecchia struttura)
@@ -607,6 +636,41 @@ class SchemaSqlite {
     }
 
     /**
+     * Conversione campo usando un nome sorgente diverso (rename)
+     */
+    private function buildFieldConversionFrom(string $source_name, FieldSqlite $old_field, FieldSqlite $new_field): string {
+        $quoted_name = $this->db->qn($source_name);
+
+        if ($old_field->normalizeType($old_field->type) === $new_field->normalizeType($new_field->type)) {
+            return $quoted_name;
+        }
+
+        $old_type = $old_field->normalizeType($old_field->type);
+        $new_type = $new_field->normalizeType($new_field->type);
+
+        switch ($new_type) {
+            case 'INTEGER':
+                if ($old_type === 'TEXT') {
+                    return "CASE WHEN {$quoted_name} GLOB '*[0-9]*' THEN CAST({$quoted_name} AS INTEGER) ELSE 0 END";
+                } elseif ($old_type === 'REAL') {
+                    return "CAST({$quoted_name} AS INTEGER)";
+                }
+                break;
+            case 'REAL':
+                if ($old_type === 'TEXT') {
+                    return "CASE WHEN {$quoted_name} GLOB '*[0-9.]*' THEN CAST({$quoted_name} AS REAL) ELSE 0.0 END";
+                } elseif ($old_type === 'INTEGER') {
+                    return "CAST({$quoted_name} AS REAL)";
+                }
+                break;
+            case 'TEXT':
+                return "CAST({$quoted_name} AS TEXT)";
+        }
+
+        return $quoted_name;
+    }
+
+    /**
      * Genera un valore di default per un nuovo campo
      */
     private function buildDefaultValue(FieldSqlite $field): string {
@@ -671,7 +735,7 @@ class SchemaSqlite {
         return $this->last_error;   
     }
 
-   private function getCurrentFields(): array {
+    private function getCurrentFields(): array {
         $fields = [];
         $sql = "PRAGMA table_info(" . $this->db->qn($this->table) . ")";
         $result = $this->db->query($sql);
@@ -730,6 +794,28 @@ class SchemaSqlite {
         }
         
         return $fields;
+    }
+
+    private function getCurrentFieldOrder(): array {
+        $field_order = [];
+        $sql = "PRAGMA table_info(" . $this->db->qn($this->table) . ")";
+        $result = $this->db->query($sql);
+        if ($result) {
+            while ($row = $result->fetch_array()) {
+                $field_order[] = $row['name'] ?? $row[1];
+            }
+        }
+        return $field_order;
+    }
+
+    private function needsFieldReordering(array $current_fields): bool {
+        $current_order = $this->getCurrentFieldOrder();
+        $defined_order = array_keys($this->fields);
+
+        $common_fields_current = array_intersect($current_order, $defined_order);
+        $common_fields_defined = array_intersect($defined_order, $current_order);
+
+        return $common_fields_current !== $common_fields_defined;
     }
 
     private function getCurrentIndices(): array {

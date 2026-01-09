@@ -36,13 +36,11 @@ trait FieldFirstTrait
             throw BuilderException::invalidField($key);
         }
 
-        // If field doesn't exist, create it with minimal structure
+        // If field doesn't exist, create it with minimal structure (only name)
+        // Other defaults will be set by addFieldsFromObject() to allow FormBuilder changes to override Model
         if (!isset($this->fields[$key])) {
             $this->fields[$key] = [
-                'name' => $key,
-                'type' => '',
-                'value' => '',
-                'row_value' => ''
+                'name' => $key
             ];
         }
 

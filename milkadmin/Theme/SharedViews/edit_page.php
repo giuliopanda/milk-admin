@@ -29,8 +29,8 @@ use Builders\TitleBuilder;
         <?php if (isset($description)) { ?>
             <p class="text-body-secondary mb-3"><?php _pt($description); ?></p>
         <?php } ?>
-        <div class="form-group col-xl-6">
+        <div class="form-group col-xl-8 col-lg-12">
             <?php echo $form; ?>
-        </div>
+        </div>  
     </div>
 </div>

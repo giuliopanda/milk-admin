@@ -10,7 +10,9 @@ use App\Abstracts\Traits\ExtensionManagementTrait;
 class SearchBuilder {
     use ExtensionManagementTrait;
 
-    private $table_id;
+    private string $table_id = '';
+    private array $table_ids = [];
+    private string $filter_id_attr = '';
     private $fields = [];
     private $current_field = null; // chiave del campo corrente in $fields
     private $auto_execute = true;
@@ -35,7 +37,7 @@ class SearchBuilder {
     protected array $loaded_extensions = [];
 
     public function __construct($table_id) {
-        $this->table_id = $table_id;
+        $this->setTableIds($table_id);
 
         // Normalize extensions to associative format
         $this->extensions = $this->normalizeExtensions($this->extensions);
@@ -449,7 +451,7 @@ class SearchBuilder {
         $html .= ' name="search"';
         $html .= ' id="' . htmlspecialchars($id) . '"';
         $html .= ' placeholder="' . htmlspecialchars($placeholder) . '"';
-        $html .= ' data-filter-id="' . htmlspecialchars($this->table_id) . '"';
+        $html .= ' data-filter-id="' . htmlspecialchars($this->filter_id_attr) . '"';
         $html .= ' data-filter-type="' . htmlspecialchars($field['filter_type']) . '"';
         $html .= '>';
 
@@ -564,7 +566,7 @@ class SearchBuilder {
         $html .= ' id="' . htmlspecialchars($input_id) . '"';
         $html .= ' name="filter_' . htmlspecialchars($field['filter_type']) . '"';
         $html .= ' value="' . htmlspecialchars($field['selected']) . '"';
-        $html .= ' data-filter-id="' . htmlspecialchars($this->table_id) . '"';
+        $html .= ' data-filter-id="' . htmlspecialchars($this->filter_id_attr) . '"';
         $html .= ' data-filter-type="' . htmlspecialchars($field['filter_type']) . '"';
         $html .= ' class="' . htmlspecialchars($input_options['class']) . '"';
         $html .= '>';
@@ -650,7 +652,7 @@ class SearchBuilder {
         $class = $field['class'] . ' js-milk-filter-onclick';
         $options = array_merge($field['options'], [
             'class' => $class,
-            'data-filter-id' => $this->table_id
+            'data-filter-id' => $this->filter_id_attr
         ]);
         return '<button type="button"' . Form::attr($options) . '>' . htmlspecialchars($field['label']) . '</button>';
     }
@@ -665,7 +667,7 @@ class SearchBuilder {
         $class = $field['class'] . ' js-milk-filter-clear';
         $options = array_merge($field['options'], [
             'class' => $class,
-            'data-filter-id' => $this->table_id
+            'data-filter-id' => $this->filter_id_attr
         ]);
         return '<button type="button"' . Form::attr($options) . '>' . htmlspecialchars($field['label']) . '</button>';
     }
@@ -683,7 +685,7 @@ class SearchBuilder {
         $options['id'] = $this->table_id . 'SearchForm' . ucfirst($field['filter_type']);
         
         // Add required data attributes
-        $options['data-filter-id'] = $this->table_id;
+        $options['data-filter-id'] = $this->filter_id_attr;
         $options['data-filter-type'] = $field['filter_type'];
         
         // Add filter class
@@ -729,7 +731,7 @@ class SearchBuilder {
         $input_options = $field['input_options'] ?? [];
         
         // Add required data attributes to the hidden input
-        $input_options['data-filter-id'] = $this->table_id;
+        $input_options['data-filter-id'] = $this->filter_id_attr;
         $input_options['data-filter-type'] = $field['filter_type'];
         
         // Add filter class to the hidden input
@@ -745,11 +747,35 @@ class SearchBuilder {
     /**
      * Static factory method
      *
-     * @param string $table_id Table ID for filter connection
+     * @param string|array $table_id Table ID or array of IDs for filter connection
      * @return self
      */
-    public static function create(string $table_id): self {
+    public static function create(string|array $table_id): self {
         return new self($table_id);
+    }
+
+    private function setTableIds(string|array $table_id): void
+    {
+        $ids = is_array($table_id) ? $table_id : [$table_id];
+        if (!is_array($table_id) && str_contains($table_id, ',')) {
+            $ids = explode(',', $table_id);
+        }
+
+        $normalized = [];
+        foreach ($ids as $id) {
+            $id = trim((string) $id);
+            if ($id !== '') {
+                $normalized[] = $id;
+            }
+        }
+
+        if (empty($normalized)) {
+            $normalized = [''];
+        }
+
+        $this->table_ids = array_values(array_unique($normalized));
+        $this->table_id = $this->table_ids[0] ?? '';
+        $this->filter_id_attr = implode(',', $this->table_ids);
     }
 
     /**

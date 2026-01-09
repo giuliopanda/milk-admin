@@ -207,6 +207,7 @@ function _absint($var) {
  * $value = getVal($someObject, 'custom_property');
  */
 function getVal($class, $property) {
+   
     if ($class instanceof \App\Abstracts\AbstractModel) {
         // Use getFormattedValue for proper date/array/list formatting in tables
         if (method_exists($class, 'getFormattedValue')) {

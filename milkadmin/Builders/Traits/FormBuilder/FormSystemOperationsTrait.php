@@ -339,6 +339,25 @@ trait FormSystemOperationsTrait {
         }
     }
 
+
+    /**
+     * Add custom model data
+     *
+     * @param \App\Abstracts\AbstractModel $model Model instance
+     * @return self For method chaining
+     *
+     * @example ->setData($this->model)
+     */
+    public function setData(\App\Abstracts\AbstractModel $model): self {
+        $this->custom_model_data = $model;
+        return $this;
+    }
+
+    public function setIdRequest($id) {
+        $this->id_request = $id;
+        return $this;
+    }
+
     /**
      * Generate and return the complete form HTML
      *
@@ -346,7 +365,9 @@ trait FormSystemOperationsTrait {
      */
     public function render(): string {
       
-         $this->setModel($this->model_class);
+      
+        $this->setModel($this->model_class);
+        
         // Check if any action was triggered before rendering
         $this->ActionExecution();
 

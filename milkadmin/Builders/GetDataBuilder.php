@@ -56,11 +56,13 @@ class GetDataBuilder
     protected ColumnManager $columns;
     protected ActionManager $actions;
     protected DataProcessor $dataProcessor;
-   
+
     protected string $current_field = '';
 
     protected array $extensions = [];
     protected array $loaded_extensions = [];
+
+    protected ?array $cached_data = null;
 
     public function __construct(AbstractModel $model, string $table_id, ?array $request = null)
     {
@@ -108,14 +110,21 @@ class GetDataBuilder
      */
     public function getData(): array
     {
+        // Return cached data if available
+        if ($this->cached_data !== null) {
+            return $this->cached_data;
+        }
+
         $this->callExtensionHook('beforeGetData');
 
         $data = $this->dataProcessor->process(
             $this->actions->getRowActions(),
             $this->actions->getBulkActions()
         );
+      
+        $this->cached_data = $this->callExtensionPipeline('afterGetData', $data);
 
-        return $this->callExtensionPipeline('afterGetData', $data);
+        return $this->cached_data;
     }
 
     /**
@@ -134,7 +143,6 @@ class GetDataBuilder
         $response = $this->actions->getActionResults();
 
         if ($this->actions->shouldUpdateTable()) {
-            $this->getData();
             $response['html'] = $this->render();
         }
 
@@ -151,7 +159,7 @@ class GetDataBuilder
         return new SearchBuilder($this->context->getTableId());
     }
 
-    public function getRowsData(): array
+    public function getRowsData()
     {
         return $this->dataProcessor->fetchRows();
     }
@@ -200,9 +208,9 @@ class GetDataBuilder
         return $this->context->getPage();
     }
 
-    public function getSql(): string
+    public function toSql(): string
     {
-        return $this->context->getQuery()->getSql();
+        return $this->context->getQuery()->toSql();
     }
 
     public function isInsideRequest(): bool
@@ -332,10 +340,12 @@ class GetDataBuilder
             return;
         }
 
+        // IMPORTANT: Pass the MODEL as target, not $this (the builder)
+        // This ensures extensions are loaded from the Module directory, not the Builder directory
         $this->loaded_extensions = ExtensionLoader::load(
             $this->extensions,
             'GetDataBuilder',
-            $this
+            $this->model  // <-- Changed from $this to $this->model
         );
     }
 

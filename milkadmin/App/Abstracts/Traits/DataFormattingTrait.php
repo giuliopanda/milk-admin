@@ -25,48 +25,19 @@ trait DataFormattingTrait
     protected string $output_mode = 'raw';
 
     /**
-     * Set output mode to formatted and return self for method chaining
-     * When called without parameters: sets mode permanently
-     * When used in foreach: returns iterator with formatted data
+     * Set output mode for data retrieval
+     * All subsequent field access will return values in the specified format
      *
-     * @param string|null $field Optional field name to get formatted value
-     * @return mixed Self for chaining, or formatted field value, or iterator
+     * @param string $mode Output mode: 'raw', 'formatted', or 'sql'
+     * @return void
+     * @throws \InvalidArgumentException If mode is not valid
      */
-    public function getFormatted(?string $field): mixed{
-        return $this->getFormattedValue($field);  
-    }
-
-
-    public function setFormatted(): void {
-        $this->output_mode = 'formatted';
-    }
-
-    /**
-     * Set output mode to SQL and return self for method chaining
-     *
-     * @param string|null $field Optional field name to get SQL value
-     * @return mixed Self for chaining or SQL field value
-     */
-    public function getSql(?string $field = null): mixed {
-        return $this->getSqlValue($field);   
-    }
-
-    public function setSql(): void {
-        $this->output_mode = 'sql';
-    }
-
-    /**
-     * Set output mode to raw and return self for method chaining
-     *
-     * @param string|null $field Optional field name to get raw value
-     * @return mixed Self for chaining or raw field value
-     */
-    public function getRaw(?string $field = null): mixed {
-         return $this->getRawValue($field);
-    }
-
-    public function setRaw(): void {
-        $this->output_mode = 'raw';
+    public function setOutputMode(string $mode): void {
+        $valid_modes = ['raw', 'formatted', 'sql'];
+        if (!in_array($mode, $valid_modes)) {
+            throw new \InvalidArgumentException("Invalid output mode '$mode'. Must be one of: " . implode(', ', $valid_modes));
+        }
+        $this->output_mode = $mode;
     }
 
     /**
@@ -308,33 +279,140 @@ trait DataFormattingTrait
     }
 
     /**
-     * Get raw value for a single field 
+     * Get raw value for a single field
      *
      * @param string $name Field name
      * @return mixed Raw value from database/cache
      */
     public function getRawValue(string $name): mixed
     {
-        // Skip metadata fields
         if ($name === '___action') {
             return null;
         }
-        if (isset($this->records_array[$this->current_index])) {
-            $record = $this->records_array[$this->current_index];
-            if (isset($record[$name])) {
-                return $record[$name];
-            }   else if (str_contains($name, '.')) {
-                $name = explode('.', $name);
-                if (count($name) == 2) {
-                    $singleData = $this->getRawData('object', false);
-                    return $singleData->{$name[0]}->{$name[1]} ?? '';
+
+        // NEW: Try records_objects first (contains Model instances)
+        if (isset($this->records_objects[$this->current_index])) {
+            $record_obj = $this->records_objects[$this->current_index];
+
+            // Direct access to field (can be primitive or Model)
+            if (array_key_exists($name, $record_obj)) {
+                $value = $record_obj[$name];
+
+                // NEW: getRawValue should NOT return Model instances
+                // Use __get or public methods to access relationships
+                if (is_object($value) && $value instanceof \App\Abstracts\AbstractModel) {
+                    throw new \LogicException(
+                        "getRawValue('{$name}') attempted to return a Model instance. " .
+                        "Use magic property access (\$model->{$name}) or __get() to access relationships."
+                    );
                 }
-            } 
-        } 
-        
+
+                // Also check arrays of Models
+                if (is_array($value) && !empty($value)) {
+                    $firstItem = reset($value);
+                    if (is_object($firstItem) && $firstItem instanceof \App\Abstracts\AbstractModel) {
+                        throw new \LogicException(
+                            "getRawValue('{$name}') attempted to return an array of Model instances. " .
+                            "Use magic property access (\$model->{$name}) or __get() to access relationships."
+                        );
+                    }
+                }
+
+                return $value;
+            }
+
+            // Dot notation: delegate to Model if first part is a Model
+            if (str_contains($name, '.')) {
+                $parts = explode('.', $name, 2); // Split into first part and rest
+                $first_part = $parts[0];
+                $rest = $parts[1] ?? '';
+
+                if (array_key_exists($first_part, $record_obj)) {
+                    $value = $record_obj[$first_part];
+
+                    // If it's a Model, delegate the rest of the path to it
+                    if (is_object($value) && $value instanceof \App\Abstracts\AbstractModel) {
+                        if ($rest !== '') {
+                            return $value->getRawValue($rest);
+                        }
+                        return $value;
+                    }
+
+                    // If it's an array of Models (hasMany), handle array index
+                    if (is_array($value) && !empty($rest)) {
+                        $next_parts = explode('.', $rest, 2);
+                        $index = $next_parts[0];
+                        $remainder = $next_parts[1] ?? '';
+
+                        if (is_numeric($index) && isset($value[$index])) {
+                            $item = $value[$index];
+
+                            // If item is a Model and there's more path, delegate
+                            if ($remainder !== '' && is_object($item) && $item instanceof \App\Abstracts\AbstractModel) {
+                                return $item->getRawValue($remainder);
+                            }
+
+                            // If no more path, return the item or its property
+                            if ($remainder === '') {
+                                return $item;
+                            }
+
+                            // Fallback to property access
+                            if (is_object($item) && property_exists($item, $remainder)) {
+                                return $item->$remainder;
+                            }
+                        }
+                    }
+
+                    // Fallback to nested array/object traversal
+                    return $this->traverseDotNotation($value, $rest);
+                }
+            }
+        }
+
+        // Fallback to records_objects
+        if (!isset($this->records_objects[$this->current_index])) {
+            return null;
+        }
+        $record = $this->records_objects[$this->current_index];
+
+        // Accesso diretto (preserva valori NULL)
+        if (array_key_exists($name, $record)) {
+            return $record[$name];
+        }
+
+        // Dot notation profonda (es. "socio.indirizzo.citta")
+        if (str_contains($name, '.')) {
+            return $this->traverseDotNotation($record, $name);
+        }
+
         return null;
     }
 
+    /**
+     * Helper method to traverse dot notation on arrays/objects
+     *
+     * @param mixed $value Starting value
+     * @param string $path Dot-separated path
+     * @return mixed Traversed value
+     */
+    private function traverseDotNotation($value, string $path): mixed
+    {
+        $parts = explode('.', $path);
+        foreach ($parts as $part) {
+            if (is_array($value) && array_key_exists($part, $value)) {
+                $value = $value[$part];
+            } elseif (is_object($value) && property_exists($value, $part)) {
+                $value = $value->$part;
+            } elseif (is_object($value) && method_exists($value, '__get')) {
+                // Try magic __get for Model access
+                $value = $value->$part;
+            } else {
+                return '';  // Retrocompatibilità
+            }
+        }
+        return $value;
+    }
     /**
      * Get value with automatic type conversion without setting it.
      * Converts date strings to DateTime, JSON strings to arrays, etc.
@@ -375,8 +453,8 @@ trait DataFormattingTrait
         $handler = $this->getMethodHandler($name, 'set_value');
         if ($handler !== null) {
             // Pass current record as first param, value as second param
-            if (isset($this->records_array[$this->current_index])) {
-                $value = $handler((object)$this->records_array[$this->current_index]);
+            if (isset($this->records_objects[$this->current_index])) {
+                $value = $handler((object)$this->records_objects[$this->current_index]);
             }
             return $value;
         }
@@ -453,7 +531,7 @@ trait DataFormattingTrait
     }
 
     /**
-     * Set value with automatic type conversion and store it in records_array.
+     * Set value with automatic type conversion and store it in records_objects.
      * Converts date strings to DateTime, JSON strings to arrays
      *
      * @param string $name Field name
@@ -469,7 +547,7 @@ trait DataFormattingTrait
     }
 
     /**
-     * Set raw value directly to  records_array
+     * Set raw value directly to records_objects
      *
      * @param string $name Field name
      * @param mixed $value Value to set
@@ -485,28 +563,34 @@ trait DataFormattingTrait
 
 
         // Se non c'è un record corrente
-        if (!isset($this->records_array[$this->current_index]) || !is_array($this->records_array[$this->current_index])) {
-            if (!is_array($this->records_array)) {
-                $this->records_array = [];
+        if (!isset($this->records_objects[$this->current_index]) || !is_array($this->records_objects[$this->current_index])) {
+            if (!is_array($this->records_objects)) {
+                $this->records_objects = [];
             }
             // Creane uno nuovo
-            $this->records_array[] = [];
-            $this->current_index = array_key_last($this->records_array);
-            $this->records_array[$this->current_index]['___action'] = 'insert';
+            $this->records_objects[] = [];
+            $this->current_index = array_key_last($this->records_objects);
+            $this->records_objects[$this->current_index]['___action'] = 'insert';
         }
 
 
-        // Modifica il valore nel record
-        $this->records_array[$this->current_index][$name] = $value;
+        // Controlla se è una relazione - le relazioni contengono Model instances in records_objects
+        if (method_exists($this, 'hasRelationship') && $this->hasRelationship($name)) {
+            // Non sovrascrivere le relazioni (che sono Model instances)
+            // Le relazioni vengono gestite da loadMissingRelationships
+        } else {
+            // Per i campi normali, aggiorna il valore
+            $this->records_objects[$this->current_index][$name] = $value;
+        }
 
 
-        if ($name === $this->getPrimaryKey() && ($this->records_array[$this->current_index]['___action'] ?? null) === 'insert' && !empty($value)) {
+        if ($name === $this->getPrimaryKey() && ($this->records_objects[$this->current_index]['___action'] ?? null) === 'insert' && !empty($value)) {
             // Se stiamo inserendo un nuovo record e stiamo impostando la chiave primaria, cambiamo lo stato in 'edit'
-            $this->records_array[$this->current_index]['___action'] = 'edit';
+            $this->records_objects[$this->current_index]['___action'] = 'edit';
         }
         // Segna il record come modificato (solo se era 'original')
-        if ($this->records_array[$this->current_index]['___action'] === null) {
-            $this->records_array[$this->current_index]['___action'] = 'edit';
+        if ($this->records_objects[$this->current_index]['___action'] === null) {
+            $this->records_objects[$this->current_index]['___action'] = 'edit';
         }
 
     }
@@ -519,11 +603,58 @@ trait DataFormattingTrait
      */
     public function __get(string $name)
     {
+        static $call_count = 0;
+        static $call_stack = [];
+        $call_count++;
+
+        $class = get_class($this);
+        $call_info = "$class::$name";
+        $call_stack[] = $call_info;
+
+        $rules = $this->rule_builder->getRules();
+      
+       
+        //foreach ($rules as $field_name => $rule) {
+        //    if (isset($rule['relationship']) ) {
+        //        print "<p>". $field_name . " => " . json_encode($rule['relationship'])."</p>";
+        //        if($this->hasRelationship($name)) {
+        //            print "<h1>TOP</h1>";
+        //        }
+        //         die ("OK!");
+        //    }
+        //}
+       
+
         // Check if this is a relationship alias
-        if (method_exists($this, 'hasRelationship') && $this->hasRelationship($name)) {
+        if ( $this->hasRelationship($name)) {
+           
+            // DEBUG
+            $class = get_class($this);
+
+            // NEW: Check if we have the relationship as Model in records_objects
+            if (isset($this->records_objects[$this->current_index][$name])) {
+                $model = $this->records_objects[$this->current_index][$name];
+                // Handle single Model (belongsTo/hasOne)
+                if (is_object($model) && method_exists($model, 'setOutputMode')) {
+                    $model->setOutputMode($this->output_mode);
+                }
+                return $model;
+            }
+
+            // Trigger lazy loading
             $related = $this->getRelatedModel($name);
 
-            // Apply relationship formatters if we have a related model
+            // NEW: After lazy loading, check if records_objects was populated
+            if (isset($this->records_objects[$this->current_index][$name])) {
+                $model = $this->records_objects[$this->current_index][$name];
+                // Handle single Model (belongsTo/hasOne)
+                if (is_object($model) && method_exists($model, 'setOutputMode')) {
+                    $model->setOutputMode($this->output_mode);
+                }
+                return $model;
+            }
+
+            // Fallback: Apply relationship formatters if we have a related model
             if ($related !== null && method_exists($this, 'applyRelationshipFormattersToModel')) {
                 return $this->applyRelationshipFormattersToModel($related, $name, $this->output_mode);
             }
@@ -534,12 +665,10 @@ trait DataFormattingTrait
         switch ($this->output_mode) {
             case 'formatted':
                 return $this->getFormattedValue($name);
-
             case 'sql':
                 return $this->getSqlValue($name);
             case 'raw':
             default:
-
                 return $this->getRawValue($name);
         }
     }
@@ -576,7 +705,13 @@ trait DataFormattingTrait
      */
     public function __isset(string $name): bool
     {
-        return isset($this->records_array[$this->current_index][$name]);
+        // Check if it's a defined relationship (can be lazy loaded)
+        if (method_exists($this, 'hasRelationship') && $this->hasRelationship($name)) {
+            return true;
+        }
+
+        // Check if the field exists in the current record
+        return isset($this->records_objects[$this->current_index][$name]);
     }
 
     /**
@@ -593,7 +728,7 @@ trait DataFormattingTrait
         $accepted_fields = array_keys($rules);
 
         if ($all_records) {
-            
+
             $result = [];
             $count = $this->count();
 
@@ -602,36 +737,61 @@ trait DataFormattingTrait
 
                 for ($i = 0; $i < $count; $i++) {
                     $this->moveTo($i);
-                    $record = $this->records_array[$this->current_index];
+                    $record = $this->records_objects[$this->current_index];
                     $record_data = [];
-                       // Include relationships if requested
-                    if (!empty($this->include_relationships)) {
-                        $relationships_data = $this->getIncludedRelationshipsData('raw');
-                        foreach ($relationships_data as $alias => $rel_data) {
-                            // Convert relationship arrays to objects if object type requested
-                            if ($type === 'object' && is_array($rel_data)) {
-                                // Check if it's hasMany (array of arrays) or single relationship
-                                if (isset($rel_data[0]) && is_array($rel_data[0])) {
-                                    // hasMany: convert each item to object
-                                    $record_data[$alias] = array_map(fn($item) => (object)$item, $rel_data);
-                                } else {
-                                    // belongsTo/hasOne: convert single array to object
-                                    $record_data[$alias] = (object)$rel_data;
+
+                    // NEW: Include relationships from records_objects if available
+                    if (isset($this->records_objects[$this->current_index]) && $this->depth < 100) {
+                        $record_obj = $this->records_objects[$this->current_index];
+
+                        foreach ($record_obj as $field_name => $field_value) {
+                            // Skip metadata and normal fields (handled below)
+                            if ($field_name === '___action' || in_array($field_name, $accepted_fields)) {
+                                continue;
+                            }
+
+                            // Check if this is a relationship field (contains Model)
+                            if (is_object($field_value) && $field_value instanceof \App\Abstracts\AbstractModel) {
+                                // belongsTo/hasOne: single Model
+                                $field_value->depth = $this->depth + 1;
+                                $record_data[$field_name] = $field_value->getRawData($type, false);
+                            } elseif (is_array($field_value) && !empty($field_value)) {
+                                $first = reset($field_value);
+                                if (is_object($first) && $first instanceof \App\Abstracts\AbstractModel) {
+                                    // hasMany: array of Models
+                                    $raw_array = [];
+                                    foreach ($field_value as $model) {
+                                        if (is_object($model) && $model instanceof \App\Abstracts\AbstractModel) {
+                                            $model->depth = $this->depth + 1;
+                                            $raw_array[] = $model->getRawData($type, false);
+                                        }
+                                    }
+                                    $record_data[$field_name] = $raw_array;
                                 }
-                            } else {
-                                $record_data[$alias] = $rel_data;
                             }
                         }
                     }
-                    
+
                     foreach ($record as $field => $value) {
                         if ($field === '___action') {
                             continue; // Skip metadata field
                         }
-                        $record_data[$field] = $value;
+                        // Don't overwrite relationship data already added
+                        if (!isset($record_data[$field])) {
+                            $record_data[$field] = $value;
+                        }
                     }
 
-                    $result[] = $type === 'object' ? (object)$record_data : $record_data;
+                    if ($type === 'object') {
+                        // Create object manually to preserve Model instances in relationships
+                        $obj = new \stdClass();
+                        foreach ($record_data as $key => $val) {
+                            $obj->$key = $val;
+                        }
+                        $result[] = $obj;
+                    } else {
+                        $result[] = $record_data;
+                    }
                 }
 
                 $this->moveTo($original_index);
@@ -639,37 +799,63 @@ trait DataFormattingTrait
 
             return $result;
         } else {
-            $record = $this->records_array[$this->current_index];
+            $record = $this->records_objects[$this->current_index] ?? [];
             // Return current record only
             $data = [];
-             // Include relationships if requested
-            if (!empty($this->include_relationships)) {
-                $relationships_data = $this->getIncludedRelationshipsData('raw');
-                
-                foreach ($relationships_data as $alias => $rel_data) {
-                    // Convert relationship arrays to objects if object type requested
-                    if ($type === 'object' && is_array($rel_data)) {
-                        // Check if it's hasMany (array of arrays) or single relationship
-                        if (isset($rel_data[0]) && is_array($rel_data[0])) {
-                            // hasMany: convert each item to object
-                            $data[$alias] = array_map(fn($item) => (object)$item, $rel_data);
-                        } else {
-                            // belongsTo/hasOne: convert single array to object
-                            $data[$alias] = (object)$rel_data;
+
+            // NEW: Include relationships from records_objects if available
+            if (isset($this->records_objects[$this->current_index]) && $this->depth < 100) {
+                $record_obj = $this->records_objects[$this->current_index];
+
+                foreach ($record_obj as $field_name => $field_value) {
+                    // Skip metadata and normal fields (handled below)
+                    if ($field_name === '___action' || in_array($field_name, $accepted_fields)) {
+                        continue;
+                    }
+
+                    // Check if this is a relationship field (contains Model)
+                    if (is_object($field_value) && $field_value instanceof \App\Abstracts\AbstractModel) {
+                        // belongsTo/hasOne: single Model
+                        $field_value->depth = $this->depth + 1;
+                        $data[$field_name] = $field_value->getRawData($type, false);
+                    } elseif (is_array($field_value) && !empty($field_value)) {
+                        $first = reset($field_value);
+                        if (is_object($first) && $first instanceof \App\Abstracts\AbstractModel) {
+                            // hasMany: array of Models
+                            $raw_array = [];
+                            foreach ($field_value as $model) {
+                                if (is_object($model) && $model instanceof \App\Abstracts\AbstractModel) {
+                                    $model->depth = $this->depth + 1;
+                                    $raw_array[] = $model->getRawData($type, false);
+                                }
+                            }
+                            $data[$field_name] = $raw_array;
                         }
-                    } else {
-                        $data[$alias] = $rel_data;
                     }
                 }
             }
+
             foreach ($accepted_fields as $field) {
                 if (!isset($record[$field])) {
                     //@TODO error!
                 } else {
-                    $data[$field] = $record[$field];
+                    // Don't overwrite relationship data already added
+                    if (!isset($data[$field])) {
+                        $data[$field] = $record[$field];
+                    }
                 }
             }
-            return $type === 'object' ? (object)$data : $data;
+
+            if ($type === 'object') {
+                // Create object manually to preserve Model instances in relationships
+                $obj = new \stdClass();
+                foreach ($data as $key => $val) {
+                    $obj->$key = $val;
+                }
+                return $obj;
+            }
+
+            return $data;
         }
     }
 
@@ -684,6 +870,7 @@ trait DataFormattingTrait
     public function getSqlData(string $type = 'object', bool $all_records = true): mixed
     {
         $rules = $this->getRules();
+        $accepted_fields = array_keys($rules);
 
         if ($all_records) {
             $result = [];
@@ -695,6 +882,39 @@ trait DataFormattingTrait
                 for ($i = 0; $i < $count; $i++) {
                     $this->moveTo($i);
                     $record_data = [];
+
+                    // NEW: Include relationships from records_objects if available
+                    if (isset($this->records_objects[$this->current_index]) && $this->depth < 100) {
+                        $record_obj = $this->records_objects[$this->current_index];
+
+                        foreach ($record_obj as $field_name => $field_value) {
+                            // Skip metadata and normal fields (handled below)
+                            if ($field_name === '___action' || in_array($field_name, $accepted_fields)) {
+                                continue;
+                            }
+
+                            // Check if this is a relationship field (contains Model)
+                            if (is_object($field_value) && $field_value instanceof \App\Abstracts\AbstractModel) {
+                                // belongsTo/hasOne: single Model
+                                $field_value->depth = $this->depth + 1;
+                                $record_data[$field_name] = $field_value->getSqlData($type, false);
+                            } elseif (is_array($field_value) && !empty($field_value)) {
+                                $first = reset($field_value);
+                                if (is_object($first) && $first instanceof \App\Abstracts\AbstractModel) {
+                                    // hasMany: array of Models
+                                    $sql_array = [];
+                                    foreach ($field_value as $model) {
+                                        if (is_object($model) && $model instanceof \App\Abstracts\AbstractModel) {
+                                            $model->depth = $this->depth + 1;
+                                            $sql_array[] = $model->getSqlData($type, false);
+                                        }
+                                    }
+                                    $record_data[$field_name] = $sql_array;
+                                }
+                            }
+                        }
+                    }
+
                     foreach ($rules as $name => $rule) {
                         if (!($rule['mysql'] ?? true)) {
                             continue;
@@ -702,13 +922,6 @@ trait DataFormattingTrait
 
                         $record_data[$name] = $this->getSqlValue($name);
                     }
-
-                    // Include relationships if requested
-                    $relationships_data = $this->getIncludedRelationshipsData('sql');
-                    foreach ($relationships_data as $alias => $rel_data) {
-                        $record_data[$alias] = $rel_data;
-                    }
-                  
 
                     $result[] = $type === 'object' ? (object)$record_data : $record_data;
                 }
@@ -720,6 +933,39 @@ trait DataFormattingTrait
         } else {
             // Return current record only
             $data = [];
+
+            // NEW: Include relationships from records_objects if available
+            if (isset($this->records_objects[$this->current_index]) && $this->depth < 100) {
+                $record_obj = $this->records_objects[$this->current_index];
+
+                foreach ($record_obj as $field_name => $field_value) {
+                    // Skip metadata and normal fields (handled below)
+                    if ($field_name === '___action' || in_array($field_name, $accepted_fields)) {
+                        continue;
+                    }
+
+                    // Check if this is a relationship field (contains Model)
+                    if (is_object($field_value) && $field_value instanceof \App\Abstracts\AbstractModel) {
+                        // belongsTo/hasOne: single Model
+                        $field_value->depth = $this->depth + 1;
+                        $data[$field_name] = $field_value->getSqlData($type, false);
+                    } elseif (is_array($field_value) && !empty($field_value)) {
+                        $first = reset($field_value);
+                        if (is_object($first) && $first instanceof \App\Abstracts\AbstractModel) {
+                            // hasMany: array of Models
+                            $sql_array = [];
+                            foreach ($field_value as $model) {
+                                if (is_object($model) && $model instanceof \App\Abstracts\AbstractModel) {
+                                    $model->depth = $this->depth + 1;
+                                    $sql_array[] = $model->getSqlData($type, false);
+                                }
+                            }
+                            $data[$field_name] = $sql_array;
+                        }
+                    }
+                }
+            }
+
             foreach ($rules as $name => $rule) {
                 if (!($rule['mysql'] ?? true)) {
                     continue;
@@ -727,13 +973,6 @@ trait DataFormattingTrait
 
                 $data[$name] = $this->getSqlValue($name);
             }
-
-            // Include relationships if requested
-            $relationships_data = $this->getIncludedRelationshipsData('sql');
-            foreach ($relationships_data as $alias => $rel_data) {
-                $data[$alias] = $rel_data;
-            }
-           
 
             return $type === 'object' ? (object)$data : $data;
         }
@@ -752,10 +991,9 @@ trait DataFormattingTrait
         $rules = $this->getRules();
         $accepted_fields = array_keys($rules);
 
-       
+
         $data = $this->getRawData($type, $all_records);
         if ($all_records) {
-            
             $result = [];
             $count = $this->count();
 
@@ -765,36 +1003,42 @@ trait DataFormattingTrait
                 for ($i = 0; $i < $count; $i++) {
                     $this->moveTo($i);
                     $record_data = [];
-                    
-                    // Include relationships if requested
-                    $relationships_data = $this->getIncludedRelationshipsData('raw');
-                    if (is_array($relationships_data)) {
-                      
-                        foreach ($relationships_data as $alias => $rel_data) {
-                            if (empty($rel_data)) {
+
+                    // NEW: Include relationships from records_objects if available
+                    if (isset($this->records_objects[$this->current_index]) && $this->depth < 100) {
+                        $record_obj = $this->records_objects[$this->current_index];
+
+                        foreach ($record_obj as $field_name => $field_value) {
+                            // Skip metadata and normal fields (handled below)
+                            if ($field_name === '___action' || in_array($field_name, $accepted_fields)) {
                                 continue;
                             }
-                            foreach ($rel_data as $krd=>$_) {
-                                if ($type === 'object') {
-                                    if (!isset($record_data[$alias]) || !is_object($record_data[$alias])) {
-                                        $record_data[$alias] = (object)[];
+
+                            // Check if this is a relationship field (contains Model)
+                            if (is_object($field_value) && $field_value instanceof \App\Abstracts\AbstractModel) {
+                                // belongsTo/hasOne: single Model
+                                $field_value->depth = $this->depth + 1;
+                                $record_data[$field_name] = $field_value->getFormattedData($type, false);
+                            } elseif (is_array($field_value) && !empty($field_value)) {
+                                $first = reset($field_value);
+                                if (is_object($first) && $first instanceof \App\Abstracts\AbstractModel) {
+                                    // hasMany: array of Models
+                                    $formatted_array = [];
+                                    foreach ($field_value as $model) {
+                                        if (is_object($model) && $model instanceof \App\Abstracts\AbstractModel) {
+                                            $model->depth = $this->depth + 1;
+                                            $formatted_array[] = $model->getFormattedData($type, false);
+                                        }
                                     }
-                                    $record_data[$alias]->$krd = $this->getFormattedValue($alias.".".$krd);
-                                } else {
-                                    if (!isset($record_data[$alias]) || !is_array($record_data[$alias])) {
-                                        $record_data[$alias] = [];
-                                    }
-                                    $record_data[$alias][$krd] = $this->getFormattedValue($alias.".".$krd);
+                                    $record_data[$field_name] = $formatted_array;
                                 }
-                            } 
+                            }
                         }
                     }
-                   
+
                     foreach ($accepted_fields as $field) {
                         $record_data[$field] = $this->getFormattedValue($field);
                     }
-                  
-                    
 
                     $result[] = $type === 'object' ? (object)$record_data : $record_data;
                 }
@@ -810,18 +1054,75 @@ trait DataFormattingTrait
                 $data[$field] = $this->getFormattedValue($field);
             }
 
-            // Include relationships if requested
-            $relationships_data = $this->getIncludedRelationshipsData('formatted');
-            foreach ($relationships_data as $alias => $rel_data) {
-                $data[$alias] = $rel_data;
+            // NEW: Include relationships from records_objects if available
+            if (isset($this->records_objects[$this->current_index]) && $this->depth < 100) {
+                $record_obj = $this->records_objects[$this->current_index];
+
+                foreach ($record_obj as $field_name => $field_value) {
+                    // Skip metadata and normal fields (already handled)
+                    if ($field_name === '___action' || in_array($field_name, $accepted_fields)) {
+                        continue;
+                    }
+
+                    // Check if this is a relationship field (contains Model)
+                    if (is_object($field_value) && $field_value instanceof \App\Abstracts\AbstractModel) {
+                        // belongsTo/hasOne: single Model
+                        $field_value->depth = $this->depth + 1;
+                        $data[$field_name] = $field_value->getFormattedData($type, false);
+                    } elseif (is_array($field_value) && !empty($field_value)) {
+                        $first = reset($field_value);
+                        if (is_object($first) && $first instanceof \App\Abstracts\AbstractModel) {
+                            // hasMany: array of Models
+                            $formatted_array = [];
+                            foreach ($field_value as $model) {
+                                if (is_object($model) && $model instanceof \App\Abstracts\AbstractModel) {
+                                    $model->depth = $this->depth + 1;
+                                    $formatted_array[] = $model->getFormattedData($type, false);
+                                }
+                            }
+                            $data[$field_name] = $formatted_array;
+                        }
+                    }
+                }
             }
-            
+
 
             return $type === 'object' ? (object)$data : $data;
         }
     }
 
     public function getRecordAction($record_index = null) {
-        return $this->records_array[$record_index ?? $this->current_index]['___action'] ?? null;
+        return $this->records_objects[$record_index ?? $this->current_index]['___action'] ?? null;
+    }
+
+    /**
+     * Filter current records by field values and return a new model instance
+     * Cycles through already loaded records and creates a new model with only matching records
+     *
+     * @param string $field Field name to filter by
+     * @param array $values Array of values to match
+     * @return static New model instance with filtered records
+     */
+    public function filterByField(string $field, array $values): static
+    {
+        $filtered = [];
+
+        // Cycle through loaded records
+        if ($this->records_objects !== null) {
+            foreach ($this->records_objects as $record) {
+                // Check if field exists and value is in the provided array
+                if (isset($record[$field]) && in_array($record[$field], $values)) {
+                    $filtered[] = $record;
+                }
+            }
+        }
+
+        // Create new model instance
+        $new_model = new static();
+        $new_model->setRules($this->getRules());
+        $new_model->setResults($filtered);
+
+
+        return $new_model;
     }
 }

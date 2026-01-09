@@ -26,6 +26,9 @@ class TableBuilder extends GetDataBuilder
      */
     public function render(): string {
         $data = $this->getData();
+        if ($data['rows'] instanceof \App\Abstracts\AbstractModel) {
+            $data['rows']->with();   
+        }
         return  Get::themePlugin('table', [
             'info' => $data['info'],
             'rows' => $data['rows'],

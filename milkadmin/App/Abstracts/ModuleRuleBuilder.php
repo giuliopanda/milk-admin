@@ -159,6 +159,12 @@ class ModuleRuleBuilder
     protected string $header_links_position = 'top-left';
 
     /**
+     * Selected menu item in sidebar
+     * @var string|null
+     */
+    protected ?string $selected_menu = null;
+
+    /**
      * Set the page name
      *
      * @param string $page Page name
@@ -483,6 +489,19 @@ class ModuleRuleBuilder
         return $this;
     }
 
+    /**
+     * Set the selected menu item in the sidebar
+     * Only applies when the current page matches this module's page
+     *
+     * @param string $menu Menu name to select (e.g., 'Settings')
+     * @return self
+     */
+    public function selectMenu(string $menu): self
+    {
+        $this->selected_menu = $menu;
+        return $this;
+    }
+
     // ========================================
     // Getters
     // ========================================
@@ -600,5 +619,10 @@ class ModuleRuleBuilder
     public function getExtensions(): ?array
     {
         return $this->extensions;
+    }
+
+    public function getSelectedMenu(): ?string
+    {
+        return $this->selected_menu;
     }
 }

@@ -219,7 +219,7 @@ trait CrudOperationsTrait
             // rimuovo il parametro default dai rules
             $rules = $model->getRules();
             foreach ($rules as $k=>$v) {
-                if ($v['default'] != '') {
+                if (($v['default'] ?? '') != '') {
                     unset($rules[$k]['default']);
                 }
             }
@@ -276,7 +276,7 @@ trait CrudOperationsTrait
         // Create a new Model instance
         $new_model = new static();
         $new_model->setRules($this->getRules());
-        // Create an empty record in records_array
+        // Create an empty record in records_objects
         $new_model->fill($data);
         return $new_model;
     }
@@ -365,17 +365,26 @@ trait CrudOperationsTrait
         $this->last_error = '';
         $this->save_results = [];
         $this->last_stored_record_id = null;
-        // Se non c'è records_array, non ci sono modifiche da salvare
-        if ($this->records_array === null) {
+        // Se non c'è records_objects, non ci sono modifiche da salvare
+        if ($this->records_objects === null) {
             return true;
         }
         $this->cleanEmptyRecords();
         $add = true;
         if (ExtensionLoader::preventRecursion('beforeSave')) {
-            $add = ExtensionLoader::callReturnHook($this->loaded_extensions, 'beforeSave', [true, $this->records_array]);
-        } 
+            $add = ExtensionLoader::callReturnHook($this->loaded_extensions, 'beforeSave', [true, $this->records_objects]);
+        }
         ExtensionLoader::freeRecursion('beforeSave');
         if (!$add) return true;
+
+        // Call beforeSave method if it exists in the model
+        if (method_exists($this, 'beforeSave')) {
+            $result = $this->beforeSave($this->records_objects);
+            // If beforeSave returns false, stop the save operation
+            if ($result === false) {
+                return false;
+            }
+        }
 
         try {
             // 1. Processa le eliminazioni
@@ -402,7 +411,7 @@ trait CrudOperationsTrait
                             'result' => false,
                             'last_error' => $this->last_error
                         ];
-                        Logs::set('errors', 'ERROR', 'Cascade Delete Error: ' . $this->last_error);
+                        Logs::set('DATABASE', 'Cascade Delete Error: ' . $this->last_error, 'ERROR');
                         return false;
                     }
                 }
@@ -422,7 +431,7 @@ trait CrudOperationsTrait
                         'result' => false,
                         'last_error' => $this->last_error
                     ];
-                    Logs::set('errors', 'ERROR', 'Delete Error: ' . $this->last_error);
+                    Logs::set('DATABASE', 'Delete Error: ' . $this->last_error, 'ERROR');
                     return false;
                 }
 
@@ -437,13 +446,19 @@ trait CrudOperationsTrait
             // Hook afterDelete (chiamato dopo aver cancellato i record)
             if (!empty($this->deleted_primary_keys)) {
                 ExtensionLoader::callHook($this->loaded_extensions, 'afterDelete', [$this->deleted_primary_keys]);
+
+                // Call afterDelete method if it exists in the model
+                if (method_exists($this, 'afterDelete')) {
+                    $this->afterDelete($this->deleted_primary_keys);
+                }
             }
 
             $after_save_data = [];
             // 2. Processa le creazioni e modifiche
-            foreach ($this->records_array as $index => $record) {
+            foreach ($this->records_objects as $index => $record) {
                 // Salta i record originali non modificati
                 if ($record['___action'] === null) {
+                
                     continue;
                 }
              
@@ -459,6 +474,7 @@ trait CrudOperationsTrait
                             'result' => false,
                             'last_error' => $this->last_error
                         ];
+                        Logs::set('DATABASE', 'Cascade Save Error: ' . $this->last_error, 'ERROR');
                         return false;
                     }
                 }
@@ -494,7 +510,7 @@ trait CrudOperationsTrait
                             'result' => false,
                             'last_error' => $this->last_error
                         ];
-                        Logs::set('errors', 'ERROR', 'Insert Error: ' . $this->last_error);
+                        Logs::set('DATABASE', 'Insert Error: ' . $this->last_error, 'ERROR');
                         return false;
                     }
 
@@ -504,7 +520,7 @@ trait CrudOperationsTrait
                         if (isset($this->cache[$insert_id])) {
                             unset($this->cache[$insert_id]);
                         }
-                        $this->records_array[$index][$this->primary_key] = $insert_id;
+                        $this->records_objects[$index][$this->primary_key] = $insert_id;
                     }
 
                     $result_entry = [
@@ -523,7 +539,7 @@ trait CrudOperationsTrait
 
                     // Process hasOne and hasMany relationships AFTER parent is saved (so we have the ID)
                     if ($cascade && method_exists($this, 'processHasOneRelationships')) {
-                        $hasone_results = $this->processHasOneRelationships($index, $this->records_array[$index]);
+                        $hasone_results = $this->processHasOneRelationships($index, $this->records_objects[$index]);
                         foreach ($hasone_results as $rel_alias => $rel_result) {
                             $result_entry[$rel_alias] = $rel_result;
                         }
@@ -548,7 +564,7 @@ trait CrudOperationsTrait
                             'result' => false,
                             'last_error' => $this->last_error
                         ];
-                        Logs::set('errors', 'ERROR', 'Update Error: ' . $this->last_error);
+                        Logs::set('DATABASE', 'Update Error: ' . $this->last_error, 'ERROR');
                         //return false;
                     } else {
                    
@@ -568,7 +584,7 @@ trait CrudOperationsTrait
                                 'result' => false,
                                 'last_error' => $this->last_error
                             ];
-                            Logs::set('errors', 'ERROR', 'Update Error: ' . $this->last_error);
+                            Logs::set('DATABASE', 'Update Error: ' . $this->last_error, 'ERROR');
                           
                         } else {
 
@@ -588,7 +604,7 @@ trait CrudOperationsTrait
 
                             // Process hasOne and hasMany relationships AFTER parent is updated (so we have the ID)
                             if ($cascade && method_exists($this, 'processHasOneRelationships')) {
-                                $hasone_results = $this->processHasOneRelationships($index, $this->records_array[$index]);
+                                $hasone_results = $this->processHasOneRelationships($index, $this->records_objects[$index]);
                                 foreach ($hasone_results as $rel_alias => $rel_result) {
                                     $result_entry[$rel_alias] = $rel_result;
                                 }
@@ -606,11 +622,11 @@ trait CrudOperationsTrait
                 }
             }
 
-           
+
 
             // Azzera le action ora che abbiamo fatto la copia
-            foreach ($this->records_array as $index => $record) {
-                $this->records_array[$index]['___action'] = null;
+            foreach ($this->records_objects as $index => $record) {
+                $this->records_objects[$index]['___action'] = null;
             }
 
             // Pulisci l'array dei deleted
@@ -628,6 +644,11 @@ trait CrudOperationsTrait
 
                 ExtensionLoader::callHook($this->loaded_extensions, 'afterSave', [$after_save_data, $this->save_results]);
 
+                // Call afterSave method if it exists in the model
+                if (method_exists($this, 'afterSave')) {
+                    $this->afterSave($after_save_data, $this->save_results);
+                }
+
             }
 
             return $this->last_error === '';
@@ -641,7 +662,7 @@ trait CrudOperationsTrait
                 'result' => false,
                 'last_error' => $this->last_error
             ];
-            Logs::set('errors', 'ERROR', 'Save Error: ' . $this->last_error);
+            Logs::set('DATABASE', 'Save Error: ' . $this->last_error, 'ERROR');
             return false;
         }
     }
@@ -747,10 +768,10 @@ trait CrudOperationsTrait
                 unset($this->cache[$id]);
 
                 // rimuovo il record eliminato dall'array
-                if (is_array($this->records_array)) {
-                    foreach ($this->records_array as $index => $record) {
+                if (is_array($this->records_objects)) {
+                    foreach ($this->records_objects as $index => $record) {
                         if ($record[$this->primary_key] === $id) {
-                            unset($this->records_array[$index]);
+                            unset($this->records_objects[$index]);
                         }
                     }
                 }

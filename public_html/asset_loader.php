@@ -148,17 +148,22 @@ function getFilePathFromUrl() {
 
 function validateSecurePath($path) {
     // Usa MILK_DIR come base di default
-     $baseDir = MILK_DIR;
+    $baseDir = MILK_DIR;
+    $baseDir2 = LOCAL_DIR;
     // 1. Normalizza i percorsi
     $baseDir = rtrim($baseDir, '/') . '/';
     $baseDirReal = realpath($baseDir);
-    
-    if (!$baseDirReal) {
-        // La directory base non esiste
+    $baseDir2 = rtrim($baseDir2, '/') . '/';
+    $baseDirReal2 = realpath($baseDir2);
+
+    if (!$baseDirReal && !$baseDirReal2) {
         return false;
     }
-    
-    // 2. Controlla tentativi ovvi di directory traversal
+
+    // SECURITY FIX: Add trailing slash to prevent prefix collision attack
+    $baseDirReal = rtrim($baseDirReal, '/') . '/';
+
+    // 2. Check for directory traversal not necessary !!
     $dangerousPatterns = [
         '../',
         '..\\',
@@ -174,39 +179,32 @@ function validateSecurePath($path) {
         '..%00',      // null byte
         '..%0d%0a',   // CRLF
     ];
-    
+
     $pathLower = strtolower($path);
     foreach ($dangerousPatterns as $pattern) {
         if (stripos($pathLower, $pattern) !== false) {
-            error_log("SECURITY WARNING: Directory traversal attempt detected: $path");
+           // error_log("SECURITY WARNING: Directory traversal attempt detected: $path");
             return false;
         }
     }
-    
-    // 3. Rimuovi caratteri pericolosi
-    // Rimuovi null bytes
-    $path = str_replace(chr(0), '', $path);
-    
+
+    // null byte
+    if (strpos($pathLower, chr(0)) !== false) {
+        return false;
+    }
+  
     $resolvedPath = realpath($path);
-   
+
     if (!$resolvedPath) {
         return false;
     }
-    
-    // 5. Verifica che il percorso risolto sia dentro la base directory
-    if (strpos($resolvedPath, $baseDirReal) !== 0) {
-        error_log("SECURITY WARNING: Path escape attempt - Resolved: $resolvedPath | Base: $baseDirReal");
+
+    // SECURITY FIX: Aggiungi trailing slash al path risolto per il confronto
+    $resolvedPathWithSlash = rtrim($resolvedPath, '/') . '/';
+
+    if (strpos($resolvedPathWithSlash, $baseDirReal) !== 0 && strpos($resolvedPathWithSlash, $baseDirReal2) !== 0) {
+       // error_log("SECURITY WARNING: Path escape attempt - Resolved: $resolvedPath | Base: $baseDirReal");
         return false;
     }
-    
-    // 6. Controlla che non ci siano symlink che portano fuori
-    if (is_link($resolvedPath)) {
-        $linkTarget = readlink($resolvedPath);
-        if (strpos(realpath($linkTarget), $baseDirReal) !== 0) {
-            error_log("SECURITY WARNING: Symlink points outside base directory");
-            return false;
-        }
-    }
-    
     return $resolvedPath;
 }

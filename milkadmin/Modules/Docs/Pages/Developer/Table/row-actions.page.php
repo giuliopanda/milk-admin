@@ -4,7 +4,7 @@ namespace Modules\Docs\Pages;
  * @title Row Actions
  * @guide developer
  * @order 15
- * @tags TableBuilder, row-actions, links, callbacks, conditional-visibility, filters, setActions, actionDelete, Link Actions, Callback Actions, confirm, class, target, filter, showIfFilter
+ * @tags TableBuilder, row-actions, links, callbacks, conditional-visibility, filters, setActions, actionDelete, Link Actions, Callback Actions, confirm, class, target, filter, showIfFilter, condition, icon, row-level-conditions
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>
@@ -181,10 +181,22 @@ public function actionDelete($record, $request) {
                 <td>Confirmation message shown before action execution</td>
             </tr>
             <tr>
+                <td><code>icon</code></td>
+                <td>string</td>
+                <td>No</td>
+                <td>Bootstrap icon class (e.g., <code>bi-x-circle</code>, <code>bi-pencil</code>)</td>
+            </tr>
+            <tr>
                 <td><code>showIfFilter</code></td>
                 <td>array</td>
                 <td>No</td>
-                <td>Conditional visibility based on active filters (see below)</td>
+                <td>Table-level visibility based on active filters (see below)</td>
+            </tr>
+            <tr>
+                <td><code>condition</code></td>
+                <td>callable</td>
+                <td>No</td>
+                <td>Row-level visibility condition that receives <code>$row</code> object (see below)</td>
             </tr>
         </tbody>
     </table>
@@ -361,7 +373,7 @@ public function actionClone($record, $request) {
     <h3>Practical Example: Status-Based Actions</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Setup filter in SearchBuilder
 $searchBuilder = \Builders\SearchBuilder::create('idTablePosts')
-    ->addActionList('status', 'Filter by Status:', [
+    ->actionList('status', 'Filter by Status:', [
         'active' => 'Active Posts',
         'deleted' => 'Deleted Posts'
     ], 'active');
@@ -426,6 +438,192 @@ public function actionRestore($record, $request) {
     }
     return ['success' => false, 'message' => 'Restore failed'];
 }</code></pre>
+
+    <h2>Row-Level Conditional Visibility with condition</h2>
+
+    <p>The <code>condition</code> parameter controls action visibility for individual rows based on row data. Unlike <code>showIfFilter</code> which checks global table filters, <code>condition</code> evaluates each row independently.</p>
+
+    <h3>How It Works</h3>
+    <p>The <code>condition</code> parameter accepts a callable (function or closure) that:</p>
+    <ul>
+        <li>Receives the current <code>$row</code> object as parameter</li>
+        <li>Has access to all row field values via <code>$row->field_name</code></li>
+        <li>Returns <code>true</code> to show the action, <code>false</code> to hide it</li>
+        <li>Is evaluated separately for each row in the table</li>
+    </ul>
+
+    <h3>Basic Example</h3>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$table = \Builders\TableBuilder::create($model, 'table_id')
+    ->setActions([
+        'edit' => [
+            'label' => 'Modifica',
+            'link' => '?page=frequenze&action=edit&id=%id%'
+        ],
+        'ritira' => [
+            'label' => 'Ritira',
+            'link' => '?page=frequenze&action=ritira&id=%id%',
+            'class' => 'btn-warning btn-sm',
+            'icon' => 'bi-x-circle',
+            'condition' => function($row) {
+                // Show only if DATA_FINE_FREQ is empty (active enrollment)
+                return empty($row->DATA_FINE_FREQ);
+            }
+        ],
+        'restore' => [
+            'label' => 'Ripristina',
+            'link' => '?page=frequenze&action=restore&id=%id%',
+            'class' => 'btn-success btn-sm',
+            'condition' => function($row) {
+                // Show only if DATA_FINE_FREQ is NOT empty (withdrawn enrollment)
+                return !empty($row->DATA_FINE_FREQ);
+            }
+        ]
+    ]);</code></pre>
+
+    <p>In this example, each row will show different actions based on its data:</p>
+    <ul>
+        <li><strong>Active enrollments</strong> (empty DATA_FINE_FREQ): Show "Modifica" and "Ritira"</li>
+        <li><strong>Withdrawn enrollments</strong> (filled DATA_FINE_FREQ): Show "Modifica" and "Ripristina"</li>
+    </ul>
+
+    <h3>Complex Conditions</h3>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->setActions([
+    'approve' => [
+        'label' => 'Approve',
+        'action' => [$this, 'actionApprove'],
+        'class' => 'btn-success btn-sm',
+        'condition' => function($row) {
+            // Show only if status is pending AND user has permission
+            return $row->status === 'pending' &&
+                   $row->created_by !== auth()->id();
+        }
+    ],
+    'cancel' => [
+        'label' => 'Cancel Order',
+        'action' => [$this, 'actionCancel'],
+        'confirm' => 'Cancel this order?',
+        'condition' => function($row) {
+            // Show only if order is recent and not shipped
+            $order_date = strtotime($row->created_at);
+            $is_recent = (time() - $order_date) < 86400; // 24 hours
+            return $is_recent && $row->shipping_status !== 'shipped';
+        }
+    ]
+]);</code></pre>
+
+    <h2>Difference Between showIfFilter and condition</h2>
+
+    <p>Both <code>showIfFilter</code> and <code>condition</code> control action visibility, but they work at different levels and serve different purposes:</p>
+
+    <table class="table table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>Feature</th>
+                <th><code>showIfFilter</code></th>
+                <th><code>condition</code></th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Scope</strong></td>
+                <td>Entire table (all rows)</td>
+                <td>Individual row</td>
+            </tr>
+            <tr>
+                <td><strong>Evaluates</strong></td>
+                <td>Global table filters</td>
+                <td>Row field values</td>
+            </tr>
+            <tr>
+                <td><strong>When Evaluated</strong></td>
+                <td>Once when table loads (in ActionManager)</td>
+                <td>For each row during rendering</td>
+            </tr>
+            <tr>
+                <td><strong>Parameter Type</strong></td>
+                <td>Array: <code>['filter' => 'value']</code></td>
+                <td>Callable: <code>function($row)</code></td>
+            </tr>
+            <tr>
+                <td><strong>Access To</strong></td>
+                <td>Active filter values</td>
+                <td>All row data via <code>$row->field</code></td>
+            </tr>
+            <tr>
+                <td><strong>Use Case</strong></td>
+                <td>"Show Archive when viewing Active items"</td>
+                <td>"Show Withdraw for this specific active enrollment"</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>Practical Comparison Example</h3>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Setup filter
+$searchBuilder = \Builders\SearchBuilder::create('enrollments_table')
+    ->actionList('year', 'Filter by Year:', [
+        '2024' => 'Year 2024',
+        '2023' => 'Year 2023'
+    ], '2024');
+
+$table = \Builders\TableBuilder::create($model, 'enrollments_table')
+    ->filter('year', function($query, $value) {
+        $query->where('ANNO_SCOL_FRQ = ?', [$value]);
+    }, '2024')
+
+    ->setActions([
+        // Always visible
+        'edit' => [
+            'label' => 'Edit',
+            'link' => '?page=enrollments&action=edit&id=%id%'
+        ],
+
+        // showIfFilter: Shows for ALL rows when year filter is 2024
+        'close_year' => [
+            'label' => 'Close Academic Year',
+            'action' => [$this, 'actionCloseYear'],
+            'showIfFilter' => ['year' => '2024']
+            // Visible for ALL 2024 enrollments (table-level)
+        ],
+
+        // condition: Shows only for specific active rows
+        'withdraw' => [
+            'label' => 'Withdraw',
+            'link' => '?page=enrollments&action=withdraw&id=%id%',
+            'class' => 'btn-warning btn-sm',
+            'condition' => function($row) {
+                return empty($row->DATA_FINE_FREQ);
+            }
+            // Visible only for THIS row if it's active (row-level)
+        ],
+
+        // Combined: Both conditions must be true
+        'transfer_2024' => [
+            'label' => 'Transfer to 2025',
+            'action' => [$this, 'actionTransfer'],
+            'showIfFilter' => ['year' => '2024'], // Only when viewing 2024
+            'condition' => function($row) {        // AND only for active enrollments
+                return empty($row->DATA_FINE_FREQ);
+            }
+        ]
+    ]);</code></pre>
+
+    <div class="alert alert-info">
+        <h5 class="alert-heading"><i class="bi bi-info-circle"></i> When to Use Which</h5>
+        <p><strong>Use showIfFilter when:</strong></p>
+        <ul>
+            <li>Action relevance depends on the current TABLE VIEW (filter context)</li>
+            <li>You want to show/hide actions for ALL rows at once</li>
+            <li>Example: "Archive All" button only visible when viewing active items</li>
+        </ul>
+        <p><strong>Use condition when:</strong></p>
+        <ul>
+            <li>Action relevance depends on INDIVIDUAL ROW DATA</li>
+            <li>Different rows should show different actions</li>
+            <li>Example: "Withdraw" button only for active enrollments, "Restore" only for withdrawn ones</li>
+        </ul>
+        <p class="mb-0"><strong>Use both together when:</strong> Action requires both global context AND row-specific validation</p>
+    </div>
 
 
     <h2>Default Actions Helper</h2>

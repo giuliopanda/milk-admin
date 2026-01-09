@@ -1,5 +1,33 @@
 ## Changelog
 
+### v260109
+- New: Chart System (ChartBuilder) (Complete documentation in `chart-builder.page.php`)
+- New: Scope and Query Attributes System (Documentation in `abstract-model-attributes.page.php`)
+- New: DatabaseManager for Multi-Database (Updated complete documentation in `multi-database-support.page.php`)
+- New: New attributes: `Query`, `DefaultQuery`
+- Improved: AbstractModel and Relationships (Documentation `abstract-model-relationships.page.php` )
+- Improved: RuleBuilder and Validation (Documentation in `abstract-model-rulebuilder.page.php`)
+- Improved: Query Builder and Database (Updated documentation in `schema.page.php` )
+- Improved: FormBuilder
+- Improved: SearchBuilder Enhancements with filters on multiple dataBuilders
+- Refactored filters and columns in TableBuilder and GetDataBuilder
+- PHPMailer moved to vendor
+- Improved: THEME AND UI
+- Improvements to PHP attributes `Validate`, `SetValue`, `BeforeSave`
+- Various fixes to `CrudOperationsTrait.php`
+- Fix transaction handling in `Query.php`
+- Fix filters in `SearchBuilder.php`
+- Fix error handling in `DatabaseException.php`
+
+### v251222
+- SecurityBug: validateSecurePath()
+- FixBug Transaction in Mysql
+- FixBug extension installation
+- FixBug User/Access Logs filter error
+- Remove Deprecated Methods
+- Add Comments Extensions
+
+
 ### v251217 
 - Better handling of related tables
 - Builder Improvements

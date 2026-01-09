@@ -278,21 +278,21 @@ class API
 
         } catch (ApiAuthException $e) {
             // Expected authentication errors
-            Logs::set('api', 'AUTH', $e->getMessage());
+            Logs::set('API', $e->getMessage());
             $array_info['error'] = $e->getMessage();
             Hooks::run('api_after_run', $array_info, $endpoint);
             self::errorResponse($e->getMessage(), $e->getCode() ?: 403);
 
         } catch (ApiException $e) {
             // Expected API errors
-            Logs::set('api', 'ERROR', $e->getMessage());
+            Logs::set('API', $e->getMessage(), 'ERROR');
             $array_info['error'] = $e->getMessage();
             Hooks::run('api_after_run', $array_info, $endpoint);
             self::errorResponse($e->getMessage(), $e->getCode() ?: 400);
 
         } catch (\Throwable $e) {
             // Unexpected PHP errors
-            Logs::set('api', 'FATAL', $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            Logs::set('API', $e->getMessage() , 'ERROR');
             $array_info['error'] = $e->getMessage();
             Hooks::run('api_after_run', $array_info, $endpoint);
 

@@ -183,7 +183,7 @@ public function actionDelete($record, $request) {
 public function actionExport($records, $request) {
     // Called once with all records
     // $records is a collection of Model instances
-    $records->setFormatted();
+    $records->setOutputMode('formatted');
 
     $csv = '';
     foreach ($records as $record) {
@@ -299,7 +299,7 @@ public function actionPublish($record, $request) {
 ])
 
 public function actionCompare($records, $request) {
-    $records->setFormatted();
+    $records->setOutputMode('formatted');
     $fields = ['title', 'status', 'created_at'];
 
     $html = '<table class="table table-bordered"><tbody>';
@@ -341,7 +341,7 @@ public function actionCompare($records, $request) {
     <h3>Example: Soft Delete Pattern</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Create status filter in SearchBuilder
 $searchBuilder = \Builders\SearchBuilder::create('idTablePosts')
-    ->addActionList('status', 'Status:', [
+    ->actionList('status', 'Status:', [
         'active' => 'Active',
         'deleted' => 'Deleted'
     ], 'active');

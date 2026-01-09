@@ -137,6 +137,18 @@ class ProductsModel extends AbstractModel
                     <td><code>$obj->save()</code></td>
                 </tr>
                 <tr>
+                    <td><code><a href="#beforeSave">beforeSave()</a></code></td>
+                    <td>Hook called before save operations</td>
+                    <td><span class="badge bg-info">bool|void</span></td>
+                    <td><code>protected function beforeSave($records)</code></td>
+                </tr>
+                <tr>
+                    <td><code><a href="#afterSave">afterSave()</a></code></td>
+                    <td>Hook called after save operations</td>
+                    <td><span class="badge bg-secondary">void</span></td>
+                    <td><code>protected function afterSave($data, $results)</code></td>
+                </tr>
+                <tr>
                     <td><code><a href="#delete">delete()</a></code></td>
                     <td>Delete record by primary key</td>
                     <td><span class="badge bg-info">bool</span></td>
@@ -159,6 +171,36 @@ class ProductsModel extends AbstractModel
                     <td>Get detailed results from last save() operation</td>
                     <td><span class="badge bg-warning">array</span></td>
                     <td><code>$model->getCommitResults()</code></td>
+                </tr>
+                <tr>
+                    <td><code>getLastInsertIds()</code></td>
+                    <td>Get array of all inserted IDs from batch save</td>
+                    <td><span class="badge bg-warning">array</span></td>
+                    <td><code>$model->getLastInsertIds()</code></td>
+                </tr>
+                <tr>
+                    <td><code>searchRelated()</code></td>
+                    <td>Search in related records</td>
+                    <td><span class="badge bg-warning">array</span></td>
+                    <td><code>$model->searchRelated('John', 'name')</code></td>
+                </tr>
+                <tr>
+                    <td><code>setResultsByIds()</code></td>
+                    <td>Set results manually by array of IDs</td>
+                    <td><span class="badge bg-info">bool</span></td>
+                    <td><code>$model->setResultsByIds([1,2,3])</code></td>
+                </tr>
+                <tr>
+                    <td><code>saveCurrentRecord()</code></td>
+                    <td>Save only the current record</td>
+                    <td><span class="badge bg-info">bool</span></td>
+                    <td><code>$model->saveCurrentRecord()</code></td>
+                </tr>
+                <tr>
+                    <td><code>get()</code></td>
+                    <td>Execute query and return results</td>
+                    <td><span class="badge bg-success">Model|array|null</span></td>
+                    <td><code>$model->get($query, $params)</code></td>
                 </tr>
 
                 <!-- Query Builder -->
@@ -219,6 +261,30 @@ class ProductsModel extends AbstractModel
                     <td><span class="badge bg-info">int</span></td>
                     <td><code>$model->total()</code></td>
                 </tr>
+                <tr>
+                    <td><code>from()</code></td>
+                    <td>Add FROM clause to query</td>
+                    <td><span class="badge bg-primary">Query</span></td>
+                    <td><code>$model->from('table')->get()</code></td>
+                </tr>
+                <tr>
+                    <td><code>group()</code></td>
+                    <td>Add GROUP BY clause</td>
+                    <td><span class="badge bg-primary">Query</span></td>
+                    <td><code>$model->group('category')->get()</code></td>
+                </tr>
+                <tr>
+                    <td><code>query()</code></td>
+                    <td>Get or set Query object</td>
+                    <td><span class="badge bg-primary">Query</span></td>
+                    <td><code>$model->query()</code></td>
+                </tr>
+                <tr>
+                    <td><code>filterSearch()</code></td>
+                    <td>Apply search filter to query</td>
+                    <td><span class="badge bg-primary">Query</span></td>
+                    <td><code>$model->filterSearch('text', $query)</code></td>
+                </tr>
 
                 <!-- Relationships -->
                 <tr class="table-secondary">
@@ -235,6 +301,18 @@ class ProductsModel extends AbstractModel
                     <td>Clear loaded relationship data</td>
                     <td><span class="badge bg-secondary">void</span></td>
                     <td><code>$model->clearRelationshipCache()</code></td>
+                </tr>
+                <tr>
+                    <td><code>getIncludeRelationships()</code></td>
+                    <td>Get list of relationships to include</td>
+                    <td><span class="badge bg-warning">array</span></td>
+                    <td><code>$model->getIncludeRelationships()</code></td>
+                </tr>
+                <tr>
+                    <td><code>getRelationshipHandlers()</code></td>
+                    <td>Get handlers for relationship field</td>
+                    <td><span class="badge bg-warning">array</span></td>
+                    <td><code>$model->getRelationshipHandlers('rel', 'type')</code></td>
                 </tr>
 
                 <!-- Navigation -->
@@ -289,6 +367,24 @@ class ProductsModel extends AbstractModel
                     <td><span class="badge bg-info">bool</span></td>
                     <td><code>$results->hasPrev()</code></td>
                 </tr>
+                <tr>
+                    <td><code>getCurrentIndex()</code></td>
+                    <td>Get current record index</td>
+                    <td><span class="badge bg-info">int</span></td>
+                    <td><code>$results->getCurrentIndex()</code></td>
+                </tr>
+                <tr>
+                    <td><code>getNextCurrentIndex()</code></td>
+                    <td>Get next available record index</td>
+                    <td><span class="badge bg-info">int</span></td>
+                    <td><code>$model->getNextCurrentIndex()</code></td>
+                </tr>
+                <tr>
+                    <td><code>moveNext()</code></td>
+                    <td>Move to next record (alias of next)</td>
+                    <td><span class="badge bg-success">Model|null</span></td>
+                    <td><code>$results->moveNext()</code></td>
+                </tr>
 
                 <!-- Data Formatting -->
                 <tr class="table-secondary">
@@ -317,6 +413,42 @@ class ProductsModel extends AbstractModel
                     <td>Convert model to array</td>
                     <td><span class="badge bg-warning">array</span></td>
                     <td><code>$model->toArray()</code></td>
+                </tr>
+                <tr>
+                    <td><code>setOutputMode()</code></td>
+                    <td>Set output mode ('raw', 'formatted', or 'sql')</td>
+                    <td><span class="badge bg-secondary">void</span></td>
+                    <td><code>$model->setOutputMode('formatted')</code></td>
+                </tr>
+                <tr>
+                    <td><code>getOutputMode()</code></td>
+                    <td>Get current output mode</td>
+                    <td><span class="badge bg-warning">string</span></td>
+                    <td><code>$model->getOutputMode()</code></td>
+                </tr>
+                <tr>
+                    <td><code>getFormattedValue()</code></td>
+                    <td>Get single formatted value</td>
+                    <td><span class="badge bg-warning">mixed</span></td>
+                    <td><code>$model->getFormattedValue('name')</code></td>
+                </tr>
+                <tr>
+                    <td><code>getSqlValue()</code></td>
+                    <td>Get single SQL value</td>
+                    <td><span class="badge bg-warning">mixed</span></td>
+                    <td><code>$model->getSqlValue('date')</code></td>
+                </tr>
+                <tr>
+                    <td><code>getRawValue()</code></td>
+                    <td>Get single raw value</td>
+                    <td><span class="badge bg-warning">mixed</span></td>
+                    <td><code>$model->getRawValue('field')</code></td>
+                </tr>
+                <tr>
+                    <td><code>getRecordAction()</code></td>
+                    <td>Get record action (insert/update/delete)</td>
+                    <td><span class="badge bg-warning">string|null</span></td>
+                    <td><code>$model->getRecordAction()</code></td>
                 </tr>
 
                 <!-- Schema & Validation -->
@@ -359,6 +491,84 @@ class ProductsModel extends AbstractModel
                     <td><span class="badge bg-warning">string</span></td>
                     <td><code>$model->getPrimaryKey()</code></td>
                 </tr>
+                <tr>
+                    <td><code>getRuleBuilder()</code></td>
+                    <td>Get RuleBuilder to modify schema</td>
+                    <td><span class="badge bg-warning">RuleBuilder</span></td>
+                    <td><code>$model->getRuleBuilder()</code></td>
+                </tr>
+                <tr>
+                    <td><code>setRules()</code></td>
+                    <td>Set schema rules</td>
+                    <td><span class="badge bg-secondary">void</span></td>
+                    <td><code>$model->setRules($rules)</code></td>
+                </tr>
+                <tr>
+                    <td><code>getPrimaries()</code></td>
+                    <td>Get array of all primary keys</td>
+                    <td><span class="badge bg-warning">array</span></td>
+                    <td><code>$model->getPrimaries()</code></td>
+                </tr>
+                <tr>
+                    <td><code>getSchema()</code></td>
+                    <td>Get Schema object (MySQL or SQLite)</td>
+                    <td><span class="badge bg-warning">Schema</span></td>
+                    <td><code>$model->getSchema()</code></td>
+                </tr>
+                <tr>
+                    <td><code>getSchemaFieldDifferences()</code></td>
+                    <td>Get differences between DB and schema</td>
+                    <td><span class="badge bg-warning">array</span></td>
+                    <td><code>$model->getSchemaFieldDifferences()</code></td>
+                </tr>
+                <tr>
+                    <td><code>getColumns()</code></td>
+                    <td>Get all defined columns</td>
+                    <td><span class="badge bg-warning">array</span></td>
+                    <td><code>$model->getColumns()</code></td>
+                </tr>
+                <tr>
+                    <td><code>getQueryColumns()</code></td>
+                    <td>Get query columns</td>
+                    <td><span class="badge bg-warning">array</span></td>
+                    <td><code>$model->getQueryColumns()</code></td>
+                </tr>
+                <tr>
+                    <td><code>setQueryColumns()</code></td>
+                    <td>Set query columns</td>
+                    <td><span class="badge bg-secondary">void</span></td>
+                    <td><code>$model->setQueryColumns($cols)</code></td>
+                </tr>
+                <tr>
+                    <td><code>getTable()</code></td>
+                    <td>Get table name</td>
+                    <td><span class="badge bg-warning">string</span></td>
+                    <td><code>$model->getTable()</code></td>
+                </tr>
+                <tr>
+                    <td><code>setTable()</code></td>
+                    <td>Set table name</td>
+                    <td><span class="badge bg-secondary">void</span></td>
+                    <td><code>$model->setTable('table_name')</code></td>
+                </tr>
+                <tr>
+                    <td><code>getDb()</code></td>
+                    <td>Get database connection</td>
+                    <td><span class="badge bg-warning">MySql|SQLite</span></td>
+                    <td><code>$model->getDb()</code></td>
+                </tr>
+                <tr>
+                    <td><code>setDb()</code></td>
+                    <td>Set database connection</td>
+                    <td><span class="badge bg-secondary">void</span></td>
+                    <td><code>$model->setDb($db)</code></td>
+                </tr>
+                <tr>
+                    <td><code>getDbType()</code></td>
+                    <td>Get database type (db or db2)</td>
+                    <td><span class="badge bg-warning">string</span></td>
+                    <td><code>$model->getDbType()</code></td>
+                </tr>
 
                 <!-- Utility -->
                 <tr class="table-secondary">
@@ -393,6 +603,87 @@ class ProductsModel extends AbstractModel
                     <td>Set query parameters from request</td>
                     <td><span class="badge bg-secondary">void</span></td>
                     <td><code>$model->setQueryParams($request)</code></td>
+                </tr>
+                <tr>
+                    <td><code>getLoadedExtension()</code></td>
+                    <td>Get loaded extension instance</td>
+                    <td><span class="badge bg-warning">object|null</span></td>
+                    <td><code>$model->getLoadedExtension('ext_name')</code></td>
+                </tr>
+
+                <!-- Method Handlers (Attribute System) -->
+                <tr class="table-secondary">
+                    <td colspan="4"><strong>Method Handlers (Attribute System)</strong></td>
+                </tr>
+                <tr>
+                    <td><code>registerMethodHandler()</code></td>
+                    <td>Register custom attribute handler</td>
+                    <td><span class="badge bg-secondary">void</span></td>
+                    <td><code>$model->registerMethodHandler('field', 'type', 'method')</code></td>
+                </tr>
+                <tr>
+                    <td><code>removeMethodHandler()</code></td>
+                    <td>Remove attribute handler</td>
+                    <td><span class="badge bg-secondary">void</span></td>
+                    <td><code>$model->removeMethodHandler('field', 'type')</code></td>
+                </tr>
+                <tr>
+                    <td><code>getMethodHandler()</code></td>
+                    <td>Get handler for field and type</td>
+                    <td><span class="badge bg-warning">callable|null</span></td>
+                    <td><code>$model->getMethodHandler('field', 'type')</code></td>
+                </tr>
+                <tr>
+                    <td><code>hasMethodHandler()</code></td>
+                    <td>Check if handler exists</td>
+                    <td><span class="badge bg-info">bool</span></td>
+                    <td><code>$model->hasMethodHandler('field', 'type')</code></td>
+                </tr>
+                <tr>
+                    <td><code>getFieldsWithHandlers()</code></td>
+                    <td>Get fields with handlers of type</td>
+                    <td><span class="badge bg-warning">array</span></td>
+                    <td><code>$model->getFieldsWithHandlers('ToDisplayValue')</code></td>
+                </tr>
+
+                <!-- Timezone Handling -->
+                <tr class="table-secondary">
+                    <td colspan="4"><strong>Timezone Handling</strong></td>
+                </tr>
+                <tr>
+                    <td><code>setDatesInUserTimezone()</code></td>
+                    <td>Enable/disable user timezone conversion</td>
+                    <td><span class="badge bg-success">Model</span></td>
+                    <td><code>$model->setDatesInUserTimezone(true)</code></td>
+                </tr>
+                <tr>
+                    <td><code>convertDatesToUserTimezone()</code></td>
+                    <td>Convert dates from UTC to user timezone</td>
+                    <td><span class="badge bg-success">Model</span></td>
+                    <td><code>$model->convertDatesToUserTimezone()</code></td>
+                </tr>
+                <tr>
+                    <td><code>convertDatesToUTC()</code></td>
+                    <td>Convert dates from user timezone to UTC</td>
+                    <td><span class="badge bg-success">Model</span></td>
+                    <td><code>$model->convertDatesToUTC()</code></td>
+                </tr>
+
+                <!-- Data Management -->
+                <tr class="table-secondary">
+                    <td colspan="4"><strong>Data Management</strong></td>
+                </tr>
+                <tr>
+                    <td><code>setResults()</code></td>
+                    <td>Set results manually</td>
+                    <td><span class="badge bg-secondary">void</span></td>
+                    <td><code>$model->setResults($array)</code></td>
+                </tr>
+                <tr>
+                    <td><code>setRow()</code></td>
+                    <td>Set single row data</td>
+                    <td><span class="badge bg-secondary">void</span></td>
+                    <td><code>$model->setRow($data)</code></td>
                 </tr>
             </tbody>
         </table>
@@ -677,6 +968,68 @@ if ($product && $product->count() > 0) {
                 <li>Use <code>store()</code> for immediate single record saves</li>
                 <li>All operations are executed in order: DELETE, then INSERT, then UPDATE</li>
                 <li>Use <code>getCommitResults()</code> to get detailed information about each operation</li>
+            </ul>
+        </li>
+    </ul>
+
+    <h3 class="mt-3" id="beforeSave"><code>beforeSave(array $records)</code></h3>
+    <p>Hook method called before save operations. Override this method in your model to execute custom logic before records are saved. Return <code>false</code> to cancel the save operation.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">/**
+ * @param array $records Array of records to be saved
+ * @return bool|void Return false to cancel save operation
+ */
+protected function beforeSave(array $records): bool|void;
+
+// Example: Auto-generate slug before saving
+protected function beforeSave(array $records): void {
+    foreach ($records as $index => $record) {
+        if (empty($record['slug']) && !empty($record['title'])) {
+            $this->records_array[$index]['slug'] = $this->generateSlug($record['title']);
+        }
+    }
+}
+    </code></pre>
+    <ul>
+        <li><strong>Input parameters:</strong>
+            <ul>
+                <li><code>$records</code>: (array) Array of records that will be saved.</li>
+            </ul>
+        </li>
+        <li><strong>Return value:</strong>
+            <ul>
+                <li><code>bool|void</code>: Return <code>false</code> to cancel the save operation, otherwise return nothing or <code>true</code>.</li>
+            </ul>
+        </li>
+    </ul>
+
+    <h3 class="mt-3" id="afterSave"><code>afterSave(array $data, array $results)</code></h3>
+    <p>Hook method called after save operations complete. Override this method in your model to execute custom logic after records are saved (e.g., logging, sending notifications, updating related data).</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">/**
+ * @param array $data Array of saved record data
+ * @param array $results Array of save operation results
+ * @return void
+ */
+protected function afterSave(array $data, array $results): void;
+
+// Example: Send notification after product is created
+protected function afterSave(array $data, array $results): void {
+    foreach ($results as $result) {
+        if ($result['action'] === 'insert' && $result['result']) {
+            $this->sendProductCreatedNotification($result['id']);
+        }
+    }
+}
+    </code></pre>
+    <ul>
+        <li><strong>Input parameters:</strong>
+            <ul>
+                <li><code>$data</code>: (array) Array containing the saved record data.</li>
+                <li><code>$results</code>: (array) Array of save operation results with structure: [['id' => int, 'action' => string, 'result' => bool, 'last_error' => string], ...]</li>
+            </ul>
+        </li>
+        <li><strong>Return value:</strong>
+            <ul>
+                <li><code>void</code>: This method does not return any value.</li>
             </ul>
         </li>
     </ul>

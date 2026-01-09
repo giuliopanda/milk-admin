@@ -75,6 +75,149 @@ protected function home() {
     Response::themePage('default', '<h1>'.$this->title.'</h1>');
 }</code></pre>
 
+    <h2 class="mt-4">AbstractController Overview</h2>
+
+    <p>The <code>AbstractController</code> class is the foundation for all module controllers in the framework. It provides automatic routing, access control, and integration with the data layer through models. Controllers handle HTTP requests, coordinate with models to fetch/update data, and render views.</p>
+
+    <h3 class="mt-3">Key Features</h3>
+    <ul>
+        <li><strong>Attribute-Based Routing:</strong> Use <code>#[RequestAction]</code> attributes to map URLs to methods</li>
+        <li><strong>Access Control:</strong> Built-in permission checking with <code>#[AccessLevel]</code> attributes</li>
+        <li><strong>Model Integration:</strong> Automatic connection to module models</li>
+        <li><strong>Table Management:</strong> Helper methods for building dynamic tables with pagination, sorting, and filtering</li>
+        <li><strong>Action Handling:</strong> Automated handling of table actions (edit, delete, custom actions)</li>
+    </ul>
+
+    <h3 class="mt-3">Public Methods Reference</h3>
+
+    <div class="alert alert-info">
+        <strong>📋 Quick Reference:</strong> This table provides a complete overview of all available methods in AbstractController. Click on a method name to jump to its detailed documentation.
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-sm">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 25%">Method</th>
+                    <th style="width: 35%">Description</th>
+                    <th style="width: 15%">Returns</th>
+                    <th style="width: 25%">Example</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Lifecycle & Initialization -->
+                <tr class="table-secondary">
+                    <td colspan="4"><strong>Lifecycle & Initialization</strong></td>
+                </tr>
+                <tr>
+                    <td><code><a href="#construct">__construct()</a></code></td>
+                    <td>Constructor - sets up init hook</td>
+                    <td><span class="badge bg-secondary">void</span></td>
+                    <td><code>new MyController()</code></td>
+                </tr>
+                <tr>
+                    <td><code>hookInit()</code></td>
+                    <td>Called after framework initialization</td>
+                    <td><span class="badge bg-secondary">void</span></td>
+                    <td><code>// Auto-called by framework</code></td>
+                </tr>
+                <tr>
+                    <td><code>init()</code></td>
+                    <td>Override to load assets and initialize</td>
+                    <td><span class="badge bg-secondary">void</span></td>
+                    <td><code>Theme::set('javascript', $url)</code></td>
+                </tr>
+
+                <!-- Routing & Actions -->
+                <tr class="table-secondary">
+                    <td colspan="4"><strong>Routing & Request Handling</strong></td>
+                </tr>
+                <tr>
+                    <td><code><a href="#setHandleRoutes">setHandleRoutes()</a></code></td>
+                    <td>Set routing variables from module</td>
+                    <td><span class="badge bg-secondary">void</span></td>
+                    <td><code>$router->setHandleRoutes($module)</code></td>
+                </tr>
+                <tr>
+                    <td><code><a href="#handleRoutes">handleRoutes()</a></code></td>
+                    <td>Main route handler - calls action methods</td>
+                    <td><span class="badge bg-secondary">void</span></td>
+                    <td><code>// Auto-called by framework</code></td>
+                </tr>
+                <tr>
+                    <td><code>relatedSearchField()</code></td>
+                    <td>Handle AJAX search for related fields</td>
+                    <td><span class="badge bg-secondary">void</span></td>
+                    <td><code>// Auto-called for related fields</code></td>
+                </tr>
+
+                <!-- Access Control -->
+                <tr class="table-secondary">
+                    <td colspan="4"><strong>Access Control</strong></td>
+                </tr>
+                <tr>
+                    <td><code><a href="#access">access()</a></code></td>
+                    <td>Check if user has module access</td>
+                    <td><span class="badge bg-info">bool</span></td>
+                    <td><code>if ($this->access()) { ... }</code></td>
+                </tr>
+
+                <!-- Data & Models -->
+                <tr class="table-secondary">
+                    <td colspan="4"><strong>Data & Models</strong></td>
+                </tr>
+                <tr>
+                    <td><code>getAdditionalModels()</code></td>
+                    <td>Get additional models registered</td>
+                    <td><span class="badge bg-warning">array|object|null</span></td>
+                    <td><code>$this->getAdditionalModels('users')</code></td>
+                </tr>
+                <tr>
+                    <td><code>getCommonData()</code></td>
+                    <td>Get common module data (page, title)</td>
+                    <td><span class="badge bg-warning">array</span></td>
+                    <td><code>$data = $this->getCommonData()</code></td>
+                </tr>
+
+                <!-- Table Management (Deprecated - Use TableBuilder) -->
+                <tr class="table-secondary">
+                    <td colspan="4"><strong>Table Management (Deprecated - Use TableBuilder)</strong></td>
+                </tr>
+                <tr>
+                    <td><code><a href="#defaultRequestParams">defaultRequestParams()</a></code></td>
+                    <td>Get default table request parameters</td>
+                    <td><span class="badge bg-warning">array</span></td>
+                    <td><code>$defaults = $this->defaultRequestParams()</code></td>
+                </tr>
+                <tr>
+                    <td><code><a href="#getRequestParams">getRequestParams()</a></code></td>
+                    <td>Get and sanitize table request params</td>
+                    <td><span class="badge bg-warning">array</span></td>
+                    <td><code>$params = $this->getRequestParams($id)</code></td>
+                </tr>
+             
+                <tr>
+                    <td><code><a href="#callTableAction">callTableAction()</a></code></td>
+                    <td>Handle table actions with token verification</td>
+                    <td><span class="badge bg-secondary">void</span></td>
+                    <td><code>$this->callTableAction($id, $actions)</code></td>
+                </tr>
+
+                <!-- Action Methods -->
+                <tr class="table-secondary">
+                    <td colspan="4"><strong>Default Action Methods</strong></td>
+                </tr>
+                <tr>
+                    <td><code>actionHome()</code></td>
+                    <td>Default home page action</td>
+                    <td><span class="badge bg-secondary">void</span></td>
+                    <td><code>// Override in child class</code></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+
     <h5 class="mt-3">Building a dynamic table</h5>
 
     <p>To build a table, create a method with the <code>#[RequestAction]</code> attribute and use the TableBuilder for simplified table creation.</p>

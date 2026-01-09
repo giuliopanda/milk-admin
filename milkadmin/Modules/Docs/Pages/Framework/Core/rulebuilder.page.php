@@ -59,6 +59,13 @@ $rule->table('#__orders');
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$rule->table('#__logs')
     ->db('db2');  // Use secondary database</code></pre>
 
+    <h3 class="mt-3"><code>renameField(string $from, string $to): self</code></h3>
+    <p>Declares a rename operation during schema updates (use with <code>buildTable()</code>).</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$rule->table('#__users')
+    ->string('name', 150)
+    ->renameField('full_name', 'name');</code></pre>
+
     <h2 class="mt-4">Field Type Methods</h2>
 
     <h3 class="mt-3">Primary Key</h3>
@@ -637,6 +644,13 @@ $rule->datetime('created_at')
                 <tr><td><code>image($name)</code></td><td>VARCHAR(255)</td><td>Image upload</td></tr>
             </tbody>
         </table>
+    </div>
+
+    <h2 class="mt-4">Tests</h2>
+
+    <div class="alert alert-info">
+        RuleBuilder has a dedicated unit test suite:
+        <code>php vendor/bin/phpunit tests/Unit/Builders/RuleBuilderMethodsTest.php</code>
     </div>
 
     <h2 class="mt-4">See Also</h2>

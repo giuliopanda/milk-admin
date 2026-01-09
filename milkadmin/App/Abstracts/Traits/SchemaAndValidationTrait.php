@@ -149,6 +149,10 @@ trait SchemaAndValidationTrait
                 $schema->index($name, [$name]);
             }
         }
+        $rename_fields = $this->rule_builder->getRenameFields();
+        foreach ($rename_fields as $from => $to) {
+            $schema->renameField($from, $to);
+        }
         if (count($primaries) > 1) {
             $schema->setPrimaryKey($primaries);
         }
@@ -173,8 +177,8 @@ trait SchemaAndValidationTrait
      */
     public function getQueryColumns() {
         if (!$this->get_query_columns) {
-            if (isset($this->records_array) && is_array($this->records_array) && !empty($this->records_array)) {
-                $this->get_query_columns = array_keys(reset($this->records_array));
+            if (isset($this->records_objects) && is_array($this->records_objects) && !empty($this->records_objects)) {
+                $this->get_query_columns = array_keys(reset($this->records_objects));
             } 
         }
         return $this->get_query_columns;
@@ -280,7 +284,7 @@ trait SchemaAndValidationTrait
      */
     public function dropTable(): bool
     {
-        $schema = Get::schema($this->table);
+        $schema = Get::schema($this->table, $this->db);
         return $schema->drop();
     }
 
@@ -342,13 +346,13 @@ trait SchemaAndValidationTrait
 
         $records_to_validate = [];
 
-        if ($validate_all && $this->records_array !== null) {
-            foreach ($this->records_array as $index => $record) {
+        if ($validate_all && $this->records_objects !== null) {
+            foreach ($this->records_objects as $index => $record) {
                 $records_to_validate[] = ['index' => $index, 'data' => (array)$record];
             }
         } else {
-            if ($this->records_array !== null && isset($this->records_array[$this->current_index])) {
-                $records_to_validate[] = ['index' => $this->current_index, 'data' => (array)$this->records_array[$this->current_index]];
+            if ($this->records_objects !== null && isset($this->records_objects[$this->current_index])) {
+                $records_to_validate[] = ['index' => $this->current_index, 'data' => (array)$this->records_objects[$this->current_index]];
             } elseif ($this->cached_row !== null) {
                 $records_to_validate[] = ['index' => $this->current_index, 'data' => $this->cached_row];
             }

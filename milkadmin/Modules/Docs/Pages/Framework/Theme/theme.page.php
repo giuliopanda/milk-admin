@@ -107,11 +107,31 @@ Theme::set('sidebar.links', [
 
 <h2>How to Add a new menu item</h2>
 
-<pre class="pre-scrollable border p-2 text-bg-gray language-php"><code>Theme::set('sidebar.links', 
-['url' => Route::url('?page=auth&action=user-list'), 'title' => 'Users', 'icon' => 'bi bi-people-fill']); 
-// horizontal menu 
+<pre class="pre-scrollable border p-2 text-bg-gray language-php"><code>Theme::set('sidebar.links',
+['url' => Route::url('?page=auth&action=user-list'), 'title' => 'Users', 'icon' => 'bi bi-people-fill']);
+// horizontal menu
 Theme::set('header.links', ['url' => Route::url('?page=auth&action=logout'), 'title' => 'Logout', 'icon' => 'bi bi-box-arrow-right']
 );</code></pre>
+
+<h2>How to Manually Select a Sidebar Menu Item</h2>
+<p>By default, the sidebar automatically selects menu items based on the current page URL.
+You can bypass this automatic selection and manually select a specific menu item using <code>Theme::set('sidebar.selected', ...)</code>.</p>
+
+<h3>Select by URL</h3>
+<pre class="pre-scrollable border p-2 text-bg-gray language-php"><code>// This will select the menu item with this exact URL
+Theme::set('sidebar.selected', Route::url('?page=auth&action=user-list'));</code></pre>
+
+<h3>Select by Title</h3>
+<pre class="pre-scrollable border p-2 text-bg-gray language-php"><code>// This will select the menu item with this exact title
+Theme::set('sidebar.selected', 'Users');</code></pre>
+
+<h3>Example: Force a menu selection regardless of current page</h3>
+<pre class="pre-scrollable border p-2 text-bg-gray language-php"><code>// Even if the current page is ?page=dashboard,
+// the "Settings" menu will be highlighted
+Theme::set('sidebar.selected', 'Settings');</code></pre>
+
+<p><strong>Note:</strong> When <code>sidebar.selected</code> is set, the automatic URL comparison is completely bypassed.
+Only the menu item matching the specified URL or title will be highlighted.</p>
 
 <h2>How to add an image</h2>
 <pre class="pre-scrollable border p-2 text-bg-gray language-php"><code>&lt;img src="&lt;?php echo Get::uriPath(THEME_URL.'/Assets/logo-big.webp') ;?&gt;" alt="test" class="resized-logo"&gt;

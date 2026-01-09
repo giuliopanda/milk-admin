@@ -8,7 +8,7 @@ use App\Logs;
 /**
  * CascadeSaveTrait - ULTRA-SIMPLIFIED version
  *
- * Relationship data is stored directly in records_array with its original key name.
+ * Relationship data is stored directly in records_objects with its original key name.
  * We identify relationships by checking if the key matches a relationship alias.
  */
 trait CascadeSaveTrait

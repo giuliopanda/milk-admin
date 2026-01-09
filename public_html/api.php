@@ -34,7 +34,7 @@ try {
 
 } catch (\Exception $e) {
     // Error log
-    Logs::set('api', 'ERROR', 'API Exception: ' . $e->getMessage());
+    Logs::set('API', 'API Exception: ' . $e->getMessage(), 'ERROR');
 
     // Error response
     API::errorResponse('Internal server error', 500);
@@ -50,5 +50,4 @@ if (API::hasBufferedResponse()) {
 
 // Clean up
 Settings::save();
-Get::db()->close();
-Get::db2()->close();
+Get::closeConnections();

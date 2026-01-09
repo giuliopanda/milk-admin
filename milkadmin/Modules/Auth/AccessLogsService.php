@@ -115,9 +115,9 @@ class AccessLogsService
         }
 
         return SearchBuilder::create($table_id)
-            ->addInput('date', 'start_date', 'Start Date', $_REQUEST['start_date'] ?? '')
-            ->addInput('date', 'end_date', 'End Date', $_REQUEST['end_date'] ?? '')
-            ->addSelect('user_id', 'Filter by User', $users_options, $_REQUEST['user_id'] ?? '')
+            ->input('date', 'start_date', 'Start Date', $_REQUEST['start_date'] ?? '')
+            ->input('date', 'end_date', 'End Date', $_REQUEST['end_date'] ?? '')
+            ->select('user_id', 'Filter by User', $users_options, $_REQUEST['user_id'] ?? '')
             ->setSearchMode('submit')
             ->setWrapperClass('d-flex align-items-end gap-3 flex-wrap mb-3');
     }

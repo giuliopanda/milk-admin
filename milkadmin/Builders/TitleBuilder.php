@@ -21,6 +21,7 @@ class TitleBuilder {
     private $search_html = '';
     private $search_filter_id = '';
     private $right_content = '';
+    private $bottom_content = '';
     private $include_messages = true;
     private $page = '';
     private $left_col = 7;
@@ -179,14 +180,27 @@ class TitleBuilder {
 
     /**
      * Add custom HTML content to the search/right area
-     * 
+     *
      * @param string $html Custom HTML content
      * @return self For method chaining
-     * 
+     *
      * @example ->addRightContent('<button class="btn btn-info">Custom Button</button>')
      */
     public function addRightContent(string $html): self {
         $this->right_content = $html;
+        return $this;
+    }
+
+    /**
+     * Add custom HTML content below the title section in a full-width row
+     *
+     * @param string $html Custom HTML content
+     * @return self For method chaining
+     *
+     * @example ->addBottomContent('<div class="alert alert-info">Information message</div>')
+     */
+    public function addBottomContent(string $html): self {
+        $this->bottom_content = $html;
         return $this;
     }
 
@@ -239,11 +253,21 @@ class TitleBuilder {
 
     /**
      * Remove right content
-     * 
+     *
      * @return self For method chaining
      */
     public function clearRight(): self {
         $this->right_content = '';
+        return $this;
+    }
+
+    /**
+     * Remove bottom content
+     *
+     * @return self For method chaining
+     */
+    public function clearBottom(): self {
+        $this->bottom_content = '';
         return $this;
     }
 
@@ -308,14 +332,23 @@ class TitleBuilder {
             <?php if (!empty($this->description)): ?>
             <div class="text-body-secondary mb-3"><?php _pt($this->description); ?></div>
             <?php endif; ?>
+
+            <?php if (!empty($this->bottom_content)): ?>
+            <!-- Bottom content row -->
+            <div class="row">
+                <div class="col-12">
+                    <?php _ph($this->bottom_content); ?>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
         <?php
-        
+
         // Include messages if enabled
         if ($this->include_messages) {
             MessagesHandler::displayMessages();
         }
-        
+
         return ob_get_clean();
     }
 

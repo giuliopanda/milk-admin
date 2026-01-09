@@ -184,13 +184,16 @@ trait FormContainerManagementTrait {
             $html_counter = $max_num + 1;
         }
 
-     
+        // Add mb-3 class if no other classes are specified
+        if (!isset($attributes['class']) || empty($attributes['class'])) {
+            $attributes['class'] = 'mb-3';
+        }
+
         $html_fields[$id] = [
             'type' => 'openTag',
             'tag' => 'div',
             'attributes' => $attributes,
             'id' => $id,
-            'name' => $id,
             'form-params' => ['in-container' => true]
         ];
 

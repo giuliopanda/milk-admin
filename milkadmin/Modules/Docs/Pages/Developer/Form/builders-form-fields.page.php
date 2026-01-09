@@ -71,6 +71,11 @@ namespace Modules\Docs\Pages;
                 <td><code>->default('IT')</code></td>
             </tr>
             <tr>
+                <td><code>checkboxValues($checked, $unchecked)</code></td>
+                <td>Sets custom values for checkbox (e.g., 'S'/'N', 'Y'/'N')</td>
+                <td><code>->checkboxValues('S', 'N')</code></td>
+            </tr>
+            <tr>
                 <td><code>disabled(bool $dis = true)</code></td>
                 <td>Disables the field</td>
                 <td><code>->disabled()</code></td>
@@ -173,6 +178,30 @@ namespace Modules\Docs\Pages;
     ->type('date')
     ->label('Publish Date')
     ->value(date('Y-m-d'))
+</code></pre>
+
+    <h3>Checkbox with Custom Values</h3>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->field('active')
+    ->formType('checkbox')
+    ->label('Active')
+    ->checkboxValues('S', 'N')  // 'S' when checked, 'N' when unchecked
+</code></pre>
+
+    <h3>Switch Field</h3>
+    <p>A switch is a checkbox with Bootstrap's <code>form-switch</code> class. Use <code>checkboxValues()</code> for custom values and <code>formParams(['form-check-class' => 'form-switch'])</code> to enable the switch style:</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// In your Model
+->string('active', 1)
+    ->label('Active')
+    ->formType('checkbox')
+    ->checkboxValues('S', 'N')  // 'S' = On, 'N' = Off
+    ->formParams(['form-check-class' => 'form-switch'])
+
+// Or with FormBuilder
+->field('notifications')
+    ->formType('checkbox')
+    ->label('Enable Notifications')
+    ->checkboxValues('Y', 'N')
+    ->formParams(['form-check-class' => 'form-switch'])
 </code></pre>
 
     <h3>Disabled Field</h3>

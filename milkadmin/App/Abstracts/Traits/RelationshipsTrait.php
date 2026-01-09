@@ -1,20 +1,18 @@
 <?php
 namespace App\Abstracts\Traits;
 
-!defined('MILK_DIR') && die();
-
 /**
  * RelationshipsTrait - Handles model relationships (hasOne, belongsTo, hasMany)
  *
  * REFACTORED VERSION:
- * - Relationship data is stored directly in records_array as arrays
+ * - Relationship data is stored directly in records_objects as arrays
  * - No separate cache (loaded_relationships removed)
- * - Lazy loading: data loaded on first access and stored in records_array[i][alias]
+ * - Lazy loading: data loaded on first access and stored in records_objects[i][alias]
  * - Batch queries: loads all missing relationships in one whereIn query
  *
- * Structure in records_array:
- * - belongsTo/hasOne: records_array[i]['doctor'] = ['id' => 5, 'name' => 'Dr. Smith', ...]
- * - hasMany: records_array[i]['appointments'] = [['id' => 1, ...], ['id' => 2, ...]]
+ * Structure in records_objects:
+ * - belongsTo/hasOne: records_objects[i]['doctor'] = ['id' => 5, 'name' => 'Dr. Smith', ...]
+ * - hasMany: records_objects[i]['appointments'] = [['id' => 1, ...], ['id' => 2, ...]]
  *
  * Usage:
  * - Define relationships in configure() method
@@ -47,25 +45,25 @@ trait RelationshipsTrait
             return null;
         }
 
-        if (!isset($this->records_array[$this->current_index])) {
+        if (!isset($this->records_objects[$this->current_index])) {
             return null;
         }
 
-        // Check if relationship is already loaded in records_array
-        if (isset($this->records_array[$this->current_index][$alias])) {
-            return $this->records_array[$this->current_index][$alias];
+        // Check if relationship is already loaded in records_objects
+        if (isset($this->records_objects[$this->current_index][$alias])) {
+            return $this->records_objects[$this->current_index][$alias];
         }
 
         // Not loaded yet - trigger lazy loading for all records that need this relationship
         $this->loadMissingRelationships($alias, $relationship);
 
-        // Return the loaded data from records_array
-        return $this->records_array[$this->current_index][$alias] ?? null;
+        // Return the loaded data from records_objects
+        return $this->records_objects[$this->current_index][$alias] ?? null;
     }
 
     /**
      * Load relationships for records that don't have them loaded yet
-     * Loads all missing records in a single whereIn query and stores as arrays in records_array
+     * Loads all missing records in a single whereIn query and stores as arrays in records_objects
      *
      * @param string $alias Relationship alias
      * @param array $relationship Relationship configuration
@@ -73,7 +71,7 @@ trait RelationshipsTrait
      */
     protected function loadMissingRelationships(string $alias, array $relationship): void
     {
-        if ($this->records_array === null || empty($this->records_array)) {
+        if ($this->records_objects === null || empty($this->records_objects)) {
             return;
         }
 
@@ -87,7 +85,7 @@ trait RelationshipsTrait
         $keys_to_load = [];
         $records_needing_load = []; // Track which record indices need this key
 
-        foreach ($this->records_array as $index => $record) {
+        foreach ($this->records_objects as $index => $record) {
             // Skip if relationship already loaded for this record
             if (isset($record[$alias])) {
                 continue;
@@ -119,47 +117,45 @@ trait RelationshipsTrait
         // Load related records with whereIn query
         $related_class = $relationship['related_model'];
         $related_model = new $related_class();
-        $results = $related_model->query()->whereIn($foreign_key, $unique_keys)->getResults();
 
-        // Organize results by foreign key value
-        $results_by_key = [];
-
-        if ($results && $results->count() > 0) {
-            foreach ($results as $related_record) {
-                $fk_value = $related_record->$foreign_key;
-
-                // Get array data from the related model
-                $data_array = [];
-                $rules = $related_model->getRules();
-                foreach ($rules as $field_name => $rule) {
-                    $data_array[$field_name] = $related_record->$field_name;
-                }
-
-                if ($relationship['type'] === 'hasMany') {
-                    // hasMany: collect multiple records per key
-                    if (!isset($results_by_key[$fk_value])) {
-                        $results_by_key[$fk_value] = [];
-                    }
-                    $results_by_key[$fk_value][] = $data_array;
-                } else {
-                    // hasOne/belongsTo: single record per key
-                    $results_by_key[$fk_value] = $data_array;
-                }
-            }
+        // Block relations on the related model to prevent circular loading
+        if (method_exists($related_model, 'setBlockRelations')) {
+            $related_model->setBlockRelations(true);
         }
 
-        // Store results in records_array for each record that needed this relationship
-        foreach ($keys_to_load as $key_value => $record_indices) {
-            $related_data = $results_by_key[$key_value] ?? null;
+        // Build query with whereIn for foreign keys
+        $query = $related_model->query()->whereIn($foreign_key, $unique_keys);
 
-            // For hasMany, ensure it's always an array (even if empty)
-            if ($relationship['type'] === 'hasMany' && $related_data === null) {
-                $related_data = [];
+        // Add custom where condition if defined in relationship
+        $where_config = $relationship['where'] ?? null;
+        if ($where_config !== null) {
+            $query->where($where_config['condition'], $where_config['params']);
+        }
+
+        $all_results_model  = $query->getResults();
+        // Now for each parent record that needs this relationship,
+        // filter the complete model to create a separate instance
+        foreach ($records_needing_load as $index) {
+            $key_value = $this->records_objects[$index][$local_key] ?? null;
+
+            if ($key_value === null) {
+                continue;
             }
 
-            // Store in all records with this key value
-            foreach ($record_indices as $index) {
-                $this->records_array[$index][$alias] = $related_data;
+            // Use filterByField to create a separate model with only data for this parent
+            $filtered_model = $all_results_model->filterByField($foreign_key, [$key_value]);
+
+            if ($relationship['type'] === 'hasMany') {
+                // hasMany: assign the filtered model (even if empty)
+                $this->records_objects[$index][$alias] = $filtered_model;
+            } else {
+                // hasOne/belongsTo: assign the first record or null
+                if ($filtered_model->count() > 0) {
+                    $filtered_model->first();
+                    $this->records_objects[$index][$alias] = $filtered_model;
+                } else {
+                    $this->records_objects[$index][$alias] = null;
+                }
             }
         }
     }
@@ -172,6 +168,7 @@ trait RelationshipsTrait
      */
     protected function getRelationship(string $alias): ?array
     {
+
         $rules = $this->rule_builder->getRules();
 
         foreach ($rules as $field_name => $rule) {
@@ -195,7 +192,7 @@ trait RelationshipsTrait
     }
 
     /**
-     * Clear loaded relationships from records_array
+     * Clear loaded relationships from records_objects
      * Useful when data is modified and relationships need to be reloaded
      *
      * @param string|null $alias Specific relationship to clear, or null for all
@@ -203,23 +200,23 @@ trait RelationshipsTrait
      */
     public function clearRelationshipCache(?string $alias = null): void
     {
-        if ($this->records_array === null) {
+        if ($this->records_objects === null) {
             return;
         }
 
-        foreach ($this->records_array as $index => $record) {
+        foreach ($this->records_objects as $index => $record) {
             if ($alias === null) {
                 // Clear all relationships
                 $rules = $this->rule_builder->getRules();
                 foreach ($rules as $field_name => $rule) {
                     if (isset($rule['relationship'])) {
                         $rel_alias = $rule['relationship']['alias'];
-                        unset($this->records_array[$index][$rel_alias]);
+                        unset($this->records_objects[$index][$rel_alias]);
                     }
                 }
             } else {
                 // Clear specific relationship
-                unset($this->records_array[$index][$alias]);
+                unset($this->records_objects[$index][$alias]);
             }
         }
     }
@@ -231,6 +228,7 @@ trait RelationshipsTrait
      */
     public function getIncludeRelationships(): array
     {
+
         return $this->include_relationships;
     }
 
@@ -307,19 +305,20 @@ trait RelationshipsTrait
      */
     protected function getIncludedRelationshipsData(string $output_mode = 'raw'): array
     {
+
         $result = [];
         if (empty($this->include_relationships)) {
             return $result;
         }
 
-        if (!isset($this->records_array[$this->current_index])) {
+        if (!isset($this->records_objects[$this->current_index])) {
             return $result;
         }
 
-        $current_record = $this->records_array[$this->current_index];
+        $current_record = $this->records_objects[$this->current_index];
 
         foreach ($this->include_relationships as $alias) {
-            // Check if relationship data exists in records_array
+            // Check if relationship data exists in records_objects
             if (!isset($current_record[$alias])) {
                 $result[$alias] = null;
                 continue;
@@ -372,6 +371,7 @@ trait RelationshipsTrait
      */
     protected function convertRelatedArrayData(?array $data_array, string $output_mode, string $alias): ?object
     {
+      
         if ($data_array === null) {
             return null;
         }
@@ -429,46 +429,146 @@ trait RelationshipsTrait
 
     /**
      * Apply custom formatters to related data when accessed directly via __get
-     * Creates a wrapper object that applies formatters
+     * Creates Model instances instead of stdClass objects
      *
      * @param mixed $related_data Related data (array or array of arrays)
      * @param string $alias Relationship alias
      * @param string $output_mode Output mode (raw, formatted, sql)
-     * @return mixed Related data with formatters applied
+     * @return mixed Related data as Model instances
      */
     protected function applyRelationshipFormattersToModel($related_data, string $alias, string $output_mode): mixed
     {
+     
         if ($related_data === null) {
             return null;
         }
 
-        // For raw mode, return as-is (arrays)
-        if ($output_mode === 'raw') {
-            // Check if it's hasMany (array of arrays) - convert to array of objects
-            if (is_array($related_data) && isset($related_data[0]) && is_array($related_data[0])) {
-                // hasMany: convert each array to object
-                return array_map(fn($item) => (object)$item, $related_data);
-            }
-            // belongsTo/hasOne: convert single array to object
-            return is_array($related_data) ? (object)$related_data : $related_data;
-        }
-
         $relationship = $this->getRelationship($alias);
 
+        if (!$relationship) {
+            return null;
+        }
+
         if ($relationship['type'] === 'hasMany') {
-            // hasMany: array of arrays
+            // hasMany: array of arrays -> array of Model instances
             $result = [];
             if (is_array($related_data)) {
                 foreach ($related_data as $item_array) {
-                    $formatted = $this->applyRelationshipFormatters($item_array, $alias, $output_mode);
-                    $result[] = (object)$formatted;
+                    $model = $this->arrayToModelInstance($item_array, $relationship, $alias, $output_mode);
+                    if ($model !== null) {
+                        $result[] = $model;
+                    }
                 }
             }
             return $result;
         } else {
-            // belongsTo/hasOne: single array
-            $formatted = $this->applyRelationshipFormatters($related_data, $alias, $output_mode);
-            return (object)$formatted;
+            // belongsTo/hasOne: single array -> single Model instance
+            return $this->arrayToModelInstance($related_data, $relationship, $alias, $output_mode);
         }
+    }
+
+    /**
+     * Convert array data to Model instance
+     *
+     * @param array|null $data_array Related data as array
+     * @param array $relationship Relationship configuration
+     * @param string $alias Relationship alias
+     * @param string $output_mode Output mode (raw, formatted, sql)
+     * @return mixed Model instance or null
+     */
+    protected function arrayToModelInstance(?array $data_array, array $relationship, string $alias, string $output_mode): mixed
+    {
+        if ($data_array === null) {
+            return null;
+        }
+
+        // Apply formatters if needed (for formatted/sql modes)
+        if ($output_mode !== 'raw') {
+            $data_array = $this->applyRelationshipFormatters($data_array, $alias, $output_mode);
+        }
+
+        // Create Model instance
+        $related_class = $relationship['related_model'];
+        $model = new $related_class();
+
+        // Separate regular fields from relationship data
+        $relationship_data = [];
+        $field_data = [];
+
+        // Get all relationship aliases for this model
+        $model_relationships = [];
+        if (method_exists($model, 'getRules')) {
+            $rules = $model->getRules();
+            foreach ($rules as $field_name => $rule) {
+                if (isset($rule['relationship'])) {
+                    $model_relationships[] = $rule['relationship']['alias'];
+                }
+            }
+        }
+
+        foreach ($data_array as $field => $value) {
+            if (in_array($field, $model_relationships)) {
+                $relationship_data[$field] = $value;
+            } else {
+                $field_data[$field] = $value;
+            }
+        }
+
+        // Populate the model with regular field data
+        foreach ($field_data as $field => $value) {
+            try {
+                $model->$field = $value;
+            } catch (\Exception $e) {
+                // Skip fields that can't be set
+                continue;
+            }
+        }
+
+        // Manually populate relationship data into records_objects
+        // This allows lazy loading to work properly via __get
+        if (!empty($relationship_data)) {
+            $reflection = new \ReflectionClass($model);
+
+            if (property_exists($model, 'records_objects')) {
+                $records_objects_prop = $reflection->getProperty('records_objects');
+                $records_objects_prop->setAccessible(true);
+
+                // Get current records_objects (should have been populated by field setters above)
+                $current_records = $records_objects_prop->getValue($model);
+
+                // If records_objects wasn't initialized, create it
+                if ($current_records === null || !isset($current_records[0])) {
+                    $current_records = [0 => []];
+                }
+
+                // Add relationship data to the existing records_objects[0]
+                foreach ($relationship_data as $rel_alias => $rel_data) {
+                    $current_records[0][$rel_alias] = $rel_data;
+                }
+
+                $records_objects_prop->setValue($model, $current_records);
+            }
+
+            // Ensure current_index is set to 0
+            if (property_exists($model, 'current_index')) {
+                $current_index_prop = $reflection->getProperty('current_index');
+                $current_index_prop->setAccessible(true);
+                $current_index_prop->setValue($model, 0);
+            }
+        }
+
+        // Mark as original (not modified)
+        if (method_exists($model, 'markAsOriginal')) {
+            $model->markAsOriginal();
+        }
+
+        // Explicitly enable relations - this instance should support lazy loading
+        // The blocking is only needed during batch loading to prevent infinite loops
+        // Once the instance is created, it should behave like a normal model
+        if (method_exists($model, 'setBlockRelations')) {
+            $model->setBlockRelations(false);
+        }
+
+        return $model;
     }
 }

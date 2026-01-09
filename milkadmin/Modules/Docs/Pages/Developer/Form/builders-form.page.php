@@ -24,6 +24,150 @@ namespace Modules\Docs\Pages;
     </ul>
     <p>It provides a single, chainable API for building forms with less code and better readability.</p>
 
+    <h2>Method Reference Summary</h2>
+
+    <table class="table table-bordered table-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>Category</th>
+                <th>Method</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td rowspan="8">Form Setup</td>
+                <td><code>create($model, $page = '', $url_success = null, $url_error = null)</code></td>
+                <td>Factory method to create FormBuilder instance (static)</td>
+            </tr>
+            <tr>
+                <td><code>page(string $page)</code></td>
+                <td>Set the page identifier</td>
+            </tr>
+            <tr>
+                <td><code>currentAction(string $action)</code></td>
+                <td>Set form context (edit/create)</td>
+            </tr>
+            <tr>
+                <td><code>formAttributes(array $attributes)</code></td>
+                <td>Set form HTML attributes</td>
+            </tr>
+            <tr>
+                <td><code>setId(string $formId)</code></td>
+                <td>Set form ID attribute</td>
+            </tr>
+            <tr>
+                <td><code>urlSuccess(string $url)</code></td>
+                <td>Set success redirect URL</td>
+            </tr>
+            <tr>
+                <td><code>urlError(string $url)</code></td>
+                <td>Set error redirect URL</td>
+            </tr>
+            <tr>
+                <td><code>customData(string $key, $value)</code></td>
+                <td>Add custom hidden field data to the form</td>
+            </tr>
+            <tr>
+                <td rowspan="6">Field Management</td>
+                <td><code>addFieldsFromObject(object $obj, string $action)</code></td>
+                <td>Add fields from data object</td>
+            </tr>
+            <tr>
+                <td><code>addField(string $name, array $config)</code></td>
+                <td>Add individual field</td>
+            </tr>
+            <tr>
+                <td><code>addRelatedField(string $field)</code></td>
+                <td>Add field from hasOne related table (e.g., <code>'badge.badge_number'</code>)</td>
+            </tr>
+            <tr>
+                <td><code>removeField(string $name)</code></td>
+                <td>Remove field</td>
+            </tr>
+            <tr>
+                <td><code>fieldOrder(array $order)</code></td>
+                <td>Set field display order</td>
+            </tr>
+            <tr>
+                <td><code>addHtml(string $key, string $html)</code></td>
+                <td>Add custom HTML content</td>
+            </tr>
+            <tr>
+                <td rowspan="6">Actions</td>
+                <td><code>setActions(array $actions)</code></td>
+                <td>Replace all existing actions</td>
+            </tr>
+            <tr>
+                <td><code>addActions(array $actions)</code></td>
+                <td>Add actions without replacing existing ones</td>
+            </tr>
+            <tr>
+                <td><code>addStandardActions(bool $include_delete = false, ?string $cancel_link = null)</code></td>
+                <td>Add pre-configured save/delete/cancel actions</td>
+            </tr>
+            <tr>
+                <td><code>setMessageSuccess(string $message)</code></td>
+                <td>Customize success message (default: "Save successful")</td>
+            </tr>
+            <tr>
+                <td><code>setMessageError(string $message)</code></td>
+                <td>Customize error message (default: "Save failed")</td>
+            </tr>
+            <tr>
+                <td><code>saveAction() / deleteAction()</code></td>
+                <td>Static helper methods for standard actions</td>
+            </tr>
+            <tr>
+                <td rowspan="5">Response Types</td>
+                <td><code>asOffcanvas()</code></td>
+                <td>Set response type to offcanvas</td>
+            </tr>
+            <tr>
+                <td><code>asModal()</code></td>
+                <td>Set response type to modal</td>
+            </tr>
+            <tr>
+                <td><code>asDom(string $id)</code></td>
+                <td>Set response type to DOM element</td>
+            </tr>
+            <tr>
+                <td><code>setTitle(string $new, ?string $edit = null)</code></td>
+                <td>Set titles for new and edit modes</td>
+            </tr>
+            <tr>
+                <td><code>size(string $size)</code></td>
+                <td>Set size for modal/offcanvas ('sm', 'lg', 'xl', 'fullscreen')</td>
+            </tr>
+            <tr>
+                <td rowspan="3">Operations</td>
+                <td><code>save(array $request)</code></td>
+                <td>Save form data with validation</td>
+            </tr>
+            <tr>
+                <td><code>delete(array $request, ?string $url_success, ?string $url_error)</code></td>
+                <td>Delete record</td>
+            </tr>
+            <tr>
+                <td><code>getModel()</code></td>
+                <td>Get model instance</td>
+            </tr>
+            <tr>
+                <td rowspan="3">Output</td>
+                <td><code>getForm()</code></td>
+                <td>Get form HTML</td>
+            </tr>
+            <tr>
+                <td><code>getResponse()</code></td>
+                <td>Get response array for offcanvas/modal/dom</td>
+            </tr>
+            <tr>
+                <td><code>render()</code></td>
+                <td>Render form HTML (alias for getForm)</td>
+            </tr>
+        </tbody>
+    </table>
+
     <h2>Basic Usage</h2>
 
     <h3>Constructor and Factory Method</h3>
@@ -275,109 +419,6 @@ public function actionEdit() {
         <h5 class="alert-heading">📘 Complete Examples</h5>
         <p class="mb-0">For real-world examples including blog post forms, user registration, and multi-step forms, see the dedicated examples page (coming soon).</p>
     </div>
-
-    <h2>Method Reference Summary</h2>
-
-    <table class="table table-bordered table-sm">
-        <thead class="table-dark">
-            <tr>
-                <th>Category</th>
-                <th>Method</th>
-                <th>Description</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td rowspan="6">Form Setup</td>
-                <td><code>fill()</code></td>
-                <td>Factory method to create FormBuilder instance</td>
-            </tr>
-            <tr>
-                <td><code>currentAction()</code></td>
-                <td>Set form context (edit/create)</td>
-            </tr>
-            <tr>
-                <td><code>setModel()</code></td>
-                <td>Set model for validation and operations</td>
-            </tr>
-            <tr>
-                <td><code>formAttributes()</code></td>
-                <td>Set form attributes</td>
-            </tr>
-            <tr>
-                <td><code>urlSuccess()</code></td>
-                <td>Set success redirect URL</td>
-            </tr>
-            <tr>
-                <td><code>urlError()</code></td>
-                <td>Set error redirect URL</td>
-            </tr>
-            <tr>
-                <td rowspan="6">Field Management</td>
-                <td><code>addFieldsFromObject()</code></td>
-                <td>Add fields from data object</td>
-            </tr>
-            <tr>
-                <td><code>addField()</code></td>
-                <td>Add individual field</td>
-            </tr>
-            <tr>
-                <td><code>addRelatedField()</code></td>
-                <td>Add field from hasOne related table (e.g., <code>'badge.badge_number'</code>)</td>
-            </tr>
-            <tr>
-                <td><code>removeField()</code></td>
-                <td>Remove field</td>
-            </tr>
-            <tr>
-                <td><code>fieldOrder()</code></td>
-                <td>Set field display order</td>
-            </tr>
-            <tr>
-                <td><code>addHtml()</code></td>
-                <td>Add custom HTML content</td>
-            </tr>
-            <tr>
-                <td rowspan="4">Actions</td>
-                <td><code>setActions()</code></td>
-                <td>Configure form actions</td>
-            </tr>
-            <tr>
-                <td><code>addActions()</code></td>
-                <td>Add actions</td>
-            </tr>
-            <tr>
-                <td><code>addStandardActions()</code></td>
-                <td>Use default save/cancel actions</td>
-            </tr>
-            <tr>
-                <td><code>saveAction() / deleteAction()</code></td>
-                <td>Static helper methods</td>
-            </tr>
-            <tr>
-                <td rowspan="3">Operations</td>
-                <td><code>save()</code></td>
-                <td>Save form data with validation</td>
-            </tr>
-            <tr>
-                <td><code>delete()</code></td>
-                <td>Delete record</td>
-            </tr>
-            <tr>
-                <td><code>getModel()</code></td>
-                <td>Get model instance</td>
-            </tr>
-            <tr>
-                <td rowspan="2">Output</td>
-                <td><code>getForm()</code></td>
-                <td>Get form HTML</td>
-            </tr>
-            <tr>
-                <td><code>getFunctionResults()</code></td>
-                <td>Get action callback results</td>
-            </tr>
-        </tbody>
-    </table>
 
     <h2>Next Steps</h2>
     <p>Now that you understand FormBuilder basics, explore these related topics:</p>

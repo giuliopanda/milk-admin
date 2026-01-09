@@ -30,12 +30,17 @@ $page_info['ajax'] = $page_info['ajax'] ?? true;
 $row_conditions = $page_info['row_conditions'] ?? [];
 $column_conditions = $page_info['column_conditions'] ?? [];
 
-$primary = '';
-$info = $info ?? [];
+// Get primary key from page_info if available, otherwise search in info
+$primary = $page_info['primary_key'] ?? '';
 
-foreach ($info as $key => $i) {
-    if (isset($i['primary']) && $i['primary'] == true) {
-        $primary = $key;
+// Fallback: search in info structure if not found in page_info
+if ($primary === '') {
+    $info = $info ?? [];
+    foreach ($info as $key => $i) {
+        if (isset($i['primary']) && $i['primary'] == true) {
+            $primary = $key;
+            break;
+        }
     }
 }
 
@@ -159,7 +164,7 @@ if (($info instanceof App\Modellist\ListStructure || is_array($info))  && ($page
         <div class="my-1 js-row-bulk-actions invisible">
             <span class="me-2"><span class="js-count-selected"></span> <?php  _pt('rows selected'); ?> </span> 
             <?php foreach ($page_info['bulk_actions'] as $key => $val) { ?>
-                <span class="link-action js-table-bulk-action" data-table-action="<?php _p($key); ?>"><?php _p($val); ?></span>
+                <span class="link-action js-table-bulk-action" data-table-action="<?php _p($key); ?>"><?php _ph($val); ?></span>
             <?php } ?>
         </div>
     <?php } ?>
@@ -211,9 +216,14 @@ if (($info instanceof App\Modellist\ListStructure || is_array($info))  && ($page
                         $existing_class = $row_attrs['class'] ?? '';
                         $row_attrs['class'] = trim($existing_class . ' ' . $dynamic_row_classes);
                     }
+                    if (!isset($row->$primary)) {
+                        $add_data_attr = ' data-primary-key-missing="1"';
+                    } else {
+                        $add_data_attr = ' data-primary-key="'._r($row->$primary).'"';
+                    }
                     ?>
-                    <tr <?php Theme\Template::addAttrs(['tr' => $row_attrs], 'tr'); ?>><?php 
-                        foreach ($info as $col_name => $header) { 
+                    <tr <?php Theme\Template::addAttrs(['tr' => $row_attrs], 'tr'); ?> <?php _ph($add_data_attr); ?>><?php 
+                        foreach ($info as $col_name => $header) {
                             if ($header['type'] == 'hidden') continue;
                             if ($header['type'] == 'action' && $primary === '') {
                                 ?><td><span class="text-danger"><?php _p('Primary key missing'); ?></span></td><?php
@@ -244,29 +254,62 @@ if (($info instanceof App\Modellist\ListStructure || is_array($info))  && ($page
                             <?php 
                            
                             if ($header['type'] == 'checkbox' ) { ?>
+                                <?php if (!isset($row->$primary)) : ?>
+                                    <span class="text-danger"><?php _p('Primary key missing'); ?></span>
+                                <?php else : ?>
                                 <input type="checkbox" class="form-check-input js-col-checkbox" value="<?php _p($row->$primary); ?>">
-                                <?php
+                                <?php endif;
                             } elseif ($header['type'] == 'action') {
                                 $options = App\Hooks::run('table_actions_row', $header['options'], $row, $table_id);
+
+                                // Filter actions based on condition
+                                if (is_array($options)) {
+                                  
+                                    foreach ($options as $key => $opt) {
+                                        if (is_array($opt) && isset($opt['condition']) && is_callable($opt['condition'])) {
+                                           
+                                            // Evaluate condition - remove action if it returns false
+                                            if (!call_user_func($opt['condition'], $row)) {
+                                                unset($options[$key]);
+                                            }
+                                        }
+                                    }
+                                }
+
                                 if (is_array($options)) {
                                     foreach ($options as $key_opt => $val_opt) {
                                         // Verifica se $val_opt è un array con configurazione (per supportare i link)
                                         if (is_array($val_opt)) {
                                             $label = $val_opt['label'] ?? $key_opt;
+
+                                            // Build icon and label HTML with responsive classes
+                                            $has_icon = isset($val_opt['icon']);
+                                            if ($has_icon) {
+                                                // Icon + label with responsive hide on small screens
+                                                $icon_html = '<i class="bi ' . _r($val_opt['icon']) . '"></i>';
+                                                $label_html = '<span class="d-none d-lg-inline ms-1">' . _r($label) . '</span>';
+                                                $content = $icon_html . ' ' . $label_html;
+                                            } else {
+                                                // No icon, just label
+                                                $content = _r($label);
+                                            }
+
                                             if (isset($val_opt['link'])) {
                                                 // È un link - sostituisce i placeholder %campo% con i valori della riga
                                                 $link_url = TableService::replaceRowPlaceholders($val_opt['link'], $row, $primary);
-                                                $class = $val_opt['class'] ?? 'link-action';
+                                                $class = $val_opt['class'] ?? '';
                                                 $fetch = isset($val_opt['fetch']) ? ' data-fetch="'._r($val_opt['fetch']).'"' : '';
                                                 $target = isset($val_opt['target']) ? ' target="' . _r($val_opt['target']) . '"' : '';
                                                 $confirm_attr = isset($val_opt['confirm']) ? ' data-confirm="' . _r($val_opt['confirm']) . '"' : '';
                                                 $additional_class = isset($val_opt['confirm']) ? ' js-link-confirm' : '';
-                                                echo '<a href="' . _r($link_url) . '" class="' . _r($class) . $additional_class . '"' . $fetch . $target . $confirm_attr . '>' . _r($label) . '</a> ';
+                                                $link_action_class = (strpos($class, 'link-action-') === false) ? 'link-action ' : '';
+                                                echo '<a href="' . _r($link_url) . '" class="' . $link_action_class . _r($class) . ' ' . $additional_class . '"' . $fetch . $target . $confirm_attr . '>' . $content . '</a> ';
                                             } else {
                                                 // È un'action normale
-                                                $class = $val_opt['class'] ?? 'link-action js-single-action';
+                                                $class = $val_opt['class'] ?? '';
                                                 $confirm_attr = isset($val_opt['confirm']) ? ' data-confirm="' . _r($val_opt['confirm']) . '"' : '';
-                                                echo '<span class="' . _r($class) . '" data-table-action="' . _r($key_opt) . '" data-table-id="' . _r($row->$primary) . '"' . $confirm_attr . '>' . _r($label) . '</span> ';
+                                                $link_action_class = (strpos($class, 'link-action-') === false) ? 'link-action ' : '';
+                                                echo '<span class="' . $link_action_class . 'js-single-action ' . _r($class) . '" data-table-action="' . _r($key_opt) . '" data-table-id="' . _r($row->$primary) . '"' . $confirm_attr . '>' . $content . '</span> ';
                                             }
                                         } else {
                                             // Formato legacy - solo label
@@ -276,7 +319,11 @@ if (($info instanceof App\Modellist\ListStructure || is_array($info))  && ($page
                                 }
                                  
                             } elseif ($header['type'] == 'select') {
-                               _p(array_key_exists($value, $header['options']) ? $header['options'][$value] : $value); 
+                                if (is_null($value) || !is_array($header['options'])) {
+                                    _ph($value);
+                                } else {
+                                    _ph(array_key_exists($value, $header['options']) ? $header['options'][$value] : $value); 
+                                }
                             } else {
                                 if (is_a($value, \DateTime::class)) {
                                     if (in_array($header['type'], ['date', 'datetime', 'time'])) { 

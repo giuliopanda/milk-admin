@@ -22,6 +22,185 @@ namespace Modules\Docs\Pages;
     </ul>
     <p>It provides a single, chainable API for building tables with less code and better readability.</p>
 
+    <h2>Method Reference Summary</h2>
+
+    <table class="table table-bordered table-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>Category</th>
+                <th>Method</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td rowspan="12">Query Building</td>
+                <td><code>select(array|string $columns)</code></td>
+                <td>Select specific columns</td>
+            </tr>
+            <tr>
+                <td><code>where(string $condition, array $params = [], string $operator = 'AND')</code></td>
+                <td>Add WHERE condition</td>
+            </tr>
+            <tr>
+                <td><code>whereIn(string $field, array $values)</code></td>
+                <td>WHERE IN clause</td>
+            </tr>
+            <tr>
+                <td><code>whereLike(string $field, string $value, string $position = 'both')</code></td>
+                <td>LIKE search condition</td>
+            </tr>
+            <tr>
+                <td><code>whereBetween(string $field, $min, $max)</code></td>
+                <td>BETWEEN condition</td>
+            </tr>
+            <tr>
+                <td><code>join(string $table, string $condition, string $type = 'INNER')</code></td>
+                <td>JOIN tables</td>
+            </tr>
+            <tr>
+                <td><code>leftJoin(string $table, string $condition)</code></td>
+                <td>LEFT JOIN tables</td>
+            </tr>
+            <tr>
+                <td><code>rightJoin(string $table, string $condition)</code></td>
+                <td>RIGHT JOIN tables</td>
+            </tr>
+            <tr>
+                <td><code>groupBy(string $field)</code></td>
+                <td>GROUP BY clause</td>
+            </tr>
+            <tr>
+                <td><code>having(string $condition, array $params = [])</code></td>
+                <td>HAVING clause</td>
+            </tr>
+            <tr>
+                <td><code>orderBy(string $field, string $direction = 'ASC')</code></td>
+                <td>Set ordering</td>
+            </tr>
+            <tr>
+                <td><code>limit(int $limit)</code></td>
+                <td>Set row limit</td>
+            </tr>
+            <tr>
+                <td><code>queryCustomCallback(callable $callback)</code></td>
+                <td>Custom query logic</td>
+            </tr>
+            <tr>
+                <td rowspan="14">Field Configuration<br>(Field-First)</td>
+                <td><code>field(string $key)</code></td>
+                <td>Start configuring a field</td>
+            </tr>
+            <tr>
+                <td><code>label(string $label)</code></td>
+                <td>Set field label</td>
+            </tr>
+            <tr>
+                <td><code>type(string $type)</code></td>
+                <td>Set field type</td>
+            </tr>
+            <tr>
+                <td><code>options(array $options)</code></td>
+                <td>Set select options</td>
+            </tr>
+            <tr>
+                <td><code>fn(callable $fn)</code></td>
+                <td>Custom formatter function</td>
+            </tr>
+            <tr>
+                <td><code>link(string $link, array $options = [])</code></td>
+                <td>Convert to clickable link</td>
+            </tr>
+            <tr>
+                <td><code>file(array $options = [])</code></td>
+                <td>Display as file download links</td>
+            </tr>
+            <tr>
+                <td><code>image(array $options = [])</code></td>
+                <td>Display as image thumbnails</td>
+            </tr>
+            <tr>
+                <td><code>truncate(int $length, string $suffix = '...')</code></td>
+                <td>Truncate text with suffix</td>
+            </tr>
+            <tr>
+                <td><code>hide()</code></td>
+                <td>Hide field</td>
+            </tr>
+            <tr>
+                <td><code>noSort()</code></td>
+                <td>Disable sorting</td>
+            </tr>
+            <tr>
+                <td><code>sortBy(string $realField)</code></td>
+                <td>Map to real database field</td>
+            </tr>
+            <tr>
+                <td><code>class(string $classes)</code></td>
+                <td>Set CSS classes (see Styling docs)</td>
+            </tr>
+            <tr>
+                <td><code>moveBefore(string $fieldName)</code></td>
+                <td>Move current field before another field</td>
+            </tr>
+            <tr>
+                <td rowspan="3">Column Management</td>
+                <td><code>reorderColumns(array $order)</code></td>
+                <td>Reorder all columns by array of column names</td>
+            </tr>
+            <tr>
+                <td><code>hideColumns(array $keys)</code></td>
+                <td>Hide multiple columns at once</td>
+            </tr>
+            <tr>
+                <td><code>resetFields()</code></td>
+                <td>Hide all existing columns from the model</td>
+            </tr>
+            <tr>
+                <td rowspan="5">Actions</td>
+                <td><code>setPage(string $page)</code></td>
+                <td>Set page name for action links</td>
+            </tr>
+            <tr>
+                <td><code>setDefaultActions(array $customActions = [])</code></td>
+                <td>Auto-create Edit/Delete actions</td>
+            </tr>
+            <tr>
+                <td><code>addAction(string $key, array $config)</code></td>
+                <td>Add a single row action</td>
+            </tr>
+            <tr>
+                <td><code>setActions(array $actions)</code></td>
+                <td>Configure custom row actions</td>
+            </tr>
+            <tr>
+                <td><code>setBulkActions(array $actions)</code></td>
+                <td>Configure bulk actions</td>
+            </tr>
+            <tr>
+                <td rowspan="5">Output</td>
+                <td><code>getData()</code></td>
+                <td>Get complete data array</td>
+            </tr>
+            <tr>
+                <td><code>getTable()</code></td>
+                <td>Get HTML table</td>
+            </tr>
+            <tr>
+                <td><code>getResponse()</code></td>
+                <td>Get HTML + additional data (handles JSON automatically)</td>
+            </tr>
+            <tr>
+                <td><code>render()</code></td>
+                <td>Get HTML table directly</td>
+            </tr>
+            <tr>
+                <td><code>getFunctionsResults()</code></td>
+                <td>Get action callback results</td>
+            </tr>
+        </tbody>
+    </table>
+
     <h2>Basic Usage</h2>
 
     <div class="alert alert-warning mb-4">
@@ -66,6 +245,13 @@ Response::render('view.php', $response);
     <h2>Query Building Methods</h2>
 
     <p>TableBuilder supports all standard query operations. Here are the most common:</p>
+
+    <div class="alert alert-info">
+        <h5><i class="bi bi-gear"></i> Default Pagination Limit</h5>
+        <p>You can set a global default for the number of rows per page by defining <code>$conf['page_info_limit']</code> in your <code>milkadmin_local/config.php</code> file:</p>
+        <pre class="mb-2"><code class="language-php">$conf['page_info_limit'] = 50;  // Default rows per page</code></pre>
+        <p class="mb-0">This will apply to all tables unless overridden with the <code>limit()</code> method. See <a href="?page=docs&action=Developer/Advanced/milkadmin-local" class="alert-link">Milkadmin Local Configuration</a> for more details.</p>
+    </div>
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$table = \Builders\TableBuilder::create($model, 'posts_table')
     // Basic operations
@@ -195,6 +381,12 @@ Response::render('view.php', $response);
     ->field('full_name')
         ->link('/user/%id%?tab=profile&ref=%category%')
 
+    // Link with fetch (AJAX loading)
+    ->field('lessons')
+        ->link('?page=courses&action=lessons&entity_id=%id%', [
+            'data-fetch' => 'post'
+        ])
+
     ->getTable();
 
 // Supported placeholders:
@@ -204,6 +396,7 @@ Response::render('view.php', $response);
 // Available options:
 // 'target' => '_blank' | '_self' | '_parent' | '_top'
 // 'class' => 'css-classes-here'
+// 'data-fetch' => 'post' | 'get' - Enable AJAX loading
     </code></pre>
 
     <h3>Files - file() method</h3>
@@ -360,15 +553,6 @@ Response::render('view.php', $response);
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$table = \Builders\TableBuilder::create($model, 'posts_table')
     ->setDefaultActions();  // Auto-generates Edit and Delete actions</code></pre>
 
-    <h3>Comprehensive Documentation</h3>
-    <p>For detailed information about row actions including:</p>
-    <ul>
-        <li>Link actions vs callback actions</li>
-        <li>URL placeholders and dynamic parameters</li>
-        <li>Action callbacks and return values</li>
-        <li>Conditional visibility with <code>showIfFilter</code></li>
-        <li>Best practices and complete examples</li>
-    </ul>
     <p><strong>See: <a href="?page=docs&action=row-actions">Row Actions Documentation</a></strong></p>
 
     <h3>Bulk Actions</h3>
@@ -452,160 +636,6 @@ $response = $table->getResponse();
 // 5. Get only function results from actions
 $results = $table->getFunctionsResults();
     </code></pre>
-
-    <h2>Method Reference Summary</h2>
-
-    <table class="table table-bordered table-sm">
-        <thead class="table-dark">
-            <tr>
-                <th>Category</th>
-                <th>Method</th>
-                <th>Description</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td rowspan="12">Query Building</td>
-                <td><code>select()</code></td>
-                <td>Select specific columns</td>
-            </tr>
-            <tr>
-                <td><code>where()</code></td>
-                <td>Add WHERE condition</td>
-            </tr>
-            <tr>
-                <td><code>whereIn()</code></td>
-                <td>WHERE IN clause</td>
-            </tr>
-            <tr>
-                <td><code>whereLike()</code></td>
-                <td>LIKE search condition</td>
-            </tr>
-            <tr>
-                <td><code>whereBetween()</code></td>
-                <td>BETWEEN condition</td>
-            </tr>
-            <tr>
-                <td><code>join()</code></td>
-                <td>JOIN tables</td>
-            </tr>
-            <tr>
-                <td><code>leftJoin()</code></td>
-                <td>LEFT JOIN tables</td>
-            </tr>
-            <tr>
-                <td><code>groupBy()</code></td>
-                <td>GROUP BY clause</td>
-            </tr>
-            <tr>
-                <td><code>having()</code></td>
-                <td>HAVING clause</td>
-            </tr>
-            <tr>
-                <td><code>orderBy()</code></td>
-                <td>Set ordering</td>
-            </tr>
-            <tr>
-                <td><code>limit()</code></td>
-                <td>Set row limit</td>
-            </tr>
-            <tr>
-                <td><code>queryCustomCallback()</code></td>
-                <td>Custom query logic</td>
-            </tr>
-            <tr>
-                <td rowspan="13">Field Configuration<br>(Field-First)</td>
-                <td><code>field()</code></td>
-                <td>Start configuring a field</td>
-            </tr>
-            <tr>
-                <td><code>label()</code></td>
-                <td>Set field label</td>
-            </tr>
-            <tr>
-                <td><code>type()</code></td>
-                <td>Set field type</td>
-            </tr>
-            <tr>
-                <td><code>options()</code></td>
-                <td>Set select options</td>
-            </tr>
-            <tr>
-                <td><code>fn()</code></td>
-                <td>Custom formatter function</td>
-            </tr>
-            <tr>
-                <td><code>link()</code></td>
-                <td>Convert to clickable link</td>
-            </tr>
-            <tr>
-                <td><code>file()</code></td>
-                <td>Display as file download links</td>
-            </tr>
-            <tr>
-                <td><code>image()</code></td>
-                <td>Display as image thumbnails</td>
-            </tr>
-            <tr>
-                <td><code>truncate()</code></td>
-                <td>Truncate text with suffix</td>
-            </tr>
-            <tr>
-                <td><code>hide()</code></td>
-                <td>Hide field</td>
-            </tr>
-            <tr>
-                <td><code>noSort()</code></td>
-                <td>Disable sorting</td>
-            </tr>
-            <tr>
-                <td><code>sortBy()</code></td>
-                <td>Map to real database field</td>
-            </tr>
-            <tr>
-                <td><code>class()</code></td>
-                <td>Set CSS classes (see Styling docs)</td>
-            </tr>
-            <tr>
-                <td rowspan="4">Actions</td>
-                <td><code>setPage()</code></td>
-                <td>Set page name for action links</td>
-            </tr>
-            <tr>
-                <td><code>setDefaultActions()</code></td>
-                <td>Auto-create Edit/Delete actions</td>
-            </tr>
-            <tr>
-                <td><code>setActions()</code></td>
-                <td>Configure custom row actions</td>
-            </tr>
-            <tr>
-                <td><code>setBulkActions()</code></td>
-                <td>Configure bulk actions</td>
-            </tr>
-            <tr>
-                <td rowspan="5">Output</td>
-                <td><code>getData()</code></td>
-                <td>Get complete data array</td>
-            </tr>
-            <tr>
-                <td><code>getTable()</code></td>
-                <td>Get HTML table</td>
-            </tr>
-            <tr>
-                <td><code>getResponse()</code></td>
-                <td>Get HTML + additional data (handles JSON automatically)</td>
-            </tr>
-            <tr>
-                <td><code>render()</code></td>
-                <td>Get HTML table directly</td>
-            </tr>
-            <tr>
-                <td><code>getFunctionsResults()</code></td>
-                <td>Get action callback results</td>
-            </tr>
-        </tbody>
-    </table>
 
     <h2>Key Features Summary</h2>
     <ul>

@@ -117,6 +117,7 @@ $query = new Query('#__products', Get::db());</code></pre>
 $total = $model->query()
     ->select('COUNT(*) as total')
     ->getVar();</code></pre>
+    <p class="text-muted">Use <code>clean('select')</code> to reset the SELECT clause on a Query instance.</p>
 
     <h4 class="text-primary mt-4">from(string $from) : Query</h4>
     <p>Adds FROM or JOIN clauses.</p>
@@ -312,10 +313,16 @@ $products = $model
     ->order('created_at', 'desc')
     ->getResults();
 
-// Example: Multiple fields
-$products = $model
-    ->order(['category_id', 'price'], ['asc', 'desc'])
+// Example: Multiple calls (accumulates order on the same Query)
+$products = $model->query()
+    ->order('category_id', 'asc')
+    ->order('price', 'desc')
     ->getResults();</code></pre>
+
+    <div class="alert alert-info mt-3">
+        <strong>Note:</strong> On a <code>Query</code> instance, each <code>order()</code> call appends a new ORDER BY.
+        Use <code>clean('order')</code> to reset ordering.
+    </div>
 
     <h3 class="mt-3"><code>limit($start, $limit): Query</code></h3>
     <p>Limits the number of results (pagination).</p>
@@ -408,7 +415,7 @@ $count = $model->query()
     <h3 class="mt-3">Standalone</h3>
     <p>When using Query standalone, you manually execute with the database:</p>
 
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$query = new Query('#__products', Get::db());
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$query = new Query('#__products', $db);
 $query->where('in_stock = ?', [true]);
 
 // Get SQL and params
@@ -432,6 +439,7 @@ $value = $db->getVar($sql, $params);  // Returns mixed</code></pre>
 $query->clean('limit');   // Remove LIMIT
 $query->clean('where');   // Remove WHERE conditions
 $query->clean('order');   // Remove ORDER BY
+$query->clean('select');  // Remove SELECT clause
 
 // Clean everything
 $query->clean();

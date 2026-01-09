@@ -10,6 +10,31 @@ namespace App;
  */
 
 class Response {
+    private static bool $capture_enabled = false;
+    private static string $captured_output = '';
+    private static string $captured_type = 'html';
+
+    public static function beginCapture(): void {
+        self::$capture_enabled = true;
+        self::$captured_output = '';
+        self::$captured_type = 'html';
+    }
+
+    public static function endCapture(): void {
+        self::$capture_enabled = false;
+    }
+
+    public static function getCapturedOutput(): string {
+        return self::$captured_output;
+    }
+
+    public static function getCapturedType(): string {
+        return self::$captured_type;
+    }
+
+    private static function isCaptureEnabled(): bool {
+        return self::$capture_enabled;
+    }
 
     /**
      * Renders the specified HTML content with the specified theme and view
@@ -78,13 +103,17 @@ class Response {
         }
         $theme = ob_get_clean();
         $theme = Hooks::run('render-theme', $theme, $page);
+        if (self::isCaptureEnabled()) {
+            self::$captured_output = $theme;
+            self::$captured_type = 'html';
+            return;
+        }
         if ($theme != '') {
             echo $theme;
         }
         Hooks::run('end-page'); 
         Settings::save();
-        Get::db()->close();
-        Get::db2()->close();
+        Get::closeConnections();
         exit;
     }
 
@@ -102,11 +131,15 @@ class Response {
      * @return void This function terminates execution
      */
     public static function json(array $data): void {
+        if (self::isCaptureEnabled()) {
+            self::$captured_output = json_encode($data);
+            self::$captured_type = 'json';
+            return;
+        }
         header('Content-Type: application/json');
         echo json_encode($data);
         Settings::save();
-        Get::db()->close();
-        Get::db2()->close();
+        Get::closeConnections();
         exit;
     }
 
@@ -145,9 +178,13 @@ class Response {
 
     public static function csv(array $data, string $filename = 'export'): void {
         $filename = trim(str_replace('.csv', '', $filename)) . '.csv';
-        header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-        header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+        if (self::isCaptureEnabled()) {
+            ob_start();
+        } else {
+            header('Content-Type: text/csv');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+        }
         
         $output = fopen('php://output', 'w');
        
@@ -163,9 +200,14 @@ class Response {
         }
         fclose($output);
 
+        if (self::isCaptureEnabled()) {
+            self::$captured_output = ob_get_clean();
+            self::$captured_type = 'csv';
+            return;
+        }
+
         Settings::save();
-        Get::db()->close();
-        Get::db2()->close();
+        Get::closeConnections();
         exit;
     }
 

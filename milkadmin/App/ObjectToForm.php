@@ -179,7 +179,12 @@ class ObjectToForm
         if ($type == 'hidden' || $type == 'html') {
             return $input;
         } if ($type == 'checkbox') {
-            return $in_container ? $input : '<div class="form-check mb-3"' . $data_attrs . '>' . $input . '</div>';
+            // Build checkbox wrapper classes
+            $checkbox_classes = 'form-check mb-3';
+            if (isset($form_params['form-check-class'])) {
+                $checkbox_classes .= ' ' . $form_params['form-check-class'];
+            }
+            return $in_container ? $input : '<div class="' . $checkbox_classes . '"' . $data_attrs . '>' . $input . '</div>';
         }
         return $in_container ? $input : '<div class="mb-3"' . $data_attrs . '>' . $input .'</div>';
     }
@@ -263,6 +268,15 @@ class ObjectToForm
                 return Form::input('datetime-local', $rule['name'], $rule['label'], $value, $form_params, true);
                 break;
              case 'time':
+                // Normalize time value to HH:MM format (required by HTML5 time input)
+                // Replace common separators (. , space) with :
+                if (is_string($value) && !empty($value)) {
+                    $value = preg_replace('/[.,\s]+/', ':', $value);
+                    // Ensure HH:MM format (remove seconds if present)
+                    if (preg_match('/^(\d{1,2}):(\d{2})/', $value, $matches)) {
+                        $value = str_pad($matches[1], 2, '0', STR_PAD_LEFT) . ':' . $matches[2];
+                    }
+                }
                 return Form::input('time', $rule['name'], $rule['label'], $value, $form_params, true);
                 break;
             case 'timestamp':
@@ -350,7 +364,18 @@ class ObjectToForm
                 break;
              case 'checkbox':
                 // value is the value the saved field has, rule['value'] is the value attribute of the checkbox. If the two values ​​are equal, the checkbox is checked. To select the checkbox, $value must equal rule['value'] or true.
-                return Form::checkbox($rule['name'], $rule['label'],  $rule['value'], ($value === $rule['value'] || $value === true), $form_params, true);
+                $checkbox_html = '';
+
+                // Add hidden field BEFORE checkbox to handle unchecked state
+                // The hidden field will be sent when checkbox is unchecked
+                // When checkbox is checked, its value will override the hidden field value
+                if (isset($rule['checkbox_unchecked']) && $rule['checkbox_unchecked'] !== null) {
+                    $checkbox_html .= '<input type="hidden" name="' . _r($rule['name']) . '" value="' . _r($rule['checkbox_unchecked']) . '">';
+                }
+
+                $checkbox_html .= Form::checkbox($rule['name'], $rule['label'],  $rule['value'], ($value === $rule['value'] || $value === true), $form_params, true);
+
+                return $checkbox_html;
                 break;
             case 'checkboxes':
                 return Form::checkboxes($rule['name'], $rule['options'],  $value, false, $form_params, [], true);

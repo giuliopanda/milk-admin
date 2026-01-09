@@ -55,7 +55,7 @@ class Controller extends AbstractControllerExtension
         $page = $this->module->get()->getPage();
 
         // Example: Log to file or database
-        // \App\Logs::set('audit', 'INFO', "User accessed: page={$page}, action={$action}");
+        // \App\Logs::set('AUDIT',  "User accessed: page={$page}, action={$action}");
     }
 
     /**

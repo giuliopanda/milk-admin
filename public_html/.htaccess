@@ -1,6 +1,7 @@
 RewriteEngine On
 
-# Intercetta TUTTI i CSS e JS
+# Intercetta CSS, JS e asset SOLO se il file NON esiste fisicamente
+RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule \.(css|js|png|jpg|jpeg|gif|svg|woff|woff2|ttf|webp|pdf|doc|docx|xls|xlsx|csv|xml|tab|json|txt|md|mp4|mp3|wav|avi|mov|wmv|flv|ico|svg|webm|zip|rar|7z|tar|gz|bz2)$ asset_loader.php [L,QSA]
 
 # Il resto delle richieste va al front controller normale

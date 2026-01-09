@@ -26,6 +26,9 @@ class Table {
     
     // Initialization state flag
     is_init = false;
+
+    // Skip auto-scroll for the next reload
+    skip_auto_scroll_once = false;
     
     // Loading plugin instance
     plugin_loading = null;
@@ -581,7 +584,7 @@ class Table {
      */
     tableBulkAction(el) {
         const action_val = el.getAttribute('data-table-action');
-        
+
         if (!action_val) {
             console.warn('Bulk action configuration incomplete');
             return;
@@ -615,7 +618,7 @@ class Table {
         const action_val = el.getAttribute('data-table-action');
         const id_val = el.getAttribute('data-table-id');
         const confirm_message = el.getAttribute('data-confirm');
-        
+
         if (!action_val || !id_val) {
             console.warn('Single action configuration incomplete');
             return;
@@ -705,7 +708,7 @@ class Table {
         if (field_val && order_val) {
             this.state.order_field = field_val;
             this.state.order_dir = order_val;
-            
+
             // Clear action fields for sorting
             this.clearActionFields();
             this.sendForm();
@@ -847,6 +850,7 @@ class Table {
             }
 
             const data = await response.json();
+
             if (!('success' in data)) {
                 data.success = true;
             }
@@ -887,7 +891,11 @@ class Table {
             */
 
             // Auto-scroll to table if not disabled and not already visible
-            if (!this.el_container.hasAttribute('data-no-auto-scroll')) {
+            const skip_auto_scroll = this.skip_auto_scroll_once === true;
+            if (skip_auto_scroll) {
+                this.skip_auto_scroll_once = false;
+            }
+            if (!skip_auto_scroll && !this.el_container.hasAttribute('data-no-auto-scroll')) {
                 if (!this.isElementTopVisible(this.el_scroll)) {
                     this.el_scroll.scrollIntoView({ behavior: "smooth" });
                 }

@@ -133,9 +133,9 @@ abstract class AbstractController {
 
     /**
     * @param string $table_id The table id
-    * @deprecated Use TableBuilder Class instead 
     * @return array Returns the sanitized parameters
     */
+    
     protected function getRequestParams(string $table_id): array {
         $default = $this->defaultRequestParams();
         $new_request = [];
@@ -187,6 +187,7 @@ abstract class AbstractController {
      * @deprecated Use TableBuilder Class instead
      * @return array The modellist data ['rows', 'info', 'page_info']
      */
+    /*
     protected function getModellistData($table_id, $fn_filter_applier = null, $fn_query_applier = null): array {
         $db = Get::db();
         $request = $this->getRequestParams($table_id);
@@ -210,6 +211,7 @@ abstract class AbstractController {
      * Cosi se devo riscrivere il modellist_data perché il model è cambiato parte del codice lo riuso
      * @deprecated Use TableBuilder Class instead
      */
+    /*
     protected function getModellistService($model, $table_id, $request): ModelList {
         $model_list = new ModelList($this->model->getTable(), $table_id);
         $list = $model->getRules('list', true);
@@ -229,7 +231,7 @@ abstract class AbstractController {
       
         return $model_list;
     }
-
+    */
     /**
      * Used to automatically call table action functions.
      * Also verifies the table's security token.

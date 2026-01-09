@@ -52,6 +52,7 @@ class LinksBuilder {
             'icon' => '',
             'active' => false,
             'disabled' => false,
+            'fetch' => false,
             'params' => [],
             'group' => $this->currentGroup
         ];
@@ -101,6 +102,7 @@ class LinksBuilder {
             if (isset($link['icon'])) $this->icon($link['icon']);
             if (isset($link['active']) && $link['active']) $this->active();
             if (isset($link['disabled']) && $link['disabled']) $this->disable();
+            if (isset($link['fetch'])) $this->fetch($link['fetch']);
             if (isset($link['params']) && is_array($link['params'])) {
                 foreach ($link['params'] as $key => $value) {
                     $this->setParam($key, $value);
@@ -231,6 +233,23 @@ class LinksBuilder {
     public function disable(): self {
         if ($this->currentLink !== null) {
             $this->links[$this->currentLink]['disabled'] = true;
+        }
+        return $this;
+    }
+
+    /**
+     * Abilita il fetch per il link corrente
+     * Trasforma il link in una chiamata fetch asincrona tramite data-fetch
+     *
+     * @param string $method Metodo HTTP: 'get' o 'post' (default: 'post')
+     * @return self
+     */
+    public function fetch(string $method = 'post'): self {
+        if ($this->currentLink !== null) {
+            $method = strtolower($method);
+            if (in_array($method, ['get', 'post'])) {
+                $this->links[$this->currentLink]['fetch'] = $method;
+            }
         }
         return $this;
     }
@@ -385,23 +404,29 @@ class LinksBuilder {
      * @param array $params Parametri per sostituzione variabili
      * @param bool $isActive Se l'elemento è attivo
      * @param bool $isDisabled Se l'elemento è disabilitato
+     * @param array|null $link Link completo per accedere a fetch
      * @return string
      */
-    private function getElementAttributes(string $element, array $defaults = [], array $params = [], bool $isActive = false, bool $isDisabled = false): string {
+    private function getElementAttributes(string $element, array $defaults = [], array $params = [], bool $isActive = false, bool $isDisabled = false, ?array $link = null): string {
         $attributes = $defaults;
-        
+
         if (isset($this->elementAttributes[$element]) && !empty($this->elementAttributes[$element])) {
             $attributes = array_merge($this->elementAttributes[$element], $attributes);
         }
-        
+
         if ($isActive && isset($this->elementAttributes['active']) && !empty($this->elementAttributes['active'])) {
             $attributes = array_merge($this->elementAttributes['active'], $attributes);
         }
-        
+
         if ($isDisabled && isset($this->elementAttributes['disabled']) && !empty($this->elementAttributes['disabled'])) {
             $attributes = array_merge($this->elementAttributes['disabled'], $attributes);
         }
-        
+
+        // Aggiungi data-fetch solo per elementi <a> se il link ha fetch attivo
+        if ($element === 'a' && $link !== null && !empty($link['fetch'])) {
+            $attributes['data-fetch'] = $link['fetch'];
+        }
+
         return $this->buildAttributes($attributes, $params);
     }
 
@@ -425,7 +450,7 @@ class LinksBuilder {
                 ?>
                 <li<?php echo $liAttrs; ?>>
                     <?php if ($link['disabled']): ?>
-                        <?php $spanAttrs = $this->getElementAttributes('a', ['class' => 'nav-link disabled'], $link['params'], $isActive, $isDisabled); ?>
+                        <?php $spanAttrs = $this->getElementAttributes('a', ['class' => 'nav-link disabled'], $link['params'], $isActive, $isDisabled, $link); ?>
                         <span<?php echo $spanAttrs; ?>>
                             <?php if ($link['icon']): ?>
                                 <i class="<?php _p($link['icon']); ?>"></i>
@@ -435,7 +460,7 @@ class LinksBuilder {
                             <?php endif; ?>
                         </span>
                     <?php elseif ($this->isActive($link)): ?>
-                        <?php $spanAttrs = $this->getElementAttributes('a', ['class' => 'nav-link nav-link-active'], $link['params'], $isActive, $isDisabled); ?>
+                        <?php $spanAttrs = $this->getElementAttributes('a', ['class' => 'nav-link nav-link-active'], $link['params'], $isActive, $isDisabled, $link); ?>
                         <span<?php echo $spanAttrs; ?>>
                             <?php if ($link['icon']): ?>
                                 <i class="<?php _p($link['icon']); ?>"></i>
@@ -447,7 +472,7 @@ class LinksBuilder {
                     <?php else: ?>
                         <?php $spanAttrs = $this->getElementAttributes('li', ['class' => 'nav-link'], $link['params'], $isActive, $isDisabled); ?>
                         <span<?php echo $spanAttrs; ?>>
-                            <?php $aAttrs = $this->getElementAttributes('a', ['class' => 'link-action', 'href' => $link['url']], $link['params'], $isActive, $isDisabled); ?>
+                            <?php $aAttrs = $this->getElementAttributes('a', ['class' => 'link-action', 'href' => $link['url']], $link['params'], $isActive, $isDisabled, $link); ?>
                             <a<?php echo $aAttrs; ?>>
                                 <?php if ($link['icon']): ?>
                                     <i class="<?php _p($link['icon']); ?>"></i>
@@ -496,13 +521,13 @@ class LinksBuilder {
                         <?php $liAttrs = $this->getElementAttributes('li', ['class' => 'breadcrumb-item'], $link['params'], $isActive, $isDisabled); ?>
                         <li<?php echo $liAttrs; ?>>
                             <?php if ($link['disabled']): ?>
-                                <?php $spanAttrs = $this->getElementAttributes('a', ['class' => 'disabled'], $link['params'], $isActive, $isDisabled); ?>
+                                <?php $spanAttrs = $this->getElementAttributes('a', ['class' => 'disabled'], $link['params'], $isActive, $isDisabled, $link); ?>
                                 <span<?php echo $spanAttrs; ?>>
                                     <?php if ($link['icon']): ?><i class="<?php _p($link['icon']); ?>"></i> <?php endif; ?>
                                     <?php _pt($link['title']); ?>
                                 </span>
                             <?php else: ?>
-                                <?php $aAttrs = $this->getElementAttributes('a', ['class' => 'link-action', 'href' => $link['url']], $link['params'], $isActive, $isDisabled); ?>
+                                <?php $aAttrs = $this->getElementAttributes('a', ['class' => 'link-action', 'href' => $link['url']], $link['params'], $isActive, $isDisabled, $link); ?>
                                 <a<?php echo $aAttrs; ?>>
                                     <?php if ($link['icon']): ?><i class="<?php _p($link['icon']); ?>"></i> <?php endif; ?>
                                     <?php _pt($link['title']); ?>
@@ -576,7 +601,7 @@ class LinksBuilder {
                 <?php if ($link['disabled']): ?>
                     <?php $liAttrs = $this->getElementAttributes('li', $liDefaults, $link['params'], $isActive, $isDisabled); ?>
                     <li<?php echo $liAttrs; ?>>
-                        <?php $spanAttrs = $this->getElementAttributes('a', ['class' => 'disabled'], $link['params'], $isActive, $isDisabled); ?>
+                        <?php $spanAttrs = $this->getElementAttributes('a', ['class' => 'disabled'], $link['params'], $isActive, $isDisabled, $link); ?>
                         <span<?php echo $spanAttrs; ?>>
                             <?php if ($link['icon']): ?><i class="<?php _p($link['icon']); ?>"></i> <?php endif; ?>
                             <?php _pt($link['title']); ?>
@@ -585,7 +610,7 @@ class LinksBuilder {
                 <?php elseif ($this->isActive($link)): ?>
                     <?php $liAttrs = $this->getElementAttributes('li', $liDefaults, $link['params'], $isActive, $isDisabled); ?>
                     <li<?php echo $liAttrs; ?>>
-                        <?php $aAttrs = $this->getElementAttributes('a', ['class' => 'doc-link doc-link-active', 'href' => $link['url']], $link['params'], $isActive, $isDisabled); ?>
+                        <?php $aAttrs = $this->getElementAttributes('a', ['class' => 'doc-link doc-link-active', 'href' => $link['url']], $link['params'], $isActive, $isDisabled, $link); ?>
                         <a<?php echo $aAttrs; ?>>
                             <?php if ($link['icon']): ?><i class="<?php _p($link['icon']); ?>"></i> <?php endif; ?>
                             <?php _pt($link['title']); ?>
@@ -595,7 +620,7 @@ class LinksBuilder {
                     <?php $liAttrs = $this->getElementAttributes('li', $liDefaults, $link['params'], $isActive, $isDisabled); ?>
                     <li<?php echo $liAttrs; ?>>
                         <?php
-                        $aAttrs = $this->getElementAttributes('a', ['class' => 'doc-link', 'href' => $link['url']], $link['params'], $isActive, $isDisabled);
+                        $aAttrs = $this->getElementAttributes('a', ['class' => 'doc-link', 'href' => $link['url']], $link['params'], $isActive, $isDisabled, $link);
                          ?>
                         <a<?php echo $aAttrs; ?>>
                             <?php if ($link['icon']): ?><i class="<?php _p($link['icon']); ?>"></i> <?php endif; ?>
@@ -629,7 +654,7 @@ class LinksBuilder {
                 ?>
                 <li<?php echo $liAttrs; ?>>
                     <?php if ($link['disabled']): ?>
-                        <?php $spanAttrs = $this->getElementAttributes('a', ['class' => 'nav-link disabled'], $link['params'], $isActive, $isDisabled); ?>
+                        <?php $spanAttrs = $this->getElementAttributes('a', ['class' => 'nav-link disabled'], $link['params'], $isActive, $isDisabled, $link); ?>
                         <span<?php echo $spanAttrs; ?>>
                             <?php if ($link['icon']): ?><i class="<?php _p($link['icon']); ?>"></i> <?php endif; ?>
                             <?php _pt($link['title']); ?>
@@ -637,7 +662,7 @@ class LinksBuilder {
                     <?php else: ?>
                         <?php
                         $activeClass = $this->isActive($link) ? ' active' : '';
-                        $aAttrs = $this->getElementAttributes('a', ['class' => 'nav-link' . $activeClass, 'href' => $link['url']], $link['params'], $isActive, $isDisabled);
+                        $aAttrs = $this->getElementAttributes('a', ['class' => 'nav-link' . $activeClass, 'href' => $link['url']], $link['params'], $isActive, $isDisabled, $link);
                         ?>
                         <a<?php echo $aAttrs; ?>>
                             <?php if ($link['icon']): ?><i class="<?php _p($link['icon']); ?>"></i> <?php endif; ?>
@@ -671,7 +696,7 @@ class LinksBuilder {
                 ?>
                 <li<?php echo $liAttrs; ?>>
                     <?php if ($link['disabled']): ?>
-                        <?php $aAttrs = $this->getElementAttributes('a', ['class' => 'nav-link disabled', 'tabindex' => '-1', 'aria-disabled' => 'true'], $link['params'], $isActive, $isDisabled); ?>
+                        <?php $aAttrs = $this->getElementAttributes('a', ['class' => 'nav-link disabled', 'tabindex' => '-1', 'aria-disabled' => 'true'], $link['params'], $isActive, $isDisabled, $link); ?>
                         <a<?php echo $aAttrs; ?>>
                             <?php if ($link['icon']): ?>
                                 <i class="<?php _p($link['icon']); ?>"></i>
@@ -683,7 +708,7 @@ class LinksBuilder {
                     <?php else: ?>
                         <?php
                         $activeClass = $this->isActive($link) ? ' active' : '';
-                        $aAttrs = $this->getElementAttributes('a', ['class' => 'nav-link' . $activeClass, 'href' => $link['url']], $link['params'], $isActive, $isDisabled);
+                        $aAttrs = $this->getElementAttributes('a', ['class' => 'nav-link' . $activeClass, 'href' => $link['url']], $link['params'], $isActive, $isDisabled, $link);
                         ?>
                         <a<?php echo $aAttrs; ?>>
                             <?php if ($link['icon']): ?>
@@ -860,7 +885,7 @@ class LinksBuilder {
      * Crea un LinksBuilder per un gruppo di link
      */
     private function createGroupBuilder(array $links): LinksBuilder {
-        $builder = LinksBuilder::fill();
+        $builder = LinksBuilder::create();
         
         // Copia le configurazioni attuali
         $builder->elementAttributes = $this->elementAttributes;
@@ -885,7 +910,7 @@ class LinksBuilder {
     /**
      * Factory method
      */
-    public static function fill(): self {
+    public static function create(): self {
         return new self();
     }
 

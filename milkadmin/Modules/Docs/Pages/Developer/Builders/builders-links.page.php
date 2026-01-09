@@ -8,7 +8,7 @@ use App\{Theme, Route, Response};
  * @title LinksBuilder
  * @guide developer
  * @order 20
- * @tags LinksBuilder, fluent-interface, method-chaining, navigation, links, navbar, breadcrumb, sidebar, vertical, groups, search, icons, active-state, disabled-state, PHP-classes, simplified-API
+ * @tags LinksBuilder, fluent-interface, method-chaining, navigation, links, navbar, breadcrumb, sidebar, vertical, groups, search, icons, active-state, disabled-state, fetch, ajax, data-fetch, PHP-classes, simplified-API
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access
@@ -33,10 +33,10 @@ use App\{Theme, Route, Response};
     <h2>Basic Usage</h2>
 
     <h3>Constructor and Factory Method</h3>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$links = \Builders\LinksBuilder::fill();</code></pre>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$links = \Builders\LinksBuilder::create();</code></pre>
 
     <h3>Simple Navigation Creation</h3>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$navbar = LinksBuilder::fill()
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$navbar = LinksBuilder::create()
     ->add('Home', '#')
         ->icon('bi bi-house')
         ->active()
@@ -50,7 +50,7 @@ use App\{Theme, Route, Response};
     <h4>Example Output:</h4>
     <div class="border p-3 mb-4">
         <?php
-        $exampleNavbar = LinksBuilder::fill()
+        $exampleNavbar = LinksBuilder::create()
             ->add('Home', '#')
                 ->icon('bi bi-house')
                 ->active()
@@ -75,7 +75,7 @@ Theme::set('header.top-right', $navbar);  // Right side</code></pre>
     <h3>2. Breadcrumb Style</h3>
     <p>Creates semantic breadcrumb navigation with proper ARIA labels and Bootstrap styling.</p>
 
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$breadcrumb = LinksBuilder::fill()
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$breadcrumb = LinksBuilder::create()
     ->add('Dashboard', '/')
         ->icon('bi bi-speedometer2')
     ->add('Posts', '?page=posts')
@@ -93,7 +93,7 @@ Theme::set('header.top-right', $navbar);  // Right side</code></pre>
     <h4>Example Output:</h4>
     <div class="border p-3 mb-4">
         <?php
-        $breadcrumbExample = LinksBuilder::fill()
+        $breadcrumbExample = LinksBuilder::create()
             ->add('Dashboard', '/')
                 ->icon('bi bi-speedometer2')
             ->add('Posts', '?page=posts')
@@ -109,7 +109,7 @@ Theme::set('header.top-right', $navbar);  // Right side</code></pre>
     <h3>3. Tabs Style</h3>
     <p>Bootstrap tab navigation with active state management. Perfect for content sections with tab panels.</p>
 
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$tabs = LinksBuilder::fill()
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$tabs = LinksBuilder::create()
     ->add('General', '#general-tab')
         ->icon('bi bi-gear')
         ->active()
@@ -126,7 +126,7 @@ Theme::set('header.top-right', $navbar);  // Right side</code></pre>
     <div class="border p-3 mb-4">
         <!-- Tab Navigation -->
         <?php
-        $tabsExample = LinksBuilder::fill()
+        $tabsExample = LinksBuilder::create()
             ->add('General', '#general-tab')
                 ->icon('bi bi-gear')
                 ->active()
@@ -220,7 +220,7 @@ Theme::set('header.top-right', $navbar);  // Right side</code></pre>
     <h3>4. Pills Style</h3>
     <p>Modern pill-style navigation with rounded buttons and subtle hover effects.</p>
 
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$pills = LinksBuilder::fill()
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$pills = LinksBuilder::create()
     ->add('Dashboard', '#dashboard')
         ->active()
     ->add('Utenti', '#users')
@@ -233,7 +233,7 @@ Theme::set('header.top-right', $navbar);  // Right side</code></pre>
     <h4>Example Output:</h4>
     <div class="border p-3 mb-4">
         <?php
-        $pillsExample = LinksBuilder::fill()
+        $pillsExample = LinksBuilder::create()
             ->add('Dashboard', '#dashboard')
                 ->active()
             ->add('Utenti', '#users')
@@ -249,7 +249,7 @@ Theme::set('header.top-right', $navbar);  // Right side</code></pre>
     <h3>5. Vertical Style (Simple Sidebar)</h3>
     <p>Vertical navigation without groups, perfect for simple sidebars.</p>
 
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$vertical = LinksBuilder::fill()
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$vertical = LinksBuilder::create()
     ->add('Dashboard', '?page=dashboard')
         ->icon('bi bi-speedometer2')
     ->add('Posts', '?page=posts')
@@ -267,7 +267,7 @@ Theme::set('header.top-right', $navbar);  // Right side</code></pre>
     <h4>Example Output:</h4>
     <div class="border p-3 mb-4" style="max-width: 300px;">
         <?php
-        $verticalExample = LinksBuilder::fill()
+        $verticalExample = LinksBuilder::create()
             ->add('Dashboard', '#')
                 ->icon('bi bi-speedometer2')
             ->add('Posts', '#')
@@ -292,7 +292,7 @@ Theme::set('header.top-right', $navbar);  // Right side</code></pre>
     <p>Complete sidebar implementation with groups, search, and external links - as used in documentation.</p>
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Full-featured sidebar with groups
-$sidebar = LinksBuilder::fill()
+$sidebar = LinksBuilder::create()
     // Enable search functionality
     ->enableSearch('Search documentation...')
     ->setContainerClass('docs-sidebar border-end p-3')
@@ -332,7 +332,7 @@ $sidebar = LinksBuilder::fill()
     <h4>Example Output (Sidebar with Groups):</h4>
     <div class="border p-3 mb-4" style="max-width: 350px;">
         <?php
-        $sidebarExample = LinksBuilder::fill()
+        $sidebarExample = LinksBuilder::create()
             ->enableSearch('Search documentation...')
             ->setContainerClass('docs-sidebar border-end p-3')
             ->setContainerId('testContainer')
@@ -362,7 +362,7 @@ $sidebar = LinksBuilder::fill()
     <h4>Same Code with Navbar Style (Groups Hidden):</h4>
     <div class="border p-3 mb-4">
         <?php
-        $groupsNavbarExample = LinksBuilder::fill()
+        $groupsNavbarExample = LinksBuilder::create()
             ->addGroup('getting-started', 'Getting Started')
             ->add('Introduction', '#')
                 ->icon('bi bi-book')
@@ -427,7 +427,7 @@ $sidebar = LinksBuilder::fill()
     <h2>Link Management Methods</h2>
 
     <h3>Adding Links</h3>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$links = LinksBuilder::fill()
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$links = LinksBuilder::create()
     // Basic link
     ->add('Home', '/')
 
@@ -453,7 +453,7 @@ $sidebar = LinksBuilder::fill()
     <h4>Example Output:</h4>
     <div class="border p-3 mb-4" style="max-width: 300px;">
         <?php
-        $linksExample = LinksBuilder::fill()
+        $linksExample = LinksBuilder::create()
             ->add('Home', '/')
             ->add('Posts', '/posts')
                 ->icon('bi bi-file-earmark-text')
@@ -470,7 +470,7 @@ $sidebar = LinksBuilder::fill()
     </div>
 
     <h3>Bulk Adding with addMany()</h3>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$links = LinksBuilder::fill()
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$links = LinksBuilder::create()
     ->addMany([
         // Array format with keys
         ['title' => 'Home', 'url' => '/', 'icon' => 'bi bi-house', 'active' => true],
@@ -484,7 +484,7 @@ $sidebar = LinksBuilder::fill()
     <h4>Example Output:</h4>
     <div class="border p-3 mb-4">
         <?php
-        $addManyExample = LinksBuilder::fill()
+        $addManyExample = LinksBuilder::create()
             ->addMany([
                 ['title' => 'Home', 'url' => '/', 'icon' => 'bi bi-house', 'active' => true],
                 ['title' => 'About', 'url' => '/about', 'icon' => 'bi bi-info-circle'],
@@ -519,7 +519,7 @@ $sidebar = LinksBuilder::fill()
     <h4>Example Output:</h4>
     <div class="border p-3 mb-4" style="max-width: 300px;">
         <?php
-        $addManyExample = LinksBuilder::fill()
+        $addManyExample = LinksBuilder::create()
             ->addMany([
                 ['title' => 'Home', 'url' => '#', 'icon' => 'bi bi-house', 'active' => true],
                 ['title' => 'About Us', 'url' => '#about', 'icon' => 'bi bi-info-circle'],
@@ -541,6 +541,30 @@ $sidebar = LinksBuilder::fill()
 
     <h4><code>disable()</code></h4>
     <p><strong>Usage:</strong> Disables the current link, making it non-clickable with appropriate styling.</p>
+
+    <h4><code>fetch(method = 'post')</code></h4>
+    <p><strong>Usage:</strong> Transforms the link into an asynchronous fetch call. Adds the <code>data-fetch</code> attribute that enables automatic AJAX handling via JavaScript.</p>
+    <p><strong>Parameters:</strong></p>
+    <ul>
+        <li><code>method</code> (string): HTTP method - 'get' or 'post' (default: 'post')</li>
+    </ul>
+    <p><strong>Example:</strong></p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$links = LinksBuilder::create()
+    ->add('Edit Item', '?page=items&action=edit&id=123')
+        ->icon('bi bi-pencil')
+        ->fetch('post')  // Converts to fetch POST call
+    ->add('Load Data', '?page=items&action=load')
+        ->fetch('get')   // Converts to fetch GET call
+    ->render('pills');</code></pre>
+    <p><strong>Generated HTML:</strong></p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-html">&lt;a href="?page=items&action=edit&id=123" data-fetch="post"&gt;Edit Item&lt;/a&gt;
+&lt;a href="?page=items&action=load" data-fetch="get"&gt;Load Data&lt;/a&gt;</code></pre>
+    <p>The JavaScript will automatically intercept these links and execute fetch calls instead of navigation. See <a href="?page=docs&action=Framework/Theme/theme-javascript-fetch-link">data-fetch System Documentation</a> for more details.</p>
+    <p><strong>Works with addMany:</strong></p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->addMany([
+    ['title' => 'Delete', 'url' => '?page=items&action=delete&id=5', 'fetch' => 'post'],
+    ['title' => 'Refresh', 'url' => '?page=items&action=refresh', 'fetch' => 'get']
+])</code></pre>
 
     <h4><code>setParam(name, value)</code></h4>
     <p><strong>Parameters:</strong> <code>string $name</code>, <code>mixed $value</code><br>
@@ -579,7 +603,7 @@ $sidebar = LinksBuilder::fill()
     <h4>Example Output:</h4>
     <div class="border p-3 mb-4" style="max-width: 300px;">
         <?php
-        $externalExample = LinksBuilder::fill()
+        $externalExample = LinksBuilder::create()
             ->enableSearch('Search...', 'demoSearch', 'demoCount')
             ->setContainerClass('border p-3')
             ->addExternalLinks([
@@ -608,7 +632,7 @@ $sidebar = LinksBuilder::fill()
     <h4>Example Output with Custom Attributes:</h4>
     <div class="border p-3 mb-4" style="max-width: 300px;">
         <?php
-        $attributeExample = LinksBuilder::fill()
+        $attributeExample = LinksBuilder::create()
             ->setLiAttributes(['class' => 'custom-item', 'data-custom' => 'true'])
             ->setAAttributes(['class' => 'custom-link'])
             ->setActiveAttributes(['class' => 'custom-link active-custom'])
@@ -695,13 +719,17 @@ $sidebar = LinksBuilder::fill()
                 <td>Add custom parameter to current link</td>
             </tr>
             <tr>
-                <td rowspan="3">State Management</td>
+                <td rowspan="4">State Management</td>
                 <td><code>active()</code></td>
                 <td>Mark current link as active</td>
             </tr>
             <tr>
                 <td><code>disable()</code></td>
                 <td>Disable current link</td>
+            </tr>
+            <tr>
+                <td><code>fetch(method)</code></td>
+                <td>Enable fetch mode (GET/POST)</td>
             </tr>
             <tr>
                 <td><code>isActive(link)</code></td>

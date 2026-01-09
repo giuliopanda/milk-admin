@@ -8,7 +8,7 @@ use App\Abstracts\AbstractModel;
 /**
  * RelationshipDataHandlerTrait - ULTRA-SIMPLIFIED version
  *
- * Relationship data is stored directly in records_array with its original name (e.g. 'films')
+ * Relationship data is stored directly in records_objects with its original name (e.g. 'films')
  * No prefixes, no temporary arrays - just store it as-is.
  */
 trait RelationshipDataHandlerTrait
@@ -61,7 +61,7 @@ trait RelationshipDataHandlerTrait
                     }
 
                     // Keep relationship data as-is (no prefix needed)
-                    // It will be stored in records_array with its original key
+                    // It will be stored in records_objects with its original key
 
                 } elseif (in_array($relationship['type'], ['hasOne', 'hasMany', 'belongsTo']) && $value instanceof AbstractModel) {
                     $this->error = true;

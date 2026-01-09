@@ -91,9 +91,9 @@ if (is_dir($pagesDir)) {
     $url = "?page=docs&action=" . urlencode($defaultAction);
 ?>
     <li class="nav-item">
-        <a class="nav-link <?= $isActive ?>" href="<?= htmlspecialchars($url) ?>">
-            <i class="<?= htmlspecialchars($config['icon']) ?>"></i>
-            <span class="d-none d-lg-inline ms-1"><?= htmlspecialchars($config['label']) ?></span>
+        <a class="nav-link <?php _p($isActive) ?>" href="<?php _p($url) ?>">
+            <i class="<?php _p($config['icon']) ?>"></i>
+            <span class="d-none d-lg-inline ms-1"><?php _p($config['label']) ?></span>
         </a>
     </li>
 <?php endforeach; ?>

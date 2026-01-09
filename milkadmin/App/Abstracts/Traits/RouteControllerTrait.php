@@ -101,6 +101,7 @@ trait RouteControllerTrait {
 
         $search = trim($_REQUEST['q']);
         $field = trim($_REQUEST['f']);
+      
 		$options = $this->model->searchRelated($search,  $field);
 		\App\Response::json([
 			'success' => 'ok',

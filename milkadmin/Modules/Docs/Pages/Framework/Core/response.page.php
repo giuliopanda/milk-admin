@@ -172,7 +172,7 @@ Response::csv($data, 'users_export');</code></pre>
     <p><strong>Application Termination:</strong> All Response methods terminate the application execution using <code>exit</code> after completing their tasks. This ensures proper cleanup by:</p>
     <ul>
         <li>Saving system settings with <code>Settings::save()</code></li>
-        <li>Closing primary database connection with <code>Get::db()->close()</code></li>
+        <li>Closing primary database connection with <code>Get::closeConnections();</code></li>
         <li>Closing secondary database connection with <code>Get::db2()->close()</code></li>
         <li>Running end-page hooks (for theme_page method)</li>
     </ul>

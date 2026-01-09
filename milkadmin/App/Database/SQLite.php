@@ -182,12 +182,14 @@ class SQLite
         $this->affected_rows = 0;
         $this->query_columns = [];
 
+        $sql_to_log = $sql;
+       
         try {
             $stmt = $this->sqlite->prepare($sql);
 
             if ($stmt === false) {
                 $errorMsg = $this->sqlite->lastErrorMsg();
-                Logs::set('system', 'ERROR', "SQLITE Prepare: '".$sql."' error:". $errorMsg);
+                Logs::set('DATABASE', "SQLITE Prepare: '".$sql."' error:". $errorMsg, 'ERROR');
                 $this->error = true;
                 $this->last_error = $errorMsg;
 
@@ -217,13 +219,15 @@ class SQLite
                 }
             }
 
+
+            $sql_to_log = $this->toSql($sql, $params);
             // Execute the statement
             $result = $stmt->execute();
 
             // Check for errors immediately after execute
             if ($result === false || $this->sqlite->lastErrorCode() != 0) {
                 $errorMsg = $this->sqlite->lastErrorMsg();
-                Logs::set('system', 'ERROR', "SQLITE Query execute failed: '".$sql."' error: ". $errorMsg);
+                Logs::set('DATABASE', "SQLITE Query execute failed: '".$sql_to_log."' error: ". $errorMsg, 'ERROR');
                 $this->error = true;
                 $this->last_error = $errorMsg;
 
@@ -249,7 +253,7 @@ class SQLite
                 $ris = true;
             }
 
-            Logs::set('system', 'SQLITE::Query', $sql);
+            Logs::set('DATABASE', 'SQLITE::Query', $sql_to_log);
 
             return $ris;
 
@@ -257,7 +261,7 @@ class SQLite
             // Re-throw come DatabaseException se non lo è già
             if (!($e instanceof DatabaseException)) {
                 $errorMsg = $e->getMessage();
-                Logs::set('system', 'ERROR', "SQLITE Exception: '".$sql."' error:". $errorMsg);
+                Logs::set('DATABASE', "SQLITE Exception: '".$sql_to_log."' error:". $errorMsg, 'ERROR');
                 $this->error = true;
                 $this->last_error = $errorMsg;
 
@@ -274,9 +278,11 @@ class SQLite
     /**
      * Debug prepared query - For debugging purposes only, NOT for execution
      */
-    public function debugPreparedQuerySqlite($query, $params) {
+    public function toSql($query, $params) {
         $values = array();
-        
+        if ($params == null) {
+            return $query;
+        }
         foreach ($params as $value) {
             if (is_string($value)) {
                 $values[] = "'" . str_replace("'", "''", $value) . "'";
@@ -383,7 +389,7 @@ class SQLite
                 }
             }
         } catch (\Exception $e) {
-            Logs::set('system', 'ERROR', "SQLITE Query: '".$sql."' error:". $this->sqlite->lastErrorMsg());
+            Logs::set('DATABASE', "SQLITE Query: '".$sql."' error:". $this->sqlite->lastErrorMsg(), 'ERROR');
             $this->error = true;
             $this->last_error = $this->sqlite->lastErrorMsg();
             return null;
@@ -944,7 +950,7 @@ class SQLite
             return false;
         }
         $sql = $this->sqlPrefix($sql);
-        Logs::set('system', 'SQLITE::multi_query', $sql);
+        Logs::set('DATABASE', 'SQLITE::multi_query'. $sql);
         
         // SQLite doesn't support multi_query natively, so we need to split and execute separately
         $statements = array_filter(array_map('trim', explode(';', $sql)));
@@ -1231,7 +1237,7 @@ class SQLite
 
         } catch (\Exception $e) {
             $errorMsg = "SQLite connection failed: " . $e->getMessage();
-            Logs::set('system', 'ERROR', "SQLITE Connect: dbname:".$this->dbname." error: ".$e->getMessage());
+            Logs::set('DATABASE', "SQLITE Connect: dbname:".$this->dbname." error: ".$e->getMessage(), 'ERROR');
             $this->error = true;
             $this->last_error = $errorMsg;
 

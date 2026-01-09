@@ -53,9 +53,20 @@ class ExtensionLoader
                 $params = [];
             }
 
-            $instance = self::loadExtension($extension_name, $type, $target, $params);
-            if ($instance !== null) {
+            // Support for inline class definitions (for testing)
+            // If the extension_name is a fully qualified class name, instantiate it directly
+            if (class_exists($extension_name)) {
+                $instance = new $extension_name($target);
+                if (method_exists($instance, 'applyParameters') && !empty($params)) {
+                    $instance->applyParameters($params);
+                }
                 $loaded[$extension_name] = $instance;
+            } else {
+                // Load from file system
+                $instance = self::loadExtension($extension_name, $type, $target, $params);
+                if ($instance !== null) {
+                    $loaded[$extension_name] = $instance;
+                }
             }
         }
 
@@ -130,7 +141,7 @@ class ExtensionLoader
                 // This is a required file - throw exception
                 $location = $is_local ? 'local' : 'global';
                 $error_msg = "Extension '{$extension_name}' type '{$type}' not found in {$location} directory. Expected file: {$file_to_load}";
-                Logs::set('system', 'ERROR', $error_msg);
+                Logs::set('SYSTEM',  $error_msg, 'ERROR');
                 throw new \Exception($error_msg);
             }
 
@@ -143,7 +154,7 @@ class ExtensionLoader
 
         if ($extension_class === null) {
             $error_msg = "No valid class found in extension file: {$file_to_load}";
-            Logs::set('system', 'ERROR', $error_msg);
+            Logs::set('SYSTEM', $error_msg, 'ERROR');
             throw new \Exception($error_msg);
         }
 
@@ -253,7 +264,7 @@ class ExtensionLoader
             try {
                 $extension->$hook_name(...$params);
             } catch (\Exception $e) {
-                Logs::set('system', 'ERROR', "Extension '{$extension_name}' hook '{$hook_name}' failed: " . $e->getMessage());
+                Logs::set('SYSTEM', "Extension '{$extension_name}' hook '{$hook_name}' failed: " . $e->getMessage(), 'ERROR');
                 throw $e;
             }
         }
@@ -277,7 +288,7 @@ class ExtensionLoader
             try {
                 $first_param = $extension->$hook_name($first_param, ...$params);
             } catch (\Exception $e) {
-                Logs::set('system', 'ERROR', "Extension '{$extension_name}' hook '{$hook_name}' failed: " . $e->getMessage());
+                Logs::set('SYSTEM',  "Extension '{$extension_name}' hook '{$hook_name}' failed: " . $e->getMessage(), 'ERROR');
                 throw $e;
             }
         }

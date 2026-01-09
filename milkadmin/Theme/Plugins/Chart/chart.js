@@ -549,6 +549,17 @@ class ChartManager {
         return options;
     }
 
+    normalizeData(data) {
+        const normalized = (data && typeof data === 'object') ? data : {};
+        if (!Array.isArray(normalized.labels)) {
+            normalized.labels = [];
+        }
+        if (!Array.isArray(normalized.datasets)) {
+            normalized.datasets = [];
+        }
+        return normalized;
+    }
+
     cleanupOptions(data, options, type) {
         if (!options || !data) return;
         try {
@@ -620,6 +631,9 @@ class ChartManager {
             console.error('Element with id ' + id + ' not found');
             return;
         }
+
+        data = this.normalizeData(data);
+        this.ensureContainerHeight(id, options);
         
         // Check if options contains number_format and set it
         if (options && options.number_format) {
@@ -636,6 +650,30 @@ class ChartManager {
         this.setLoader(id);
         
         return chart;
+    }
+
+    ensureContainerHeight(id, options) {
+        const canvas = document.getElementById(id);
+        if (!canvas) {
+            return;
+        }
+
+        const chartBody = canvas.closest('.chart-body');
+        const container = chartBody || canvas.parentElement;
+        if (!container) {
+            return;
+        }
+
+        if (options && options.height) {
+            const heightValue = typeof options.height === 'number' ? options.height + 'px' : options.height;
+            container.style.height = heightValue;
+            return;
+        }
+
+        const height = container.getBoundingClientRect().height;
+        if (!height || height < 50) {
+            container.style.height = '260px';
+        }
     }
 
     update(data) {
@@ -685,6 +723,7 @@ class LineChartManager extends ChartManager {
             return super.draw(id, type, data, options);
         }
 
+        data = this.normalizeData(data);
         if (options && options.number_format) {
             this.numberFormat = options.number_format;
             // Remove from options to avoid conflicts with Chart.js
@@ -800,6 +839,7 @@ class BarChartManager extends ChartManager {
     draw(id, data, options = {}) {
         // Supporto sia per 'bar' che per 'horizontal-bar'
 
+        data = this.normalizeData(data);
         // Configure datasets with colors and styles
         if (data && data.datasets) {
             data.datasets = data.datasets.map((dataset, index) => 
@@ -1129,7 +1169,15 @@ var itoCharts = (function() {
         
         getLoader: function(id) {
             let chart = charts.get(id);
-            return chart ? chart.getLoader(id) : null;
+            if (!chart) {
+                return null;
+            }
+            if (typeof chart.getLoader === 'function') {
+                return chart.getLoader(id);
+            }
+            const container = document.getElementById(id + '_container');
+            const loading = container ? container.querySelector('.js-ito-loading') : null;
+            return loading ? new Loading(loading) : null;
         }
     };
 })();

@@ -97,7 +97,7 @@ class DataProcessor
             $this->rows_raw = $result->getRawData();
             $this->query_columns = $result->getQueryColumns();
 
-            return $this->transformRows($result->getFormattedData());
+            return $this->transformRows($result);
         } catch (DatabaseException $e) {
             if (Config::get('debug', false)) {
                 throw $e;
@@ -110,22 +110,25 @@ class DataProcessor
     /**
      * Transform rows with custom column handlers
      */
-    private function transformRows(array $rows): array
+    private function transformRows( $result): array
     {
+        $rows = $result->getFormattedData();
         $customColumns = $this->columns->getCustomColumns();
         $properties = $this->columns->getAllProperties();
 
         foreach ($rows as $index => $row) {
             // First pass: Extract dot notation values
-            $this->extractDotNotationValues($row, $customColumns);
-
+           
+            $result->moveTo($index);
+             $this->extractDotNotationValues($row, $customColumns);
             // Second pass: Apply custom functions to model columns
-            $this->applyCustomFunctions($row, $index, $customColumns);
+            $this->applyCustomFunctions($row, $index, $customColumns, $result);
 
             // Third pass: Apply column properties (truncate, etc.)
             $this->applyColumnProperties($row, $properties);
+           
         }
-
+        
         return $rows;
     }
 
@@ -141,7 +144,7 @@ class DataProcessor
         }
     }
 
-    private function applyCustomFunctions(object $row, int $index, array $customColumns): void
+    private function applyCustomFunctions(object $row, int $index, array $customColumns, $result): void
     {
         // Apply to query columns first
         foreach ($this->query_columns as $column) {
@@ -155,7 +158,7 @@ class DataProcessor
                 continue;
             }
 
-            $row->{$column} = call_user_func($config['fn'], $this->rows_raw[$index]);
+            $row->{$column} = call_user_func($config['fn'], $result);
         }
 
         // Apply to custom/virtual columns
@@ -169,7 +172,7 @@ class DataProcessor
                 continue;
             }
 
-            $row->{$key} = call_user_func($config['fn'], $this->rows_raw[$index]);
+            $row->{$key} = call_user_func($config['fn'], $result);
         }
     }
 
@@ -213,12 +216,7 @@ class DataProcessor
         $db = $this->context->getDb();
 
         try {
-            $result = $this->context->getModel()->get($query);
-
-            if ($result->getLastError() !== '') {
-                return 0;
-            }
-
+            // Execute COUNT query directly without fetching all rows first
             return (int) $db->getVar(...$query->getTotal());
         } catch (DatabaseException $e) {
             if (Config::get('debug', false)) {
@@ -237,6 +235,9 @@ class DataProcessor
             $pageInfo->setAction($action);
         }
 
+        // Set primary key for table actions
+        $pageInfo->setPrimaryKey($this->context->getModel()->getPrimaryKey());
+
         $pageInfo->setDefaultLimit($this->context->getDefaultLimit());
 
         if (!empty($bulkActions)) {
@@ -247,6 +248,26 @@ class DataProcessor
                 }
             }
             $pageInfo->setBulkActions($labels);
+        }
+
+        // Apply filter defaults to page_info for frontend sync
+        $filterDefaults = $this->context->getFilterDefaults();
+        if (!empty($filterDefaults)) {
+            // Get current filters from request
+            $currentFilters = $this->context->getRequest()['filters'] ?? '';
+
+            // If no filters in request, apply defaults
+            if ($currentFilters === '') {
+                $filterArray = [];
+                foreach ($filterDefaults as $name => $value) {
+                    if ($value !== '' && $value !== null) {
+                        $filterArray[] = $name . ':' . $value;
+                    }
+                }
+                if (!empty($filterArray)) {
+                    $pageInfo['filters'] = json_encode($filterArray);
+                }
+            }
         }
 
         // Apply custom_data if set

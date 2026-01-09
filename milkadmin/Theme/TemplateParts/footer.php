@@ -7,7 +7,7 @@ use App\{Hooks, Theme, Route};
 Hooks::run('footer');
 echo Theme::get('footer.first'); 
 ?>
-<script src="<?php echo Route::url('?page=translationsjs&g='.$_REQUEST['page'] ?? ''); ?>" async></script>
+<script src="<?php echo Route::url('?page=translationsjs&g='._r($_REQUEST['page'] ?? '')); ?>" async></script>
 <div class="border-top">
     <div class="container-fluid bg-white">
     <footer class="py-1 text-center text-body-white">

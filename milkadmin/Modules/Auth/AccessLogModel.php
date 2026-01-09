@@ -143,32 +143,47 @@ class AccessLogModel extends AbstractModel {
         if (count($pages_activity) >= 500) {
             return false;
         }
-        
+
         $current_time = date('Y-m-d H:i:s');
-        
-        if (isset($pages_activity[$page_key])) {
-            // Page already exists, update last_access and visit_count
-            $pages_activity[$page_key]['last_access'] = $current_time;
-            $pages_activity[$page_key]['visit_count'] = ($pages_activity[$page_key]['visit_count'] ?? 2) + 1;
-        } else {
-            // New page, create entry
-            $pages_activity[$page_key] = [
-                'first_access' => $current_time
-            ];
+        $current_time_minutes = date('Y-m-d H:i'); // Without seconds for comparison
+
+        // Check if last_activity has changed (comparing at minute level, excluding seconds)
+        $last_activity_minutes = '';
+        if ($log->last_activity) {
+            if (is_a($log->last_activity, \DateTime::class)) {
+                $last_activity_minutes = $log->last_activity->format('Y-m-d H:i');
+            } else {
+                $last_activity_minutes = date('Y-m-d H:i', strtotime($log->last_activity));
+            }
         }
-        
-        // Update the log with new pages activity
-        $log->pages_activity = json_encode($pages_activity);
-        $log->last_activity = $current_time;
-        //TODO:  NON SEMBRA PIU' FUNZIONARE!
-        /*
-          $data = [
-            'pages_activity' => json_encode($pages_activity),
-            'last_activity' => $current_time
-        ];
-        if (!$this->store($data, $log->id)) {
-        */
-        
-        return $log->save();
+
+        $minute_changed = $last_activity_minutes !== $current_time_minutes;
+        $is_new_page = !isset($pages_activity[$page_key]);
+
+        // Only update if it's a new page OR minute has changed
+        if ($is_new_page || $minute_changed) {
+            // Update pages_activity
+            if ($is_new_page) {
+                // New page, create entry
+                $pages_activity[$page_key] = [
+                    'first_access' => $current_time
+                ];
+            } else {
+                // Page already exists and minute changed, update last_access and visit_count
+                $pages_activity[$page_key]['last_access'] = $current_time;
+                $pages_activity[$page_key]['visit_count'] = ($pages_activity[$page_key]['visit_count'] ?? 1) + 1;
+            }
+
+            // Update the log with new pages activity
+            $log->pages_activity = json_encode($pages_activity);
+            $log->last_activity = $current_time;
+
+            // Use save(false, false) to avoid unnecessary reload after UPDATE
+            // No cascade needed and no auto-generated fields in this table
+            return $log->save(false, false);
+        }
+
+        // No update needed (same page within same minute)
+        return true;
     }
 }   

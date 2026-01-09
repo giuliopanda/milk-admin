@@ -184,6 +184,19 @@ Hooks::set('upload_accept_my_upload1', function($accept) {
 &lt;div class=&quot;form-check&quot;&gt;Form::checkbox('myName', 'Checked', '1', true);&lt;/div&gt;
     </code></pre>
 
+    <h4>Checkbox with Custom Values (S/N, Y/N)</h4>
+    <p>For checkboxes with custom values (like 'S'/'N' or 'Y'/'N'), add a hidden field before the checkbox to handle the unchecked state:</p>
+    <pre class="pre-scrollable border p-2" class="text-bg-gray"><code class="language-php">&lt;input type="hidden" name="data[active]" value="N"&gt;
+&lt;?php Form::checkbox('data[active]', 'Active', 'S', true); ?&gt;</code></pre>
+    <p><small>With FormBuilder, use <code>->checkboxValues('S', 'N')</code> to automatically handle this.</small></p>
+
+    <h4>Single Switch</h4>
+    <p>To display a checkbox as a switch, wrap it in a div with <code>form-check form-switch</code> classes:</p>
+    <pre class="pre-scrollable border p-2" class="text-bg-gray"><code class="language-php">&lt;div class="form-check form-switch"&gt;
+    &lt;?php Form::checkbox('data[notifications]', 'Enable Notifications', '1', true); ?&gt;
+&lt;/div&gt;</code></pre>
+    <p><small>With FormBuilder, use <code>->formParams(['form-check-class' => 'form-switch'])</code> to automatically add the switch style.</small></p>
+
     <h2>Checkboxes</h2>
     <h5><code>Form::checkboxes($name, $list_of_checkbox, $selected_value, $inline, $options_group = [], $options_field = [], $return = false)</code></h5>
     <p> $field = Hook:set('form_checkboxes', $field, $name, $list_of_checkbox, $selected_value, $inline, $options_group, $options_field, $return)</p>

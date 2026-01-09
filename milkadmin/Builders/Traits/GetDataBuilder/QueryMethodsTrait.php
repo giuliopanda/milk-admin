@@ -138,7 +138,8 @@ trait QueryMethodsTrait
     public function orderBy(string $field, string $direction = 'ASC'): static
     {
         $this->columns->resetCurrentField();
-        $this->context->setOrder($field, $direction);
+        $this->context->setOrder($field, $direction); // ?? Serve ancora?
+        $this->context->getQuery()->order($field, $direction);
         return $this;
     }
 

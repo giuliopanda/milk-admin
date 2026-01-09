@@ -116,17 +116,17 @@ $secondProduct = $products[1];</code></pre>
 
 // RAW format: DateTime objects, PHP arrays (default)
 $rawDate = $product->created_at;              // Returns DateTime object
-$product->setRaw();                           // Set mode permanently
+$product->setOutputMode('raw');               // Set mode permanently
 echo $product->created_at->format('Y-m-d');   // 2024-01-15
 
 // FORMATTED format: Human-readable strings
-$formattedDate = $product->getFormatted('created_at');  // "15/01/2024 14:30"
-$product->setFormatted();                     // Set mode permanently
+$formattedDate = $product->getFormattedValue('created_at');  // "15/01/2024 14:30"
+$product->setOutputMode('formatted');         // Set mode permanently
 echo $product->created_at;                    // "15/01/2024 14:30"
 
 // SQL format: MySQL-compatible strings
-$sqlDate = $product->getSql('created_at');    // "2024-01-15 14:30:00"
-$product->setSql();                           // Set mode permanently
+$sqlDate = $product->getSqlValue('created_at');    // "2024-01-15 14:30:00"
+$product->setOutputMode('sql');               // Set mode permanently
 
 // Get all data in different formats
 $allRaw = $products->getRawData('array', true);           // All records as arrays
@@ -134,7 +134,7 @@ $allFormatted = $products->getFormattedData('object', true);  // All records as 
 $allSql = $products->getSqlData('array', true);          // All records ready for SQL</code></pre>
 
     <div class="alert alert-info mt-3">
-        <strong>💡 Tip:</strong> Use <code>setFormatted()</code> when displaying data in views, <code>setRaw()</code> for business logic, and <code>setSql()</code> when preparing data for manual SQL operations.
+        <strong>💡 Tip:</strong> Use <code>setOutputMode('formatted')</code> when displaying data in views, <code>setOutputMode('raw')</code> for business logic, and <code>setOutputMode('sql')</code> when preparing data for manual SQL operations.
     </div>
 
     <h3>Two Ways to Save Data</h3>

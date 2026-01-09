@@ -1,7 +1,7 @@
 <?php
 namespace Modules\Home\Assets;
 
-use App\{Config, Get, Permissions, Route};
+use App\{Config, Get, Hooks, Permissions, Route};
 
 $phpVersion = phpversion();
 $milkVersion = Config::get('version', '1.0.0');
@@ -141,3 +141,10 @@ foreach ($dbs as $dbKey => $db) {
         <?php _pt($main_article); ?>    
     </div>
 <?php endif; ?>
+
+<?php
+$charts_block = Hooks::run('home.dashboard', '');
+if (is_string($charts_block) && $charts_block !== '') {
+    echo $charts_block;
+}
+?>

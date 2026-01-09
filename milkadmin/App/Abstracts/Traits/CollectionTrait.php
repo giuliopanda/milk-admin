@@ -17,22 +17,23 @@ trait CollectionTrait
     private ?array $keys_cache = null;
 
     /**
-     * Get valid keys from records_array with caching
-     * 
+     * Get valid keys from records_objects (or records_objects as fallback) with caching
+     *
      * @return array
      */
     private function getValidKeys(): array
     {
         if ($this->keys_cache === null) {
-            $this->keys_cache = $this->records_array !== null 
-                ? array_keys($this->records_array) 
+            $records = $this->records_objects ?? $this->records_objects;
+            $this->keys_cache = $records !== null
+                ? array_keys($records)
                 : [];
         }
         return $this->keys_cache;
     }
 
     /**
-     * Invalidate keys cache (call this when records_array changes)
+     * Invalidate keys cache (call this when records_objects changes)
      * 
      * @return void
      */
@@ -79,15 +80,16 @@ trait CollectionTrait
 
     /**
      * Check if offset exists (ArrayAccess)
-     * 
+     *
      * @param mixed $offset
      * @return bool
      */
     public function offsetExists(mixed $offset): bool
     {
-        return $this->records_array !== null 
-            && is_int($offset) 
-            && isset($this->records_array[$offset]);
+        $records = $this->records_objects ?? $this->records_objects;
+        return $records !== null
+            && is_int($offset)
+            && isset($records[$offset]);
     }
 
     /**
@@ -175,24 +177,26 @@ trait CollectionTrait
 
     /**
      * Check if current position is valid
-     * 
+     *
      * @return bool
      */
     public function valid(): bool
     {
-        return isset($this->records_array[$this->current_index]);
+        $records = $this->records_objects ?? $this->records_objects;
+        return isset($records[$this->current_index]);
     }
 
     // ===== Countable Implementation =====
 
     /**
      * Get the total number of records in the result set
-     * 
+     *
      * @return int Number of records
      */
     public function count(): int
     {
-        return $this->records_array !== null ? count($this->records_array) : 0;
+        $records = $this->records_objects ?? $this->records_objects;
+        return $records !== null ? count($records) : 0;
     }
 
     // ===== Navigation Methods =====
@@ -269,17 +273,18 @@ trait CollectionTrait
 
     /**
      * Move to a specific index in the result set
-     * 
+     *
      * @param int $index Zero-based index to move to
      * @return static|null Returns $this for chaining, or null if index doesn't exist
      */
     public function moveTo(int $index): ?static
     {
-        if (isset($this->records_array[$index])) {
+        $records = $this->records_objects ?? $this->records_objects;
+        if (isset($records[$index])) {
             $this->current_index = $index;
             return $this;
         }
-        
+
         return null;
     }
 
@@ -321,45 +326,37 @@ trait CollectionTrait
      */
     public function toArray($index = null): ?array
     {
-        $data = $this->records_array[$index ?? $this->current_index] ?? null;
 
-        if ($data === null) {
-            return null;
-        }
-
-        // Include relationships if requested
-        if (method_exists($this, 'getIncludedRelationshipsData') && !empty($this->include_relationships)) {
-            // Temporarily move to the requested index if different from current
-            $original_index = $this->current_index;
-            if ($index !== null && $index !== $this->current_index) {
-                $this->current_index = $index;
-            }
-
-            // Use current output mode for relationships
-            $output_mode = $this->output_mode ?? 'raw';
-            $relationships_data = $this->getIncludedRelationshipsData($output_mode);
-            foreach ($relationships_data as $alias => $rel_data) {
-                $data[$alias] = $rel_data;
-            }
-
-            // Restore original index if changed
-            if ($index !== null && $index !== $original_index) {
-                $this->current_index = $original_index;
-            }
-        }
-
-        return $data;
+        $new_data = $this->toArrayRecursive($this->records_objects);
+        return $new_data;
     }
+
+     public function toArrayRecursive($data): ?array {
+        $result = [];
+        foreach ($data as $key => $value) {
+            if (is_object($value) && method_exists($value, 'toArray')) {
+                $result[$key] = $value->toArray();
+            } else if (is_array($value)) {
+                $result[$key] = $this->toArrayRecursive($value);
+            } else {
+                $result[$key] = $value;
+            }
+        }
+        return $result;
+     }
+
+
 
     /**
      * Save the current record from result set
-     * 
+     *
      * @return bool True if save succeeded, false otherwise
      */
     public function saveCurrentRecord(): bool
     {
-        $row = $this->records_array[$this->current_index] ?? null;
-        
+        // Use records_objects for saving (contains primitive values, not Model instances)
+        $row = $this->records_objects[$this->current_index] ?? null;
+
         if ($row === null) {
             return false;
         }

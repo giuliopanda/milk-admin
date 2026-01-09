@@ -59,7 +59,7 @@ class Module extends AbstractModuleExtension
     {
         // Initialize audit tracking
         // Example: Set up audit logger
-        // Logs::set('audit', 'INFO', 'Audit extension loaded for module: ' . $this->module->getPage());
+        // Logs::set('AUDIT', 'Audit extension loaded for module: ' . $this->module->getPage());
 
         // You can access module properties
         $page = $this->module->getPage();
@@ -90,7 +90,7 @@ class Module extends AbstractModuleExtension
         // Example: Track page view
         $page = $this->module->getPage();
         $action = $_REQUEST['action'] ?? 'home';
-        // Logs::set('audit', 'INFO', "Page accessed: {$page}, action: {$action}");
+        // Logs::set('AUDIT', "Page accessed: {$page}, action: {$action}");
     }
 
     /**
@@ -104,7 +104,7 @@ class Module extends AbstractModuleExtension
     public function trackModelSave($model, $data): void
     {
         // Log the save operation
-        // Logs::set('audit', 'INFO', 'Model saved: ' . get_class($model));
+        // Logs::set('AUDIT', 'Model saved: ' . get_class($model));
     }
 
     

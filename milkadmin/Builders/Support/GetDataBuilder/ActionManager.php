@@ -117,11 +117,12 @@ class ActionManager
     public function setDefaultActions(array $customActions = [], $deleteHandler = null): void
     {
         $page = $this->context->getPage();
-
+        $model = $this->context->getModel();
+        $key = $model->getPrimaryKey() ?? 'id';
         $defaults = [
             'edit' => [
                 'label' => 'Edit',
-                'link' => "?page={$page}&action=edit&id=%id%",
+                'link' => "?page={$page}&action=edit&id=%$key%",
             ],
             'delete' => [
                 'label' => 'Delete',
@@ -181,7 +182,7 @@ class ActionManager
             $actionConfig['link'] = $config['link'];
         }
 
-        $optionalAttrs = ['target', 'class', 'confirm', 'fetch'];
+        $optionalAttrs = ['target', 'class', 'confirm', 'fetch', 'icon', 'condition'];
 
         foreach ($optionalAttrs as $attr) {
             if (!isset($config[$attr])) {

@@ -17,7 +17,7 @@ trait FilterMethodsTrait
         $modelList = $this->context->getModelList();
 
         $modelList->addFilter($name, function ($query, $value) use ($callback) {
-            if ($value !== '' && $value !== null && !empty($value)) {
+            if ($value !== '' && $value !== null) {
                 $callback($query, $value);
             }
         });

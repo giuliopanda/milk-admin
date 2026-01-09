@@ -2,8 +2,10 @@
 namespace App\Database;
 
 use App\Get;
+use App\Abstracts\AbstractModel;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
+
 /**
  * SQL Query Builder Class
  * 
@@ -29,120 +31,101 @@ use App\Get;
  *       ->get();
  * ```
  *
- * @package     App
+ * @package App\Database
  */
-
 class Query
 {
-   /**
+    /**
      * The table name for the query
-     *
-     * @var string
      */
-    var $table = '';
+    private string $table;
 
     /**
      * List of fields to select
      * 
-     * Can be an array of field names or a string with comma-separated field names.
-     *
-     * @var array|string
+     * @var array<int, string>
      */
-    var $select = [];
+    private array $select = [];
 
     /**
      * Additional FROM or JOIN clauses
      * 
-     * Contains additional tables to join in the query.
-     *
-     * @var array
+     * @var array<int, string>
      */
-    var $from = [];
+    private array $from = [];
 
     /**
      * WHERE conditions for the query
      * 
-     * Contains the conditions to filter the query results.
-     *
-     * @var array
+     * @var array<int, array{0: string, 1: array<mixed>, 2: string}>
      */
-    var $where = [];
+    private array $where = [];
 
     /**
      * ORDER BY clauses for the query
      * 
-     * Specifies the sorting order of the query results.
-     *
-     * @var array
+     * @var array<int, array{0: string, 1: string}>
      */
-    var $order = [];
+    private array $order = [];
 
     /**
-     * LIMIT clause for the query
+     * LIMIT clause for the query [offset, count]
      * 
-     * Limits the number of results returned by the query.
-     *
-     * @var array
+     * @var array<int, int>
      */
-    var $limit = [];
+    private array $limit = [];
+
     /**
      * GROUP BY clause for the query
-     * 
-     * Groups the query results by specified fields.
-     *
-     * @var string
      */
-    var $group = '';
+    private string $group = '';
+
     /**
      * Database connection instance
-     *
-     * @var \App\Database\MySql
      */
-    var $db = null;
+    private ?object $db = null;
+
     /**
      * HAVING conditions for the query
      * 
-     * Used with GROUP BY to filter grouped results.
-     *
-     * @var array
+     * @var array<int, array{0: string, 1: array<mixed>, 2: string}>
      */
-    var $having = [];
+    private array $having = [];
 
     /**
-     * Database type
-     *
-     * @var string
+     * Database type (mysql, sqlite, postgres)
      */
-    var $db_type = '';
+    private string $db_type = '';
 
     /**
      * Sort field mappings
      * Maps virtual fields to real database fields for ORDER BY
-     *
-     * @var array
+     * 
+     * @var array<string, string>
      */
-    var $sort_mappings = [];
+    private array $sort_mappings = [];
 
     /**
      * Static model instance
-     *
-     * @var \App\Abstracts\AbstractModel|null
      */
-    var $static_model = null;
+    private ?AbstractModel $static_model = null;
 
     /**
      * Relationships to include in results
-     *
-     * @var array
+     * 
+     * @var array<int, string>
      */
-    var $include_relationships = [];
+    private array $include_relationships = [];
 
     /**
      * Counter for generating unique join aliases
-     *
-     * @var int
      */
-    var $join_alias_counter = 0;
+    private int $join_alias_counter = 0;
+
+    /**
+     * Supported JOIN types
+     */
+    private const JOIN_TYPES = ['INNER', 'LEFT', 'RIGHT', 'FULL', 'CROSS', 'NATURAL', 'STRAIGHT', 'JOIN'];
 
     /**
      * Query class constructor
@@ -160,35 +143,30 @@ class Query
      * ```
      *
      * @param string $table The table name to build the query on
-     * @param \App\Database\MySql|null $db Optional custom database connection
-     * @param \App\Abstracts\AbstractModel|null $static_model Optional static model instance
+     * @param object|null $db Optional custom database connection
+     * @param AbstractModel|null $static_model Optional static model instance
      */
-
-    function __construct($table, $db = null, $static_model = null) {
+    public function __construct(string $table, ?object $db = null, ?AbstractModel $static_model = null)
+    {
         $this->table = $table;
-        $this->select = [];
-        $this->where = [];
-        $this->order = [];
-        $this->limit = [];
-        $this->having = [];
         $this->static_model = $static_model;
-        if ($db == null) {
-            $this->db = Get::db();
-        } else {
-            $this->db = $db;
-        }
+        $this->db = $db ?? Get::db();
+        $this->db_type = $this->detectDatabaseType();
+    }
 
+    /**
+     * Detects the database type from the connection class name
+     */
+    private function detectDatabaseType(): string
+    {
         $className = get_class($this->db);
-        if (strpos($className, 'MySQL') !== false || strpos($className, 'MySql') !== false) {
-            $this->db_type = 'mysql';
-        } elseif (strpos($className, 'SQLite') !== false) {
-            $this->db_type = 'sqlite';
-        } elseif (strpos($className, 'Postgres') !== false || strpos($className, 'PostgreSQL') !== false) {
-            $this->db_type = 'postgres';
-        } else {
-            // Default a MySQL se non riconosciuto
-            $this->db_type = 'mysql';
-        }
+        
+        return match (true) {
+            str_contains($className, 'MySQL') || str_contains($className, 'MySql') => 'mysql',
+            str_contains($className, 'SQLite') => 'sqlite',
+            str_contains($className, 'Postgres') || str_contains($className, 'PostgreSQL') => 'postgres',
+            default => 'mysql',
+        };
     }
 
     /**
@@ -209,15 +187,11 @@ class Query
      * $query->select('id, username, email');
      * ```
      *
-     * @param string|array $fields Fields to select
-     * @param bool $clear Whether to clear previous selections (default: true)
+     * @param string|array<int, string> $fields Fields to select
      * @return $this Allows method chaining
      */
-    public function select($fields, $clear = true)
+    public function select(string|array $fields): self
     {
-        if ($clear) {
-            $this->select = [];
-        }
         if (is_array($fields)) {
             $this->select = array_merge($this->select, $fields);
         } else {
@@ -228,10 +202,9 @@ class Query
 
     /**
      * Checks if any fields have been selected
-     * 
-     * @return bool True if fields have been selected, false otherwise
      */
-    public function hasSelect() {
+    public function hasSelect(): bool
+    {
         return count($this->select) > 0;
     }
 
@@ -255,64 +228,62 @@ class Query
      * ```
      *
      * @param string $from JOIN statement to add
-     * @param bool $clear Whether to clear previous JOINs (default: false)
      * @return $this Allows method chaining
      */
-    public function from($from, $clear = false)
+    public function from(string $from): self
     {
-        if ($clear) {
-            $this->from = [];
-        }
-        $array_join = ['INNER', 'LEFT', 'RIGHT', 'FULL', 'CROSS', 'NATURAL', 'STRAIGHT', 'JOIN'];
-        $explode_from = explode(' ', $from);
-        if (in_array(strtoupper($explode_from[0]), $array_join)) {
+        $firstWord = strtoupper(explode(' ', trim($from))[0] ?? '');
+        
+        if (in_array($firstWord, self::JOIN_TYPES, true)) {
             $this->from[] = $from;
         } else {
-            $this->from[] = ', '.$from;
+            $this->from[] = ', ' . $from;
         }
         return $this;
     }
 
     /**
-     * Where raw query
+     * Adds WHERE conditions to the query
      *
-     * @param array $fields Condizioni WHERE es. 'campo1 = ? AND campo2 = ?'
-     * @param array $params Parametri da passare al bind_param. es. ['valore1', 'valore2']
-     * @param string $operator Operatore logico da utilizzare ('AND' o 'OR').
-     * @return $this Permette il chaining dei metodi.
+     * @param string $where WHERE condition (e.g., 'field1 = ? AND field2 = ?')
+     * @param array<mixed>|scalar $params Parameters to bind
+     * @param string $operator Logical operator ('AND' or 'OR')
+     * @return $this Allows method chaining
      */
-    public function where($where, $params = [], $operator = 'AND') {
-        $operator = strtoupper($operator) == 'OR' ? 'OR' : 'AND';
-        $this->where[] = [$where, $params, $operator];
+    public function where(string $where, array|string|int|float|bool|null $params = [], string $operator = 'AND'): self
+    {
+        $operator = strtoupper($operator) === 'OR' ? 'OR' : 'AND';
+        $paramsArray = is_array($params) ? $params : [$params];
+        $this->where[] = [$where, $paramsArray, $operator];
 
         return $this;
     }
 
     /**
-     * Where IN clause
+     * Adds WHERE IN clause to the query
      *
-     * @param string $field Campo su cui applicare la condizione IN
-     * @param array $values Array di valori per la clausola IN
-     * @param string $operator Operatore logico da utilizzare ('AND' o 'OR').
-     * @return $this Permette il chaining dei metodi.
+     * @param string $field Field name for the IN condition
+     * @param array<mixed> $values Array of values for the IN clause
+     * @param string $operator Logical operator ('AND' or 'OR')
+     * @return $this Allows method chaining
      */
-    public function whereIn($field, $values, $operator = 'AND') {
+    public function whereIn(string $field, array $values, string $operator = 'AND'): self
+    {
         if (empty($values)) {
             return $this;
         }
 
-        // Build placeholders for IN clause
         $placeholders = implode(',', array_fill(0, count($values), '?'));
-        $where_clause = $this->db->qn($field) . " IN ($placeholders)";
+        $whereClause = $this->db->qn($field) . " IN ($placeholders)";
 
-        // Use the standard where method
-        return $this->where($where_clause, $values, $operator);
+        return $this->where($whereClause, $values, $operator);
     }
 
     /**
-     * Verifica se ha uno o più parametri where
+     * Checks if any WHERE conditions have been added
      */
-    public function hasWhere() {
+    public function hasWhere(): bool
+    {
         return count($this->where) > 0;
     }
 
@@ -322,81 +293,97 @@ class Query
      *
      * @param string $relationAlias Relationship alias defined in model
      * @param string $condition WHERE condition for the subquery (e.g., 'year > ?')
-     * @param array $params Parameters for the condition
+     * @param array<mixed> $params Parameters for the condition
      * @param string $operator Logical operator ('AND' or 'OR')
      * @return $this Allows method chaining
+     * @throws \Exception If no model instance is set or relationship not found
      *
      * @example
      * ```php
      * // Find actors that have films after 1990
      * $query->whereHas('films', 'year > ?', [1990]);
-     *
-     * // Generates:
-     * // WHERE EXISTS (
-     * //   SELECT 1 FROM films
-     * //   WHERE films.actor_id = actors.id AND year > ?
-     * // )
      * ```
      */
-    public function whereHas(string $relationAlias, string $condition, array $params = [], string $operator = 'AND') {
+    public function whereHas(string $relationAlias, string $condition, array $params = [], string $operator = 'AND'): self
+    {
+        $relationship = $this->getRelationshipConfig($relationAlias);
+        $relatedTable = $this->getRelatedTable($relationship);
+
+        $subquery = $this->buildExistsSubquery($relationship, $relatedTable, $condition);
+
+        return $this->where($subquery, $params, $operator);
+    }
+
+    /**
+     * Gets the relationship configuration from the model
+     * 
+     * @throws \Exception If model is not set or relationship not found
+     * @return array<string, mixed> Relationship configuration
+     */
+    private function getRelationshipConfig(string $relationAlias): array
+    {
         if ($this->static_model === null) {
-            throw new \Exception("whereHas() requires a model instance. Use query() from a model.");
+            throw new \Exception("whereHas()/orderHas() requires a model instance. Use query() from a model.");
         }
 
-        // Get relationship configuration from model
-        $relationship = null;
         $rules = $this->static_model->getRules();
 
-        foreach ($rules as $field_name => $rule) {
+        foreach ($rules as $rule) {
             if (isset($rule['relationship']) && $rule['relationship']['alias'] === $relationAlias) {
-                $relationship = $rule['relationship'];
-                break;
+                return $rule['relationship'];
             }
         }
 
-        if (!$relationship) {
-            throw new \Exception("Relationship '$relationAlias' not found in model");
-        }
+        throw new \Exception("Relationship '$relationAlias' not found in model");
+    }
 
-        // Get related model info
+    /**
+     * Gets the related table name from relationship config
+     * 
+     * @param array<string, mixed> $relationship
+     */
+    private function getRelatedTable(array $relationship): string
+    {
         $relatedClass = $relationship['related_model'];
         $relatedModel = new $relatedClass();
-        $relatedTable = $relatedModel->getRuleBuilder()->getTable();
+        return $relatedModel->getRuleBuilder()->getTable();
+    }
 
-        // Build EXISTS subquery based on relationship type
-        if ($relationship['type'] === 'hasOne' || $relationship['type'] === 'hasMany') {
-            // hasOne/hasMany: foreign key is in related table
-            $localKey = $relationship['local_key'];
-            $foreignKey = $relationship['foreign_key'];
+    /**
+     * Builds EXISTS subquery for whereHas
+     * 
+     * @param array<string, mixed> $relationship
+     * @throws \Exception If relationship type is not supported
+     */
+    private function buildExistsSubquery(array $relationship, string $relatedTable, string $condition): string
+    {
+        $type = $relationship['type'];
 
-            $subquery = sprintf(
+        if ($type === 'hasOne' || $type === 'hasMany') {
+            return sprintf(
                 "EXISTS (SELECT 1 FROM %s WHERE %s.%s = %s.%s AND (%s))",
                 $this->db->qn($relatedTable),
                 $this->db->qn($relatedTable),
-                $this->db->qn($foreignKey),
+                $this->db->qn($relationship['foreign_key']),
                 $this->db->qn($this->table),
-                $this->db->qn($localKey),
+                $this->db->qn($relationship['local_key']),
                 $condition
             );
-        } elseif ($relationship['type'] === 'belongsTo') {
-            // belongsTo: foreign key is in this table
-            $foreignKey = $relationship['foreign_key'];
-            $relatedKey = $relationship['related_key'];
-
-            $subquery = sprintf(
-                "EXISTS (SELECT 1 FROM %s WHERE %s.%s = %s.%s AND (%s))",
-                $this->db->qn($relatedTable),
-                $this->db->qn($relatedTable),
-                $this->db->qn($relatedKey),
-                $this->db->qn($this->table),
-                $this->db->qn($foreignKey),
-                $condition
-            );
-        } else {
-            throw new \Exception("Unsupported relationship type: " . $relationship['type']);
         }
 
-        return $this->where($subquery, $params, $operator);
+        if ($type === 'belongsTo') {
+            return sprintf(
+                "EXISTS (SELECT 1 FROM %s WHERE %s.%s = %s.%s AND (%s))",
+                $this->db->qn($relatedTable),
+                $this->db->qn($relatedTable),
+                $this->db->qn($relationship['related_key']),
+                $this->db->qn($this->table),
+                $this->db->qn($relationship['foreign_key']),
+                $condition
+            );
+        }
+
+        throw new \Exception("Unsupported relationship type: $type");
     }
 
     /**
@@ -404,121 +391,99 @@ class Query
      * Orders main table based on a field from a related table
      *
      * @param string $relationAlias Relationship alias defined in model
-     * @param string $orderField Field from related table to order by (e.g., 'name')
+     * @param string $orderField Field from related table to order by
      * @param string $direction Order direction ('ASC' or 'DESC')
      * @return $this Allows method chaining
+     * @throws \Exception If no model instance is set or relationship not found
      *
      * @example
      * ```php
      * // Order actors by their category name
      * $query->orderHas('category', 'name', 'DESC');
-     *
-     * // Generates:
-     * // SELECT actors.*
-     * // FROM actors
-     * // LEFT JOIN categories AS orderhas_alias_1 ON orderhas_alias_1.id = actors.category_id
-     * // ORDER BY orderhas_alias_1.name DESC
      * ```
      */
-    public function orderHas(string $relationAlias, string $orderField, string $direction = 'ASC') {
-        if ($this->static_model === null) {
-            throw new \Exception("orderHas() requires a model instance. Use query() from a model.");
-        }
-
-        // Get relationship configuration from model
-        $relationship = null;
-        $rules = $this->static_model->getRules();
-
-        foreach ($rules as $field_name => $rule) {
-            if (isset($rule['relationship']) && $rule['relationship']['alias'] === $relationAlias) {
-                $relationship = $rule['relationship'];
-                break;
-            }
-        }
-
-        if (!$relationship) {
-            throw new \Exception("Relationship '$relationAlias' not found in model");
-        }
-
-        // Get related model info
-        $relatedClass = $relationship['related_model'];
-        $relatedModel = new $relatedClass();
-        $relatedTable = $relatedModel->getRuleBuilder()->getTable();
+    public function orderHas(string $relationAlias, string $orderField, string $direction = 'ASC'): self
+    {
+        $relationship = $this->getRelationshipConfig($relationAlias);
+        $relatedTable = $this->getRelatedTable($relationship);
        
-        // Generate unique alias for this JOIN
         $this->join_alias_counter++;
         $alias = 'orderhas_alias_' . $this->join_alias_counter;
 
-        // Build LEFT JOIN based on relationship type
-        if ($relationship['type'] === 'hasOne' || $relationship['type'] === 'hasMany') {
-            // hasOne/hasMany: foreign key is in related table
-            $localKey = $relationship['local_key'];
-            $foreignKey = $relationship['foreign_key'];
-
-            $joinClause = sprintf(
-                "LEFT JOIN %s AS %s ON %s.%s = %s.%s",
-                $this->db->qn($relatedTable),
-                $this->db->qn($alias),
-                $this->db->qn($alias),
-                $this->db->qn($foreignKey),
-                $this->db->qn($this->table),
-                $this->db->qn($localKey)
-            );
-        } elseif ($relationship['type'] === 'belongsTo') {
-            // belongsTo: foreign key is in this table
-            $foreignKey = $relationship['foreign_key'];
-            $relatedKey = $relationship['related_key'];
-
-            $joinClause = sprintf(
-                "LEFT JOIN %s AS %s ON %s.%s = %s.%s",
-                $this->db->qn($relatedTable),
-                $this->db->qn($alias),
-                $this->db->qn($alias),
-                $this->db->qn($relatedKey),
-                $this->db->qn($this->table),
-                $this->db->qn($foreignKey)
-            );
-        } else {
-            throw new \Exception("Unsupported relationship type: " . $relationship['type']);
-        }
-
-        // Add the LEFT JOIN to the query
+        $joinClause = $this->buildOrderHasJoin($relationship, $relatedTable, $alias);
         $this->from($joinClause);
-
-        // Add ORDER BY using the alias
-        $orderFieldWithAlias = $alias . '.' . $orderField;
-        $this->order($orderFieldWithAlias, $direction, false);
+        $this->order($alias . '.' . $orderField, $direction);
 
         return $this;
     }
 
-     /**
-     * Specifica l'ordinamento dei risultati.
+    /**
+     * Builds LEFT JOIN clause for orderHas
      * 
-     * @param string|array $field Campo o array di campi su cui ordinare.
-     * @param string|array $dir Direzione dell'ordinamento ('asc' o 'desc') per campo singolo,
-     *                         o array di direzioni per campi multipli.
-     * @return $this Permette il chaining dei metodi.
+     * @param array<string, mixed> $relationship
+     * @throws \Exception If relationship type is not supported
      */
-    public function order($field = '', $dir = 'asc', $clear = true) {
-        if ($clear) {
-            $this->order = [];
+    private function buildOrderHasJoin(array $relationship, string $relatedTable, string $alias): string
+    {
+        $type = $relationship['type'];
+
+        if ($type === 'hasOne' || $type === 'hasMany') {
+            return sprintf(
+                "LEFT JOIN %s AS %s ON %s.%s = %s.%s",
+                $this->db->qn($relatedTable),
+                $this->db->qn($alias),
+                $this->db->qn($alias),
+                $this->db->qn($relationship['foreign_key']),
+                $this->db->qn($this->table),
+                $this->db->qn($relationship['local_key'])
+            );
         }
-        if ($field != '') {
-            if (is_array($field)) {
-                // Gestione campi multipli
-                foreach ($field as $i => $f) {
-                    $direction = is_array($dir) ? ($dir[$i] ?? 'asc') : $dir;
-                    $this->order[] = [$f, $direction];
-                }
-            } else {
-                $this->order[] = [$field, $dir];
+
+        if ($type === 'belongsTo') {
+            return sprintf(
+                "LEFT JOIN %s AS %s ON %s.%s = %s.%s",
+                $this->db->qn($relatedTable),
+                $this->db->qn($alias),
+                $this->db->qn($alias),
+                $this->db->qn($relationship['related_key']),
+                $this->db->qn($this->table),
+                $this->db->qn($relationship['foreign_key'])
+            );
+        }
+
+        throw new \Exception("Unsupported relationship type: $type");
+    }
+
+    /**
+     * Specifies the ordering of results
+     * 
+     * @param string|array<int, string> $field Field name or array of field names
+     * @param string|array<int, string> $dir Direction ('ASC' or 'DESC') or array of directions
+     * @return $this Allows method chaining
+     */
+    public function order(string|array $field = '', string|array $dir = 'ASC'): self
+    {
+        if ($field === '' || (is_array($field) && empty($field))) {
+            return $this;
+        }
+
+        if (is_array($field)) {
+            foreach ($field as $i => $f) {
+                $direction = is_array($dir) ? ($dir[$i] ?? 'ASC') : $dir;
+                $this->order[] = [$f, $direction];
             }
+        } else {
+            $this->order[] = [$field, is_string($dir) ? $dir : 'ASC'];
         }
+        
         return $this;
     }
 
-    public function hasOrder() {
+    /**
+     * Checks if any ORDER BY clauses have been added
+     */
+    public function hasOrder(): bool
+    {
         return count($this->order) > 0;
     }
 
@@ -530,330 +495,444 @@ class Query
      * @param string $real_field Real database field name (e.g., 'title')
      * @return $this Allows method chaining
      */
-    public function setSortMapping($virtual_field, $real_field) {
+    public function setSortMapping(string $virtual_field, string $real_field): self
+    {
         $this->sort_mappings[$virtual_field] = $real_field;
         return $this;
     }
 
     /**
-     * Imposta il limite di risultati da restituire.
+     * Sets the result limit
      * 
-     * @param int $start Primo record da selezionare.
-     * @param int $limit Numero di record da selezionare.
-     * @return $this Permette il chaining dei metodi.
+     * @param int $start First record offset
+     * @param int $limit Number of records to return
+     * @return $this Allows method chaining
      */
-    public function limit($start, $limit) {
+    public function limit(int $start, int $limit): self
+    {
         $this->limit = [_absint($start), _absint($limit)];
         return $this;
     }
 
     /**
-     * Verifica se ha un limite
+     * Checks if a LIMIT clause has been set
      */
-    public function hasLimit() {
+    public function hasLimit(): bool
+    {
         return count($this->limit) > 0;
     }
 
     /**
-     * Imposta il gruppo di risultati.
-     * 
+     * Sets the GROUP BY clause
      */
-    public function group(string $group)
+    public function group(string $group): self
     {
         $this->group = $group;
         return $this;
     }
 
     /**
-     * Verifica se ha un gruppo
+     * Checks if a GROUP BY clause has been set
      */
-    public function hasGroup() {
-        return $this->group != '';
+    public function hasGroup(): bool
+    {
+        return $this->group !== '';
     }
 
     /**
-     * Aggiunge condizioni HAVING alla query.
+     * Adds HAVING conditions to the query
      * 
-     * @param string|array $having Condizioni HAVING es. 'COUNT(*) > ?'
-     * @param array $params Parametri da passare al bind_param. es. ['10']
-     * @param string $operator Operatore logico da utilizzare ('AND' o 'OR').
-     * @return $this Permette il chaining dei metodi.
+     * @param string $having HAVING condition (e.g., 'COUNT(*) > ?')
+     * @param array<mixed>|scalar $params Parameters to bind
+     * @param string $operator Logical operator ('AND' or 'OR')
+     * @return $this Allows method chaining
      */
-    public function having($having, $params = [], $operator = 'AND') {
-        $operator = strtoupper($operator) == 'OR' ? 'OR' : 'AND';
-        $this->having[] = [$having, $params, $operator];
+    public function having(string $having, array|string|int|float|bool|null $params = [], string $operator = 'AND'): self
+    {
+        $operator = strtoupper($operator) === 'OR' ? 'OR' : 'AND';
+        $paramsArray = is_array($params) ? $params : [$params];
+        $this->having[] = [$having, $paramsArray, $operator];
         return $this;
     }
         
     /**
-     * Verifica se ha uno o più parametri having
+     * Checks if any HAVING conditions have been added
      */
-    public function hasHaving() {
+    public function hasHaving(): bool
+    {
         return count($this->having) > 0;
     }
 
     /**
-     * Costruisce e ritorna la query SQL e i parametri da passare al bind_param.
+     * Builds and returns the SQL query and parameters
      * 
-     * @return array Array contenente la stringa SQL e i parametri per il bind_param.
+     * @param bool $convert Whether to convert the query for the specific database type
+     * @return array{0: string, 1: array<mixed>} Array containing SQL string and parameters
      */
-    public function get($convert = true) {
-        $params = []; // saranno i parametri da passare al bind_param
-        if ($this->select == []) {
-            $this->select = ['*'];
-        }
-        $sql = 'SELECT '.implode(',', $this->select).' FROM '.$this->db->qn($this->table);
-        if (count($this->from) > 0) {
-           // var_dump ($this->from); 
-            $sql .= ' '.implode(' ', $this->from);
+    public function get(bool $convert = true): array
+    {
+        $params = [];
+        
+        $selectFields = empty($this->select) ? ['*'] : $this->select;
+        $sql = 'SELECT ' . implode(',', $selectFields) . ' FROM ' . $this->db->qn($this->table);
+        
+        if (!empty($this->from)) {
+            $sql .= ' ' . implode(' ', $this->from);
         }
         
-        [$where, $params] = $this->buildWhere();
-        $sql .= $where;
+        [$whereClause, $params] = $this->buildWhere();
+        $sql .= $whereClause;
 
-        if ($this->group != '') {
-            $sql .= ' GROUP BY '.$this->db->qn($this->group);
-        }
-
-        if (count($this->having) > 0) {
-            $sql_having = '';
-            foreach ($this->having as $having) {
-                $having[0] = str_replace(';','',$having[0]);
-                $having[2] = strtoupper($having[2]) == 'OR' ? 'OR' : 'AND';
-                if ($sql_having == '') {
-                    $sql_having .= "(".$having[0].")"; 
-                } else {
-                    $sql_having .= ' '.$having[2].' ('.$having[0].")";
-                }
-                if (is_scalar($having[1])) {
-                    $having[1] = [$having[1]];
-                }
-                $params = array_merge($params, $having[1]);
-            }
-            if ($sql_having != '') {
-                $sql .= ' HAVING '.$sql_having;
-            }
+        if ($this->group !== '') {
+            $sql .= ' GROUP BY ' . $this->db->qn($this->group);
         }
 
-        if (count($this->order) > 0) {
-            $orderParts = [];
-            foreach ($this->order as $orderItem) {
-                $field = $orderItem[0];
-                $direction = strtolower($orderItem[1]) == 'asc' ? 'ASC' : 'DESC';
-                
-                // Apply sort mapping if exists
-                if (isset($this->sort_mappings[$field])) {
-                    $field = $this->sort_mappings[$field];
-                }
-                
-                $orderParts[] = $this->db->qn($field).' '.$direction;
-            }
-            $sql .= ' ORDER BY '.implode(', ', $orderParts);
-        }
-        
-        if (count($this->limit) > 0) { 
-            $sql .= ' LIMIT '._absint($this->limit[0]).','._absint($this->limit[1]);
-        }
-        if ( $this->db_type != '' && $convert) {
+        [$havingClause, $havingParams] = $this->buildHaving();
+        $sql .= $havingClause;
+        $params = array_merge($params, $havingParams);
+
+        $sql .= $this->buildOrderBy();
+        $sql .= $this->buildLimit();
+
+        if ($this->db_type !== '' && $convert) {
             $converter = new QueryConverter($this->db_type);
-            list($sql, $params) = $converter->convert($sql, $params);
+            [$sql, $params] = $converter->convert($sql, $params);
         }
+        
         return [$sql, $params];
     }
 
-   /**
+    /**
+     * Builds the HAVING clause
+     * 
+     * @return array{0: string, 1: array<mixed>}
+     */
+    private function buildHaving(): array
+    {
+        if (empty($this->having)) {
+            return ['', []];
+        }
+
+        $params = [];
+        $clauses = [];
+        
+        foreach ($this->having as $index => $having) {
+            $condition = str_replace(';', '', $having[0]);
+            $operator = strtoupper($having[2]) === 'OR' ? 'OR' : 'AND';
+            
+            if ($index === 0) {
+                $clauses[] = "($condition)";
+            } else {
+                $clauses[] = "$operator ($condition)";
+            }
+            
+            $params = array_merge($params, $having[1]);
+        }
+
+        return [' HAVING ' . implode(' ', $clauses), $params];
+    }
+
+    /**
+     * Builds the ORDER BY clause
+     */
+    private function buildOrderBy(): string
+    {
+        if (empty($this->order)) {
+            return '';
+        }
+
+        $orderParts = [];
+        foreach ($this->order as $orderItem) {
+            $field = $orderItem[0];
+            $direction = strtolower($orderItem[1]) === 'asc' ? 'ASC' : 'DESC';
+            
+            if (isset($this->sort_mappings[$field])) {
+                $field = $this->sort_mappings[$field];
+            }
+            
+            $orderParts[] = $this->db->qn($field) . ' ' . $direction;
+        }
+        
+        return ' ORDER BY ' . implode(', ', $orderParts);
+    }
+
+    /**
+     * Builds the LIMIT clause
+     */
+    private function buildLimit(): string
+    {
+        if (empty($this->limit)) {
+            return '';
+        }
+        
+        return ' LIMIT ' . _absint($this->limit[0]) . ',' . _absint($this->limit[1]);
+    }
+
+    /**
      * Get the SQL query string with parameters replaced (for debug purposes only)
      * 
-     * This method generates a readable SQL query by replacing placeholders with
-     * their actual values. It should ONLY be used for debugging and logging,
-     * never for actual query execution as it may not perfectly replicate the
-     * database driver's parameter binding behavior.
+     * WARNING: This method should ONLY be used for debugging and logging,
+     * never for actual query execution.
      * 
      * @return string The SQL query with parameters substituted
-     * 
-     * @example
-     * $query->where('id', '=', 123)->where('name', '=', 'John');
-     * echo $query->getSql();
-     * // Output: SELECT * FROM users WHERE id = 123 AND name = 'John'
      */
-    public function getSql() {
-        list($sql, $params) = $this->get();
+    public function toSql(): string
+    {
+        [$sql, $params] = $this->get();
         
-        // Prepare values with appropriate quoting
-        $quoted_params = array_map(function($param) {
-            if (is_null($param)) {
-                return 'NULL';
-            } elseif (is_bool($param)) {
-                return $param ? '1' : '0';
-            } elseif (is_int($param) || is_float($param)) {
-                return $param;
-            } elseif (is_string($param)) {
-                // Use database quote method if available
-                if (method_exists($this->db, 'quote')) {
-                    return $this->db->quote($param);
-                } else {
-                    // Fallback: manual escaping
-                    return "'" . addslashes($param) . "'";
-                }
-            } else {
-                // For arrays or objects
-                return "'" . addslashes(serialize($param)) . "'";
-            }
-        }, $params);
+        $quotedParams = array_map(fn($param) => $this->quoteParam($param), $params);
         
-        // Replace placeholders with formatted values
         $sql = str_replace('?', '%s', $sql);
-        $sql_string = vsprintf($sql, $quoted_params);
-        
-        return $sql_string;
+        return vsprintf($sql, $quotedParams);
     }
 
     /**
-     * Builds and returns the SQL query to calculate the total number of records.
-     *
-     * @return array Array containing the SQL string and the parameters for bind_param.
+     * Quotes a parameter value for SQL display
      */
-    public function getTotal(): array {
-        $params = []; // saranno i parametri da passare al bind_param
-        $sql = 'SELECT COUNT(*) FROM '.$this->db->qn($this->table);
-       
-        [$where, $params] = $this->buildWhere();
-        $sql .= $where;
-        
+    private function quoteParam(mixed $param): string
+    {
+        return match (true) {
+            is_null($param) => 'NULL',
+            is_bool($param) => $param ? '1' : '0',
+            is_int($param), is_float($param) => (string) $param,
+            is_string($param) => method_exists($this->db, 'quote') 
+                ? $this->db->quote($param) 
+                : "'" . addslashes($param) . "'",
+            default => "'" . addslashes(serialize($param)) . "'",
+        };
+    }
+
+    /**
+     * Builds and returns the SQL query to calculate the total number of records
+     *
+     * @return array{0: string, 1: array<mixed>} Array containing SQL string and parameters
+     */
+    public function getTotal(): array
+    {
+        $sql = 'SELECT COUNT(*) FROM ' . $this->db->qn($this->table);
+
+        // Include FROM/JOIN clauses (like get() method does)
+        if (!empty($this->from)) {
+            $sql .= ' ' . implode(' ', $this->from);
+        }
+
+        [$whereClause, $params] = $this->buildWhere();
+        $sql .= $whereClause;
+
+        // Include GROUP BY if present (for complex queries)
+        if ($this->group !== '') {
+            $sql .= ' GROUP BY ' . $this->db->qn($this->group);
+        }
+
+        // Include HAVING if present (for complex queries)
+        $havingParams = [];
+        if (!empty($this->having)) {
+            [$havingClause, $havingParams] = $this->buildHaving();
+            $sql .= $havingClause;
+            $params = array_merge($params, $havingParams);
+        }
+
         return [$sql, $params];
     }
 
     /**
-     * Clears the query parameters.
+     * Clears the query parameters
      *
-     * @param string $single If a string "select" or "from" or "where" or "order" or "limit" is passed as a parameter, only that parameter will be cleared.
+     * @param string $single Specific part to clear ('select', 'from', 'where', 'order', 'limit', 'having', 'group')
+     *                       or empty string to clear all
      */
-    public function clean(string $single = ''): void {
-        if ($single == 'select') {
-            $this->select = [];
-        } elseif ($single == 'from') {
-            $this->from = [];
-        } elseif ($single == 'where') {
-            $this->where = [];
-        } elseif ($single == 'order') {
-            $this->order = [];
-        } elseif ($single == 'limit') {
-            $this->limit = [];
-        } else {
-            $this->select = [];
-            $this->from = [];
-            $this->where = [];
-            $this->order = [];
-            $this->limit = [];
+    public function clean(string $single = ''): self
+    {
+        $parts = [
+            'select' => [],
+            'from' => [],
+            'where' => [],
+            'order' => [],
+            'limit' => [],
+            'having' => [],
+            'group' => '',
+        ];
+
+        if ($single !== '' && array_key_exists($single, $parts)) {
+            $this->{$single} = $parts[$single];
+        } elseif ($single === '') {
+            foreach ($parts as $part => $default) {
+                $this->{$part} = $default;
+            }
         }
+        
+        return $this;
     }
 
     /**
-     * Builds the WHERE string of the query.
+     * Builds the WHERE clause of the query
      *
-     * @return array Array containing the WHERE string and the parameters for bind_param.
+     * @return array{0: string, 1: array<mixed>} Array containing WHERE string and parameters
      */
-    private function buildWhere(): array {
+    private function buildWhere(): array
+    {
+        if (empty($this->where)) {
+            return ['', []];
+        }
+
         $params = [];
-        $sql_where = '';
-        if (count($this->where) > 0) {
-            foreach ($this->where as $where) {
-                $where[0] = str_replace(';','',$where[0]);
-                $where[2] = strtoupper($where[2]) == 'OR' ? 'OR' : 'AND';
-                if ($sql_where == '') {
-                    $sql_where .= "(".$where[0].")"; 
-                } else {
-                    $sql_where .= ' '.$where[2].' ('.$where[0].")";
-                }
-                if (is_scalar($where[1])) {
-                    $where[1] = [$where[1]];
-                }
-                $params = array_merge($params, $where[1]);
+        $clauses = [];
+        
+        foreach ($this->where as $index => $where) {
+            $condition = str_replace(';', '', $where[0]);
+            $operator = strtoupper($where[2]) === 'OR' ? 'OR' : 'AND';
+            
+            if ($index === 0) {
+                $clauses[] = "($condition)";
+            } else {
+                $clauses[] = "$operator ($condition)";
             }
-            if ($sql_where != '') {
-                return [' WHERE '.$sql_where, $params];
-            }
+            
+            $params = array_merge($params, $where[1]);
         }
-        return ['', []];
+
+        return [' WHERE ' . implode(' ', $clauses), $params];
     }
 
-
     /**
-     * Executes the query and returns the results.
+     * Executes the query and returns the results
      *
-     * @return \App\Abstracts\AbstractModel|array|null|false The results of the query or false if the query fails.
+     * @return AbstractModel|array<int, array<string, mixed>>|null|false 
+     *         The results of the query or false if the query fails
      */
-    public function getResults(): \App\Abstracts\AbstractModel|array|null|false {
+    public function getResults(): AbstractModel|array|null|false
+    {
         if ($this->static_model !== null) {
             $result = $this->db->getResults(...$this->get());
-            //print_r ($this->get());
-            if ($result != null) {
+            
+            if ($result !== null) {
                 $this->static_model->setResults($result);
             }
+            
             $this->static_model->setQueryColumns($this->db->getQueryColumns());
-            // Apply include_relationships after data is loaded
-            if (!empty($this->include_relationships) && method_exists($this->static_model, 'with')) {
-                $this->static_model->with($this->include_relationships);
-            }
+            $this->applyRelationships();
           
             return $this->static_model;
-        } else {
-            return $this->db->getResults(...$this->get());
         }
+        
+        return $this->db->getResults(...$this->get());
     }
 
     /**
-     * Executes the query and returns a row.
+     * Executes the query and returns a single row
      *
-     * @return \App\Abstracts\AbstractModel|array|null|false A row or false if the query fails.
+     * @return AbstractModel|array<string, mixed>|null|false 
+     *         A row or false if the query fails
      */
-    public function getRow(): \App\Abstracts\AbstractModel|array|null|false {
+    public function getRow(): AbstractModel|array|null|false
+    {
         $this->limit(0, 1);
+        
         if ($this->static_model !== null) {
-            $row = $this->db->getRow(...$this->get());
-          
             $this->static_model->setRow($this->db->getRow(...$this->get()));
             $this->static_model->setQueryColumns($this->db->getQueryColumns());
-            // Apply include_relationships after data is loaded
-            if (!empty($this->include_relationships) && method_exists($this->static_model, 'with')) {
-                $this->static_model->with($this->include_relationships);
-            }
+            $this->applyRelationships();
+            
             return $this->static_model;
-        } else {
-            return $this->db->getRow(...$this->get());
+        }
+        
+        return $this->db->getRow(...$this->get());
+    }
+
+    /**
+     * Applies include_relationships to the model if set
+     */
+    private function applyRelationships(): void
+    {
+        if (!empty($this->include_relationships) && method_exists($this->static_model, 'with')) {
+            $this->static_model->with($this->include_relationships);
         }
     }
 
     /**
-     * Executes the query and returns a single value.
+     * Executes the query and returns a single value
      *
-     * @return mixed A single value or false if the query fails.
+     * @param string|null $value Column name to retrieve, or null for first column
+     * @return mixed A single value or false if the query fails
      */
-    public function getVar(): mixed {
+    public function getVar(?string $value = null): mixed
+    {
         $this->limit(0, 1);
-        return $this->db->getVar(...$this->get());
+        
+        if ($value === null) {
+            return $this->db->getVar(...$this->get());
+        }
+        
+        $result = $this->db->getRow(...$this->get());
+      
+        if ($result === false) {
+            return false;
+        }
+         if (is_object($result) && property_exists($result, $value)) {
+            return $result->$value;
+        } else  if (is_object($result)) {
+            if (isset($result->$value)) {
+                return $result->$value;
+            } else {
+                return null;
+            }
+        }
+          
+        if (is_array($result) && array_key_exists($value, $result)) {
+            return $result[$value];
+        } else if (is_array($result)) {
+            return reset($result);
+        }
+        
+        return $result;
     }
 
     /**
      * Set the static model
      *
-     * @param \App\Abstracts\AbstractModel $model The static model
+     * @param AbstractModel $model The static model
      */
-    public function setModelClass(\App\Abstracts\AbstractModel $model): void {
+    public function setModelClass(AbstractModel $model): void
+    {
         $this->static_model = $model;
 
-        // Extract include_relationships from the model if available
         if (method_exists($model, 'getIncludeRelationships')) {
             $relationships = $model->getIncludeRelationships();
             if (!empty($relationships)) {
                 $this->include_relationships = $relationships;
             }
         }
-      
     }
 
-    public function __toString(): string {
-        return $this->getSql();
+    /**
+     * Returns the SQL query for string conversion
+     */
+    public function __toString(): string
+    {
+        return $this->toSql();
+    }
+
+    /**
+     * Gets the table name
+     */
+    public function getTable(): string
+    {
+        return $this->table;
+    }
+
+    /**
+     * Gets the database connection
+     */
+    public function getDb(): ?object
+    {
+        return $this->db;
+    }
+
+    /**
+     * Gets the database type
+     */
+    public function getDbType(): string
+    {
+        return $this->db_type;
     }
 }
-

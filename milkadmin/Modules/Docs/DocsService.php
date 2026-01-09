@@ -220,7 +220,7 @@ class DocsService
         });
 
         // Create sidebar using LinksBuilder
-        $builder = LinksBuilder::fill()
+        $builder = LinksBuilder::create()
             ->enableSearch('Search documentation...', 'docsSearchInput', 'searchResultCount');
            
 

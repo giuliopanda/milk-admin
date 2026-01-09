@@ -74,7 +74,7 @@ class AuthModule extends AbstractModule
         }
          // If there's no version, it means the system still needs to be installed
 
-         $links = LinksBuilder::fill();
+         $links = LinksBuilder::create();
         if (!Permissions::check('_user.is_guest')) {
             //  horizontal menu  
             $user = Get::make('Auth');
@@ -87,7 +87,7 @@ class AuthModule extends AbstractModule
         if (Permissions::check('auth.manage')) {
             // The user is an administrator
             Theme::set('sidebar.links',
-                ['url'=> '?page=auth&action=user-list', 'title'=> 'Users', 'icon'=> 'bi bi-people-fill', 'order'=> 20]
+                ['url'=> '?page=auth&action=user-list', 'title'=> 'Users', 'icon'=> 'bi bi-people-fill', 'order'=> 50]
             );
          
         }
@@ -102,7 +102,7 @@ class AuthModule extends AbstractModule
         $current_action = $_REQUEST['action'] ?? 'user-list';
         
         // Build breadcrumb based on current action
-        $links = LinksBuilder::fill()
+        $links = LinksBuilder::create()
             ->add('User list', '?page=auth&action=user-list')->icon('bi bi-people-fill')
             ->add('Access logs', '?page=auth&action=access-logs')->icon('bi bi-lock-fill')
             ->add('Help', '?page=docs&action=User/Administration/user-management-guide')->icon('bi bi-question-circle-fill');

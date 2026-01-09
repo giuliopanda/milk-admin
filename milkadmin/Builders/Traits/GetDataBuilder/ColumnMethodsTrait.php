@@ -12,13 +12,7 @@ trait ColumnMethodsTrait
     /**
      * Add or modify a column
      */
-    public function column(
-        string $key,
-        ?string $label = null,
-        ?string $type = null,
-        array $options = [],
-        ?callable $fn = null
-    ): static {
+    public function column(string $key, ?string $label = null, ?string $type = null, array $options = [], ?callable $fn = null): static {
         $config = array_filter([
             'label' => $label,
             'type' => $type,
@@ -27,7 +21,7 @@ trait ColumnMethodsTrait
         ], fn($v) => $v !== null);
 
         $this->columns->configure($key, $config);
-
+        $this->columns->setCurrentField($key);
         return $this;
     }
 
@@ -68,6 +62,24 @@ trait ColumnMethodsTrait
         foreach ($keys as $key) {
             $this->columns->hide($key);
         }
+        return $this;
+    }
+
+    /**
+     * Reset all fields - hides all existing columns from the model
+     * Useful when you want to start with a clean slate and only show specific columns
+     *
+     * @return static For method chaining
+     * @example
+     * TableBuilder::create($model, 'table_id')
+     *     ->resetFields()  // Hide all existing columns
+     *     ->field('id')    // Show only the columns you want
+     *     ->field('name')
+     *     ->field('email')
+     */
+    public function resetFields(): static
+    {
+        $this->columns->resetFields();
         return $this;
     }
 

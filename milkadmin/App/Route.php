@@ -124,7 +124,6 @@ class Route
      */
     public static function run($name) {
         if (array_key_exists($name, self::$functions) && is_callable(self::$functions[$name])) {
-
             // Check permissions if a permission is set for this route
             if (isset(self::$permissions[$name])) {
                 $required_permission = self::$permissions[$name];
@@ -137,10 +136,12 @@ class Route
             }
 
             $name = Hooks::run('route_before_run', $name);
+            Logs::set('ROUTE',  'Route: '.$name);
             call_user_func(self::$functions[$name]);
             $name = Hooks::run('route_after_run', $name);
             return true;
         } else {
+            Logs::set('ROUTE',  'Route not found: '.$name, 'ERROR');
             return false;
         }
     }
@@ -206,7 +207,7 @@ class Route
     }
 
     /**
-     * Returns the site URL with optional query parameters
+     * Returns the site URL with optional query parameters with slash at the end
      * 
      * This method generates a complete URL for the site, optionally including
      * query parameters. It can accept parameters as an array or as a query string.
@@ -239,8 +240,16 @@ class Route
         if (isset($_SERVER['REQUEST_URI']) && isset($_SERVER['REQUEST_SCHEME'])) {
             $uri = explode('?', $_SERVER['REQUEST_URI']);
             $link_complete =   $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'] . dirname($uri[0]);
+          
         }
-        return (Config::get('base_url', $link_complete)).$query_string;
+        $link_complete =  Config::get('base_url', $link_complete);
+
+        // Ensure trailing slash for consistency and to avoid Apache 301 redirects on POST
+        if (substr($link_complete, -1) != '/') {
+            $link_complete .= '/';
+        }
+
+        return  $link_complete.$query_string;
     }
 
     /**
@@ -340,7 +349,7 @@ class Route
      */
     public static function redirect($url, $data = []) {
         if (headers_sent()) {
-            Logs::set('route', 'ERROR', 'Cannot redirect, headers already sent');
+            Logs::set('ROUTE',  'Cannot redirect, headers already sent', 'ERROR');
             die('Cannot redirect, headers already sent');
             return;
         }
@@ -368,8 +377,7 @@ class Route
             $_SESSION['redirect_data'] = $data;
         } 
 
-        Get::db()->close();
-        Get::db2()->close();
+        Get::closeConnections();
         Settings::save();
         header('Location: ' . $url);
         exit();

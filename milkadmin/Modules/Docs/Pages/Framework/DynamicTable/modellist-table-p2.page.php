@@ -306,14 +306,14 @@ echo Get::themePlugin('table', [
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">&lt;?php
 // Create SearchBuilder from TableBuilder
 $search_builder = $table_builder->createSearchBuilder()
-    ->addSearch('search', 'Search Posts')
-    ->addSelect('status', 'Status', [
+    ->search('search', 'Search Posts')
+    ->select('status', 'Status', [
         '' => 'All Status',
         'published' => 'Published',
         'draft' => 'Draft',
         'trash' => 'Trash'
     ])
-    ->addActionList('category', 'Category', [
+    ->actionList('category', 'Category', [
         '' => 'All',
         'news' => 'News', 
         'blog' => 'Blog',
@@ -326,8 +326,8 @@ $search_html = $search_builder->render();
     <h3>Layout Configuration</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">&lt;?php
 $search_builder = $table_builder->createSearchBuilder()
-    ->addSearch('search', 'Search Posts')
-    ->addSelect('status', 'Status', $options)
+    ->search('search', 'Search Posts')
+    ->select('status', 'Status', $options)
     
     // Label layout
     ->setLabelLayout('side')        // 'side' (labels beside fields) or 'top' (labels above fields)
@@ -356,17 +356,17 @@ $search_builder = $table_builder->createSearchBuilder()
         </thead>
         <tbody>
             <tr>
-                <td><code>addSearch($type, $label)</code></td>
+                <td><code>search($type, $label)</code></td>
                 <td>Adds a text search input</td>
                 <td>$type: filter type, $label: field label</td>
             </tr>
             <tr>
-                <td><code>addSelect($type, $label, $options, $selected)</code></td>
+                <td><code>select($type, $label, $options, $selected)</code></td>
                 <td>Adds a select dropdown</td>
                 <td>$type: filter type, $label: field label, $options: array of options</td>
             </tr>
             <tr>
-                <td><code>addActionList($type, $label, $options, $selected)</code></td>
+                <td><code>actionList($type, $label, $options, $selected)</code></td>
                 <td>Adds an action list (button filters)</td>
                 <td>$type: filter type, $label: field label, $options: array of options</td>
             </tr>
@@ -376,7 +376,7 @@ $search_builder = $table_builder->createSearchBuilder()
                 <td>$input_type: HTML input type, $type: filter type, $label: field label</td>
             </tr>
             <tr>
-                <td><code>addSearchButton($label)</code></td>
+                <td><code>searchButton($label)</code></td>
                 <td>Adds a search button (for submit mode)</td>
                 <td>$label: button label</td>
             </tr>
@@ -408,8 +408,8 @@ $search_builder = $table_builder->createSearchBuilder()
     <h4>Example 1: Automatic Search (Default)</h4>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">&lt;?php
 $search_builder = $table_builder->createSearchBuilder()
-    ->addSearch('search', 'Search')
-    ->addSelect('status', 'Status', ['active' => 'Active', 'inactive' => 'Inactive'])
+    ->search('search', 'Search')
+    ->select('status', 'Status', ['active' => 'Active', 'inactive' => 'Inactive'])
     ->setLabelLayout('side')          // Labels beside fields
     ->setFieldsLayout('columns', 2)   // 2 columns layout
     ->setSearchMode('onchange');       // Automatic search on change
@@ -420,9 +420,9 @@ echo $search_builder->render([], true);
     <h4>Example 2: Manual Search with Buttons</h4>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">&lt;?php
 $search_builder = $table_builder->createSearchBuilder()
-    ->addSearch('search', 'Search')
-    ->addSelect('category', 'Category', $categories)
-    ->addInput('date', 'created_from', 'From Date')
+    ->search('search', 'Search')
+    ->select('category', 'Category', $categories)
+    ->input('date', 'created_from', 'From Date')
     ->setLabelLayout('top')            // Labels above fields
     ->setFieldsLayout('columns', 4)    // 4 columns layout  
     ->setSearchMode('submit', true);   // Manual search with auto Search/Clear buttons
@@ -433,9 +433,9 @@ echo $search_builder->render([], true);
     <h4>Example 3: Custom Column Sizes</h4>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">&lt;?php
 $search_builder = $table_builder->createSearchBuilder()
-    ->addSearch('search', 'Search Posts')
-    ->addSelect('status', 'Status', $statuses)
-    ->addActionList('category', 'Category', $categories)
+    ->search('search', 'Search Posts')
+    ->select('status', 'Status', $statuses)
+    ->actionList('category', 'Category', $categories)
     ->setLabelLayout('side')           // Labels beside fields (text-aligned right)
     ->setFieldsLayout('columns', [     // Custom column sizes
         'col-md-4',     // Search field (33%)
@@ -452,9 +452,9 @@ echo $search_builder->render([], true);
     <h4>Example 4: Multi-Row Layout</h4>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">&lt;?php
 $search_builder = $table_builder->createSearchBuilder()
-    ->addSearch('search', 'Search Posts')
-    ->addSelect('status', 'Status', $statuses)
-    ->addActionList('category', 'Category', $categories)
+    ->search('search', 'Search Posts')
+    ->select('status', 'Status', $statuses)
+    ->actionList('category', 'Category', $categories)
     ->setLabelLayout('side')           // Labels beside fields
     ->setFieldsLayout('columns', [     // Multi-row layout: array of arrays
         ['col-md-6', 'col-md-6'],        // Row 1: Search (50%) + Status (50%)

@@ -11,7 +11,7 @@
 
 ---
 
-**Milk Admin** is a PHP framework designed to build **complex admin panels and backoffice software**.
+**Milk Admin** is designed to build **complex admin panels and backoffice software**.
 
 It focuses on **explicit control**, **relational CRUD flows**, and **long-term maintainability**, avoiding heavy abstractions, and rigid resource-based architectures.
 
@@ -60,7 +60,7 @@ If you stop using Milk Admin tomorrow, your code should still make sense.
 
 ### Builder Classes
 
-Dedicated builder classes simplify the creation of common CRUD components such as **tables, forms, lists, searches, filters, and custom views**.
+Dedicated builder classes simplify the creation of common CRUD components such as **tables, forms, lists, charts, searches, filters, and custom views**.
 
 They provide a consistent and structured way to build admin interfaces with minimal boilerplate, while remaining fully customizable.
 
@@ -117,6 +117,7 @@ You can focus on backend logic without worrying about UI scaffolding.
 - Public API support (Token / JWT)
 - Cron jobs and scheduled tasks
 - CLI tools and shell commands
+
 
 ---
 
@@ -209,6 +210,12 @@ class RecipeModule extends AbstractModule
 This gives you pagination, full CRUD, search, validation, and automatic persistence.
 Add features incrementally as your project grows.
 
+### See it in Action
+
+![Recipe Manager Demo](https://www.milkadmin.org/assets/art-05-anim-recipes03.gif)
+
+The animation above demonstrates the Recipe Manager in action. With just a few lines of code, you get a fully functional admin interface with table display, offcanvas editing forms, instant CRUD operations, and automatic data validation.
+
 ---
 
 ## Modules
@@ -272,6 +279,14 @@ Milk Admin aims to become a solid foundation for professional admin interfaces a
 **Target:** Stable 1.0 release by mid-2026.
 
 ---
+
+## Notes
+
+### Testing
+- Unit tests and integration tests are not published in the project's Git, but used in development to ensure code quality.
+
+### Vendor
+- the vendor folder is included in git to allow installation even without shell access
 
 ## Join the Project
 

@@ -9,22 +9,33 @@ use Builders\TitleBuilder;
  * $title - string
  * $title_btns - array [label, link, color][]
  * $description - string
+ * $bottom_content - string
  * $html - string
  */
 
 ?>
 <div class="card">
+    <?php if (isset($title)) : ?>
     <div class="card-header">
     <?php
-    $title_builder = TitleBuilder::create($title);
-    if (isset($title_btns) && is_array($title_btns)) {
-        foreach ($title_btns as $btn) {
-            $title_builder->addButton($btn['label'], $btn['link'], $btn['color'] ?? 'primary');
+        $title_builder = TitleBuilder::create($title);
+        if (isset($title_btns) && is_array($title_btns)) {
+            foreach ($title_btns as $btn) {
+                $title_builder->addButton($btn['label'], $btn['link'], $btn['color'] ?? 'primary', $btn['class'] ?? '', $btn['fetch'] ?? null);
+            }
         }
-    }
-    echo (isset($search_html)) ? $title_builder->addRightContent($search_html) : $title_builder->addSearch($table_id, 'Search...', 'Search');
+        if (isset($search_html)) {
+            $title_builder->addRightContent($search_html);
+        } else {
+            $title_builder->addSearch($table_id, 'Search...', 'Search');
+        }
+        if (isset($bottom_content)) {
+            $title_builder->addBottomContent($bottom_content);
+        }
+        echo $title_builder;
     ?>
     </div>
+    <?php endif; ?>
     <div class="card-body">
         <?php if (isset($description)) { ?>
             <p class="text-body-secondary mb-3"><?php _pt($description); ?></p>

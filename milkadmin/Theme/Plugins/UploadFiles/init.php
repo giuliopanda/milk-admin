@@ -102,8 +102,8 @@ use App\{Get, Hooks, Route, Token};
             echo json_encode(['msg' => 'Error moving file', 'success' => false]);
             return;
         }
-        // metto i permessi al file 666
-        $permission = Hooks::run('upload_permission_file_'.$name, 0666);
+        // metto i permessi al file 
+        $permission = Hooks::run('upload_permission_file_'.$name, 0640);
         try {
             chmod($file_path, $permission);
         } catch (\Exception $e) {

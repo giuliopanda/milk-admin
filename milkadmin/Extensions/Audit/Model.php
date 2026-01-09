@@ -322,7 +322,8 @@ class Model extends AbstractModelExtension
 
                 // Delete old EDIT records directly from database to avoid triggering hooks
                 if (!empty($idsToDelete)) {
-                    $db = Get::make('Database');
+                    $del = new AuditModel();
+                    $db =  $del->getDB(); 
                     $placeholders = implode(',', array_fill(0, count($idsToDelete), '?'));
                     $sql = "DELETE FROM `{$table_audit}` WHERE `audit_id` IN ({$placeholders})";
                     $db->query($sql, $idsToDelete);

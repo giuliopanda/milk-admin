@@ -84,12 +84,10 @@ class Get
     static $user_locale = null;
 
     /**
-     * Creates or returns an instance of the primary database connection
-     * 
-     * This method implements the singleton pattern for database connections.
-     * It creates a new connection if one doesn't exist, or returns the existing one.
-     * The database type (MySQL or SQLite) is determined by the 'db_type' configuration.
-     * 
+     * Get the primary database connection
+     *
+     * Returns the default database connection managed by DatabaseManager.
+     *
      * @example
      * ```php
      * // Get database connection and run a query
@@ -97,47 +95,21 @@ class Get
      * $results = $db->query("SELECT * FROM users WHERE active = 1");
      * ```
      *
-     * @return MySql|SQLite Instance of the database connection
+     * @return MySql|SQLite|false Instance of the database connection
      */
-    public static function db()
+    public static function db(): MySql|SQLite|null
     {
         if (self::$db == null) {
-            $db_type = Config::get('db_type', 'mysql');
-            try {
-                if ($db_type === 'sqlite') {
-                    // SQLite connection
-                    self::$db = new SQLite(Config::get('prefix'));
-                    $dbname = Config::get('connect_dbname');
-                    if ($dbname != NULL) {
-                        self::$db->connect($dbname);
-                    }
-                } else {
-                    // MySQL connection (default)
-                    self::$db = new MySql(Config::get('prefix'));
-                    if (Config::get('connect_ip') != NULL) {
-                        self::$db->connect(
-                            Config::get('connect_ip'),
-                            Config::get('connect_login'),
-                            Config::get('connect_pass'),
-                            Config::get('connect_dbname')
-                        );
-                    }
-                }
-            } catch (DatabaseException $e) {
-                Logs::set('system', 'FATAL', "Database connection failed: " . $e->getMessage());
-                die("Database connection error: " . $e->getMessage() . "\n");
-            }
+            self::$db = DatabaseManager::connection('db');
         }
         return self::$db;
     }
 
     /**
-     * Creates or returns an instance of the secondary database connection
-     * 
-     * The system can use two databases: one for configuration and one for data.
-     * This method handles the connection to the secondary database (for data).
-     * Currently, the secondary database is always MySQL regardless of the primary db_type.
-     * 
+     * Get the secondary database connection
+     *
+     * Returns the secondary database connection managed by DatabaseManager.
+     *
      * @example
      * ```php
      * // Get secondary database connection and run a query
@@ -145,45 +117,46 @@ class Get
      * $results = $db2->query("SELECT * FROM data_table WHERE status = 'active'");
      * ```
      *
-     * @return \MySql|SQLite Instance of the secondary database connection
+     * @return MySql|SQLite|null Instance of the secondary database connection
      */
-    public static function db2(): MySql|SQLite
+    public static function db2(): MySql|SQLite|null
     {
         if (self::$db2 == null) {
-            $db_type = Config::get('db_type2', 'mysql');
-
-            try {
-                if ($db_type === 'sqlite') {
-                    // SQLite connection
-                    self::$db2 = new SQLite(Config::get('prefix2'));
-                    $dbname = Config::get('connect_dbname2');
-                    if ($dbname != NULL) {
-                        self::$db2->connect($dbname);
-                    }
-                } else {
-                    // MySQL connection (default)
-                    self::$db2 = new MySql(Config::get('prefix2'));
-                    if (Config::get('connect_ip2') != NULL) {
-                        self::$db2->connect(
-                            Config::get('connect_ip2'),
-                            Config::get('connect_login2'),
-                            Config::get('connect_pass2'),
-                            Config::get('connect_dbname2')
-                        );
-                    }
-                }
-            } catch (DatabaseException $e) {
-                Logs::set('system', 'FATAL', "Secondary database connection failed: " . $e->getMessage());
-                die("Secondary database connection error: " . $e->getMessage() . "\n");
-            }
+            self::$db2 = DatabaseManager::connection('db2');
         }
         return self::$db2;
+    }
+
+    /**
+     * Get a named database connection
+     *
+     * Returns any configured database connection by name.
+     * Supports unlimited connections configured in Config or added at runtime.
+     *
+     * @example
+     * ```php
+     * // Get named connection
+     * $analytics = Get::dbConnection('analytics');
+     *
+     * // Same as db2()
+     * $db2 = Get::dbConnection('db2');
+     * ```
+     *
+     * @param string $name Connection name
+     * @return MySql|SQLite Instance of the database connection
+     */
+    public static function dbConnection(string $name): MySql|SQLite
+    {
+        return DatabaseManager::connection($name);
     }
 
     public static function schema($table, $db = null)
     {
         if ($db == null) {
-            $db = self::$db;
+            $db = self::db();
+        }
+        if ($db == null) {
+            die('No database connection available');
         }
         if ($db->getType() == 'mysql') {
             return new SchemaMysql($table, $db);
@@ -718,7 +691,6 @@ class Get
      * Get::bind('logger', LoggerFactory::class);
      * 
      * // Create service instances
-     * $db = Get::make('database', ['localhost', 'user', 'pass']);
      * $config = Get::make('config', []);
      * $logger = Get::make('logger', ['app.log']);
      * ```
@@ -745,8 +717,8 @@ class Get
      * 
      * Example:
      * ```php
-     * if (Get::has('database')) {
-     *     $db = Get::make('database', ['localhost', 'user', 'pass']);
+     * if (Get::has('auth')) {
+     *     $db = Get::make('Auth');
      * } else {
      *     // Handle missing service
      * }
@@ -861,5 +833,16 @@ class Get
         }
 
         return $domain;
+    }
+
+    public static function closeConnections() {
+        if (self::$db !== null) {
+            self::$db->close();
+            self::$db = null;
+        }
+        if (self::$db2 !== null) {
+            self::$db2->close();
+            self::$db2 = null;
+        }
     }
 }

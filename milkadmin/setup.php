@@ -25,7 +25,7 @@ if (substr(Config::get('base_url'), 0, 5) == 'https') {
     ini_set('session.cookie_secure', true);
 }
 
-if (!session_id()) {
+if (!session_id() && !\App\Cli::isCli()) {
     ini_set('session.cookie_httponly', true);
     ini_set('session.cookie_samesite', 'Strict');
     session_start();
@@ -72,7 +72,7 @@ define('STORAGE_DIR', realpath(LOCAL_DIR.'/'.Config::get('storage_dir', 'storage
  * Version identifier in format AAmmXX (YearMonth + sequence)
  * @global string NEW_VERSION
  */
-define('NEW_VERSION', '251201');
+define('NEW_VERSION', '260100');
 
 Token::config(Config::get('secret_key'), Config::get('token_key'));
 

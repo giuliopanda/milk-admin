@@ -31,9 +31,16 @@ trait QueryBuilderTrait
     {
         if ($query !== null && $query instanceof Query) {
             $query->setModelClass($this);
-            return $query;
+        } else {
+            $query = new Query($this->table, $this->db, $this);
         }
-        return new Query($this->table, $this->db, $this);
+
+        // Apply query scopes (default and named queries)
+        if (method_exists($this, 'applyQueryScopes')) {
+            $query = $this->applyQueryScopes($query);
+        }
+
+        return $query;
     }
 
     /**
@@ -247,7 +254,9 @@ trait QueryBuilderTrait
         }
 
         $query->setModelClass($new_model);
-        $query->order($order_field, $order_dir);
+        if ($order_field != '') {
+            $query->order($order_field, $order_dir);
+        }
         return $query->getRow();
     }
 
@@ -269,9 +278,12 @@ trait QueryBuilderTrait
      *
      * @return static Model instance containing all records via ResultInterface
      */
-    public function getAll(): static
+    public function getAll($order_field = '', $order_dir = 'asc'): static
     {
         $query = $this->query();
+        if ($order_field != '') {
+            $query->order($order_field, $order_dir);
+        }
         $new_model = new static();
 
         // Propagate include_relationships from current model to new model

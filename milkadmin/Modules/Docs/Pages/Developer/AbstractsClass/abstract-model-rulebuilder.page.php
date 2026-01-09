@@ -54,6 +54,11 @@ use App\Route;
                     <td>Set database connection type ('db' or 'db2')</td>
                     <td><code>$rule->db('db2')</code></td>
                 </tr>
+                <tr>
+                    <td><code>renameField(string $from, string $to)</code></td>
+                    <td>Rename a column during schema updates</td>
+                    <td><code>$rule->renameField('full_name', 'name')</code></td>
+                </tr>
             </tbody>
         </table>
     </div>
@@ -507,6 +512,11 @@ use App\Route;
                     <td>Define a hasMany relationship (foreign key in RELATED table)</td>
                     <td><code>$rule->id()->hasMany('posts', PostModel::class, 'user_id')</code></td>
                 </tr>
+                <tr>
+                    <td><code>withCount(string $alias, string $related_model, string $foreign_key_in_related)</code></td>
+                    <td>Add a COUNT subquery (virtual field, read-only, always included in queries)</td>
+                    <td><code>$rule->id()->withCount('posts_count', PostModel::class, 'user_id')</code></td>
+                </tr>
             </tbody>
         </table>
     </div>
@@ -525,10 +535,17 @@ protected function configure($rule): void {
 // UserModel
 protected function configure($rule): void {
     $rule->table('#__users')
-        ->id()->hasMany('posts', PostModel::class, 'user_id')  // Foreign key in posts table
+        ->id()
+            ->hasMany('posts', PostModel::class, 'user_id')      // Load actual posts
+            ->withCount('posts_count', PostModel::class, 'user_id')  // Count posts efficiently
         ->title('username', 50)->required()
         ->email('email');
-}</code></pre>
+}
+
+// Usage
+$user = $userModel->getById(1);
+echo $user->posts_count;  // 15 (fast COUNT subquery)
+$posts = $user->posts;     // Array of PostModel (lazy loaded)</code></pre>
 
     <h2 class="mt-4">Advanced Customization</h2>
 
@@ -756,6 +773,13 @@ class ProductsModel extends AbstractModel
     '_set' => callable,           // Custom setter
     '_edit' => callable,          // Custom editor
 ]</code></pre>
+
+    <h2 class="mt-4">Tests</h2>
+
+    <div class="alert alert-info">
+        RuleBuilder has a dedicated unit test suite:
+        <code>php vendor/bin/phpunit tests/Unit/Builders/RuleBuilderMethodsTest.php</code>
+    </div>
 
     <h2 class="mt-4">Next Steps</h2>
 

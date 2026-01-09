@@ -127,19 +127,7 @@ Get::bind('logger', function($filename) {
 Get::bind('database', DatabaseConnection::class);
 Get::bind('config', AppConfig::class, true);
 Get::bind('logger', LoggerFactory::class);
-
-// Then create service instances
-$db = Get::make('database', ['localhost', 'user', 'pass']);
-$config = Get::make('config', []);
-$logger = Get::make('logger', ['app.log']);</code></pre>
-
-    <h4 class="mt-4">has($name)</h4>
-    <p>Checks if a service is registered in the container. Useful for checking service availability before attempting to instantiate it.</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">if (Get::has('database')) {
-    $db = Get::make('database', ['localhost', 'user', 'pass']);
-} else {
-    // Handle missing service
-}</code></pre>
+</code></pre>
 
     <h2 class="mt-4">Client IP Management</h2>
 

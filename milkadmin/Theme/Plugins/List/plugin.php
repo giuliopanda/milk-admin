@@ -204,22 +204,50 @@ if (($info instanceof App\Modellist\ListStructure || is_array($info))  && ($page
                                 }
 
                                 $options = App\Hooks::run('list_actions_box', $header['options'], $row, $list_id);
+
+                                // Filter actions based on condition
+                                if (is_array($options)) {
+                                    foreach ($options as $key => $opt) {
+                                        if (is_array($opt) && isset($opt['condition']) && is_callable($opt['condition'])) {
+                                            // Evaluate condition - remove action if it returns false
+                                            if (!call_user_func($opt['condition'], $row)) {
+                                                unset($options[$key]);
+                                            }
+                                        }
+                                    }
+                                }
+
                                 if (is_array($options)) {
                                     foreach ($options as $key_opt => $val_opt) {
                                         if (is_array($val_opt)) {
                                             $label = $val_opt['label'] ?? $key_opt;
+
+                                            // Build icon and label HTML with responsive classes
+                                            $has_icon = isset($val_opt['icon']);
+                                            if ($has_icon) {
+                                                // Icon + label with responsive hide on small screens
+                                                $icon_html = '<i class="bi ' . _r($val_opt['icon']) . '"></i>';
+                                                $label_html = '<span class="d-none d-lg-inline ms-1">' . _r($label) . '</span>';
+                                                $content = $icon_html . ' ' . $label_html;
+                                            } else {
+                                                // No icon, just label
+                                                $content = _r($label);
+                                            }
+
                                             if (isset($val_opt['link'])) {
                                                 $link_url = ListService::replaceRowPlaceholders($val_opt['link'], $row, $primary);
-                                                $class = $val_opt['class'] ?? 'link-action';
+                                                $class = $val_opt['class'] ?? '';
                                                 $fetch = isset($val_opt['fetch']) ? ' data-fetch="'._r($val_opt['fetch']).'"' : '';
                                                 $target = isset($val_opt['target']) ? ' target="' . _r($val_opt['target']) . '"' : '';
                                                 $confirm_attr = isset($val_opt['confirm']) ? ' data-confirm="' . _r($val_opt['confirm']) . '"' : '';
                                                 $additional_class = isset($val_opt['confirm']) ? ' js-link-confirm' : '';
-                                                echo '<a href="' . _r($link_url) . '" class="' . _r($class) . $additional_class . '"' . $fetch . $target . $confirm_attr . '>' . _r($label) . '</a> ';
+                                                $link_action_class = (strpos($class, 'link-action-') === false) ? 'link-action ' : '';
+                                                echo '<a href="' . _r($link_url) . '" class="' . $link_action_class . _r($class) . ' ' . $additional_class . '"' . $fetch . $target . $confirm_attr . '>' . $content . '</a> ';
                                             } else {
-                                                $class = $val_opt['class'] ?? 'link-action js-single-action';
+                                                $class = $val_opt['class'] ?? '';
                                                 $confirm_attr = isset($val_opt['confirm']) ? ' data-confirm="' . _r($val_opt['confirm']) . '"' : '';
-                                                echo '<span class="' . _r($class) . '" data-list-action="' . _r($key_opt) . '" data-list-id="' . _r($row->$primary) . '"' . $confirm_attr . '>' . _r($label) . '</span> ';
+                                                $link_action_class = (strpos($class, 'link-action-') === false) ? 'link-action ' : '';
+                                                echo '<span class="' . $link_action_class . 'js-single-action ' . _r($class) . '" data-list-action="' . _r($key_opt) . '" data-list-id="' . _r($row->$primary) . '"' . $confirm_attr . '>' . $content . '</span> ';
                                             }
                                         } else {
                                             echo '<span class="link-action js-single-action" data-list-action="' . _r($key_opt) . '" data-list-id="' . _r($row->$primary) . '">'._r($val_opt).'</span> ';

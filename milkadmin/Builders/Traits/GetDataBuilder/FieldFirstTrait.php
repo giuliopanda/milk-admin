@@ -49,10 +49,11 @@ trait FieldFirstTrait
     public function options(array $options): static
     {
         $key = $this->columns->requireCurrentField('options');
+        $this->columns->setType($key, 'select');
         $this->columns->setOptions($key, $options);
         return $this;
+        
     }
-
     /**
      * Set custom formatter function for current field
      */
@@ -184,6 +185,21 @@ trait FieldFirstTrait
         return $this;
     }
 
+    /**
+     * Move current field before another field
+     *
+     * @param string $fieldName Field name to insert before
+     * @return static For method chaining
+     *
+     * @example ->field('email')->moveBefore('password')
+     */
+    public function moveBefore(string $fieldName): static
+    {
+        $key = $this->columns->requireCurrentField('moveBefore');
+        $this->columns->moveBefore($key, $fieldName);
+        return $this;
+    }
+
     // ========================================================================
     // FORMATTERS
     // ========================================================================
@@ -281,6 +297,8 @@ trait FieldFirstTrait
 
     private function replaceUrlPlaceholders(string $link, $row): string
     {
+        $row = $row->getRawData('array', false);
+       
         $properties = is_array($row) ? $row : get_object_vars($row);
         $flat = [];
 
