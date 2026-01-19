@@ -51,7 +51,7 @@ class PostsModule extends AbstractModule
         <li><code>page('posts')</code> - Defines the URL parameter (?page=posts)</li>
         <li><code>title('Posts')</code> - Sets the module title</li>
         <li><code>menu(...)</code> - Creates a menu item with label, URL, Bootstrap icon, and position</li>
-        <li><code>version()</code> - Module version number (format: YYMMDD progressive number)</li>
+        <li><code>version()</code> - Module version number (format: YYMMDD, year-month-day)</li>
     </ul>
 
     <div class="alert alert-info mt-3">

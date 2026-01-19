@@ -31,6 +31,7 @@ class FormBuilder {
     private $form_attributes = [];
     private $fields = [];
     private $removed_fields = [];
+    private $fields_copy = [];
     private $submit_text = 'Save';
     private $submit_attributes = [];
     private $custom_html = [];
@@ -54,6 +55,7 @@ class FormBuilder {
     private $id_request = 'id';
     private $message_success = null;
     private $message_error = null;
+    private bool $reload_requested = false;
 
     /**
      * List of extension names to load for this builder
@@ -85,7 +87,7 @@ class FormBuilder {
         // torna all'elenco
         $this->url_success = (!is_null($url_success)) ? $url_success : '?page=' . $this->page;
         $this->url_error = (!is_null($url_error)) ? $url_error : Route::getQueryString();
-        $this->current_action = $_REQUEST['action'] ?? 'edit';
+        $this->current_action = $_REQUEST['action'] ?? '';
         $this->only_json = $only_json;
         if ($this->only_json === true) {
             $this->url_success = null;
@@ -294,6 +296,18 @@ class FormBuilder {
                 return [];
             }
             return ['success' => false, 'message' => $error_message];
+        };
+    }
+
+    /**
+     * Create a reload action callback
+     *
+     * @return callable Callback function for reload action
+     */
+    public static function reloadAction(): callable {
+        return function(FormBuilder $form_builder, array $request): array {
+            $form_builder->markReload();
+            return ['success' => true, 'message' => ''];
         };
     }
 
@@ -561,6 +575,14 @@ class FormBuilder {
     }
 
     /**
+     * Mark the current request as a reload action
+     */
+    public function markReload(bool $reload = true): self {
+        $this->reload_requested = $reload;
+        return $this;
+    }
+
+    /**
      * Set the size for modal/offcanvas
      *
      * @param string $size Size option: 'sm', 'lg', 'xl', 'fullscreen'
@@ -651,7 +673,7 @@ class FormBuilder {
 
 
         // Add list reload if list_id is set and action was successful
-        if ($this->list_id !== null && $this->action_success) {
+        if ($this->list_id !== null && $this->action_success && !$this->reload_requested) {
             $response['list'] = [
                 'id' => $this->list_id,
                 'action' => 'reload'
@@ -660,8 +682,13 @@ class FormBuilder {
 
         // Build response based on response_type
         if ($this->response_type === 'offcanvas') {
-            // Determine offcanvas action: hide if list_id is set and action was successful, otherwise show
-            $offcanvas_action = ($this->list_id !== null && $this->action_success) ? 'hide' : 'show';
+            // Determine offcanvas action: hide after any successful action, otherwise show
+            $has_action = !empty($this->executed_action);
+            if ($this->reload_requested) {
+                $offcanvas_action = 'show';
+            } else {
+                $offcanvas_action = ($has_action && $this->action_success) ? 'hide' : 'show';
+            }
 
             $response['offcanvas_end'] = [
                 'title' => $title,
@@ -678,8 +705,13 @@ class FormBuilder {
         }
 
         if ($this->response_type === 'modal') {
-            // Determine modal action: hide if list_id is set and action was successful, otherwise show
-            $modal_action = ($this->list_id !== null && $this->action_success) ? 'hide' : 'show';
+            // Determine modal action: hide after any successful action, otherwise show
+            $has_action = !empty($this->executed_action);
+            if ($this->reload_requested) {
+                $modal_action = 'show';
+            } else {
+                $modal_action = ($has_action && $this->action_success) ? 'hide' : 'show';
+            }
 
             $response['modal'] = [
                 'title' => $title,
@@ -696,8 +728,13 @@ class FormBuilder {
         }
 
         if ($this->response_type === 'dom') {
-            // Determine DOM action: hide if list_id is set and action was successful, otherwise show
-            $dom_action = ($this->list_id !== null && $this->action_success) ? 'hide' : 'show';
+            // Determine DOM action: hide after any successful action, otherwise show
+            $has_action = !empty($this->executed_action);
+            if ($this->reload_requested) {
+                $dom_action = 'show';
+            } else {
+                $dom_action = ($has_action && $this->action_success) ? 'hide' : 'show';
+            }
 
             // Prepend title to form HTML
             $innerHTML = '<h2 class="mb-0 me-3">' . $title . '</h2>' . $form_html;

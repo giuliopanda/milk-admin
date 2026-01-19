@@ -5,7 +5,7 @@ use App\Route;
  * @title Abstract Model   
  * @guide developer
  * @order 50
- * @tags AbstractModel, model, database, query, SQL, MySQL, get_by_id, get_by_id_or_empty, get_empty, get_by_id_for_edit, save, delete, where, order, limit, select, from, group, get, execute, get_all, first, total, build_table, drop_table, validate, clear_cache, get_last_error, has_error, set_query_params, get_filtered_columns, get_columns, add_filter, object_class, primary_key, table, CRUD, query-builder, fluent-interface, pagination, sorting, filtering, validation, schema, to_mysql_array, filter_data_by_rules, get_last_insert_id, bind_params, SQL-injection
+ * @tags AbstractModel, model, database, query, SQL, MySQL, get_by_id, get_by_id_or_empty, get_empty, get_by_id_for_edit, save, delete, where, order, limit, select, from, group, get, execute, get_all, first, total, build_table, drop_table, validate, clear_cache, get_last_error, has_error, set_query_params, get_filtered_columns, get_columns, add_filter, object_class, primary_key, table, CRUD, query-builder, fluent-interface, pagination, sorting, filtering, validation, schema, to_mysql_array, filter_data_by_rules, get_last_insert_id, bind_params, SQL-injection, registerVirtualTable, ArrayDb, virtual_table
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>
@@ -684,6 +684,16 @@ class ProductsModel extends AbstractModel
                     <td>Set single row data</td>
                     <td><span class="badge bg-secondary">void</span></td>
                     <td><code>$model->setRow($data)</code></td>
+                </tr>
+                <!-- ArrayDb / Virtual Tables -->
+                <tr class="table-secondary">
+                    <td colspan="4"><strong>ArrayDb / Virtual Tables</strong></td>
+                </tr>
+                <tr>
+                    <td><code><a href="#registerVirtualTable">registerVirtualTable()</a></code></td>
+                    <td>Register current model data as an ArrayDb virtual table</td>
+                    <td><span class="badge bg-info">bool</span></td>
+                    <td><code>$model->registerVirtualTable('products')</code></td>
                 </tr>
             </tbody>
         </table>
@@ -1796,12 +1806,71 @@ if ($price_rule) {
 /**
  * @return string Primary key field name
  */
-public function getPrimaryKey(): string;
+    public function getPrimaryKey(): string;
 
 // Example
 $pk = $this->model->getPrimaryKey();
 echo "Primary key: " . $pk; // Output: "id"
     </code></pre>
+
+    <h3 class="mt-3" id="registerVirtualTable"><code>registerVirtualTable(string $tableName, ?string $autoIncrementColumn = null)</code></h3>
+    <p>Registers the current model results as an ArrayDb virtual table so you can run SQL queries on the data. Only scalar fields are included; array and object fields are ignored.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">/**
+ * @param string $tableName Virtual table name (can include #__ prefix token)
+ * @param string|null $autoIncrementColumn Auto-increment column (defaults to primary key)
+ * @return bool True on success, false on failure
+ */
+public function registerVirtualTable(string $tableName, ?string $autoIncrementColumn = null): bool;
+
+// Example 1: Basic usage (PHP + SQL)
+$modelData->registerVirtualTable('product');
+$complete = \App\Get::ArrayDb()->getResults(
+    'SELECT * FROM product WHERE status = "COMPLETE"'
+);
+
+// Equivalent PHP
+$new_data = array_filter($modelData->getFormattedData(), function ($row) {
+    return $row->status === 'COMPLETE';
+});
+
+// Example 2: Why SQL is more readable for joins
+$modelProducts->registerVirtualTable('products');
+$modelCustomers->registerVirtualTable('customers');
+$db = \App\Get::ArrayDb();
+
+// SQL - clear and concise
+$result = $db->getResults('SELECT p.*, c.name AS customer_name, c.email
+                           FROM products p
+                           JOIN customers c ON p.customer_id = c.id
+                           WHERE p.status = "PENDING"');
+
+// PHP - complex and inefficient
+$products = $modelProducts->getFormattedData();
+$customers = $modelCustomers->getFormattedData();
+$customersMap = array_column($customers, null, 'id');
+
+$result = array_map(function ($p) use ($customersMap) {
+    $customer = $customersMap[$p->customer_id] ?? null;
+    return (object) [
+        ...(array) $p,
+        'customer_name' => $customer->name ?? null,
+        'email' => $customer->email ?? null
+    ];
+}, array_filter($products, fn($p) => $p->status === 'PENDING'));
+    </code></pre>
+    <ul>
+        <li><strong>Input parameters:</strong>
+            <ul>
+                <li><code>$tableName</code>: (string) The virtual table name to register in ArrayDb.</li>
+                <li><code>$autoIncrementColumn</code>: (string|null, optional) Auto-increment column (defaults to the model primary key).</li>
+            </ul>
+        </li>
+        <li><strong>Return value:</strong>
+            <ul>
+                <li><code>bool</code>: Returns <code>true</code> on success, <code>false</code> if the table name is invalid or no data is available.</li>
+            </ul>
+        </li>
+    </ul>
 
     <h2 class="mt-5">Complete Usage Examples</h2>
 

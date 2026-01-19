@@ -436,7 +436,7 @@ class ObjectToForm
 
         $attrs_string = '';
         foreach ($attributes as $key => $value) {
-            $attrs_string .= ' ' . htmlspecialchars($key) . '="' . htmlspecialchars($value) . '"';
+            $attrs_string .= ' ' . _r($key) . '="' . _r($value) . '"';
         }
 
         return $attrs_string;

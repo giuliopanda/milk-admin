@@ -94,7 +94,7 @@ namespace Modules\Docs\Pages;
                 <td>Add custom HTML content</td>
             </tr>
             <tr>
-                <td rowspan="6">Actions</td>
+                <td rowspan="7">Actions</td>
                 <td><code>setActions(array $actions)</code></td>
                 <td>Replace all existing actions</td>
             </tr>
@@ -105,6 +105,10 @@ namespace Modules\Docs\Pages;
             <tr>
                 <td><code>addStandardActions(bool $include_delete = false, ?string $cancel_link = null)</code></td>
                 <td>Add pre-configured save/delete/cancel actions</td>
+            </tr>
+            <tr>
+                <td><code>getPressedAction()</code></td>
+                <td>Return the action key that triggered the submit (save, cancel, custom)</td>
             </tr>
             <tr>
                 <td><code>setMessageSuccess(string $message)</code></td>

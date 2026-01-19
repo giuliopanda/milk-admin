@@ -293,7 +293,7 @@ trait MethodFirstCompatibilityTrait
                 $file_name = is_array($file) ? ($file['name'] ?? false) : (is_object($file) ? ($file->name ?? false) : false);
 
                 if ($file_url && $file_name) {
-                    $output .= '<a href="' . htmlspecialchars($file_url) . '" target="' . htmlspecialchars($target) . '" class="' . htmlspecialchars($default_class) . '">' . htmlspecialchars($file_name) . '</a><br>';
+                    $output .= '<a href="' . _r($file_url) . '" target="' . _r($target) . '" class="' . _r($default_class) . '">' . _rh($file_name) . '</a><br>';
                 }
             }
 
@@ -361,10 +361,10 @@ trait MethodFirstCompatibilityTrait
                         break;
                     }
 
-                    $img_html = '<img src="' . htmlspecialchars($file_url) . '" alt="' . htmlspecialchars($file_name) . '" style="width: ' . $size . 'px; height: ' . $size . 'px; object-fit: cover; border-radius: 4px;" class="' . htmlspecialchars($class) . '">';
+                    $img_html = '<img src="' . _r($file_url) . '" alt="' . _r($file_name) . '" style="width: ' . $size . 'px; height: ' . $size . 'px; object-fit: cover; border-radius: 4px;" class="' . _r($class) . '">';
 
                     if ($lightbox) {
-                        $output .= '<a href="' . htmlspecialchars($file_url) . '" target="_blank" data-lightbox="' . htmlspecialchars($key) . '">' . $img_html . '</a>';
+                        $output .= '<a href="' . _r($file_url) . '" target="_blank" data-lightbox="' . _r($key) . '">' . $img_html . '</a>';
                     } else {
                         $output .= $img_html;
                     }

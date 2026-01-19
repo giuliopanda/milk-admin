@@ -17,6 +17,9 @@ require_once __DIR__ . '/DocsService.php';
  */
 class DocsController extends AbstractController
 {
+    private const ARRAYDB_TABLE_ACTION = ArrayDbDocsService::TABLE_ACTION;
+    private const ARRAYDB_CHART_ACTION = ArrayDbDocsService::CHART_ACTION;
+
     /**
      * Default action - redirects to developer guide's home page
      */
@@ -38,8 +41,18 @@ class DocsController extends AbstractController
             return;
         }
 
-        // Get parameters
-        $action = str_replace('..', '', $_GET['action'] ?? '');
+        // Get parameters (prefer POST action for JSON reloads)
+        $action = str_replace('..', '', $_POST['action'] ?? $_GET['action'] ?? '');
+
+        if ($action === self::ARRAYDB_TABLE_ACTION) {
+            $this->handleArrayDbTable();
+            return;
+        }
+
+        if ($action === self::ARRAYDB_CHART_ACTION) {
+            $this->handleArrayDbChart();
+            return;
+        }
 
         // Redirect to home if no action specified
         if (empty($action)) {
@@ -95,5 +108,19 @@ class DocsController extends AbstractController
      
         // Render
         Response::themePage('default');
+    }
+
+    private function handleArrayDbTable(): void
+    {
+        $tableId = $_REQUEST['table_id'] ?? ArrayDbDocsService::TABLE_ID;
+        $response = ArrayDbDocsService::tableResponse($tableId);
+        Response::htmlJson($response);
+    }
+
+    private function handleArrayDbChart(): void
+    {
+        $chartId = $_REQUEST['chart_id'] ?? ArrayDbDocsService::CHART_ID;
+        $response = ArrayDbDocsService::chartResponse($chartId);
+        Response::htmlJson($response);
     }
 }

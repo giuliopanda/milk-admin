@@ -1015,8 +1015,38 @@ class InstallService
     }
     
     /**
+     * Detect module namespace from module file
+     *
+     * @param string $module_file_path Path to module file
+     * @return string|null Namespace or null if not found
+     */
+    private static function detectModuleNamespace($module_file_path)
+    {
+        if (!$module_file_path || !file_exists($module_file_path)) {
+            return null;
+        }
+
+        try {
+            $content = file_get_contents($module_file_path);
+            if ($content === false) {
+                return null;
+            }
+
+            // Search for namespace declaration at the beginning of the file
+            // Matches: namespace Modules\ModuleName; or namespace Local\Modules\ModuleName;
+            if (preg_match('/^\s*namespace\s+([\w\\\\]+)\s*;/m', $content, $matches)) {
+                return $matches[1];
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
      * Copy extracted module to modules directory with proper folder naming
-     * 
+     *
      * @param string $extract_dir Extraction directory
      * @param string $zip_name Original ZIP filename without extension
      * @return array Result with success/error info and module name
@@ -1026,27 +1056,29 @@ class InstallService
         // Check extracted contents
         $items = scandir($extract_dir);
         $items = array_diff($items, ['.', '..']);
-        
+
         if (count($items) === 0) {
             return ['success' => false, 'message' => _r('The ZIP file is empty.')];
         }
-        
+
         $source_dir = $extract_dir;
         $module_name = null;
         $module_file = null;
+        $module_file_path = null;
         // If there's only one directory, enter it and use its name or the ZIP name
         if (count($items) === 1) {
             $first_item = reset($items);
             $first_item_path = $extract_dir . '/' . $first_item;
             if (is_dir($first_item_path)) {
                 $module_name = $first_item; // Use the directory name
-                
+
                 // Re-scan the contents of the inner directory
                 $subitems = scandir($first_item_path);
                 $subitems = array_diff($subitems, ['.', '..']);
                 foreach ($subitems as $item) {
                     if (is_file($first_item_path . '/' . $item) && self::isValidModuleFile($item)) {
                         $module_file = $item;
+                        $module_file_path = $first_item_path . '/' . $item;
 
                         // If we don't have a module name yet, extract it from module filename
                         if (!$module_name) {
@@ -1057,6 +1089,7 @@ class InstallService
                 }
             } else if (is_file($extract_dir . '/' . $first_item) && self::isValidModuleFile($first_item)) {
                 $module_file = $first_item;
+                $module_file_path = $extract_dir . '/' . $first_item;
                 $module_name = $zip_name;
             }
         } else {
@@ -1067,21 +1100,35 @@ class InstallService
         if (!$module_file) {
             return ['success' => false, 'message' => _r('No valid module file found. Module must contain a _module.php or Module.php file.')];
         }
-        
+
         // If we still don't have a module name, use the ZIP filename
         if (!$module_name) {
             $module_name = $zip_name;
         }
-        
+
+        // Detect module namespace to determine target directory
+        $namespace = self::detectModuleNamespace($module_file_path);
+        $is_local_module = ($namespace && strpos($namespace, 'Local\\Modules') === 0);
+
+        // Choose target directory based on namespace
+        $modules_base_dir = $is_local_module ? LOCAL_DIR . '/Modules/' : MILK_DIR . '/Modules/';
+
+        // Ensure target modules directory exists
+        if (!is_dir(rtrim($modules_base_dir, '/'))) {
+            if (!mkdir(rtrim($modules_base_dir, '/'), 0755, true)) {
+                return ['success' => false, 'message' => sprintf(_r('Cannot create modules directory: %s'), $modules_base_dir)];
+            }
+        }
+
         // Check if module already exists
-        $target_dir = MILK_DIR . '/Modules/' . $module_name;
-        $target_file = MILK_DIR . '/Modules/' . $module_name . '.module.php';
-        
+        $target_dir = $modules_base_dir . $module_name;
+        $target_file = $modules_base_dir . $module_name . '.module.php';
+
         if (is_dir($target_dir) || is_file($target_file)) {
             // Check if we can overwrite (check permissions)
             $can_overwrite = false;
             $permission_error = '';
-            
+
             if (is_dir($target_dir)) {
                 // Check directory permissions
                 if (is_writable($target_dir)) {
@@ -1097,11 +1144,11 @@ class InstallService
                     $permission_error = sprintf(_r('Cannot overwrite module %s: insufficient permissions on file %s'), $module_name, $target_file);
                 }
             }
-            
+
             if (!$can_overwrite) {
                 return ['success' => false, 'message' => $permission_error];
             }
-            
+
             // Module exists but can be overwritten - remove existing version
             try {
                 if (is_dir($target_dir)) {
@@ -1113,21 +1160,21 @@ class InstallService
                 return ['success' => false, 'message' => sprintf(_r('Cannot remove existing module %s: %s'), $module_name, $e->getMessage())];
             }
         }
-      
+
         // Copy module files to modules directory
         if (count($items) > 1 || is_dir($source_dir . '/' . reset($items))) {
             // Multiple files or contains directories - create module directory
-            self::copyDirectory($source_dir,  MILK_DIR . '/Modules/');
+            self::copyDirectory($source_dir, $modules_base_dir);
         } else {
             // Single module file - copy directly
-            if (!copy($source_dir . '/' . $module_file, MILK_DIR . '/Modules/' . $module_file)) {
+            if (!copy($source_dir . '/' . $module_file, $modules_base_dir . $module_file)) {
                 return ['success' => false, 'message' => _r('Failed to copy module file.')];
             }
         }
-        
+
         return [
-            'success' => true, 
-            'message' => sprintf(_r('Module %s copied successfully.'), $module_name),
+            'success' => true,
+            'message' => sprintf(_r('Module %s copied successfully to %s.'), $module_name, $is_local_module ? 'milkadmin_local/Modules' : 'milkadmin/Modules'),
             'module_name' => $module_name
         ];
 
@@ -1166,19 +1213,23 @@ class InstallService
     
     /**
      * Remove directory recursively
-     * 
+     *
      * @param string $directory Directory to remove
      */
      private static function removeDirectory($dir) {
         if (!is_dir($dir)) {
             return false;
         }
-       
-        // Verifica di sicurezza: la directory deve essere dentro /Modules
+
+        // Verifica di sicurezza: la directory deve essere dentro /Modules o milkadmin_local/Modules
         $modulesPath = realpath(MILK_DIR . '/Modules');
+        $localModulesPath = realpath(LOCAL_DIR . '/Modules');
         $targetPath = realpath($dir);
-        
-        if ($targetPath === false || strpos($targetPath, $modulesPath) !== 0 || $targetPath == $modulesPath) {
+
+        $isInModules = ($targetPath !== false && strpos($targetPath, $modulesPath) === 0 && $targetPath != $modulesPath);
+        $isInLocalModules = ($localModulesPath !== false && $targetPath !== false && strpos($targetPath, $localModulesPath) === 0 && $targetPath != $localModulesPath);
+
+        if (!$isInModules && !$isInLocalModules) {
             if (Cli::isCli()) {
                 Cli::error('Security error: Cannot remove directory outside modules folder');
             }
@@ -1268,9 +1319,14 @@ class InstallService
 
         $module_folder = $module_data[$module_name]['folder'];
         $module_path = MILK_DIR . '/Modules/' . $module_folder;
+        $module_local_path = LOCAL_DIR . '/Modules/' . $module_folder;
 
-        // Check if module exists
-        if (!is_dir($module_path) && !is_file($module_path)) {
+        // Check if module exists in core or local modules directory
+        if (is_dir($module_path) || is_file($module_path)) {
+            $module_source_path = $module_path;
+        } elseif (is_dir($module_local_path) || is_file($module_local_path)) {
+            $module_source_path = $module_local_path;
+        } else {
             MessagesHandler::addError(sprintf(_r('Module %s files not found'), $module_name));
             Route::redirect(['page' => 'install', 'action' => 'update-modules']);
             return;
@@ -1295,12 +1351,12 @@ class InstallService
         }
 
         // Add files to ZIP
-        if (is_dir($module_path)) {
+        if (is_dir($module_source_path)) {
             // Module is a directory
-            self::addDirectoryToZip($zip, $module_path, $module_folder);
+            self::addDirectoryToZip($zip, $module_source_path, $module_folder);
         } else {
             // Module is a single file
-            $zip->addFile($module_path, basename($module_path));
+            $zip->addFile($module_source_path, basename($module_source_path));
         }
 
         $zip->close();

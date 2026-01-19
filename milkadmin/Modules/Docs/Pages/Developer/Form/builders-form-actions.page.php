@@ -37,6 +37,10 @@ namespace Modules\Docs\Pages;
                 <td>Adds actions without replacing existing ones. Useful for adding custom buttons after <code>addStandardActions()</code>.</td>
             </tr>
             <tr>
+                <td><code>getPressedAction()</code></td>
+                <td>Returns the action key that triggered the submit (e.g., save, cancel, custom).</td>
+            </tr>
+            <tr>
                 <td><code>setMessageSuccess(string $message)</code></td>
                 <td>Customizes the success message shown after successful save operation. Default: "Save successful"</td>
             </tr>

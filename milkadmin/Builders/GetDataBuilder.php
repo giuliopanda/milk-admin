@@ -63,6 +63,8 @@ class GetDataBuilder
     protected array $loaded_extensions = [];
 
     protected ?array $cached_data = null;
+    // If the query fails and config debug is true, this message will be displayed
+    protected ?string $customErrorMessage = null;
 
     public function __construct(AbstractModel $model, string $table_id, ?array $request = null)
     {
@@ -386,5 +388,106 @@ class GetDataBuilder
                 default => $this->columns->hide($key)
             };
         }
+    }
+
+    /**
+     * Check if there's a database error
+     */
+    public function hasError(): bool
+    {
+        return $this->dataProcessor->hasError();
+    }
+
+    /**
+     * Get error message based on debug mode
+     *
+     * @param string|null $customMessage Custom message to show in production mode (when debug=false)
+     * @return string Error message
+     */
+    public function getErrorMessage(?string $customMessage = null): string
+    {
+        if (!$this->hasError()) {
+            return '';
+        }
+
+        $error = $this->dataProcessor->getError();
+        $isDebug = Config::get('debug', false);
+
+        if ($isDebug) {
+            // In debug mode, show full error details with filtered stack trace
+            $message = $error->getMessage() . "\n\n";
+            $message .= "File: " . $error->getFile() . "\n";
+            $message .= "Line: " . $error->getLine() . "\n\n";
+            $message .= "Module Stack trace:\n" . $this->getFilteredStackTrace($error);
+            return $message;
+        }
+
+        // In production mode, show generic or custom message
+        return $customMessage ?? 'Si è verificato un errore durante il caricamento dei dati. Contattare l\'amministratore di sistema.';
+    }
+
+    /**
+     * Filter stack trace to show only Modules files
+     *
+     * @param \Throwable $error
+     * @return string Filtered stack trace
+     */
+    private function getFilteredStackTrace(\Throwable $error): string
+    {
+        $trace = $error->getTrace();
+        $filteredLines = [];
+        $index = 0;
+
+        foreach ($trace as $item) {
+            $file = $item['file'] ?? '';
+
+            // Only include files from Modules directories
+            if (strpos($file, '/Modules/') !== false) {
+                $function = $item['function'] ?? '';
+                $class = $item['class'] ?? '';
+                $type = $item['type'] ?? '';
+                $line = $item['line'] ?? '';
+
+                $functionCall = $class ? "{$class}{$type}{$function}()" : "{$function}()";
+                $filteredLines[] = "#{$index} {$file}({$line}): {$functionCall}";
+                $index++;
+            }
+        }
+
+        return !empty($filteredLines) ? implode("\n", $filteredLines) : "No module files in stack trace";
+    }
+
+    /**
+     * Generate error alert HTML
+     *
+     * @param string|null $customMessage Custom message to show in production mode
+     * @return string HTML alert string
+     */
+    protected function getErrorAlertHtml(?string $customMessage = null): string
+    {
+        if (!$this->hasError()) {
+            return '';
+        }
+
+        $message = $this->getErrorMessage($customMessage);
+        $isDebug = Config::get('debug', false);
+        $alertType = $isDebug ? 'danger' : 'warning';
+
+        $html = '<div class="alert alert-' . $alertType . '" role="alert">';
+        $html .= '<strong>' . ($isDebug ? 'Database Error:' : 'Errore:') . '</strong><br>';
+
+        if ($isDebug) {
+            // In debug mode, use <pre> for better formatting of stack trace
+            $html .= '<pre style="white-space: pre-wrap; font-size: 0.85em; margin-top: 10px;">';
+            $html .= _rh($message);
+            $html .= '</pre>';
+        } else {
+            // In production mode, simple text
+            $html .= _rh($message);
+        }
+
+        $html .= '</div>';
+
+        return $html;
     }
 }

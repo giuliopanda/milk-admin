@@ -75,13 +75,21 @@ class TitleBuilder {
      * 
      * @example ->addButton('Add New', '?page=modellist&action=edit', 'primary')
      */
-    public function addButton(string $title, string $link, string $color = 'primary', string $class = '', ?string $fetch = null): self {
+    public function addButton(
+        string $title,
+        string $link,
+        string $color = 'primary',
+        string $class = '',
+        ?string $fetch = null,
+        string $target = ''
+    ): self {
         $this->buttons[] = [
             'title' => $title,
             'link' => Route::replaceUrlPlaceholders($link, ['page' => $this->page, 'title' => $title]),
             'color' => $color,
             'fetch' => ($fetch !== null && in_array($fetch, ['get', 'post'])) ? $fetch : false,
-            'class' => $class
+            'class' => $class,
+            'target' => $target
         ];
         return $this;
     }
@@ -126,7 +134,8 @@ class TitleBuilder {
                     $button['link'],
                     $button['color'] ?? 'primary',
                     $button['class'] ?? '',
-                    $button['fetch'] ?? null
+                    $button['fetch'] ?? null,
+                    $button['target'] ?? ''
                 );
             } elseif (isset($button['click'])) {
                 $this->addClickButton(
@@ -301,7 +310,9 @@ class TitleBuilder {
                                 <?php 
                                 foreach ($this->buttons as $btn) {
                                     if (isset($btn['link'])) {
-                                       ?><a class="btn btn-<?php _p($btn['color'] ?? 'primary'); ?> me-2 mb-2 <?php _p($btn['class'] ?? ''); ?>" href="<?php _p($btn['link']); ?>"<?php _ph(($btn['fetch'] ?? false) ? ' data-fetch="'.$btn['fetch'].'"' : ''); ?>><?php _pt($btn['title']); ?></a><?php
+                                        $target = $btn['target'] ?? '';
+                                        $rel = $target === '_blank' ? ' rel="noopener"' : '';
+                                       ?><a class="btn btn-<?php _p($btn['color'] ?? 'primary'); ?> me-2 mb-2 <?php _p($btn['class'] ?? ''); ?>" href="<?php _p($btn['link']); ?>"<?php _ph(($btn['fetch'] ?? false) ? ' data-fetch="'.$btn['fetch'].'"' : ''); ?><?php _ph(($target !== '') ? ' target="'._r($target).'"' : ''); ?><?php _ph($rel); ?>><?php _pt($btn['title']); ?></a><?php
                                     } else if (isset($btn['click'])) {
                                         ?><span class="btn btn-<?php _p($btn['color'] ?? 'primary'); ?> me-2 mb-2 <?php _p($btn['class'] ?? ''); ?>" onclick="<?php _p($btn['click']); ?>"><?php _pt($btn['title']); ?></span><?php
                                     }

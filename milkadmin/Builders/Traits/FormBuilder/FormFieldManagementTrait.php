@@ -20,11 +20,16 @@ trait FormFieldManagementTrait {
      * @example ->removeField('created_at')
      */
     public function removeField(string $name): self {
+        if (isset($this->fields[$name])) {
+            $this->fields_copy[$name] = $this->fields[$name];
+        }
         unset($this->fields[$name]);
         // Track removed fields to prevent re-adding them in addFieldsFromObject()
         $this->removed_fields[$name] = true;
         return $this;
     }
+
+
 
     /**
      * Set conditional visibility for a field
@@ -134,12 +139,7 @@ trait FormFieldManagementTrait {
     public function addFieldsFromObject(object $object, string $context = 'edit', array $values = []): self {
         if (method_exists($object, 'getRules')) {
             foreach ($object->getRules($context, true) as $key => $rule) {
-                // Skip fields that have been explicitly removed
-                if (isset($this->removed_fields[$key])) {
-                    continue;
-                }
-
-                if (isset($rule["form-type"])) {
+                 if (isset($rule["form-type"])) {
                     if ($rule["form-type"] === "checkbox") {
                         if ($rule["type"] === "bool") {
                             $values[$key] = 1;
@@ -150,6 +150,25 @@ trait FormFieldManagementTrait {
                     }
                 }
                 $value = $values[$key] ?? '';
+                // Skip fields that have been explicitly removed
+                if (isset($this->removed_fields[$key]) && !isset( $this->fields[$key])) {
+                    if (isset( $this->fields_copy[$key]['set_value'])) {
+                        $value =  $this->fields_copy[$key]['set_value'];
+                        $object->$key = $value;
+                    }
+                    $merged = array_merge($rule, $this->fields_copy[$key] ?? []);
+                    // Set required defaults only if not present
+                    $merged['value'] = $value;
+                    $merged['row_value'] = $object->$key ?? '';
+                    if (!isset($merged['name'])) $merged['name'] = $key;
+                    // Always update record_object with current object to ensure relationships are accessible
+                    $merged['record_object'] = $object;
+                    $this->fields_copy[$key] = $merged;
+                 
+                    continue;
+                }
+
+                
                 if (isset( $this->fields[$key]['set_value'])) {
                     $value =  $this->fields[$key]['set_value'];
                     $object->$key = $value;
@@ -166,6 +185,7 @@ trait FormFieldManagementTrait {
                 $merged['record_object'] = $object;
 
                 $this->fields[$key] = $merged;
+                $this->fields_copy[$key] = $merged;
             }
         }
 
@@ -179,9 +199,10 @@ trait FormFieldManagementTrait {
                     'value' => '',
                     'row_value' => ''
                 ], $field);
+                $this->fields_copy[$key] = $this->fields[$key];
             }
         }
-
+     
         return $this;
     }
 
@@ -214,7 +235,10 @@ trait FormFieldManagementTrait {
         }
 
         $this->fields = $newFields;
-
+        $this->fields_copy = $this->fields;
+        if (isset($this->removed_fields[$field_name])) {
+            unset($this->removed_fields[$field_name]);
+        }
         return $this;
     }
 
@@ -265,6 +289,7 @@ trait FormFieldManagementTrait {
 
                 $this->fields = $newFields;
             }
+            $this->fields_copy[$field_name] = $this->fields[$field_name];
         }
         return $this;
     }
@@ -490,7 +515,7 @@ trait FormFieldManagementTrait {
                 'class' => 'btn btn-secondary ms-2',
                 'validate' => false,
                 'action' => function($form_builder, $request) {
-                    return ['success' => true, 'message' => 'Operation cancelled', 'cancelled' => true];
+                    return ['success' => true, 'message' => '', 'cancelled' => true];
                 }
             ];
         } else {

@@ -195,7 +195,7 @@ class TestFormContainerModel extends AbstractModel {
 // Generates: &lt;div id="my_container" class="..."&gt;...&lt;/div&gt;</code></pre>
 
     <h3>2. Field Names Array</h3>
-    <p>Specify which fields to include in the container. All fields must exist in the form:</p>
+    <p>Specify which fields to include in the container. All fields must exist in the form. You can also include inline HTML snippets in the array to render custom content inside a column.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// ✓ Valid - fields exist
 ->addContainer('container1', ['name', 'email', 'phone'], 3, '', '', [])
 

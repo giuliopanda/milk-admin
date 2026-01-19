@@ -29,7 +29,7 @@ class UserModel extends AbstractModel {
             ->boolean('is_admin')->default(0)->label('Administrator')
             ->text('permissions')->default('{}')->label('Permissions')
             ->string('timezone', 64)->default('UTC')->label('Timezone')
-            ->select('locale', $languages)->default($default_language)->label('Language');
+             ->string('locale', 10)->options($languages)->formType('select')->default($default_language)->label('Language');
     }
 
     #[ToDatabaseValue('password')]

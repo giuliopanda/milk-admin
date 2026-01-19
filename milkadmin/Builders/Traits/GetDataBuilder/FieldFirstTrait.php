@@ -236,10 +236,10 @@ trait FieldFirstTrait
                 if ($url && $name) {
                     $output .= sprintf(
                         '<a href="%s" target="%s" class="%s">%s</a><br>',
-                        htmlspecialchars($url),
-                        htmlspecialchars($target),
-                        htmlspecialchars($class),
-                        htmlspecialchars($name)
+                        _r($url),
+                        _r($target),
+                        _r($class),
+                        _rh($name)
                     );
                 }
             }
@@ -376,11 +376,11 @@ trait FieldFirstTrait
     {
         return sprintf(
             '<img src="%s" alt="%s" style="width: %dpx; height: %dpx; object-fit: cover; border-radius: 4px;" class="%s">',
-            htmlspecialchars($url),
-            htmlspecialchars($name),
+            _r($url),
+            _r($name),
             $size,
             $size,
-            htmlspecialchars($class)
+            _r($class)
         );
     }
 
@@ -398,8 +398,8 @@ trait FieldFirstTrait
     {
         return sprintf(
             '<a href="%s" target="_blank" data-lightbox="%s">%s</a>',
-            htmlspecialchars($url),
-            htmlspecialchars($key),
+            _r($url),
+            _rh($key),
             $imgHtml
         );
     }

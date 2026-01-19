@@ -159,11 +159,13 @@ class Query
      */
     private function detectDatabaseType(): string
     {
+        if ($this->db === null) return '';
         $className = get_class($this->db);
         
         return match (true) {
             str_contains($className, 'MySQL') || str_contains($className, 'MySql') => 'mysql',
             str_contains($className, 'SQLite') => 'sqlite',
+            str_contains($className, 'ArrayDb') || str_contains($className, 'ArrayEngine') => 'array',
             str_contains($className, 'Postgres') || str_contains($className, 'PostgreSQL') => 'postgres',
             default => 'mysql',
         };
@@ -802,6 +804,8 @@ class Query
      */
     public function getResults(): AbstractModel|array|null|false
     {
+        if ($this->db === null)  return null;
+        
         if ($this->static_model !== null) {
             $result = $this->db->getResults(...$this->get());
             
@@ -826,6 +830,8 @@ class Query
      */
     public function getRow(): AbstractModel|array|null|false
     {
+        if ($this->db === null)  return null;
+        
         $this->limit(0, 1);
         
         if ($this->static_model !== null) {
@@ -857,6 +863,7 @@ class Query
      */
     public function getVar(?string $value = null): mixed
     {
+        if ($this->db === null)  return null;
         $this->limit(0, 1);
         
         if ($value === null) {

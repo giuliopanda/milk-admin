@@ -34,8 +34,8 @@ foreach ($info as $key => $i) {
 // Attributi predefiniti per la struttura dei box
 $default_attrs = array(
     'container' => ['class' => 'card-body-overflow js-list-container'],
-    'box-container' => ['class' => 'row g-3 js-box-container'],
-    'col' => ['class' => 'col-12 col-md-6 col-lg-4'],
+    'box-container' => ['class' => 'list-group js-box-container'],
+    'col' => ['class' => 'col-12'],
     'box' => ['class' => 'card h-100 js-box-item'],
     'box.header' => ['class' => 'card-header d-flex justify-content-between align-items-center'],
     'box.body' => ['class' => 'card-body'],

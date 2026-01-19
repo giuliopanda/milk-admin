@@ -45,20 +45,4 @@ var_dump($options);
     <div class="chart-body" style="height: <?php _p($height); ?>;">
         <canvas id="<?php _p($id); ?>" style="height: 100%; width: 100%;"></canvas>
     </div>
-<script>
-(function() {
-    function initChart() {
-        if (typeof itoCharts !== 'undefined') {
-            itoCharts.draw('<?php _p($id); ?>', '<?php _p($type); ?>', <?php _pjs($data); ?>, <?php _pjs($options); ?>);
-        } else {
-            setTimeout(initChart, 100);
-        }
-    }
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initChart);
-    } else {
-        initChart();
-    }
-})();
-</script>
 </div>

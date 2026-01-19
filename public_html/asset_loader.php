@@ -1,14 +1,6 @@
 <?php
 require 'milkadmin.php';
 
-// Ottieni il percorso richiesto
-$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://';
-$host = $_SERVER['HTTP_HOST'];
-$baseUrl = $protocol . $host;
-$requested_file = $_SERVER['REQUEST_URI'];
-
-$requested_file = parse_url($requested_file);
-
 $full_path =  getFilePathFromUrl();
 if (!validateSecurePath($full_path)) {
     http_response_code(403);

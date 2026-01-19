@@ -1,6 +1,6 @@
 L'istallazione o l'aggiornamento del sistema è gestito attraverso una serie di hook così ogni modulo può gestire l'aggiornamento o l'istallazione della versione.
 
-La versione è indicata come una data (AAMMXX dove A è l'anno, M il mese e X un numero progressivo)
+La versione è indicata come una data (AAMMGG dove A è l'anno, M il mese e G il giorno)
 la nuova versione è gestita dalla costante NEW_VERSION.
 NEW_VERSION è dentro install.controller.php
 

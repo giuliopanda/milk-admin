@@ -364,8 +364,10 @@ trait FormSystemOperationsTrait {
      * @return string Complete HTML form
      */
     public function render(): string {
-      
-      
+        if (isset($_REQUEST['reload'])) {
+            $this->markReload();
+        }
+
         $this->setModel($this->model_class);
         
         // Check if any action was triggered before rendering

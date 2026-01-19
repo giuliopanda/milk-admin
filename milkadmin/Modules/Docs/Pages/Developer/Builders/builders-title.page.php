@@ -11,6 +11,120 @@ namespace Modules\Docs\Pages;
 <div class="bg-white p-4">
     <h1>TitleBuilder Class Documentation</h1>
 
+    <h2>Public Methods</h2>
+    <table class="table table-bordered table-sm">
+        <thead class="table-light">
+            <tr>
+                <th>Method</th>
+                <th>Parameters</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+           
+            <tr>
+                <td><code>create()</code></td>
+                <td><code>string $title = ''</code></td>
+                <td>Static factory method</td>
+            </tr>
+            <tr>
+                <td><code>title()</code></td>
+                <td><code>string $title</code></td>
+                <td>Set the main title text</td>
+            </tr>
+            <tr>
+                <td><code>setPage()</code></td>
+                <td><code>string $page_name</code></td>
+                <td>Set page name for action links</td>
+            </tr>
+            <tr>
+                <td><code>description()</code></td>
+                <td><code>string $description</code></td>
+                <td>Add description below the title</td>
+            </tr>
+            <tr>
+                <td><code>addButton()</code></td>
+                <td><code>string $title, string $link, string $color = 'primary', string $class = '', ?string $fetch = null, string $target = ''</code></td>
+                <td>Add a link button (supports fetch and target)</td>
+            </tr>
+            <tr>
+                <td><code>addClickButton()</code></td>
+                <td><code>string $title, string $onclick, string $color = 'primary', string $class = ''</code></td>
+                <td>Add a JavaScript click button</td>
+            </tr>
+            <tr>
+                <td><code>addButtons()</code></td>
+                <td><code>array $buttons</code></td>
+                <td>Add multiple buttons at once</td>
+            </tr>
+            <tr>
+                <td><code>clearButtons()</code></td>
+                <td><code>(no parameters)</code></td>
+                <td>Remove all buttons</td>
+            </tr>
+            <tr>
+                <td><code>addSearch()</code></td>
+                <td><code>string $filter_id, string $placeholder = 'Search...', string $label = 'Search'</code></td>
+                <td>Add search input tied to a table filter</td>
+            </tr>
+            <tr>
+                <td><code>setSearchHtml()</code></td>
+                <td><code>string $html</code></td>
+                <td>Override search HTML with custom markup</td>
+            </tr>
+            <tr>
+                <td><code>clearSearch()</code></td>
+                <td><code>(no parameters)</code></td>
+                <td>Remove search functionality</td>
+            </tr>
+            <tr>
+                <td><code>addRightContent()</code></td>
+                <td><code>string $html</code></td>
+                <td>Add custom right-side content</td>
+            </tr>
+            <tr>
+                <td><code>addBottomContent()</code></td>
+                <td><code>string $html</code></td>
+                <td>Add full-width content below the title row</td>
+            </tr>
+            <tr>
+                <td><code>clearRight()</code></td>
+                <td><code>(no parameters)</code></td>
+                <td>Clear right-side content</td>
+            </tr>
+            <tr>
+                <td><code>clearBottom()</code></td>
+                <td><code>(no parameters)</code></td>
+                <td>Clear bottom content</td>
+            </tr>
+            <tr>
+                <td><code>includeMessages()</code></td>
+                <td><code>bool $include = true</code></td>
+                <td>Toggle MessagesHandler rendering</td>
+            </tr>
+            <tr>
+                <td><code>setCols()</code></td>
+                <td><code>int $left</code></td>
+                <td>Set column widths for title/search layout</td>
+            </tr>
+            <tr>
+                <td><code>render()</code></td>
+                <td><code>(no parameters)</code></td>
+                <td>Generate and return HTML</td>
+            </tr>
+            <tr>
+                <td><code>getHtml()</code></td>
+                <td><code>(no parameters)</code></td>
+                <td>Alias for render()</td>
+            </tr>
+            <tr>
+                <td><code>__toString()</code></td>
+                <td><code>(no parameters)</code></td>
+                <td>Auto-render when used as string</td>
+            </tr>
+        </tbody>
+    </table>
+
     <p>The TitleBuilder class provides a fluent interface for creating consistent page headers with titles, buttons, search functionality, and descriptions. It generates responsive layouts that work seamlessly across desktop and mobile devices.</p>
 
     <h2>System Overview</h2>
@@ -60,10 +174,13 @@ $title = \Builders\TitleBuilder::create('Posts')
     // Button with custom CSS class
     ->addButton('Import', '?page=posts&action=import', 'secondary', 'btn-lg')
 
+    // Link with target (new tab)
+    ->addButton('Docs', 'https://example.com', 'info', '', null, '_blank')
+
     // Create a link that will be called in ajax. The response must be in json format.
-    ->addFetchButton('Add New', '?page=posts&action=add', 'primary', '', 'get')
+    ->addButton('Add New', '?page=posts&action=add', 'primary', '', 'get')
     or
-    ->addFetchButton('Add New', '?page=posts&action=add', 'primary', '', 'post')
+    ->addButton('Add New', '?page=posts&action=add', 'primary', '', 'post')
     
     // Click button with JavaScript
     ->addClickButton('Export All', 'exportPosts()', 'success')
@@ -85,7 +202,8 @@ $title = \Builders\TitleBuilder::create('Dashboard')
             'title' => 'Settings',
             'link' => '?page=settings',
             'color' => 'secondary',
-            'class' => 'btn-outline-secondary'
+            'class' => 'btn-outline-secondary',
+            'target' => '_blank'
         ],
         [
             'title' => 'Refresh Data',
@@ -401,8 +519,8 @@ class PostsModule {
             </tr>
             <tr>
                 <td rowspan="4">Buttons</td>
-                <td><code>addButton()</code></td>
-                <td>Add link button</td>
+                <td><code>addButton(string $title, string $link, string $color = 'primary', string $class = '', ?string $fetch = null, string $target = '')</code></td>
+                <td>Add link button (supports fetch and target)</td>
             </tr>
             <tr>
                 <td><code>addClickButton()</code></td>

@@ -27,8 +27,9 @@ trait QueryBuilderTrait
      * ```
      * @return Query The new Query instance
      */
-    public function query(?Query $query = null): Query
+    public function query(?Query $query = null): ?Query
     {
+        if ($this->db === null) return new Query($this->table);
         if ($query !== null && $query instanceof Query) {
             $query->setModelClass($this);
         } else {
@@ -276,10 +277,11 @@ trait QueryBuilderTrait
      * }
      * ```
      *
-     * @return static Model instance containing all records via ResultInterface
+     * @return static|array Model instance containing all records via ResultInterface
      */
-    public function getAll($order_field = '', $order_dir = 'asc'): static
+    public function getAll($order_field = '', $order_dir = 'asc'): static|array
     {
+        if ($this->db === null) return [];
         $query = $this->query();
         if ($order_field != '') {
             $query->order($order_field, $order_dir);
@@ -310,6 +312,7 @@ trait QueryBuilderTrait
      * @return int The total number of records
      */
     public function total(): int {
+        if ($this->db === null) return 0;
         $query = $this->query();
         $total = (int)$query->select('COUNT(*) as total')->getVar();
         return $total;

@@ -237,10 +237,10 @@ class Route
             $query_string = Hooks::run('route_url', $query_string);
         }
         $link_complete = '';
-        if (isset($_SERVER['REQUEST_URI']) && isset($_SERVER['REQUEST_SCHEME'])) {
+        if (isset($_SERVER['REQUEST_URI'])) {
             $uri = explode('?', $_SERVER['REQUEST_URI']);
-            $link_complete =   $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'] . dirname($uri[0]);
-          
+            $link_complete = self::getRequestScheme() . '://' . $_SERVER['HTTP_HOST'] . dirname($uri[0]);
+
         }
         $link_complete =  Config::get('base_url', $link_complete);
 
@@ -273,9 +273,9 @@ class Route
 
         $query = ($query != '') ? '?'.$query : '';
         $link_complete = '';
-        if (isset($_SERVER['REQUEST_URI']) && isset($_SERVER['REQUEST_SCHEME'])) {
+        if (isset($_SERVER['REQUEST_URI'])) {
             $uri = explode('?', $_SERVER['REQUEST_URI']);
-            $link_complete =   $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'] . dirname($uri[0]);
+            $link_complete = self::getRequestScheme() . '://' . $_SERVER['HTTP_HOST'] . dirname($uri[0]);
         }
         return (Config::get('base_url', $link_complete)).$query;
     }
@@ -631,19 +631,51 @@ class Route
      * @return string The current URL including the query string
      */
     public static function getCurrentUrl() {
-        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
-                (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
-                (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on');
-        
-        $protocol = $isHttps ? 'https' : 'http';
-        
-        // Ottiene l'host con fallback
         $host = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? 'localhost';
-        
-        // Ottiene il percorso con fallback
         $requestUri = $_SERVER['REQUEST_URI'] ?? ($_SERVER['SCRIPT_NAME'] . '?' . $_SERVER['QUERY_STRING']);
         
-        return $protocol . '://' . $host . $requestUri;
+        return self::getRequestScheme() . '://' . $host . $requestUri;
+    }
+
+
+   /**
+     * Detects the HTTP scheme (protocol) of the current request
+     *
+     * @return string "http" or "https"
+     */
+    public static function getRequestScheme(): string
+    {
+        $scheme = 'http';
+        // force 
+        $get_protocol = Config::get('request_scheme', '');
+        if ($get_protocol !== '') {
+            return $get_protocol;
+        }
+
+        if (
+            (!empty($_SERVER['REQUEST_SCHEME']) && strtolower($_SERVER['REQUEST_SCHEME']) === 'https') ||
+            (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
+            (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) ||
+            (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on') ||
+            (!empty($_SERVER['HTTP_FRONT_END_HTTPS']) && $_SERVER['HTTP_FRONT_END_HTTPS'] === 'on')
+        ) {
+            $scheme = 'https';
+        }
+        
+        // Proxy/load balancer header (AWS ELB, Cloudflare, Nginx, etc.)
+        if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
+            $scheme = strtolower(trim(explode(',', $_SERVER['HTTP_X_FORWARDED_PROTO'])[0]));
+        }
+        
+        // Cloudflare specific header
+        if (!empty($_SERVER['HTTP_CF_VISITOR'])) {
+            $visitor = json_decode($_SERVER['HTTP_CF_VISITOR']);
+            if (isset($visitor->scheme)) {
+                $scheme = strtolower($visitor->scheme);
+            }
+        }
+
+        return $scheme;
     }
 
     /**

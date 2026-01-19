@@ -17,6 +17,7 @@ class DataProcessor
     private array $rows_raw = [];
     private array $query_columns = [];
     private ?array $footer_data = null;
+    private ?DatabaseException $error = null;
 
     public function __construct(BuilderContext $context, ColumnManager $columns)
     {
@@ -39,6 +40,16 @@ class DataProcessor
         return $this->query_columns;
     }
 
+    public function hasError(): bool
+    {
+        return $this->error !== null;
+    }
+
+    public function getError(): ?DatabaseException
+    {
+        return $this->error;
+    }
+
     /**
      * Process and return complete data array
      */
@@ -46,7 +57,6 @@ class DataProcessor
     {
         $modelList = $this->context->getModelList();
         $query = $this->context->getQuery();
-        $request = $this->context->getRequest();
 
         // Apply filters
         $modelList->applyFilters($query, $_REQUEST[$this->context->getTableId()] ?? []);
@@ -93,16 +103,14 @@ class DataProcessor
         try {
             $result = $model->get($query);
             $result->with();
-
+            $this->context->setModel($result);
             $this->rows_raw = $result->getRawData();
             $this->query_columns = $result->getQueryColumns();
 
             return $this->transformRows($result);
         } catch (DatabaseException $e) {
-            if (Config::get('debug', false)) {
-                throw $e;
-            }
-
+            // Save error for later display
+            $this->error = $e;
             return [];
         }
     }
@@ -219,10 +227,10 @@ class DataProcessor
             // Execute COUNT query directly without fetching all rows first
             return (int) $db->getVar(...$query->getTotal());
         } catch (DatabaseException $e) {
-            if (Config::get('debug', false)) {
-                throw $e;
+            // Save error for later display (if not already set)
+            if ($this->error === null) {
+                $this->error = $e;
             }
-
             return 0;
         }
     }

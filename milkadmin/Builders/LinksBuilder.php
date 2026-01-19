@@ -373,7 +373,7 @@ class LinksBuilder {
                 $result[] = $key;
             } else {
                 $value = $this->replaceVariables((string)$value, $params);
-                $result[] = $key . '="' . htmlspecialchars($value, ENT_QUOTES) . '"';
+                $result[] = $key . '="' . _r($value) . '"';
             }
         }
 
@@ -387,7 +387,7 @@ class LinksBuilder {
                     // Evita duplicati
                     if (!isset($attributes[$dataAttr])) {
                         $value = is_array($paramValue) ? json_encode($paramValue) : (string)$paramValue;
-                        $result[] = $dataAttr . '="' . htmlspecialchars($value, ENT_QUOTES) . '"';
+                        $result[] = $dataAttr . '="' . _r($value) . '"';
                     }
                 }
             }
@@ -564,7 +564,7 @@ class LinksBuilder {
             
             if (!empty($group['title']) && $groupName !== 'default') {
                 $html .= '<div class="group-section mb-3">';
-                $html .= '<h6 class="group-title text-muted">' . htmlspecialchars($group['title']) . '</h6>';
+                $html .= '<h6 class="group-title text-muted">' . _rh($group['title']) . '</h6>';
                 $html .= $this->renderVerticalSimple($group['links']);
                 $html .= '</div>';
             } else {
@@ -857,7 +857,7 @@ class LinksBuilder {
                 $sidebar .= '<span class="d-md-none">';
                 $sidebar .= '<i class="bi bi-chevron-right me-2 collapse-icon"></i>';
                 $sidebar .= '</span>';
-                $sidebar .= htmlspecialchars($group['title']);
+                $sidebar .= _rh($group['title']);
                 $sidebar .= '</h5>';
 
                 // Collapsible content - collapsed su mobile, sempre visibile su desktop

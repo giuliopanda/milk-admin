@@ -1,10 +1,10 @@
 <?php
 namespace Modules\Docs\Pages;
 /**
- * @title Database (MySQL/SQLite)
+ * @title Database (MySQL/SQLite/ArrayDB)
  * @guide framework
  * @order
- * @tags Database, SQL, MySQL, SQLite, query, getResults, getRow, getVar, insert, update, delete, save, transaction, DatabaseException
+ * @tags Database, SQL, MySQL, SQLite, ArrayDB, ArrayQuery, ArrayEngine, query, getResults, getRow, getVar, insert, update, delete, save, transaction, DatabaseException
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access
@@ -12,7 +12,7 @@ namespace Modules\Docs\Pages;
 <div class="bg-white p-4">
     <h1>Database Class</h1>
     <p class="text-muted">Revision: 2025-11-12</p>
-    <p>Low-level database access for SQL queries, transactions, and schema inspection. Supports MySQL and SQLite with unified interface.</p>
+    <p>Low-level database access for SQL queries, transactions, and schema inspection. Supports MySQL, SQLite, and ArrayDB with unified interface.</p>
 
     <div class="alert alert-info">
         <strong><i class="bi bi-info-circle"></i> Higher-Level Abstractions</strong><br>
@@ -35,6 +35,170 @@ namespace Modules\Docs\Pages;
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$db = Get::db();   // Primary
 $db2 = Get::db2(); // Secondary
 // Both support identical methods</code></pre>
+
+    <h2 class="mt-4">ArrayDB (in-memory)</h2>
+    <p>ArrayDB is an in-memory database powered by ArrayQuery. It is accessed through the <code>Get::arrayDb()</code>
+        singleton, so the instance is reused within the same request. Tables are populated with <code>addTable()</code>,
+        where you can also specify the auto-increment column.</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">use App\Get;
+
+$db = Get::arrayDb(); // singleton
+
+$db->addTable('users', [
+    ['id' => 1, 'name' => 'Mario', 'age' => 30],
+    ['id' => 2, 'name' => 'Laura', 'age' => 25],
+], 'id');
+
+$adults = $db->getResults('SELECT name FROM users WHERE age > ?', [26]);</code></pre>
+
+    <h3 class="mt-3">Available methods</h3>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Metodo</th>
+                <th>Parametri</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>connect($data = null, array $autoIncrementColumns = [])</code></td>
+                <td>ArrayEngine|array|null, auto_increment map</td>
+                <td>Initializes the in-memory database from ArrayEngine or from a tables array.</td>
+            </tr>
+            <tr>
+                <td><code>addTable(string $tableName, array $data = [], ?string $autoIncrementColumn = null)</code></td>
+                <td>name, rows, auto_increment column</td>
+                <td>Adds a table and optionally defines the auto-increment column.</td>
+            </tr>
+            <tr>
+                <td><code>query(string $sql, array|null $params = null)</code></td>
+                <td>SQL, params</td>
+                <td>Executes DML SQL (SELECT/INSERT/UPDATE/DELETE) with <code>?</code> placeholders.</td>
+            </tr>
+            <tr>
+                <td><code>getResults(string $sql, $params = null)</code></td>
+                <td>SQL, params</td>
+                <td>Returns all rows as an array of objects.</td>
+            </tr>
+            <tr>
+                <td><code>getRow(string $sql, $params = null, int $offset = 0)</code></td>
+                <td>SQL, params, offset</td>
+                <td>Returns a single row.</td>
+            </tr>
+            <tr>
+                <td><code>getVar(string $sql, $params = null, int $offset = 0)</code></td>
+                <td>SQL, params, offset</td>
+                <td>Returns the first value of the selected row.</td>
+            </tr>
+            <tr>
+                <td><code>yield(string $sql, $params = null)</code></td>
+                <td>SQL, params</td>
+                <td>Iterates results with a generator for large datasets.</td>
+            </tr>
+            <tr>
+                <td><code>nonBufferedQuery(string $table, bool $assoc = true)</code></td>
+                <td>table, associative</td>
+                <td>Iterates records from a table without buffering.</td>
+            </tr>
+            <tr>
+                <td><code>insert(string $table, array $data)</code></td>
+                <td>table, data</td>
+                <td>Inserts a record and returns the id or false.</td>
+            </tr>
+            <tr>
+                <td><code>update(string $table, array $data, array $where, int $limit = 0)</code></td>
+                <td>table, data, where, limit</td>
+                <td>Updates records that match the conditions.</td>
+            </tr>
+            <tr>
+                <td><code>delete(string $table, array $where)</code></td>
+                <td>table, where</td>
+                <td>Deletes records that match the conditions.</td>
+            </tr>
+            <tr>
+                <td><code>save(string $table, array $data, array $where)</code></td>
+                <td>table, data, where</td>
+                <td>Upsert: updates if it exists, otherwise inserts.</td>
+            </tr>
+            <tr>
+                <td><code>affectedRows()</code></td>
+                <td>-</td>
+                <td>Number of rows affected by the last operation.</td>
+            </tr>
+            <tr>
+                <td><code>insertId()</code></td>
+                <td>-</td>
+                <td>Last auto-increment id inserted.</td>
+            </tr>
+            <tr>
+                <td><code>getTables(bool $cache = true)</code></td>
+                <td>cache</td>
+                <td>List of tables in memory.</td>
+            </tr>
+            <tr>
+                <td><code>getColumns(string $table, bool $force_reload = false)</code></td>
+                <td>table, reload</td>
+                <td>Columns and metadata based on the current data.</td>
+            </tr>
+            <tr>
+                <td><code>describes(string $table, bool $cache = true)</code></td>
+                <td>table, cache</td>
+                <td>Full table structure.</td>
+            </tr>
+            <tr>
+                <td><code>showCreateTable(string $table)</code></td>
+                <td>table</td>
+                <td>Fake SQL string for CREATE TABLE.</td>
+            </tr>
+            <tr>
+                <td><code>dropTable($table)</code></td>
+                <td>table</td>
+                <td>Removes the table from memory.</td>
+            </tr>
+            <tr>
+                <td><code>renameTable($table, $new_name)</code></td>
+                <td>table, new name</td>
+                <td>Renames a table in memory.</td>
+            </tr>
+            <tr>
+                <td><code>truncateTable($table)</code></td>
+                <td>table</td>
+                <td>Empties the table while keeping the structure.</td>
+            </tr>
+            <tr>
+                <td><code>multiQuery(string $sql)</code></td>
+                <td>multi SQL</td>
+                <td>Executes multiple queries separated by semicolons.</td>
+            </tr>
+            <tr>
+                <td><code>lastQuery()</code></td>
+                <td>-</td>
+                <td>Last executed query (debug).</td>
+            </tr>
+            <tr>
+                <td><code>getLastError()</code></td>
+                <td>-</td>
+                <td>Error message from the last operation.</td>
+            </tr>
+            <tr>
+                <td><code>hasError()</code></td>
+                <td>-</td>
+                <td>True if the last operation failed.</td>
+            </tr>
+            <tr>
+                <td><code>getType()</code></td>
+                <td>-</td>
+                <td>Returns the connection type: <code>array</code>.</td>
+            </tr>
+            <tr>
+                <td><code>begin(), commit(), tearDown(), close()</code></td>
+                <td>-</td>
+                <td>Provided for compatibility, no effect on ArrayDB.</td>
+            </tr>
+        </tbody>
+    </table>
 
     <h2 class="mt-4">Query Execution</h2>
 

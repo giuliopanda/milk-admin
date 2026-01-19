@@ -71,6 +71,7 @@ class CalendarBuilder extends GetDataBuilder
 
     protected $week_number = null;
 
+
     // ========================================================================
     // VIEW TYPE METHODS
     // ========================================================================

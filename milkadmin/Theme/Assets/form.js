@@ -60,12 +60,60 @@ function updateInvalidFeedback(field) {
     }
 }
 
+function replaceFormHtml(formHtml) {
+    if (!formHtml) return;
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = formHtml;
+    const newForm = tempDiv.querySelector('form');
+    if (!newForm) return;
+
+    const formId = newForm.getAttribute('id');
+    let currentForm = null;
+    if (formId) {
+        currentForm = document.getElementById(formId);
+    }
+    if (!currentForm) {
+        currentForm = document.querySelector('form.js-needs-validation');
+    }
+    if (!currentForm) return;
+
+    currentForm.replaceWith(newForm);
+    if (typeof updateContainer === 'function') {
+        updateContainer(newForm);
+    }
+}
+
+function milkFormReload(button) {
+    if (!button) return;
+    const form = button.closest('form');
+    if (!form) return;
+
+    let reloadSubmit = form.querySelector('[data-reload-submit="1"]');
+    if (!reloadSubmit) {
+        reloadSubmit = document.createElement('button');
+        reloadSubmit.type = 'submit';
+        reloadSubmit.name = 'reload';
+        reloadSubmit.value = '1';
+        reloadSubmit.setAttribute('data-reload-submit', '1');
+        reloadSubmit.style.display = 'none';
+        form.appendChild(reloadSubmit);
+    }
+
+    if (typeof form.requestSubmit === 'function') {
+        form.requestSubmit(reloadSubmit);
+    } else {
+        reloadSubmit.click();
+    }
+}
+
 function setFormSubmit(form) {
 
     form.addEventListener('submit', async function (event) {
         event.preventDefault();
 
-        const skipValidation = event.submitter?.hasAttribute('formnovalidate');
+        const isReload = event.submitter?.name === 'reload';
+        const skipValidation = isReload || event.submitter?.hasAttribute('formnovalidate');
         let isValid = true;
 
         if (!skipValidation) {
@@ -111,23 +159,32 @@ function setFormSubmit(form) {
             }
         }
 
-        const ajaxSubmit = form.dataset.ajaxSubmit === 'true';
+        const ajaxSubmit = form.dataset.ajaxSubmit === 'true' || isReload;
 
         if (ajaxSubmit) {
             if (window.plugin_loading) window.plugin_loading.show();
 
             try {
                 const formData = new FormData(form);
+                if (isReload && !formData.has('page-output')) {
+                    formData.append('page-output', 'json');
+                }
                 const response = await fetch(form.action, {
                     method: form.method || 'POST',
                     body: formData,
-                    credentials: 'same-origin'
+                    credentials: 'same-origin',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
                 });
 
                 if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
 
                 const data = await response.json();
                 jsonAction(data, form.parentNode);
+                if (isReload && data.form) {
+                    replaceFormHtml(data.form);
+                }
 
             } catch (error) {
                 console.error(error);

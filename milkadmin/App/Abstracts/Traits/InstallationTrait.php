@@ -293,6 +293,9 @@ trait InstallationTrait {
         $this_class= get_class($this);
         // Install main model
         if (is_object($this->model) && method_exists($this->model, 'buildTable')) {
+            if ($this->model->getDbType() == 'array') {
+                return true;
+            }
             $this->model->buildTable();
             if ($this->model->last_error != '') {
                 $success = false;
@@ -302,6 +305,9 @@ trait InstallationTrait {
         // Install additional models
         $additionalModels = $this->getAdditionalModels();
         foreach ($additionalModels as $modelName => $modelInstance) {
+            if ($modelInstance->getDbType() == 'array') {
+                return true;
+            }
             try {
                 $modelInstance->buildTable();
                 if (isset($modelInstance->last_error) && $modelInstance->last_error != '') {

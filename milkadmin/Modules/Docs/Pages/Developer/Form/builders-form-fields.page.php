@@ -5,7 +5,7 @@ namespace Modules\Docs\Pages;
  * @title Field Configuration
  * @guide developer
  * @order 41
- * @tags FormBuilder, fields, field-configuration, form-fields
+ * @tags FormBuilder, fields, field-configuration, form-fields, resetFields
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>
@@ -99,6 +99,11 @@ namespace Modules\Docs\Pages;
                 <td><code>moveBefore(string $field)</code></td>
                 <td>Moves the field before another field</td>
                 <td><code>->moveBefore('status')</code></td>
+            </tr>
+            <tr>
+                <td><code>resetFields()</code></td>
+                <td>Hides all existing fields from Model. Fields become visible when you call <code>field()</code> with their base configuration</td>
+                <td><code>->resetFields()</code></td>
             </tr>
         </tbody>
     </table>
@@ -216,6 +221,52 @@ namespace Modules\Docs\Pages;
     ->value($post_id)
     ->readonly()
 </code></pre>
+
+    <h2>Reset and Rebuild Fields</h2>
+
+    <p>Use <code>resetFields()</code> to start with a clean slate and show only the fields you explicitly define. This is useful when you want to create a form with a specific subset of fields from your Model.</p>
+
+    <div class="alert alert-info">
+        <h5><i class="bi bi-lightbulb"></i> How resetFields() Works</h5>
+        <p class="mb-2">When you call <code>resetFields()</code>, all existing fields from the Model are hidden. Then, as you call <code>field()</code>, those fields become visible again <strong>with their base configuration from the Model</strong>.</p>
+        <p class="mb-0"><strong>Key difference from TableBuilder:</strong> In FormBuilder, when you reactivate a field with <code>field()</code>, it automatically retains its base configuration from the Model (e.g., if it was defined as a checkbox in the Model, it will be a checkbox).</p>
+    </div>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = FormBuilder::create($model, $this->page)
+    ->resetFields()  // Hide ALL existing fields from Model
+
+    // Only these fields will be shown, with their Model configuration:
+    ->field('id')
+        ->label('ID')
+        ->readonly()
+
+    ->field('title')
+        ->label('Article Title')
+        ->required()
+
+    ->field('status')
+        ->label('Status')
+        // If 'status' is a checkbox in the Model, it remains a checkbox
+
+    ->field('published_at')
+        ->label('Published Date')
+
+    ->addStandardActions()
+    ->getForm();
+
+// Result: Form shows only id, title, status, published_at (in that order)
+// All other Model fields are hidden
+// Each field maintains its base configuration from the Model</code></pre>
+
+    <div class="alert alert-success">
+        <h5><i class="bi bi-check-circle"></i> Use Cases for resetFields()</h5>
+        <ul class="mb-0">
+            <li><strong>Simplified forms:</strong> Show only essential fields for quick edits</li>
+            <li><strong>Multi-step forms:</strong> Display different field sets for each step</li>
+            <li><strong>Role-based forms:</strong> Show different fields based on user permissions</li>
+            <li><strong>Custom field order:</strong> Define the exact order of fields without using <code>moveBefore()</code></li>
+        </ul>
+    </div>
 
     <h2>Field Repositioning</h2>
 

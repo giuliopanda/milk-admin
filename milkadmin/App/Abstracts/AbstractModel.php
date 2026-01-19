@@ -1,9 +1,9 @@
 <?php
 namespace App\Abstracts;
 
-use App\Database\{SQLite, MySql, ResultInterface};
+use App\Database\{ArrayDb, SQLite, MySql, ResultInterface};
 use App\{Get, Config, ExtensionLoader};
-use App\Abstracts\Traits\{QueryBuilderTrait, CrudOperationsTrait, SchemaAndValidationTrait, DataFormattingTrait, RelationshipsTrait, CollectionTrait, CascadeSaveTrait, RelationshipDataHandlerTrait, CopyRulesTrait, ExtensionManagementTrait, ScopeTrait};
+use App\Abstracts\Traits\{QueryBuilderTrait, CrudOperationsTrait, SchemaAndValidationTrait, DataFormattingTrait, RelationshipsTrait, CollectionTrait, CascadeSaveTrait, RelationshipDataHandlerTrait, CopyRulesTrait, ExtensionManagementTrait, ScopeTrait, VirtualTableTrait};
 use App\Attributes\{ToDisplayValue, ToDatabaseValue , GetRawValue, SetValue, Validate, DefaultQuery, Query as QueryAttribute};
 use ReflectionClass;
 use ReflectionMethod;
@@ -48,6 +48,7 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
     use CopyRulesTrait;
     use ExtensionManagementTrait;
     use ScopeTrait;
+    use VirtualTableTrait;
 
     /**
      * Instance cache for methods with attributes defined in Models
@@ -70,9 +71,9 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
 
     /**
      * Database connection instance
-     * @var null|MySql|SQLite
+     * @var null|MySql|SQLite|ArrayDb
      */
-    protected null|MySql|SQLite $db = null;
+    protected null|MySql|SQLite|ArrayDb $db = null;
 
     /**
      * Database connection type || db or db2
@@ -258,12 +259,15 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
         
 
         // Handle database parameter
-        if($this->db_type != '' && $this->db_type == 'db2') {
+        if ($this->db_type === 'db2') {
             $this->db = Get::db2();
             $this->db_type = 'db2';
+        } elseif ($this->db_type === 'array' || $this->db_type === 'arraydb') {
+            $this->db = Get::arrayDb();
+            $this->db_type = 'array';
         } else {
-             $this->db = Get::db();
-             $this->db_type = 'db';
+            $this->db = Get::db();
+            $this->db_type = 'db';
         }
 
 
@@ -775,6 +779,7 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
         $this->invalidateKeysCache();
         $this->current_index = 0;
     }
+
 
     /**
      * Clears the record array and sets the record from an array or object

@@ -41,8 +41,12 @@ trait CrudOperationsTrait
         $this->dates_in_user_timezone = false;
         $this->error = false;
         $this->last_error = '';
-        if ($use_cache && isset($this->cache[$id])) {
+        if ($use_cache && $id !== null && isset($this->cache[$id])) {
             return $this->cache[$id];
+        }
+
+        if ($id === null || $id === '') {
+            return null;
         }
 
         $query = $this->query();

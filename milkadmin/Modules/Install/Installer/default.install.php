@@ -1,7 +1,7 @@
 <?php
 namespace Modules\Install\Installer;
 
-use App\{Hooks, Form};
+use App\{Hooks, Form, Route};
 use Modules\Install\Install;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
@@ -19,10 +19,9 @@ Hooks::set('install.get_html_modules', function($html, $errors) {
             <div class="card-body">
             <h5 class="card-title">Site</h5>
                 <?php
-                $http  = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') ? 'https://' : 'http://';
                 // Use SCRIPT_NAME for more reliable base path detection
                 $base_path = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
-                $default_base_url = $http . rtrim($_SERVER['HTTP_HOST'], '/') . $base_path . '/';
+                $default_base_url = Route::getRequestScheme() . '://' . rtrim($_SERVER['HTTP_HOST'], '/') . $base_path . '/';
                 $base_url = $_REQUEST['base_url'] ?? $default_base_url;
                 Form::input('text', 'base_url', 'Base Url', $base_url, $options);
                 Form::input('text', 'site-title', 'Title',  $_REQUEST['site-title'] ?? 'Milk Admin', $options);
@@ -46,7 +45,7 @@ Hooks::set('install.execute_config', function($data) {
         'site-title' => _r($data['site-title']),
         'admin-email' => _r($data['admin-email']),
         'from-email' => _r($data['admin-email']),
-        'debug' => 'false',
+        'debug' => 'true',
         'home_page' => '?page=home',
         'page_not_found' => '404',
         'secret_key' => uniqid('', true),

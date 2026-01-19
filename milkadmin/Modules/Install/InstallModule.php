@@ -386,41 +386,33 @@ class InstallModule extends AbstractModule
             $custom_version = '';
         }
 
-        // Generate new version number
-        $version = Config::get('version');
-        $count = 0;
-        $substr_version = substr($version, 0, 4);
-
-        if ($custom_version != '' && preg_match('/^[0-9]{2}(0[0-9]|1[0-9])([0-9]{2})$/', $custom_version)) {
+        // Generate new version number (YYMMDD)
+        if (is_string($custom_version) && $custom_version !== '' && preg_match('/^[0-9]{2}(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])$/', $custom_version)) {
             $new_version = $custom_version;
         } else {
-            if ($substr_version == date('ym')) {
-                $count = (int)substr($version, 4);
-            }
-            do {
-                $new_version = date('ym').str_pad($count, 2, '0', STR_PAD_LEFT);
-                $count++;
-            } while($version == $new_version && $count < 99);
+            $new_version = date('ymd');
         }
 
-        if (is_dir(MILK_DIR.'/../milk-admin-v'.$new_version)) {
+        $version_dir = MILK_DIR.'/../milk-admin-v'.$new_version;
+
+        if (is_dir($version_dir)) {
             Cli::echo('Version already exists. I remove it and continue');
             // Verifico che non sia la cartella attuale
-            if (MILK_DIR.'/../milk-admin-v'.$new_version == MILK_DIR) {
+            if ($version_dir == MILK_DIR) {
                 Cli::error('Error: cannot remove current directory');
                 return;
             }
             // delete the folder and continue
-            Install::removeDirectory(MILK_DIR.'/../milk-admin-v'.$new_version);
+            Install::removeDirectory($version_dir);
         }
 
-        mkdir(MILK_DIR.'/../milk-admin-v'.$new_version);
-        if (!is_dir(MILK_DIR.'/../milk-admin-v'.$new_version)) {
+        mkdir($version_dir);
+        if (!is_dir($version_dir)) {
             Cli::error('Error creating version directory');
             return;
         }
 
-        $folder_milkadmin = MILK_DIR.'/../milk-admin-v'.$new_version.'/milkadmin';
+        $folder_milkadmin = $version_dir.'/milkadmin';
         mkdir($folder_milkadmin);
         Install::copyFiles(MILK_DIR, $folder_milkadmin);
 
@@ -446,29 +438,35 @@ class InstallModule extends AbstractModule
 
         // copy public_html folder
         if (is_dir(MILK_DIR.'/../public_html')) {
-            mkdir(MILK_DIR.'/../milk-admin-v'.$new_version.'/public_html');
-            Install::copyFiles(MILK_DIR.'/../public_html', MILK_DIR.'/../milk-admin-v'.$new_version.'/public_html');
+            mkdir($version_dir.'/public_html');
+            Install::copyFiles(MILK_DIR.'/../public_html', $version_dir.'/public_html');
         }
 
         // copy public_html/.htaccess
         if (is_file(MILK_DIR.'/../public_html/.htaccess')) {
-            copy(MILK_DIR.'/../public_html/.htaccess', MILK_DIR.'/../milk-admin-v'.$new_version.'/public_html/.htaccess');
+            copy(MILK_DIR.'/../public_html/.htaccess', $version_dir.'/public_html/.htaccess');
         }
 
         // milkadmin_local Questa è strutturata di default
-        mkdir(MILK_DIR.'/../milk-admin-v'.$new_version.'/milkadmin_local');
-        mkdir(MILK_DIR.'/../milk-admin-v'.$new_version.'/milkadmin_local/storage');
-        mkdir(MILK_DIR.'/../milk-admin-v'.$new_version.'/milkadmin_local/media');
+        mkdir($version_dir.'/milkadmin_local');
+        mkdir($version_dir.'/milkadmin_local/storage');
+        mkdir($version_dir.'/milkadmin_local/media');
         // add index to storage and media
-        File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/milkadmin_local/storage/index.php', '<?php // Silence is golden');
-        File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/milkadmin_local/media/index.php', '<?php // Silence is golden');
+        File::putContents($version_dir.'/milkadmin_local/storage/index.php', '<?php // Silence is golden');
+        File::putContents($version_dir.'/milkadmin_local/media/index.php', '<?php // Silence is golden');
+
+        // copy milkadmin_local/Modules folder if exists
+        if (is_dir(MILK_DIR.'/../milkadmin_local/Modules')) {
+            mkdir($version_dir.'/milkadmin_local/Modules');
+            Install::copyFiles(MILK_DIR.'/../milkadmin_local/Modules', $version_dir.'/milkadmin_local/Modules');
+        }
 
         // config
         $config_file = __DIR__.'/Assets/InstallFiles/installation_config_example.php';
         if (file_exists($config_file)) {
             $new_config = file_get_contents($config_file);
             try {
-                File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/milkadmin_local/config.php', $new_config);
+                File::putContents($version_dir.'/milkadmin_local/config.php', $new_config);
             } catch (\App\Exceptions\FileException $e) {
                 Cli::error('Failed to write config.php: ' . $e->getMessage());
                 return;
@@ -482,7 +480,7 @@ class InstallModule extends AbstractModule
         if (file_exists($functions_file)) {
             $new_functions = file_get_contents($functions_file);
             try {
-                File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/milkadmin_local/functions.php', $new_functions);
+                File::putContents($version_dir.'/milkadmin_local/functions.php', $new_functions);
             } catch (\App\Exceptions\FileException $e) {
                 Cli::error('Failed to write functions.php: ' . $e->getMessage());
                 return;
@@ -493,19 +491,19 @@ class InstallModule extends AbstractModule
 
         try {
             $new_readme = file_get_contents(__DIR__.'/Assets/InstallFiles/readme_example.md');
-            File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/milkadmin_local/readme.md', $new_readme);
+            File::putContents($version_dir.'/milkadmin_local/readme.md', $new_readme);
 
             $license = file_get_contents(MILK_DIR.'/../LICENSE');
-            File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/LICENSE', $license);
+            File::putContents($version_dir.'/LICENSE', $license);
 
             $readme = file_get_contents(MILK_DIR.'/../readme.md');
-            File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/readme.md', $readme);
+            File::putContents($version_dir.'/readme.md', $readme);
 
             $new_milkadmin = file_get_contents( __DIR__.'/Assets/InstallFiles/milkadmin_example.php');
-            File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/public_html/milkadmin.php', $new_milkadmin);
+            File::putContents($version_dir.'/public_html/milkadmin.php', $new_milkadmin);
 
             $index = file_get_contents( MILK_DIR.'/../index.html');
-            File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/index.html', $index);
+            File::putContents($version_dir.'/index.html', $index);
         } catch (\App\Exceptions\FileException $e) {
             Cli::error('Failed to write distribution files: ' . $e->getMessage());
             return;
@@ -515,7 +513,7 @@ class InstallModule extends AbstractModule
             // Copy composer.json
             if (file_exists(MILK_DIR.'/../composer.json')) {
                 $composer_json = file_get_contents(MILK_DIR.'/../composer.json');
-                File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/composer.json', $composer_json);
+                File::putContents($version_dir.'/composer.json', $composer_json);
             } else {
                 Cli::echo('  Warning: composer.json not found in root directory');
             }
@@ -523,16 +521,9 @@ class InstallModule extends AbstractModule
             // Copy composer.lock
             if (file_exists(MILK_DIR.'/../composer.lock')) {
                 $composer_lock = file_get_contents(MILK_DIR.'/../composer.lock');
-                File::putContents(MILK_DIR.'/../milk-admin-v'.$new_version.'/composer.lock', $composer_lock);
+                File::putContents($version_dir.'/composer.lock', $composer_lock);
             } else {
                 Cli::echo('  Warning: composer.lock not found in root directory');
-            }
-
-            // Copy vendor directory
-            if (is_dir(MILK_DIR.'/../vendor')) {
-                Install::copyFiles(MILK_DIR.'/../vendor', MILK_DIR.'/../milk-admin-v'.$new_version.'/vendor');
-            } else {
-                Cli::echo('  Warning: vendor/ directory not found in root directory');
             }
         } catch (\App\Exceptions\FileException $e) {
             Cli::error('Failed to copy composer files: ' . $e->getMessage());
@@ -543,7 +534,10 @@ class InstallModule extends AbstractModule
         if ($create_zip) {
             $this->createZipPackage($new_version);
         } else {
-            Cli::success('New version created in folder: '.$folder_milkadmin);
+            $real_version_dir = realpath($version_dir) ?: $version_dir;
+            Cli::success('New version created in folder: '.$real_version_dir);
+            Cli::echo('Note: vendor/ was not copied. Run the following command to generate vendor and install production dependencies:');
+            Cli::echo('  cd '.$real_version_dir.' && composer install --no-dev');
         }
     }
 

@@ -3,6 +3,7 @@ namespace Builders;
 
 use App\{Get,};
 use \Builders\Exceptions\BuilderException;
+use App\Config;
 
 !defined('MILK_DIR') && die(); // Prevents direct access
 
@@ -19,23 +20,45 @@ class TableBuilder extends GetDataBuilder
     protected $table_id = '';
     protected $footer_data = [];
     protected $table_attrs = [];
+   
+
     /**
      * Get HTML table string
-     * 
+     *
      * @return string Complete HTML table ready for display
      */
     public function render(): string {
+
         $data = $this->getData();
-        if ($data['rows'] instanceof \App\Abstracts\AbstractModel) {
-            $data['rows']->with();   
+
+        if ($this->hasError() && Config::get('debug', false) === true) {
+             return $this->getErrorAlertHtml($this->customErrorMessage);
         }
-        return  Get::themePlugin('table', [
+        if ($data['rows'] instanceof \App\Abstracts\AbstractModel) {
+            $data['rows']->with();
+        }
+
+        $tableHtml = Get::themePlugin('table', [
             'info' => $data['info'],
             'rows' => $data['rows'],
             'page_info' => $data['page_info'],
             'table_attrs' => $this->table_attrs
         ]);
 
+        return $tableHtml;
+    }
+
+    /**
+     * Set custom error message for production mode
+     *
+     * @param string $message Custom message to display when an error occurs and debug is disabled
+     * @return static For method chaining
+     *
+     * @example ->setErrorMessage('Errore durante il caricamento delle aule. Verificare i permessi.')
+     */
+    public function setErrorMessage(string $message): static {
+        $this->customErrorMessage = $message;
+        return $this;
     }
 
     // Method chaining per configurazione tabella (snake_case)

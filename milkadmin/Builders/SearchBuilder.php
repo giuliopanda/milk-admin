@@ -329,7 +329,7 @@ class SearchBuilder {
         
         // Add other container attributes
         foreach ($container_options as $key => $value) {
-            $html .= ' ' . $key . '="' . htmlspecialchars($value) . '"';
+            $html .= ' ' . $key . '="' . _r($value) . '"';
         }
         
         $html .= '>';
@@ -439,24 +439,24 @@ class SearchBuilder {
         // Label if present
         if (!empty($field['label'])) {
             if ($layout === 'stacked' || $layout === 'full-width') {
-                $html .= '<label for="' . htmlspecialchars($id) . '" class="form-label">' . htmlspecialchars($field['label']) . '</label>';
+                $html .= '<label for="' . _r($id) . '" class="form-label">' . _r($field['label']) . '</label>';
             } else {
-                $html .= '<span class="text-body-secondary me-2">' . htmlspecialchars($field['label']) . ':</span>';
+                $html .= '<span class="text-body-secondary me-2">' . _r($field['label']) . ':</span>';
             }
         }
 
         // Input group
         $html .= '<div class="' . $input_group_classes . '">';
-        $html .= '<input class="' . htmlspecialchars($options['class']) . ' form-control search-builder-search" type="search"';
+        $html .= '<input class="' . _r($options['class']) . ' form-control search-builder-search" type="search"';
         $html .= ' name="search"';
-        $html .= ' id="' . htmlspecialchars($id) . '"';
-        $html .= ' placeholder="' . htmlspecialchars($placeholder) . '"';
-        $html .= ' data-filter-id="' . htmlspecialchars($this->filter_id_attr) . '"';
-        $html .= ' data-filter-type="' . htmlspecialchars($field['filter_type']) . '"';
+        $html .= ' id="' . _r($id) . '"';
+        $html .= ' placeholder="' . _r($placeholder) . '"';
+        $html .= ' data-filter-id="' . _r($this->filter_id_attr) . '"';
+        $html .= ' data-filter-type="' . _r($field['filter_type']) . '"';
         $html .= '>';
 
         // Add clear button
-        $html .= '<button class="btn btn-outline-secondary js-milk-clear-search" type="button" data-id="' . htmlspecialchars($id) . '">';
+        $html .= '<button class="btn btn-outline-secondary js-milk-clear-search" type="button" data-id="' . _r($id) . '">';
         $html .= '<i class="bi bi-x-lg"></i>';
         $html .= '</button>';
 
@@ -503,9 +503,9 @@ class SearchBuilder {
         // Label if present
         if (!empty($field['label'])) {
             if ($layout === 'stacked' || $layout === 'full-width') {
-                $html .= '<label for="' . htmlspecialchars($options['id']) . '" class="form-label">' . htmlspecialchars($field['label']) . '</label>';
+                $html .= '<label for="' . _r($options['id']) . '" class="form-label">' . _r($field['label']) . '</label>';
             } else {
-                $html .= '<span class="text-body-secondary me-2">' . htmlspecialchars($field['label']) . ':</span>';
+                $html .= '<span class="text-body-secondary me-2">' . _r($field['label']) . ':</span>';
             }
         }
 
@@ -555,24 +555,24 @@ class SearchBuilder {
         // Label if present
         if (!empty($field['label'])) {
             if ($layout === 'stacked' || $layout === 'full-width') {
-                $html .= '<label for="' . htmlspecialchars($input_id) . '" class="form-label">' . htmlspecialchars($field['label']) . '</label>';
+                $html .= '<label for="' . _r($input_id) . '" class="form-label">' . _rh($field['label']) . '</label>';
             } else {
-                $html .= '<span class="text-body-secondary me-2">' . htmlspecialchars($field['label']) . ':</span>';
+                $html .= '<span class="text-body-secondary me-2">' . _rh($field['label']) . ':</span>';
             }
         }
 
         // Hidden input for the filter value
         $html .= '<input type="hidden"';
-        $html .= ' id="' . htmlspecialchars($input_id) . '"';
-        $html .= ' name="filter_' . htmlspecialchars($field['filter_type']) . '"';
-        $html .= ' value="' . htmlspecialchars($field['selected']) . '"';
-        $html .= ' data-filter-id="' . htmlspecialchars($this->filter_id_attr) . '"';
-        $html .= ' data-filter-type="' . htmlspecialchars($field['filter_type']) . '"';
-        $html .= ' class="' . htmlspecialchars($input_options['class']) . '"';
+        $html .= ' id="' . _r($input_id) . '"';
+        $html .= ' name="filter_' . _r($field['filter_type']) . '"';
+        $html .= ' value="' . _r($field['selected']) . '"';
+        $html .= ' data-filter-id="' . _r($this->filter_id_attr) . '"';
+        $html .= ' data-filter-type="' . _r($field['filter_type']) . '"';
+        $html .= ' class="' . _r($input_options['class']) . '"';
         $html .= '>';
 
         // Action list container with standard js-action-list class
-        $html .= '<div class="' . $action_list_classes . '" data-target-input="' . htmlspecialchars($input_id) . '">';
+        $html .= '<div class="' . $action_list_classes . '" data-target-input="' . _r($input_id) . '">';
 
         // Render action items with standard js-action-item class
         foreach ($field['list_options'] as $value => $label) {
@@ -581,8 +581,8 @@ class SearchBuilder {
             if ($isActive) {
                 $html .= ' active-action-list';
             }
-            $html .= '" data-value="' . htmlspecialchars($value) . '">';
-            $html .= htmlspecialchars($label);
+            $html .= '" data-value="' . _r($value) . '">';
+            $html .= _rh($label);
             $html .= '</span>';
         }
 
@@ -630,9 +630,9 @@ class SearchBuilder {
         // Label if present
         if (!empty($field['label'])) {
             if ($layout === 'stacked' || $layout === 'full-width') {
-                $html .= '<label for="' . htmlspecialchars($options['id']) . '" class="form-label">' . htmlspecialchars($field['label']) . '</label>';
+                $html .= '<label for="' . _r($options['id']) . '" class="form-label">' . _rh($field['label']) . '</label>';
             } else {
-                $html .= '<span class="text-body-secondary me-2">' . htmlspecialchars($field['label']) . ':</span>';
+                $html .= '<span class="text-body-secondary me-2">' . _rh($field['label']) . ':</span>';
             }
         }
 
@@ -654,7 +654,7 @@ class SearchBuilder {
             'class' => $class,
             'data-filter-id' => $this->filter_id_attr
         ]);
-        return '<button type="button"' . Form::attr($options) . '>' . htmlspecialchars($field['label']) . '</button>';
+        return '<button type="button"' . Form::attr($options) . '>' . _rh($field['label']) . '</button>';
     }
 
     /**
@@ -669,7 +669,7 @@ class SearchBuilder {
             'class' => $class,
             'data-filter-id' => $this->filter_id_attr
         ]);
-        return '<button type="button"' . Form::attr($options) . '>' . htmlspecialchars($field['label']) . '</button>';
+        return '<button type="button"' . Form::attr($options) . '>' . _rh($field['label']) . '</button>';
     }
     /**
      * Prepares field options with required data attributes

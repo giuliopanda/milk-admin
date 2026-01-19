@@ -516,9 +516,9 @@ php milkadmin/cli.php posts:import data.csv
 </code></pre>
 
     <h2 class="mt-4">Version Management</h2>
-    <p>The version property uses the format YYMMXX (year, month, counter):</p>
+    <p>The version property uses the format YYMMDD (year, month, day):</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$rule->version(250901);  // Version for September 1, 2025
-$rule->version(250902); // Second release on September 1, 2025
+$rule->version(250902); // Version for September 2, 2025
 </code></pre>
 
 

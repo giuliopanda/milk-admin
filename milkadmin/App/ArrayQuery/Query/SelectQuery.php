@@ -1,0 +1,131 @@
+<?php
+/**
+ * Derivato da vimeo/php-mysql-engine
+ * Copyright (c) 2019-present Scott Sandler, Slack Technologies, Matt Brown, Vimeo
+ * MIT License - Vedi LICENSES/MIT-vimeo-php-mysql-engine.txt
+ */
+
+namespace App\ArrayQuery\Query;
+
+use App\ArrayQuery\Support\MultiOperand;
+use App\ArrayQuery\Parser\ParserException;
+use App\ArrayQuery\Query\Expression\Expression;
+use App\ArrayQuery\Query\LimitClause;
+
+final class SelectQuery
+{
+    /**
+     * @var ?Expression
+     */
+    public $whereClause = null;
+
+    /**
+     * @var array<int, array{expression: Expression, direction: string}>|null
+     */
+    public $orderBy = null;
+
+    /**
+     * @var LimitClause|null
+     */
+    public $limitClause = null;
+
+    /**
+     * @var array<int, Expression>
+     */
+    public $selectExpressions = [];
+
+    /**
+     * @var ?FromClause
+     */
+    public $fromClause = null;
+
+    /**
+     * @var array<int, Expression>|null
+     */
+    public $groupBy = null;
+
+    /**
+     * @var ?Expression
+     */
+    public $havingClause = null;
+
+    /**
+     * @var array<int, array{type:MultiOperand::*, query:SelectQuery}>
+     */
+    public $multiQueries = [];
+
+    /**
+     * @var array
+     */
+    public $options = [];
+
+    /**
+     * @var bool
+     */
+    public $needsSeparator = false;
+
+    /**
+     * @var bool
+     */
+    public $mostRecentHasAlias = false;
+
+    /**
+     * @var string
+     */
+    public $sql;
+
+    /**
+     * @var int
+     */
+    public $start;
+
+    public function __construct(string $sql, int $start)
+    {
+        $this->sql = $sql;
+        $this->start = $start;
+    }
+
+    /**
+     * @return void
+     */
+    public function addSelectExpression(Expression $expr)
+    {
+        if ($this->needsSeparator) {
+            throw new ParserException("Unexpected expression!");
+        }
+        $this->selectExpressions[] = $expr;
+        $this->needsSeparator = true;
+        $this->mostRecentHasAlias = false;
+    }
+
+    /**
+     * @return void
+     */
+    public function addOption(string $option)
+    {
+        $this->options[] = $option;
+    }
+
+    /**
+     * @return void
+     */
+    public function aliasRecentExpression(string $name)
+    {
+        $k = \array_key_last($this->selectExpressions);
+        if ($k === null || $this->mostRecentHasAlias) {
+            throw new ParserException("Unexpected AS");
+        }
+        $this->selectExpressions[$k]->name = $name;
+        $this->mostRecentHasAlias = true;
+    }
+
+    /**
+     * @param MultiOperand::UNION|MultiOperand::UNION_ALL|MultiOperand::EXCEPT|MultiOperand::INTERSECT $type
+     *
+     * @return void
+     */
+    public function addMultiQuery($type, SelectQuery $query)
+    {
+        $this->multiQueries[] = ['type' => $type, 'query' => $query];
+    }
+}

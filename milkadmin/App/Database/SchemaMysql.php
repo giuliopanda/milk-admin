@@ -38,7 +38,7 @@ class SchemaMysql {
     private array $indices = [];
     private string $engine = 'InnoDB';
     private string $charset = 'utf8mb4';
-    private string $collate = 'utf8mb4_0900_ai_ci';
+    private string $collate = 'utf8mb4_unicode_ci';
     private ?array $primary_keys = [];
     private ?string $primary_key = null;  // manteniamo per retrocompatibilità
 

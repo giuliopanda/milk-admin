@@ -509,8 +509,16 @@ registerHook('process_data', function(data) {
 }</code></pre>
 
 <h4 class="mt-4">Redirect</h4>
+<p>Optional delay in milliseconds with <code>redirect_delay</code>.</p>
 <pre class="pre-scrollable border p-3 bg-light"><code class="language-json">{
-    "redirect": "/path/to/page"
+    "redirect": "/path/to/page",
+    "redirect_delay": 1500
+}</code></pre>
+
+<h4 class="mt-4">Window Reload</h4>
+<p>Reload the current page after a delay in milliseconds.</p>
+<pre class="pre-scrollable border p-3 bg-light"><code class="language-json">{
+    "window_reload": 1000
 }</code></pre>
 
 <h4 class="mt-4">HTML Replacement</h4>
@@ -727,7 +735,12 @@ fetch('?page=myModule&amp;action=submit', {
         <tr>
             <td><code>redirect</code></td>
             <td>Navigate to page</td>
-            <td>String URL</td>
+            <td><code>redirect</code>, <code>redirect_delay</code></td>
+        </tr>
+        <tr>
+            <td><code>window_reload</code></td>
+            <td>Reload current page</td>
+            <td>Delay in milliseconds</td>
         </tr>
         <tr>
             <td><code>html</code></td>

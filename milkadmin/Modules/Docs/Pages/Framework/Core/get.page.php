@@ -4,7 +4,7 @@ namespace Modules\Docs\Pages;
  * @title Get
  * @guide framework
  * @order 
- * @tags Get, db, mail, schema, theme, dependency injection, container, facade, load_modules, theme_plugin, dir_path, uri_path, temp_dir, date_time_zone, format_date, user_timezone, set_user_timezone, timezone, parser, bind, make, has, client_ip
+ * @tags Get, db, db2, dbConnection, arrayDb, mail, schema, theme, dependency injection, container, facade, load_modules, theme_plugin, dir_path, uri_path, temp_dir, date_time_zone, format_date, user_timezone, set_user_timezone, user_locale, set_user_locale, timezone, bind, make, has, client_ip, close_connections
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access
@@ -14,6 +14,155 @@ namespace Modules\Docs\Pages;
     <h1>Get Class</h1>
     
     <p>The Get Class is a facade class to facilitate access and management of core system functionalities such as database connections, email sending, module and module loading, and theme page and module management.</p>
+    <p>Below is a quick summary of the available methods, followed by detailed sections.</p>
+
+    <h2 class="mt-4">Method Summary</h2>
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+            <thead>
+                <tr>
+                    <th>Method</th>
+                    <th>Parameters</th>
+                    <th>Return</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>db()</code></td>
+                    <td>-</td>
+                    <td>MySql|SQLite|ArrayDb|null</td>
+                    <td>Returns the primary database connection (singleton).</td>
+                </tr>
+                <tr>
+                    <td><code>db2()</code></td>
+                    <td>-</td>
+                    <td>MySql|SQLite|ArrayDb|null</td>
+                    <td>Returns the secondary database connection (singleton).</td>
+                </tr>
+                <tr>
+                    <td><code>dbConnection(string $name)</code></td>
+                    <td>connection name</td>
+                    <td>MySql|SQLite|ArrayDb</td>
+                    <td>Returns a named database connection.</td>
+                </tr>
+                <tr>
+                    <td><code>arrayDb()</code></td>
+                    <td>-</td>
+                    <td>ArrayDb</td>
+                    <td>Returns the in-memory ArrayDB adapter (singleton).</td>
+                </tr>
+                <tr>
+                    <td><code>schema($table, $db = null)</code></td>
+                    <td>table, db</td>
+                    <td>SchemaMysql|SchemaSqlite</td>
+                    <td>Returns a schema helper for a table.</td>
+                </tr>
+                <tr>
+                    <td><code>mail()</code></td>
+                    <td>-</td>
+                    <td>Mail</td>
+                    <td>Returns the configured mailer instance.</td>
+                </tr>
+                <tr>
+                    <td><code>loadModules()</code></td>
+                    <td>-</td>
+                    <td>void</td>
+                    <td>Loads modules and theme plugins.</td>
+                </tr>
+                <tr>
+                    <td><code>themePlugin(string $module, array $variables = [])</code></td>
+                    <td>module, variables</td>
+                    <td>string</td>
+                    <td>Loads a theme plugin and returns its output.</td>
+                </tr>
+                <tr>
+                    <td><code>dirPath(string $file)</code></td>
+                    <td>absolute path</td>
+                    <td>string</td>
+                    <td>Resolves a safe file path inside project roots.</td>
+                </tr>
+                <tr>
+                    <td><code>uriPath(string $file)</code></td>
+                    <td>file path</td>
+                    <td>string</td>
+                    <td>Builds the public URI for a file.</td>
+                </tr>
+                <tr>
+                    <td><code>tempDir()</code></td>
+                    <td>-</td>
+                    <td>string</td>
+                    <td>Returns the temp directory path.</td>
+                </tr>
+                <tr>
+                    <td><code>dateTimeZone()</code></td>
+                    <td>-</td>
+                    <td>DateTime</td>
+                    <td>Returns a DateTime in the configured timezone.</td>
+                </tr>
+                <tr>
+                    <td><code>formatDate($date, string $format = 'date', bool $timezone = false)</code></td>
+                    <td>date, format, timezone</td>
+                    <td>string</td>
+                    <td>Formats dates with locale-aware patterns.</td>
+                </tr>
+                <tr>
+                    <td><code>userTimezone()</code></td>
+                    <td>-</td>
+                    <td>string</td>
+                    <td>Returns the current user timezone.</td>
+                </tr>
+                <tr>
+                    <td><code>setUserTimezone(?string $timezone)</code></td>
+                    <td>timezone</td>
+                    <td>void</td>
+                    <td>Overrides timezone for the current request.</td>
+                </tr>
+                <tr>
+                    <td><code>userLocale()</code></td>
+                    <td>-</td>
+                    <td>string</td>
+                    <td>Returns the current user locale.</td>
+                </tr>
+                <tr>
+                    <td><code>setUserLocale(?string $locale)</code></td>
+                    <td>locale</td>
+                    <td>void</td>
+                    <td>Overrides locale for the current request.</td>
+                </tr>
+                <tr>
+                    <td><code>bind($service, $implementation, bool $singleton = false, array $arguments = [])</code></td>
+                    <td>service, implementation, singleton, args</td>
+                    <td>void</td>
+                    <td>Registers a service in the container.</td>
+                </tr>
+                <tr>
+                    <td><code>make($name, array $arguments = [])</code></td>
+                    <td>name, args</td>
+                    <td>mixed</td>
+                    <td>Creates a service from the container.</td>
+                </tr>
+                <tr>
+                    <td><code>has($name)</code></td>
+                    <td>name</td>
+                    <td>bool</td>
+                    <td>Checks if a service is registered.</td>
+                </tr>
+                <tr>
+                    <td><code>clientIp(bool $trust_proxy_headers = false)</code></td>
+                    <td>trust proxy</td>
+                    <td>string</td>
+                    <td>Returns the client IP address.</td>
+                </tr>
+                <tr>
+                    <td><code>closeConnections()</code></td>
+                    <td>-</td>
+                    <td>void</td>
+                    <td>Closes db/db2 connections and resets the singletons.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 
     <h2 class="mt-4">Database Management</h2>
 
@@ -29,11 +178,29 @@ $results = $db->query("SELECT * FROM users WHERE active = 1");</code></pre>
 $db2 = Get::db2();
 $results = $db2->query("SELECT * FROM data_table WHERE status = 'active'");</code></pre>
 
+    <h4 class="mt-4">dbConnection(string $name)</h4>
+    <p>Returns a named database connection from the configuration or runtime additions. Useful when you define more than two connections.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Get a custom connection
+$analytics = Get::dbConnection('analytics');</code></pre>
+
+    <h4 class="mt-4">arrayDb()</h4>
+    <p>Returns the ArrayDB adapter (in-memory database) as a singleton. It is initialized with an <code>ArrayEngine</code> and can be populated via <code>addTable()</code> or <code>connect()</code>.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// In-memory database
+$arrayDb = Get::arrayDb();
+$arrayDb->addTable('users', [
+    ['id' => 1, 'name' => 'Mario'],
+    ['id' => 2, 'name' => 'Laura'],
+], 'id');</code></pre>
+
     <h4 class="mt-4">schema($table, $db = null)</h4>
     <p>Returns a schema instance for the specified table. Supports both MySQL and SQLite and uses the appropriate class based on the configured database type.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$schema = Get::schema('users');
 // Or with specific database
 $schema = Get::schema('users', Get::db2());</code></pre>
+
+    <h4 class="mt-4">closeConnections()</h4>
+    <p>Closes the primary and secondary connections and resets their singletons. This is useful in long-running scripts or CLI tasks.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">Get::closeConnections();</code></pre>
 
     <h2 class="mt-4">Email Management</h2>
 
@@ -104,6 +271,16 @@ $now = new DateTime('now', new DateTimeZone(Get::userTimezone()));</code></pre>
     <h4 class="mt-4">setUserTimezone($timezone)</h4>
     <p>Explicitly sets the timezone for the current request. This overrides the authenticated user's timezone.</p>
 
+    <h2 class="mt-4">Locale Management</h2>
+
+    <h4 class="mt-4">userLocale()</h4>
+    <p>Returns the current user locale. It checks the explicitly set locale, then the authenticated user's locale, and falls back to the configured default.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$locale = Get::userLocale(); // e.g. 'it_IT'</code></pre>
+
+    <h4 class="mt-4">setUserLocale($locale)</h4>
+    <p>Explicitly sets the locale for the current request. This is used by <code>formatDate()</code> and other locale-aware helpers.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">Get::setUserLocale('en_US');</code></pre>
+
     <h2 class="mt-4">Dependency Container</h2>
     
     <p>The dependency container system allows managing contractor classes, specifically designed to identify and manage classes within modules that are intended for external use. This facilitates integration between modules and enables a more modular and testable architecture.</p>
@@ -128,6 +305,12 @@ Get::bind('database', DatabaseConnection::class);
 Get::bind('config', AppConfig::class, true);
 Get::bind('logger', LoggerFactory::class);
 </code></pre>
+
+    <h4 class="mt-4">has($name)</h4>
+    <p>Checks if a service is registered in the dependency container.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">if (Get::has('Auth')) {
+    $auth = Get::make('Auth');
+}</code></pre>
 
     <h2 class="mt-4">Client IP Management</h2>
 

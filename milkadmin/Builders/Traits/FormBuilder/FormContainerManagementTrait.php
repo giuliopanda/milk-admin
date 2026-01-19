@@ -17,7 +17,9 @@ trait FormContainerManagementTrait {
      * This method creates a Bootstrap grid container with fields distributed across columns.
      * It automatically reorganizes the fields array to insert HTML fields for the grid structure.
      *
-     * @param array $fields Array of field names to include in the container
+     * @param array $fields Array of field names to include in the container.
+     *                      You can also pass inline HTML snippets (strings containing '<' and '>'),
+     *                      which will be rendered as HTML inside the grid.
      * @param int|array $cols Number of columns or array of column sizes (e.g., [4,5,3] for col-md-4, col-md-5, col-md-3)
      * @param string $position_before Field name before which to insert the container (empty = append at the end)
      * @param string $title Optional title for the container
@@ -35,14 +37,46 @@ trait FormContainerManagementTrait {
      * @example
      * // Two fields in equal columns with title and custom styling
      * ->addContainer(['first_name', 'last_name'], 2, 'email', 'Name', ['style' => 'background-color: #f8f9fa;', 'class' => 'rounded'])
+     *
+     * @example
+     * // Mix fields and inline HTML inside the container
+     * ->addContainer(['name', '<div class="small text-muted">Note</div>', 'email'], 3)
      */
     public function addContainer(string $id, array $fields, $cols, string $position_before = '', string $title = '', array $attributes = []): self {
-        // Validate that all specified fields exist
+        $normalized_fields = [];
+        $inline_html_fields = [];
+        $existing_names = array_fill_keys(array_keys($this->fields), true);
+
         foreach ($fields as $field_name) {
-            if (!isset($this->fields[$field_name])) {
+            if ($this->isInlineHtmlSnippet($field_name)) {
+                $inline_name = $this->generateInlineHtmlFieldName($existing_names);
+                $existing_names[$inline_name] = true;
+                $inline_html_fields[$inline_name] = $field_name;
+                $normalized_fields[] = $inline_name;
+                continue;
+            }
+
+            if (!isset($this->fields[$field_name]) && isset($this->fields_copy[$field_name])) {
+                if (isset($this->removed_fields[$field_name])) {
+                    unset($this->removed_fields[$field_name]);
+                }
+                $this->fields[$field_name] = $this->fields_copy[$field_name];
+            } else if (!isset($this->fields[$field_name]) && !isset($this->fields_copy[$field_name])) {
                 throw new \InvalidArgumentException("Field '{$field_name}' does not exist in the form");
             }
+            $normalized_fields[] = $field_name;
         }
+
+        foreach ($inline_html_fields as $inline_name => $html) {
+            $this->fields[$inline_name] = [
+                'type' => 'html',
+                'value' => '',
+                'html' => $html,
+                'name' => $inline_name
+            ];
+        }
+
+        $fields = $normalized_fields;
 
         // Calculate column distribution
         $column_distribution = $this->calculateColumnDistribution($fields, $cols);
@@ -307,4 +341,17 @@ trait FormContainerManagementTrait {
         return $field_name;
     }
 
+    private function isInlineHtmlSnippet($value): bool {
+        return is_string($value) && strpos($value, '<') !== false && strpos($value, '>') !== false;
+    }
+
+    private function generateInlineHtmlFieldName(array $existing_names): string {
+        $counter = 1;
+        do {
+            $field_name = 'HINLINE' . str_pad((string)$counter, 4, '0', STR_PAD_LEFT);
+            $counter++;
+        } while (isset($existing_names[$field_name]) || isset($this->fields[$field_name]));
+
+        return $field_name;
+    }
 }

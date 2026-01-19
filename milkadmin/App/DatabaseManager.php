@@ -1,7 +1,7 @@
 <?php
 namespace App;
 
-use App\Database\{MySql, SQLite};
+use App\Database\{MySql, SQLite, ArrayDb};
 use App\Exceptions\DatabaseException;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
@@ -51,7 +51,7 @@ class DatabaseManager
     /**
      * Active database connection instances
      *
-     * @var array<string, MySql|SQLite>
+     * @var array<string, MySql|SQLite|ArrayDb>
      */
     private static array $connections = [];
 
@@ -83,10 +83,10 @@ class DatabaseManager
      * Auto-discovers connections from Config on first call.
      *
      * @param string|null $name Connection name (null = default connection)
-     * @return MySql|SQLite|null Database connection instance
+     * @return MySql|SQLite|ArrayDb|null Database connection instance
      * @throws DatabaseException If connection fails or configuration not found
      */
-    public static function connection(?string $name = null): MySql|SQLite|null
+    public static function connection(?string $name = null): MySql|SQLite|ArrayDb|null
     {
         // Auto-discover connections from Config
         if (!self::$discoveryDone) {
@@ -201,10 +201,10 @@ class DatabaseManager
      * Create a new database connection
      *
      * @param string $name Connection name
-     * @return MySql|SQLite|null Database connection instance
+     * @return MySql|SQLite|ArrayDb|null Database connection instance
      * @throws DatabaseException If connection fails or configuration not found
      */
-    private static function createConnection(string $name): MySql|SQLite|null
+    private static function createConnection(string $name): MySql|SQLite|ArrayDb|null
     {
         if (!isset(self::$configurations[$name])) {
             return null;
@@ -223,6 +223,11 @@ class DatabaseManager
                 if ($database !== null) {
                     $connection->connect($database);
                 }
+            } elseif ($type === 'array') {
+                $connection = new ArrayDb($prefix);
+                $data = $config['data'] ?? $config['database'] ?? null;
+                $autoIncrement = $config['auto_increment'] ?? [];
+                $connection->connect($data, $autoIncrement);
             } else {
                 // MySQL connection (default)
                 $connection = new MySql($prefix);

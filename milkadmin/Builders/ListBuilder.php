@@ -28,6 +28,18 @@ class ListBuilder extends GetDataBuilder
      */
     public function render(): string {
         $data = $this->getData();
+        if ($this->hasError() && Config::get('debug', false) === true) {
+             return $this->getErrorAlertHtml($this->customErrorMessage);
+        }
+        if ($data['rows'] instanceof \App\Abstracts\AbstractModel) {
+            $data['rows']->with();
+        }
+
+        // Aggiungi box_template se impostato
+        if ($this->box_template !== '') {
+            $data['page_info']['box_template'] = $this->box_template;
+        }
+
         return  Get::themePlugin('List', [
             'info' => $data['info'],
             'rows' => $data['rows'],

@@ -2,8 +2,8 @@
 
 namespace App;
 
-use App\Database\{MySql, SQLite, SchemaMysql, SchemaSqlite};
-use App\Exceptions\DatabaseException;
+use App\Database\{MySql, SQLite, ArrayDb, SchemaMysql, SchemaSqlite};
+use App\ArrayQuery\ArrayEngine;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
 /**
@@ -55,7 +55,7 @@ class Get
      *
      * Stores the singleton instance of the database class (MySql or SQLite) for database operations.
      *
-     * @var null|MySql|SQLite
+     * @var null|MySql|SQLite|ArrayDb
      */
     static $db = null;
 
@@ -64,9 +64,16 @@ class Get
      *
      * Stores the singleton instance of the secondary database connection (MySql or SQLite) for data operations.
      *
-     * @var null|MySql|SQLite
+     * @var null|MySql|SQLite|ArrayDb
      */
     static $db2 = null;
+
+    /**
+     * Reference to the in-memory array database adapter instance
+     *
+     * @var null|ArrayDb
+     */
+    static $array_db = null;
 
 
     /**
@@ -95,9 +102,9 @@ class Get
      * $results = $db->query("SELECT * FROM users WHERE active = 1");
      * ```
      *
-     * @return MySql|SQLite|false Instance of the database connection
+     * @return MySql|SQLite|ArrayDb|false Instance of the database connection
      */
-    public static function db(): MySql|SQLite|null
+    public static function db(): MySql|SQLite|ArrayDb|null
     {
         if (self::$db == null) {
             self::$db = DatabaseManager::connection('db');
@@ -117,9 +124,9 @@ class Get
      * $results = $db2->query("SELECT * FROM data_table WHERE status = 'active'");
      * ```
      *
-     * @return MySql|SQLite|null Instance of the secondary database connection
+     * @return MySql|SQLite|ArrayDb|null Instance of the secondary database connection
      */
-    public static function db2(): MySql|SQLite|null
+    public static function db2(): MySql|SQLite|ArrayDb|null
     {
         if (self::$db2 == null) {
             self::$db2 = DatabaseManager::connection('db2');
@@ -143,11 +150,27 @@ class Get
      * ```
      *
      * @param string $name Connection name
-     * @return MySql|SQLite Instance of the database connection
+     * @return MySql|SQLite|ArrayDb Instance of the database connection
      */
-    public static function dbConnection(string $name): MySql|SQLite
+    public static function dbConnection(string $name): MySql|SQLite|ArrayDb
     {
         return DatabaseManager::connection($name);
+    }
+
+    /**
+     * Get the in-memory array database adapter (singleton)
+     *
+     * @return ArrayDb
+     */
+    public static function arrayDb(): ArrayDb
+    {
+        if (self::$array_db === null) {
+            $adapter = new ArrayDb();
+            $adapter->connect(new ArrayEngine());
+            self::$array_db = $adapter;
+        }
+
+        return self::$array_db;
     }
 
     public static function schema($table, $db = null)
@@ -155,16 +178,15 @@ class Get
         if ($db == null) {
             $db = self::db();
         }
-        if ($db == null) {
-            die('No database connection available');
-        }
+      
         if ($db->getType() == 'mysql') {
             return new SchemaMysql($table, $db);
         } else  if ($db->getType() == 'sqlite') {
             return new SchemaSqlite($table, $db);
         } else {
-            die('Unsupported database type');
+            return null;
         }
+           
     }
 
     /**
@@ -567,7 +589,7 @@ class Get
      * Format a date based on the system settings using locale
      *
      * Converts a date string to the specified format according to system locale configuration.
-     * Uses IntlDateFormatter for proper internationalization.
+     * Uses DateTime::format with a locale-aware format mapping.
      *
      * @example
      * ```php
@@ -616,33 +638,50 @@ class Get
 
         // Get locale from config
         $locale = Config::get('locale', 'en_US');
+        $localeKey = preg_split('/[.@]/', $locale)[0] ?? $locale;
 
-        // Create IntlDateFormatter based on format type
-        if ($format == 'date') {
-            $formatter = new \IntlDateFormatter(
-                $locale,
-                \IntlDateFormatter::SHORT,  // Short date format
-                \IntlDateFormatter::NONE,
-                $timezone ? Get::userTimezone() : null
-            );
-        } else if ($format == 'time') {
-            $formatter = new \IntlDateFormatter(
-                $locale,
-                \IntlDateFormatter::NONE,
-                \IntlDateFormatter::SHORT,  // Short time format
-                $timezone ? Get::userTimezone() : null
-            );
-        } else {
-            // datetime
-            $formatter = new \IntlDateFormatter(
-                $locale,
-                \IntlDateFormatter::SHORT,
-                \IntlDateFormatter::SHORT,
-                $timezone ? Get::userTimezone() : null
-            );
+        $dateFormat = 'Y-m-d';
+        $timeFormat = 'H:i';
+
+        $dateFormats = [
+            'en_US' => 'm/d/Y',
+            'en_GB' => 'd/m/Y',
+            'it_IT' => 'd/m/Y',
+            'fr_FR' => 'd/m/Y',
+            'es_ES' => 'd/m/Y',
+            'pt_PT' => 'd/m/Y',
+            'pt_BR' => 'd/m/Y',
+            'de_DE' => 'd.m.Y',
+        ];
+
+        $timeFormats = [
+            'en_US' => 'h:i A',
+            'en_GB' => 'H:i',
+            'it_IT' => 'H:i',
+            'fr_FR' => 'H:i',
+            'es_ES' => 'H:i',
+            'pt_PT' => 'H:i',
+            'pt_BR' => 'H:i',
+            'de_DE' => 'H:i',
+        ];
+
+        if (isset($dateFormats[$localeKey])) {
+            $dateFormat = $dateFormats[$localeKey];
         }
 
-        return $formatter->format($dateClone);
+        if (isset($timeFormats[$localeKey])) {
+            $timeFormat = $timeFormats[$localeKey];
+        }
+
+        if ($format == 'date') {
+            return $dateClone->format($dateFormat);
+        }
+
+        if ($format == 'time') {
+            return $dateClone->format($timeFormat);
+        }
+
+        return $dateClone->format($dateFormat . ' ' . $timeFormat);
     }
 
     /**

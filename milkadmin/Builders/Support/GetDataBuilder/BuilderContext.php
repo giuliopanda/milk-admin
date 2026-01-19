@@ -157,6 +157,10 @@ class BuilderContext
         }
     }
 
+    public function setModel(AbstractModel $model) {
+        $this->model = $model;
+    }
+
     // ========================================================================
     // FILTERS
     // ========================================================================

@@ -25,7 +25,7 @@ namespace Modules\Docs\Pages;
 </code></pre>
 
     <h4>Now we need to update the module</h4>
-    <p>Go to the module and modify or add the version property. If you update the version it must be greater than the previous one. I suggest for this system dates AAMMXX year, month and progressive, but you can also put a progressive number and that's it. The system does not manage classic versions like 1.0, 1.0.1, 1.3.23.2 etc...<p>
+    <p>Go to the module and modify or add the version property. If you update the version it must be greater than the previous one. I suggest for this system dates AAMMGG (year, month, day), but you can also put a progressive number and that's it. The system does not manage classic versions like 1.0, 1.0.1, 1.3.23.2 etc...<p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php"> protected $version = 251001;</code></pre>
     <p>A this point go to the admin and click the menu on the left <b>installation</b>. The module will update automatically.<br> Alternatively from shell you can run:
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">php milkadmin/cli.php {module_name}:update</code></pre>
@@ -103,7 +103,7 @@ php milkadmin/cli.php {module_name}:uninstall
     <hr>
 
     <h2 class="mt-3">Versions </h2>
-    <p>Versions are indicated in the configuration file and are composed of 6 characters: AAMMXX where AA is the year e.g. 24, MM the month e.g. 01, XX a progressive number that expresses how many versions are made in that year of that month.</p>
+    <p>Versions are indicated in the configuration file and are composed of 6 characters: AAMMGG where AA is the year e.g. 24, MM the month e.g. 01, GG the day e.g. 09.</p>
     <p>Inside <b>ito_class/setup.php</b> the version number of the new installation is set.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">define ('NEW_VERSION', '240901');</code></pre>
     <p>This is important because inside the various modules you can check the current version and the new version to understand whether you need to load the file with the hooks for the install or not</p>

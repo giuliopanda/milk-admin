@@ -65,12 +65,9 @@ window.fetch = function (...args) {
     }
 
     try {
-        console.log ('fetch chiamato');
-        console.log ('url:', url);
-        console.log ('options:', options);
+
         return originalFetch.apply(this, [url, options])
             .then(response => {
-                console.log ('fetch completato');
                 const clone = response.clone();
                 clone.json().then(data => {
                     if (data.permission_denied) {
@@ -88,7 +85,7 @@ window.fetch = function (...args) {
                 throw error;
             });
     } catch (err) {
-        console.error("Errore prima della chiamata fetch:", err);
+        console.error("Error before fetch:", err);
         throw err;
     }
 };
@@ -154,11 +151,7 @@ window.getCSRFToken = function() {
 function jsonAction(data, container) {
     // 1. HTML replacement Removed
    
-    // 2. Redirect
-    if ('redirect' in data && data.redirect != '') {
-        window.location.href = data.redirect;
-        return;
-    }
+   
 
     // Set default success state
     if (!('success' in data)) {
@@ -345,7 +338,7 @@ function jsonAction(data, container) {
         }
     }
 
-    // 10. Calendar actions
+    // Calendar actions
     if ('calendar' in data && data.calendar.id) {
         const calendar = getComponent(data.calendar.id);
         if (calendar) {
@@ -369,8 +362,29 @@ function jsonAction(data, container) {
         }
     }
 
+     //  Redirect
+    if ('redirect' in data && data.redirect != '') {
+        if ('redirect_delay' in data && data.redirect_delay && data.redirect_delay >= 0) {
+            setTimeout(() => {
+                window.location.href = data.redirect;
+            }, data.redirect_delay);
+            return;
+        } else {
+            window.location.href = data.redirect;
+            return;
+        }
+    }
 
-    // 11. JavaScript Hooks
+
+    if ('window_reload' in data && data.window_reload && data.window_reload >= 0) {
+        setTimeout(() => {
+            window.location.reload();
+        }, data.window_reload);
+        return;
+    }
+
+
+    //  JavaScript Hooks
     if (data.hook) {
         milkActionsProcessHook(data.hook);
     }
@@ -379,6 +393,8 @@ function jsonAction(data, container) {
             milkActionsProcessHook(hookData);
         });
     }
+
+
 }
 
 /**

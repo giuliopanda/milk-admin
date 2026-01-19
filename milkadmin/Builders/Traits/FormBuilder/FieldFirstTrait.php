@@ -39,11 +39,18 @@ trait FieldFirstTrait
         // If field doesn't exist, create it with minimal structure (only name)
         // Other defaults will be set by addFieldsFromObject() to allow FormBuilder changes to override Model
         if (!isset($this->fields[$key])) {
-            $this->fields[$key] = [
-                'name' => $key
-            ];
+            if (isset($this->fields_copy[$key])) {
+                $this->fields[$key] = $this->fields_copy[$key];
+            } else {
+                $this->fields[$key] = [
+                    'name' => $key,
+                    'type' => 'string'
+                ];
+            }
         }
-
+        if (isset($this->removed_fields[$key])) {
+            unset($this->removed_fields[$key]);
+        }
         $this->current_field = $key;
         return $this;
     }
@@ -297,6 +304,29 @@ trait FieldFirstTrait
         }
         $this->fields[$key]['form-params']['invalid-feedback'] = $message;
 
+        return $this;
+    }
+
+  /**
+     * Reset all fields - hides all existing fields from the model
+     * Useful when you want to start with a clean slate and only show specific fields
+     *
+     * @return static For method chaining
+     * @example
+     * FormBuilder::create($model, $this->page)
+     *     ->resetFields()  // Hide all existing fields
+     *     ->field('id')    // Show only the fields you want
+     *     ->field('name')
+     *     ->field('email')
+     */
+    public function resetFields(): static
+    {
+        $this->fields_copy = $this->fields;
+        foreach ($this->fields as $key => $_) {
+            if ($this->fields[$key]['primary'] === true) continue;
+            $this->removeField($key);
+            unset($this->fields[$key]);
+        }
         return $this;
     }
 
