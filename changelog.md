@@ -1,5 +1,21 @@
 ## Changelog
 
+### v260119
+- New: ArrayDb - In-memory database system with SQL parser and query executor
+- New: SQL Parser supporting SELECT, INSERT, UPDATE, DELETE with complex expressions (BETWEEN, CASE, CAST, EXISTS, IN)
+- New: Query executor with JOIN support, aggregations, and subqueries
+- New: VirtualTableTrait for handling virtual tables in models
+- New: Events Module with calendar integration
+- New: Multi-builder dynamic updates system (Documentation in `multi-builder-dynamic-updates.page.php`)
+- New: ArrayDb documentation (`arraydb-models-builders.page.php`)
+- Improved: GetDataBuilder with enhanced data processing
+- Improved: TableBuilder, ListBuilder, CalendarBuilder, SearchBuilder, TitleBuilder
+- Improved: Query system (InstallationTrait, QueryBuilderTrait, Query.php, Get.php)
+- Updated: Database SQL and Get system documentation (`db-sql.page.php`, `get.page.php`)
+- Updated: FakeCharts documentation and examples
+- Removed: Obsolete .Recipe module and example extensions
+- Fix: CrudOperationsTrait and various minor fixes in builders
+
 ### v260109
 - New: Chart System (ChartBuilder) (Complete documentation in `chart-builder.page.php`)
 - New: Scope and Query Attributes System (Documentation in `abstract-model-attributes.page.php`)
