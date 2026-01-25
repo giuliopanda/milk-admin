@@ -366,8 +366,11 @@ class AuthContract implements AuthContractInterface
             $query = 'SELECT COUNT(*) as count FROM `#__login_attempts` WHERE username_email = ? AND attempt_time > ?';
             $params = [$identifier, $formattedDateTime];
         }
-        
-        $result = Get::db()->getRow($query, $params);
+        $db = Get::db();
+        if ($db === null) {
+            return 0;
+        }
+        $result = $db->getRow($query, $params);
         return $result ? $result->count : 0;
     }
 
@@ -380,8 +383,11 @@ class AuthContract implements AuthContractInterface
         $currentDateTime = new \DateTime();
         $currentDateTime->modify('-' . $this->attempts_window . ' minutes');
         $formattedDateTime = $currentDateTime->format('Y-m-d H:i:s');
-        
-        $result = Get::db()->getRow(
+        $db = Get::db();
+        if ($db === null) {
+            return 0;
+        }
+        $result = $db->getRow(
             'SELECT COUNT(*) as count FROM `#__login_attempts` WHERE attempt_time > ?',
             [$formattedDateTime]
         );
@@ -406,7 +412,11 @@ class AuthContract implements AuthContractInterface
         Config::set_cache($cache_key, time());
 
         // Get all administrators
-        $admins = Get::db()->getResults('SELECT * FROM `#__users` WHERE is_admin = 1 AND status = 1');
+        $db = Get::db();
+        if ($db === null) {
+            return;
+        }
+        $admins = $db->getResults('SELECT * FROM `#__users` WHERE is_admin = 1 AND status = 1');
         
         if (!$admins) {
             return;
@@ -451,7 +461,10 @@ class AuthContract implements AuthContractInterface
             'attempt_time' => date('Y-m-d H:i:s')
         ];
         
-        Get::db()->insert('#__login_attempts', $data);
+        $db = Get::db();
+        if ($db !== null) {
+            $db->insert('#__login_attempts', $data);
+        }
     }
 
     /**
@@ -463,9 +476,12 @@ class AuthContract implements AuthContractInterface
      */
     private function clearFailedAttempts($username, $ip_address, $session_id) {
         // Remove failed attempts for this username, IP and session
-        Get::db()->delete('#__login_attempts', ['username_email' => $username]);
-        Get::db()->delete('#__login_attempts', ['ip_address' => $ip_address]);
-        Get::db()->delete('#__login_attempts', ['session_id' => $session_id]);
+        $db = Get::db();
+        if ($db !== null) {
+            $db->delete('#__login_attempts', ['username_email' => $username]);
+            $db->delete('#__login_attempts', ['ip_address' => $ip_address]);
+            $db->delete('#__login_attempts', ['session_id' => $session_id]);
+        }
     }
 
     /**
@@ -484,7 +500,11 @@ class AuthContract implements AuthContractInterface
         }
         
         // First try to find user by username
-        $user_db = Get::db()->getRow("SELECT * FROM " . Get::db()->qn('#__users') . " WHERE username = ? AND status = 1", [$username]);
+        $db = Get::db();
+        if ($db === null) {
+            return false;
+        }
+        $user_db = $db->getRow("SELECT * FROM " . $db->qn('#__users') . " WHERE username = ? AND status = 1", [$username]);
 
         if (!is_object($user_db)) {
             password_verify($password, '$2y$10$dummy.hash.to.prevent.timing.attacks');
@@ -520,7 +540,11 @@ class AuthContract implements AuthContractInterface
         $status_condition = $include_inactive ? '' : ' AND status = 1;';
         
         // First try to find user by username
-        $user_db = Get::db()->getRow("SELECT * FROM " . Get::db()->qn('#__users') . " WHERE username = ?" . $status_condition, [$username]);
+        $db = Get::db();
+        if ($db === null) {
+            return false;
+        }
+        $user_db = $db->getRow("SELECT * FROM " . $db->qn('#__users') . " WHERE username = ?" . $status_condition, [$username]);
 
         if (!is_object($user_db)) {
             $this->last_error = $include_inactive ? 'User not found' : 'User not found or inactive';
@@ -935,7 +959,10 @@ class AuthContract implements AuthContractInterface
         $currentDateTime->modify('-' . ( $this->expired_session * 2 ) . ' minutes');
         $formattedDateTime = $currentDateTime->format('Y-m-d H:i:s');
         $sql = 'DELETE FROM `#__sessions` WHERE session_date < "'.$formattedDateTime.'"';
-        Get::db()->query($sql);
+        $db = Get::db();
+        if ($db !== null) {
+            $db->query($sql);
+        }
     }
 
     /**
