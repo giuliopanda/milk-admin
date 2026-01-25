@@ -2,7 +2,7 @@
 namespace Modules\Docs\Pages;
 /**
  * @title Model Relationships
- * @guide developer
+ * @guide Models
  * @order 53
  * @tags model, relationships, hasOne, hasMany, belongsTo, foreign key, lazy loading, batch loading, eager loading, with, cascade save, withoutGlobalScopes
  */
@@ -1002,9 +1002,9 @@ if ($model->hasRelationship('books')) {
     <div class="alert alert-info">
         <ul class="mb-0">
             <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-overview">Model Overview</a></li>
-            <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-queries">Query Builder</a></li>
-            <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-crud">CRUD Operations</a></li>
-            <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-attributes">Query Scopes (withoutGlobalScopes)</a></li>
+            <li><a href="?page=docs&action=Developer/Model/abstract-model-queries">Query Builder</a></li>
+            <li><a href="?page=docs&action=Developer/Model/abstract-model-crud">CRUD Operations</a></li>
+            <li><a href="?page=docs&action=Developer/Model/abstract-model-attributes">Query Scopes (withoutGlobalScopes)</a></li>
             <li><a href="?page=docs&action=Framework/Core/rulebuilder">RuleBuilder</a></li>
         </ul>
     </div>

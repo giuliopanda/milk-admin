@@ -9,11 +9,15 @@ use Modules\Install\Install;
 
 Hooks::set('install.get_html_modules', function($html, $errors) {
     $errors_mysql = (isset($errors['mysql2']) && is_array($errors['mysql2'])) ? $errors['mysql2'] : [];
+    $db2_selected = $_REQUEST['db2_active'] ?? [];
+    if (!is_array($db2_selected) && $db2_selected !== '') {
+        $db2_selected = [$db2_selected];
+    }
     ob_start();
 
     Form::checkboxes('db2_active',
     ['db2_active' => 'Use Second Database'], 
-    '', 
+    $db2_selected, 
     false, 
     [ 'form-check-class'=>'form-switch'], ['onchange' => "toggleEl(document.getElementById('db2Config'))"]
 );
@@ -44,7 +48,7 @@ Hooks::set('install.get_html_modules', function($html, $errors) {
                 $defaultDb = !empty($dbTypes['mysql']) ? 'mysql' : (!empty($dbTypes['sqlite']) ? 'sqlite' : '');
                 
                 if (!empty($dbTypes)) {
-                    Form::select('connectType2', 'connect_type2', $dbTypes, $_REQUEST['connect_type2'] ?? $defaultDb, 
+                    Form::select('connectType2', 'connect_type2', $dbTypes, $_REQUEST['connectType2'] ?? $defaultDb, 
                         ['onchange' => "toggleEl(document.getElementById('db2Fields'))"]);
                     
                     echo '<div id="db2Fields" class="mt-3">';
@@ -77,6 +81,14 @@ Hooks::set('install.get_html_modules', function($html, $errors) {
         </div>
     </div>
 </div>
+<script>
+    window.addEventListener('load', function() {
+        var db2Toggle = document.querySelector('input[name="db2_active[]"]');
+        if (db2Toggle) {
+            toggleEl(document.getElementById('db2Config'), db2Toggle, db2Toggle.value);
+        }
+    });
+</script>
     <?php
     $html .= ob_get_clean();
     return $html;
@@ -110,7 +122,11 @@ Hooks::set('install.check_data', function($errors, $data) {
             // Testa la connessione MySQL solo se tutti i campi sono compilati
             if (empty($mysql_errors)) {
                 $conn = new MySql('');
-                if (!$conn->connect($data['connect_ip2'], $data['connect_login2'], $data['connect_pass2'], $data['connect_dbname2'])) {
+                try {
+                    if (!$conn->connect($data['connect_ip2'], $data['connect_login2'], $data['connect_pass2'], $data['connect_dbname2'])) {
+                        $mysql_errors['mysql2'] = 'Connection failed! Verify database existence, connection data, and database permissions.';
+                    }
+                } catch (\Throwable $e) {
                     $mysql_errors['mysql2'] = 'Connection failed! Verify database existence, connection data, and database permissions.';
                 }
             }

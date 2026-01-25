@@ -436,7 +436,7 @@ class LinksBuilder {
     private function renderNavbar(): string {
         if (empty($this->links)) return '';
 
-        $ulDefaults = ['class' => 'nav my-2 justify-content-center my-md-0 text-small d-none d-lg-flex'];
+        $ulDefaults = ['class' => 'nav my-2 justify-content-center my-md-0 text-small d-lg-flex'];
         $ulAttrs = $this->getElementAttributes('ul', $ulDefaults);
 
         ob_start();

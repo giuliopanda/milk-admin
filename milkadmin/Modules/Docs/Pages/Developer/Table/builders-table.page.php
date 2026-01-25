@@ -269,7 +269,7 @@ Response::render('view.php', $response);
     ->getTable();</code></pre>
 
     <div class="alert alert-info">
-        <p class="mb-0"><strong>📘 For comprehensive query documentation:</strong> See <a href="?page=docs&action=Developer/AbstractsClass/abstract-model-queries" class="alert-link">Abstract Model - Query Methods</a></p>
+        <p class="mb-0"><strong>📘 For comprehensive query documentation:</strong> See <a href="?page=docs&action=Developer/Model/abstract-model-queries" class="alert-link">Abstract Model - Query Methods</a></p>
     </div>
 
     <h2>Field-First Pattern</h2>

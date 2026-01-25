@@ -231,9 +231,14 @@ class BuilderContext
             $this->query->limit($offset, $limit);
         }
 
+        $this->query->clean('order');
         if (str_contains($orderField, '.')) {
             [$relation, $field] = explode('.', $orderField, 2);
-            $this->query->orderHas($relation, $field, $orderDir);
+            if ($this->hasRelationshipAlias($relation)) {
+                $this->query->orderHas($relation, $field, $orderDir);
+            } else {
+                $this->query->order($orderField, $orderDir);
+            }
         } else {
             $this->query->order($orderField, $orderDir);
         }
@@ -319,5 +324,24 @@ class BuilderContext
     private function getRequestParams(string $table_id): array
     {
         return $_REQUEST[$table_id] ?? [];
+    }
+
+    private function hasRelationshipAlias(string $alias): bool
+    {
+        if (!method_exists($this->model, 'getRules')) {
+            return false;
+        }
+
+        $rules = $this->model->getRules();
+        foreach ($rules as $rule) {
+            if (!isset($rule['relationship'])) {
+                continue;
+            }
+            if (($rule['relationship']['alias'] ?? '') === $alias) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -488,10 +488,8 @@ trait FormSystemOperationsTrait {
     public function ActionExecution(): self {
         if ($this->execute_actions) return $this;
         $this->execute_actions = true;
-      
         // Check which button was pressed
-        
-       
+
         foreach ($this->actions as $action_key => $action_config) {
             // Look for the button press in various formats
             $button_pressed = false;

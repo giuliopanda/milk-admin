@@ -22,7 +22,7 @@ class CalendarBuilder extends GetDataBuilder
     protected $table_id = '';
     protected $month = null;
     protected $year = null;
-    protected $locale = 'en_US';
+    protected $locale = null;  // null = auto-detect from user
     protected $header_title = 'Calendar';
     protected $header_icon = '';
     protected $header_color = 'primary';
@@ -709,9 +709,9 @@ class CalendarBuilder extends GetDataBuilder
      * @example ->calendarColor('success') // Green theme
      */
     public function calendarColor($color): static {
-        // Mappa i colori alle classi Bootstrap
+        // Map colors to Bootstrap classes
         $color_map = [
-            // Colori base
+            // Base colors
             'primary' => ['bg' => 'bg-primary', 'text' => 'text-white', 'border' => 'border-primary'],
             'secondary' => ['bg' => 'bg-secondary', 'text' => 'text-white', 'border' => 'border-secondary'],
             'success' => ['bg' => 'bg-success', 'text' => 'text-white', 'border' => 'border-success'],
@@ -733,18 +733,18 @@ class CalendarBuilder extends GetDataBuilder
             'black' => ['bg' => 'bg-dark', 'text' => 'text-white', 'border' => 'border-dark'],
         ];
 
-        // Se il colore esiste nella mappa, applica lo schema coordinato
+        // If the color exists in the map, apply the coordinated scheme
         if (isset($color_map[$color])) {
             $scheme = $color_map[$color];
 
-            // Imposta colore header (usa il metodo esistente)
+            // Set header color (use existing method)
             $this->setHeaderColor($color);
 
-            // Aggiungi data attribute per CSS targeting avanzato
+            // Add data attribute for advanced CSS targeting
             $this->addCalendarAttr('container', 'data-calendar-color', $color);
 
         } else {
-            // Se il colore non esiste, prova comunque ad applicarlo all'header
+            // If the color does not exist, still try to apply it to the header
             $this->setHeaderColor($color);
         }
 
@@ -835,6 +835,7 @@ class CalendarBuilder extends GetDataBuilder
      */
     public function render(): string {
         // Auto-detect month/year from REQUEST if not set
+        $autoDetected = false;
         if ($this->month === null || $this->year === null) {
             $calendar_id = $this->getId();
             $calendar_params = $_REQUEST[$calendar_id] ?? [];
@@ -845,14 +846,20 @@ class CalendarBuilder extends GetDataBuilder
             if ($this->year === null) {
                 $this->year = (int)($calendar_params['year'] ?? date('Y'));
             }
+            $autoDetected = true;
         }
 
         // Validate and adjust date to be within allowed range
         $this->validateAndAdjustDate();
 
+        // Apply month/year filter if we auto-detected month/year in this render pass
+        if ($autoDetected) {
+            $this->applyMonthYearFilter();
+        }
+
         // Use locale from config if not set
         if (empty($this->locale)) {
-            $this->locale = Get::userLocale();
+            $this->locale = Get::userLocale() ?: 'en_US';
         }
 
         // Apply custom filters from calendar request (not handled by getRowsData).
@@ -889,19 +896,26 @@ class CalendarBuilder extends GetDataBuilder
                 continue;
             }
 
-            // Parse MySQL datetime format directly (no format guessing needed)
-            // Check if already DateTime object, otherwise skip this record
+            // Parse MySQL datetime format directly (accept DateTime or string)
             if ($start_string instanceof \DateTime) {
                 $start = $start_string;
             } else {
-                continue; // Skip this record if start date is not a DateTime object
+                try {
+                    $start = new \DateTime($start_string);
+                } catch (\Exception $e) {
+                    continue; // Skip if start date is not valid
+                }
             }
 
-            // Handle end date: if not DateTime, use start date
+            // Handle end date: parse if possible, otherwise fallback to start
             if ($end_string instanceof \DateTime) {
                 $end = $end_string;
             } else {
-                $end = $start; // Use start date if end date is not a DateTime object
+                try {
+                    $end = new \DateTime($end_string);
+                } catch (\Exception $e) {
+                    $end = $start;
+                }
             }
 
             // Use processed row data for other fields (might have been modified by hooks)

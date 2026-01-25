@@ -1,5 +1,41 @@
 ## Changelog
 
+### v260125
+- New: ScheduleGridBuilder - Advanced grid system for schedule and planning visualization
+- New: ScheduleGrid Theme Plugin with GridRenderer and interactive JavaScript components
+- New: Version normalization system supporting both semver and legacy numeric versions
+- New: CrudOperationsTrait methods: delete() without id (uses loaded record), deleteAll() for batch deletions
+- New: RuleBuilder support for field-based min/max validation (e.g., end_date > start_date)
+- Improved: RuleBuilder with enhanced min/max handling for strings (length) vs numbers
+- Improved: RuleBuilder decimal() now uses correct 'number' formType
+- Improved: RuleBuilder formParams() auto-syncs with pattern, minlength, maxlength validation rules
+- Improved: SchemaAndValidationTrait with better nullable field handling (empty strings → null for numeric/date types)
+- Improved: InstallationTrait now tracks and reports schema changes during module updates
+- Improved: CalendarBuilder and ScheduleGridBuilder enhancements
+- Improved: LinksBuilder, SearchBuilder, TitleBuilder refinements
+- Improved: QueryBuilderTrait and Query.php optimizations
+- Updated: AbstractModule and ModuleRuleBuilder to use normalized version strings
+- Updated: Documentation for CrudOperationsTrait, AbstractModel, Builders, and Multi-builder system
+- Updated: Processes Module documentation with comprehensive guide
+- Fix: DataFormattingTrait nullable handling for numeric and date fields
+- Fix: AbstractController query total calculation
+
+### v260119
+- New: ArrayDb - In-memory database system with SQL parser and query executor
+- New: SQL Parser supporting SELECT, INSERT, UPDATE, DELETE with complex expressions (BETWEEN, CASE, CAST, EXISTS, IN)
+- New: Query executor with JOIN support, aggregations, and subqueries
+- New: VirtualTableTrait for handling virtual tables in models
+- New: Events Module with calendar integration
+- New: Multi-builder dynamic updates system (Documentation in `multi-builder-dynamic-updates.page.php`)
+- New: ArrayDb documentation (`arraydb-models-builders.page.php`)
+- Improved: GetDataBuilder with enhanced data processing
+- Improved: TableBuilder, ListBuilder, CalendarBuilder, SearchBuilder, TitleBuilder
+- Improved: Query system (InstallationTrait, QueryBuilderTrait, Query.php, Get.php)
+- Updated: Database SQL and Get system documentation (`db-sql.page.php`, `get.page.php`)
+- Updated: FakeCharts documentation and examples
+- Removed: Obsolete .Recipe module and example extensions
+- Fix: CrudOperationsTrait and various minor fixes in builders
+
 ### v260109
 - New: Chart System (ChartBuilder) (Complete documentation in `chart-builder.page.php`)
 - New: Scope and Query Attributes System (Documentation in `abstract-model-attributes.page.php`)

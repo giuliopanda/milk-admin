@@ -2,7 +2,7 @@
 namespace Modules\Docs\Pages;
 /**
  * @title CRUD Operations
- * @guide developer
+ * @guide Models
  * @order 52
  * @tags model, CRUD, create, read, update, delete, store, save, fill, validate
  */
@@ -23,20 +23,20 @@ namespace Modules\Docs\Pages;
 
     <h2 class="mt-4">READ Operations</h2>
 
-    <h3 class="mt-3"><code>getById($id, bool $use_cache = true): ?static</code></h3>
-    <p>Retrieves a single record by primary key. Returns a Model instance with one record or null if not found.</p>
+    <h3 class="mt-3"><code>getById($id, bool $use_cache = true): static</code></h3>
+    <p>Retrieves a single record by primary key. Always returns a Model instance. Use <code>isEmpty()</code> to check if the record was found.</p>
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">/**
  * @param mixed $id Primary key value
  * @param bool $use_cache Whether to use internal cache
- * @return static|null Model instance with record, or null if not found
+ * @return static Always returns Model instance (use isEmpty() to check if record exists)
  */
-public function getById($id, bool $use_cache = true): ?static;
+public function getById($id, bool $use_cache = true): static;
 
 // Example: Get product by ID
 $product = $model->getById(123);
 
-if ($product && $product->count() > 0) {
+if (!$product->isEmpty()) {
     echo "Product: " . $product->name;
     echo "Price: €" . $product->price;
     echo "Stock: " . ($product->in_stock ? 'Yes' : 'No');
@@ -47,26 +47,28 @@ if ($product && $product->count() > 0) {
 // Example: Disable cache
 $product = $model->getById(123, false);</code></pre>
 
-    <div class="alert alert-warning">
-        <strong>⚠️ Always Check Results:</strong> Even though getById() can return null, always check both null and count() to ensure the record exists:
-        <code>if ($product && $product->count() > 0)</code>
+    <div class="alert alert-info">
+        <strong>ℹ️ Always Check Results:</strong> getById() always returns a Model instance (never null). Use <code>isEmpty()</code> or <code>count()</code> to check if the record exists:
+        <code>if (!$product->isEmpty())</code> or <code>if ($product->count() > 0)</code>
     </div>
 
-    <h3 class="mt-3"><code>getByIds(string|array $ids): ?static</code></h3>
-    <p>Retrieves multiple records by their IDs. Accepts an array of IDs or a comma-separated string.</p>
+    <h3 class="mt-3"><code>getByIds(string|array $ids): static</code></h3>
+    <p>Retrieves multiple records by their IDs. Always returns a Model instance. Use <code>isEmpty()</code> to check if records were found.</p>
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">/**
  * @param string|array $ids Array of IDs or comma-separated string
- * @return static|null Model instance with records
+ * @return static Always returns Model instance (use isEmpty() to check if records exist)
  */
-public function getByIds(string|array $ids): ?static;
+public function getByIds(string|array $ids): static;
 
 // Example: Array of IDs
 $products = $model->getByIds([1, 5, 10, 15]);
 
-echo "Found: " . $products->count() . " products\n";
-foreach ($products as $product) {
-    echo "- " . $product->name . "\n";
+if (!$products->isEmpty()) {
+    echo "Found: " . $products->count() . " products\n";
+    foreach ($products as $product) {
+        echo "- " . $product->name . "\n";
+    }
 }
 
 // Example: Comma-separated string
@@ -309,20 +311,25 @@ if ($model->save()) {
 
     <h2 class="mt-4">DELETE Operations</h2>
 
-    <h3 class="mt-3"><code>delete($id): bool</code></h3>
-    <p>Deletes a record by primary key.</p>
+    <h3 class="mt-3"><code>delete($id = null): bool</code></h3>
+    <p>Deletes a record by primary key. If <code>$id</code> is not provided, it only works when exactly one record is loaded in <code>records_objects</code>; otherwise it throws an exception to prevent accidental deletions.</p>
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">/**
- * @param mixed $id Primary key value
+ * @param mixed|null $id Primary key value. If null, exactly one record must be loaded in records_objects
  * @return bool True on success, false on failure
  */
-public function delete($id): bool;
+public function delete($id = null): bool;
 
 // Example: Delete single record
 if ($model->delete(123)) {
     echo "Product deleted";
 } else {
     echo "Delete failed: " . $model->getLastError();
+}
+
+// Example: Delete first stored record (only if exactly one record is loaded)
+if ($model->delete()) {
+    echo "First stored record deleted";
 }
 
 // Example: Delete with confirmation
@@ -349,6 +356,141 @@ protected function tableActionDeleteProduct($id, $request) {
     } else {
         MessagesHandler::addError($this->model->getLastError());
         return false;
+    }
+}</code></pre>
+
+    <h3 class="mt-3"><code>deleteAll(): bool</code></h3>
+    <p>Deletes all stored records from the database.</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">/**
+ * @return bool True on success, false on failure
+ */
+public function deleteAll(): bool;
+
+// Example: Delete all stored records
+if ($model->deleteAll()) {
+    echo "All records deleted";
+} else {
+    echo "Delete failed: " . $model->getLastError();
+}</code></pre>
+
+    <h3 class="mt-3"><code>detach(): void</code></h3>
+    <p>Marks the current record for deletion. The record will be deleted when <code>save()</code> is called.</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Load and mark for deletion
+$product = $model->getById(5);
+$product->detach();  // Mark for deletion
+$product->save();    // Actually deletes the record
+
+// Useful in forms where you want to delete after validation
+$product = $model->getById($_POST['id']);
+if ($_POST['action'] === 'delete') {
+    $product->detach();
+}
+$product->save();  // Will delete if detached</code></pre>
+
+    <h2 class="mt-4">Lifecycle Hooks</h2>
+    <p>Override these methods in your Model to intercept and customize save/delete operations:</p>
+
+    <h3 class="mt-3"><code>beforeSave(&$records): bool</code></h3>
+    <p>Called before saving records. Return <code>false</code> to prevent save.</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">public function beforeSave(&$records): bool
+{
+    foreach ($records as &$record) {
+        // Check if insert or update
+        if ($record['___action'] === 'insert') {
+            $record['CREATED_AT'] = date('Y-m-d H:i:s');
+            $record['CREATED_BY'] = Get::user()->id;
+        } elseif ($record['___action'] === 'update') {
+            $record['UPDATED_AT'] = date('Y-m-d H:i:s');
+            $record['UPDATED_BY'] = Get::user()->id;
+        }
+
+        // Auto-generate slug if empty
+        if (empty($record['SLUG']) && !empty($record['TITLE'])) {
+            $record['SLUG'] = $this->generateSlug($record['TITLE']);
+        }
+
+        // Prevent save based on business logic
+        if ($record['PRICE'] < 0) {
+            $this->last_error = "Price cannot be negative";
+            return false;  // Prevents save
+        }
+    }
+    return true;  // Allow save
+}</code></pre>
+
+    <div class="alert alert-info mt-3">
+        <strong>💡 ___action field:</strong> The <code>___action</code> key in the record array indicates the operation type:
+        <ul class="mb-0">
+            <li><code>'insert'</code> - New record being created</li>
+            <li><code>'update'</code> - Existing record being modified</li>
+            <li><code>'delete'</code> - Record being deleted (in beforeDelete/afterDelete)</li>
+        </ul>
+    </div>
+
+    <h3 class="mt-3"><code>afterSave($saved_data, $results): void</code></h3>
+    <p>Called after successful save. Use for notifications, cache clearing, logging, etc.</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">public function afterSave($saved_data, $results): void
+{
+    foreach ($saved_data as $record) {
+        if ($record['___action'] === 'insert') {
+            // Send notification for new records
+            $this->sendNotification("New product created: " . $record['NAME']);
+
+            // Clear cache
+            Cache::forget('products_list');
+
+            // Log activity
+            ActivityLog::create([
+                'action' => 'product_created',
+                'product_id' => $record['ID'],
+                'user_id' => Get::user()->id
+            ]);
+        }
+    }
+}</code></pre>
+
+    <h3 class="mt-3"><code>beforeDelete($ids): bool</code></h3>
+    <p>Called before deleting records. Return <code>false</code> to prevent deletion.</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">public function beforeDelete($ids): bool
+{
+    // Check if products have orders
+    foreach ($ids as $id) {
+        $orders = (new OrdersModel())
+            ->where('PRODUCT_ID = ?', [$id])
+            ->count();
+
+        if ($orders > 0) {
+            $this->last_error = "Cannot delete product with existing orders";
+            return false;  // Prevents deletion
+        }
+    }
+
+    return true;  // Allow deletion
+}</code></pre>
+
+    <h3 class="mt-3"><code>afterDelete($ids): void</code></h3>
+    <p>Called after successful deletion. Use for cleanup, cache clearing, logging, etc.</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">public function afterDelete($ids): void
+{
+    foreach ($ids as $id) {
+        // Delete related files
+        $this->deleteProductImages($id);
+
+        // Clear cache
+        Cache::forget("product_{$id}");
+
+        // Log activity
+        ActivityLog::create([
+            'action' => 'product_deleted',
+            'product_id' => $id,
+            'user_id' => Get::user()->id
+        ]);
     }
 }</code></pre>
 
@@ -427,7 +569,7 @@ foreach ($results as $result) {
     <div class="alert alert-info">
         <ul class="mb-0">
             <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-overview">Model Overview</a> - General concepts</li>
-            <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-queries">Query Builder</a> - Building complex queries</li>
+            <li><a href="?page=docs&action=Developer/Model/abstract-model-queries">Query Builder</a> - Building complex queries</li>
             <li><a href="?page=docs&action=Framework/Core/schema">Schema</a> - Table management</li>
         </ul>
     </div>

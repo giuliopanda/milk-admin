@@ -132,16 +132,40 @@ class Response {
      */
     public static function json(array $data): void {
         if (self::isCaptureEnabled()) {
-            self::$captured_output = json_encode($data);
+            self::$captured_output = self::jsonEncode($data);
             self::$captured_type = 'json';
             return;
         }
         header('Content-Type: application/json');
-        echo json_encode($data);
+        $data = self::utf8ize($data);
+        echo self::jsonEncode($data);
+     
         Settings::save();
         Get::closeConnections();
         exit;
     }
+
+    private static function jsonEncode($data) {
+        $data = self::utf8ize($data);
+        $ris =  json_encode($data);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return json_encode(["error" => "Errore: " . json_last_error_msg(), 'success' => false]);
+        } else {
+            return $ris;
+        }
+    }
+
+    private static function utf8ize($mixed) {
+    if (is_array($mixed)) {
+        foreach ($mixed as $key => $value) {
+            $mixed[$key] = self::utf8ize($value);
+        }
+    } elseif (is_string($mixed)) {
+        return mb_convert_encoding($mixed, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252');
+    }
+    return $mixed;
+}
+
 
     /**
      * Standard json response for html content
@@ -246,7 +270,7 @@ class Response {
                 if (is_a($value, 'DateTime')) {
                     $value = $value->format('Y-m-d H:i:s');
                 } else if (is_object($value) || is_array($value)) {
-                    $value = json_encode($value);
+                    $value = self::jsonEncode($value);
                 } 
             }
         }

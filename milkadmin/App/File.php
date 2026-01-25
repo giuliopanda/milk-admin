@@ -64,8 +64,9 @@ class File {
      * $csv_row = "John,Doe,30,Engineer\n";
      * File::appendContents('users.csv', $csv_row);
      */
-    public static function appendContents(string $file_path, string $data): void {
-        $fp = fopen($file_path, 'c');
+    static function appendContents(string $file_path, string $data): void
+    {
+        $fp = fopen($file_path, 'cb');
         if (!$fp) {
             throw new FileException("Cannot open file for appending: $file_path");
         }
@@ -76,14 +77,17 @@ class File {
         }
 
         // Move to end of file for appending
-        fseek($fp, 0, SEEK_END);
-        $result = fwrite($fp, $data);
+        if (fseek($fp, 0, SEEK_END) !== 0) {
+            flock($fp, LOCK_UN);
+            fclose($fp);
+            throw new FileException("Cannot seek to end of file: $file_path");
+        }
+
+        self::writeAll($fp, $data);
+        fflush($fp);
+
         flock($fp, LOCK_UN);
         fclose($fp);
-
-        if ($result === false) {
-            throw new FileException("Error appending file content: $file_path");
-        }
     }
 
     /**
@@ -128,13 +132,20 @@ class File {
             throw new FileException("Timeout acquiring read lock: $file_path");
         }
 
-        $content = fread($fp, filesize($file_path));
+        $filesize = filesize($file_path);
+        $content = '';
+
+        if ($filesize > 0) {
+            $content = fread($fp, $filesize);
+            if ($content === false) {
+                flock($fp, LOCK_UN);
+                fclose($fp);
+                throw new FileException("Error reading file content: $file_path");
+            }
+        }
+
         flock($fp, LOCK_UN);
         fclose($fp);
-
-        if ($content === false) {
-            throw new FileException("Error reading file content: $file_path");
-        }
 
         return $content;
     }
@@ -192,13 +203,10 @@ class File {
 
         ftruncate($fp, 0);
         rewind($fp);
-        $result = fwrite($fp, $data);
+        self::writeAll($fp, $data);
+        fflush($fp);
         flock($fp, LOCK_UN);
         fclose($fp);
-
-        if ($result === false) {
-            throw new FileException("Error writing file content: $file_path");
-        }
     }
 
     /**
@@ -249,4 +257,19 @@ class File {
         }
         return false;
     }
+
+    private static function writeAll($fp, string $data): void
+    {
+        while ($data !== '') {
+            $w = fwrite($fp, $data);
+            if ($w === false) {
+                throw new FileException("Error writing file content");
+            }
+            if ($w === 0) {
+                throw new FileException("Zero bytes written");
+            }
+            $data = substr($data, $w);
+        }
+    }
+
 }

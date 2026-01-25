@@ -314,7 +314,7 @@ trait QueryBuilderTrait
     public function total(): int {
         if ($this->db === null) return 0;
         $query = $this->query();
-        $total = (int)$query->select('COUNT(*) as total')->getVar();
+        $total = (int)$query->clean('select')->select('COUNT(*) as total')->getVar();
         return $total;
     }
 

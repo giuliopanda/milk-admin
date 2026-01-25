@@ -427,7 +427,7 @@ FormBuilder saves: UPDATE projects SET user_id=1 WHERE id=10</pre>
 
     <h2>Related Documentation</h2>
     <ul>
-        <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-relationships">Model Relationships - Complete Guide</a></li>
+        <li><a href="?page=docs&action=Developer/Model/abstract-model-relationships">Model Relationships - Complete Guide</a></li>
         <li><a href="?page=docs&action=Framework/Forms/form-milkselect">MilkSelect - Autocomplete Component Reference</a></li>
         <li><a href="?page=docs&action=Developer/Table/builders-table">TableBuilder - Table Management</a></li>
         <li><a href="?page=docs&action=Developer/GettingStarted/getting-started-post">Getting Started - Creating a Complete Module</a></li>

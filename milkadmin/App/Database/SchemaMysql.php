@@ -866,6 +866,7 @@ class SchemaMysql {
 
     private function getCurrentFields(): array {
         $fields = [];
+        $primary_keys = $this->getCurrentPrimaryKeys();
         $result = $this->db->query("SHOW FULL COLUMNS FROM " . $this->db->qn($this->table));
         while ($row = $result->fetch_object()) {
             $field = new FieldMysql($row->Field, $this->db);
@@ -887,11 +888,25 @@ class SchemaMysql {
             $field->nullable = ($row->Null === 'YES');
             $field->default = $row->Default;
             $field->auto_increment = (strpos($row->Extra, 'auto_increment') !== false);
-            $field->primary_key = ($row->Key === 'PRI');
+            $field->primary_key = in_array($row->Field, $primary_keys, true);
 
             $fields[$row->Field] = $field;
         }
         return $fields;
+    }
+
+    private function getCurrentPrimaryKeys(): array {
+        $primary_keys = [];
+        $result = $this->db->query("SHOW INDEX FROM " . $this->db->qn($this->table) . " WHERE Key_name = 'PRIMARY'");
+        if (!$result) {
+            return $primary_keys;
+        }
+
+        while ($row = $result->fetch_object()) {
+            $primary_keys[] = $row->Column_name;
+        }
+
+        return $primary_keys;
     }
 
     private function getCurrentIndices(): array {

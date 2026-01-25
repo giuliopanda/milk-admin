@@ -18,8 +18,28 @@ class AuthInstall extends AbstractInstall {
 
     public function installExecute($data = []) {
         $this->installAuth();
-        $email = isset($data["admin-email"]) ? $data["admin-email"] : "admin@admin.com";
-        $result = $this->model->store(['username'=>'admin', 'email'=>$email, 'password'=>'admin', 'status'=>1, 'is_admin'=>1, 'permissions'=>[]]);
+        $username = trim($data['admin-username'] ?? '');
+        $email = trim($data['admin-email'] ?? '');
+        $password = $data['admin-password'] ?? '';
+
+        if ($username === '' || $email === '' || $password === '') {
+            $message = 'Install Auth: admin username, email, and password are required.';
+            if (Cli::isCli()) {
+                Cli::error($message);
+            } else {
+                MessagesHandler::addError($message);
+            }
+            return;
+        }
+
+        $result = $this->model->store([
+            'username' => $username,
+            'email' => $email,
+            'password' => $password,
+            'status' => 1,
+            'is_admin' => 1,
+            'permissions' => []
+        ]);
         if (!$result) {
             if (Cli::isCli()) {
                 Cli::error("Install Auth: SAVE USER ERROR: ". $this->model->getLastError());

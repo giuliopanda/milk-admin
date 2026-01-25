@@ -3,7 +3,7 @@ namespace Modules\Install;
 
 use App\Abstracts\AbstractModule;
 use App\Attributes\{RequestAction, Shell, AccessLevel};
-use App\{Cli, Config, File, Hooks, MessagesHandler, Permissions, Response, Route, Settings, Theme};
+use App\{Cli, Config, File, Hooks, MessagesHandler, Permissions, Response, Route, Settings, Theme, Version};
 
 !defined('MILK_DIR') && die();
 
@@ -57,7 +57,7 @@ class InstallModule extends AbstractModule
         }
 
         $version = Config::get('version');
-        $system_needs_update = defined('NEW_VERSION') && NEW_VERSION > $version;
+        $system_needs_update = defined('NEW_VERSION') && Version::compare(NEW_VERSION, $version) > 0;
 
         $current_versions = Config::get('modules_active');
         $settings_versions = Settings::get('module_version');
@@ -132,6 +132,11 @@ class InstallModule extends AbstractModule
         if (Permissions::check('_user.is_admin') || Config::get('version') === null) {
             Hooks::run('install.init');
             if ($this->model->checkData($_REQUEST)) {
+                $_SESSION['installation_admin'] = [
+                    'admin-username' => trim((string)($_REQUEST['admin-username'] ?? '')),
+                    'admin-email' => trim((string)($_REQUEST['admin-email'] ?? '')),
+                    'admin-password' => (string)($_REQUEST['admin-password'] ?? '')
+                ];
                 // save configuration data
                 $this->model->executeInstallConfig($_REQUEST);
                 // save the configuration file
@@ -368,30 +373,75 @@ class InstallModule extends AbstractModule
     #[RequestAction('update-step3')]
     public function actionUpdateStep3()
     {
-        $html = InstallService::executeUpdateStep3($this->model);
-        Response::themePage('default', __DIR__."/Views/update_page.php", ['html' => $html]);
+        Hooks::run('install.init');
+        $result = InstallService::executeUpdateStep3($this->model);
+        $html = $result['html'];
+        $auto_reload_url = null;
+        $auto_reload_seconds = null;
+
+        if ($result['success']) {
+            $html = '<p class="alert alert-success">'._r('Update completed successfully. The page will reload in a few seconds to complete the installation.').'</p>';
+            $auto_reload_url = Route::url(['page' => 'install', 'action' => 'update-step4']);
+            $auto_reload_seconds = 3;
+        }
+
+        Response::themePage('default', __DIR__."/Views/update_page.php", [
+            'html' => $html,
+            'hide_update_form' => true,
+            'auto_reload_url' => $auto_reload_url,
+            'auto_reload_seconds' => $auto_reload_seconds
+        ]);
+    }
+
+    /**
+     * Step 4 dell'update
+     */
+    #[RequestAction('update-step4')]
+    public function actionUpdateStep4()
+    {
+        Hooks::run('install.init');
+
+        $version = Config::get('version');
+        $needs_update = defined('NEW_VERSION') && Version::compare(NEW_VERSION, $version) > 0;
+
+        if ($needs_update) {
+            $result = InstallService::executeUpdateStep3($this->model);
+            if (!$result['success']) {
+                Response::themePage('default', __DIR__."/Views/update_page.php", [
+                    'html' => $result['html'],
+                    'hide_update_form' => true
+                ]);
+                return;
+            }
+        }
+
+        Route::redirect(['page' => 'install']);
     }
 
     /**
      * Comando CLI per build version
      */
     #[Shell('build-version', system: true)]
-    public function buildVersion($custom_version = '')
+    public function buildVersion($custom_version = '', $zip_param = '')
     {
-        // Check if the parameter is "zip" for creating a zip package
-        $create_zip = ($custom_version === 'zip');
-
-        // If zip is requested, reset custom_version to empty for normal build
-        if ($create_zip) {
-            $custom_version = '';
+        $create_zip = ($zip_param === 'zip');
+        if ($custom_version === '' || $custom_version === 'zip') {
+            Cli::error('Missing version. Usage: php milkadmin/cli.php build-version <version> [zip]');
+            return;
         }
 
-        // Generate new version number (YYMMDD)
-        if (is_string($custom_version) && $custom_version !== '' && preg_match('/^[0-9]{2}(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])$/', $custom_version)) {
-            $new_version = $custom_version;
-        } else {
-            $new_version = date('ymd');
+        if (Version::isLegacy($custom_version)) {
+            Cli::error('Invalid version format. Use semver like 1.2.3');
+            return;
         }
+
+        $normalized_custom = Version::normalize($custom_version);
+        if ($normalized_custom === null || !preg_match('/^\d+\.\d+\.\d+$/', $normalized_custom)) {
+            Cli::error('Invalid version format. Use semver like 1.2.3');
+            return;
+        }
+
+        $new_version = $normalized_custom;
 
         $version_dir = MILK_DIR.'/../milk-admin-v'.$new_version;
 
@@ -422,7 +472,7 @@ class InstallModule extends AbstractModule
             $setup = file_get_contents($setup_file);
             // Use regex to replace any version number, not just the current one
             $setup = preg_replace(
-                "/define\('NEW_VERSION',\s*'[0-9]+'\);/",
+                "/define\('NEW_VERSION',\s*'[^']*'\);/",
                 "define('NEW_VERSION', '".$new_version."');",
                 $setup
             );
@@ -476,17 +526,27 @@ class InstallModule extends AbstractModule
         }
 
         // function
+        $functions_dest = $version_dir.'/milkadmin_local/functions.php';
+        $local_functions_file = MILK_DIR.'/../milkadmin_local/functions.php';
         $functions_file = __DIR__.'/Assets/InstallFiles/functions_example.php';
-        if (file_exists($functions_file)) {
+        if (file_exists($local_functions_file)) {
+            $new_functions = file_get_contents($local_functions_file);
+            try {
+                File::putContents($functions_dest, $new_functions);
+            } catch (\App\Exceptions\FileException $e) {
+                Cli::error('Failed to write functions.php: ' . $e->getMessage());
+                return;
+            }
+        } elseif (file_exists($functions_file)) {
             $new_functions = file_get_contents($functions_file);
             try {
-                File::putContents($version_dir.'/milkadmin_local/functions.php', $new_functions);
+                File::putContents($functions_dest, $new_functions);
             } catch (\App\Exceptions\FileException $e) {
                 Cli::error('Failed to write functions.php: ' . $e->getMessage());
                 return;
             }
         } else {
-            Cli::echo('Warning: functions_example.php not found at ' . $functions_file);
+            Cli::echo('Warning: functions.php not found in local or install assets');
         }
 
         try {
@@ -826,7 +886,7 @@ class InstallModule extends AbstractModule
 
         foreach ($current_versions as $module => $data) {
             if (is_array($data) && isset($data['version'])) {
-                $current_versions_only[$module] = $data['version'];
+                $current_versions_only[$module] = Version::normalize($data['version']) ?? Version::DEFAULT;
             }
         }
 
@@ -838,16 +898,16 @@ class InstallModule extends AbstractModule
 
         foreach ($settings_versions as $module => $data) {
             if (is_array($data) && isset($data['version'])) {
-                $settings_versions_only[$module] = $data['version'];
+                $settings_versions_only[$module] = Version::normalize($data['version']);
             } elseif (!is_array($data)) {
-                $settings_versions_only[$module] = $data; // Legacy format
+                $settings_versions_only[$module] = Version::normalize($data); // Legacy format
             }
         }
 
         // Check if any current version is higher than settings version (needs update)
         foreach ($current_versions_only as $module => $current_version) {
             $settings_version = $settings_versions_only[$module] ?? null;
-            if ($settings_version !== null && $current_version > $settings_version) {
+            if ($settings_version !== null && Version::compare($current_version, $settings_version) > 0) {
                 return true;
             }
         }
@@ -898,9 +958,11 @@ class InstallModule extends AbstractModule
 
         // Show update page
         // the new version is found in the NEW_VERSION constant
-        if (defined('NEW_VERSION') && NEW_VERSION > $version) {
-            $html = InstallService::executeUpdateStep3($this->model);
-        } else if (NEW_VERSION == $version) {
+        $compare = Version::compare(NEW_VERSION, $version);
+        if (defined('NEW_VERSION') && $compare > 0) {
+            $result = InstallService::executeUpdateStep3($this->model);
+            $html = $result['html'];
+        } else if ($compare === 0) {
             // nothing to update
             $html = '';
         } else {

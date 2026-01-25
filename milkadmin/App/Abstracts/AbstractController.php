@@ -202,7 +202,7 @@ abstract class AbstractController {
         }
         $rows = $this->model->get(...$query->get());
         $columns = $this->model->getQueryColumns();
-        $total = $db->getVar(...$query->getTotal());
+        $total = this->model->total();
       
         return ['rows'=> $rows, 'info' => $model_list->getListStructure($columns, $this->model->getPrimaryKey()), 'page_info' =>  $model_list->getPageInfo($total)];
     }

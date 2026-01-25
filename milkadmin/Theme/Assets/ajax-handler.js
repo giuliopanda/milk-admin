@@ -346,7 +346,19 @@ function jsonAction(data, container) {
                 calendar.reload();
             }
         } else {
-            console.warn('error table reload id: '+data.table.id)
+            console.warn('error calendar reload id: '+data.calendar.id)
+        }
+    }
+
+    // ScheduleGrid actions
+    if ('schedulegrid' in data && data.schedulegrid.id) {
+        const schedulegrid = getComponent(data.schedulegrid.id);
+        if (schedulegrid) {
+            if (data.schedulegrid.action == 'reload') {
+                schedulegrid.reload();
+            }
+        } else {
+            console.warn('error schedulegrid reload id: '+data.schedulegrid.id)
         }
     }
 
@@ -358,7 +370,7 @@ function jsonAction(data, container) {
                 list.reload();
             }
         } else {
-            console.warn('error list reload id: '+data.table.id)
+            console.warn('error list reload id: '+data.list.id)
         }
     }
 

@@ -4,6 +4,10 @@ namespace Modules\Install\Views;
 use App\{Config, Get, MessagesHandler, Route};
 
 if (!defined('MILK_DIR')) die();
+
+$hide_update_form = $hide_update_form ?? false;
+$auto_reload_url = $auto_reload_url ?? '';
+$auto_reload_seconds = isset($auto_reload_seconds) ? (int)$auto_reload_seconds : 0;
 ?>
 
 <div class="bg-white p-4">
@@ -13,7 +17,16 @@ if (!defined('MILK_DIR')) die();
     <div class="mb-4">
         <?php _ph($html); ?>
     </div>
-    
+
+    <?php if ($auto_reload_url && $auto_reload_seconds > 0): ?>
+    <script>
+        setTimeout(function () {
+            window.location.href = <?php echo json_encode($auto_reload_url); ?>;
+        }, <?php echo $auto_reload_seconds * 1000; ?>);
+    </script>
+    <?php endif; ?>
+
+    <?php if (!$hide_update_form): ?>
     <div class="card">
         <div class="card-header">
             <h5 class="mb-0"><?php _pt('Upload update'); ?></h5>
@@ -83,5 +96,5 @@ if (!defined('MILK_DIR')) die();
         </small>
     </div>
     <?php endif; ?>
+    <?php endif; ?>
 </div>
-

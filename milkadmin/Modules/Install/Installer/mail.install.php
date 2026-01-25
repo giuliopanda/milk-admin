@@ -8,6 +8,10 @@ use Modules\Install\Install;
 
 Hooks::set('install.get_html_modules', function($html, $errors) {
     $errors_smtp = (isset($errors['smtp']) && is_array($errors['smtp'])) ? $errors['smtp'] : [];
+    $mail_selected = $_REQUEST['mail_type'] ?? [];
+    if (!is_array($mail_selected) && $mail_selected !== '') {
+        $mail_selected = [$mail_selected];
+    }
     ob_start();
     ?><h3 class="mt-4">Mail</h3>
     <?php Install::printErrors($errors_smtp); ?>
@@ -15,7 +19,7 @@ Hooks::set('install.get_html_modules', function($html, $errors) {
     <?php
         Form::checkboxes('mail_type',
         ['smtp' => 'Use SMTP Mail'], 
-        '', 
+        $mail_selected, 
         false, 
         [ 'form-check-class'=>'form-switch'], ['onchange' => "toggleEl(document.getElementById('smtpConfig'))"]
     );
@@ -47,6 +51,14 @@ Hooks::set('install.get_html_modules', function($html, $errors) {
             </div>
         </div>
     </div>
+    <script>
+        window.addEventListener('load', function() {
+            var smtpToggle = document.querySelector('input[name="mail_type[]"]');
+            if (smtpToggle) {
+                toggleEl(document.getElementById('smtpConfig'), smtpToggle, smtpToggle.value);
+            }
+        });
+    </script>
     <?php
     $html .= ob_get_clean();
     return $html;
@@ -54,7 +66,11 @@ Hooks::set('install.get_html_modules', function($html, $errors) {
 
 Hooks::set('install.check_data', function($errors, $data) {
     $smtp_errors = [];
-    if ($data['mail_type'] ?? '' == 'smtp') {
+    $mail_type = $data['mail_type'] ?? [];
+    if (!is_array($mail_type) && $mail_type !== '') {
+        $mail_type = [$mail_type];
+    }
+    if (in_array('smtp', $mail_type, true)) {
         if (empty($data['smtp_mail_host'])) {
             $smtp_errors['smtp_mail_host'] = 'smtp_mail_host is required';
         }
@@ -73,7 +89,11 @@ Hooks::set('install.check_data', function($errors, $data) {
 });
 
 Hooks::set('install.execute_config', function($data) {
-    if ($data['mail_type'] ?? '' == 'smtp') {
+    $mail_type = $data['mail_type'] ?? [];
+    if (!is_array($mail_type) && $mail_type !== '') {
+        $mail_type = [$mail_type];
+    }
+    if (in_array('smtp', $mail_type, true)) {
         $data = [
             'smtp_mail' => 'true',
             'smtp_mail_host' => $data['smtp_mail_host'],

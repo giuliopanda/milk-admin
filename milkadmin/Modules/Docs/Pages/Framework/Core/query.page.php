@@ -622,8 +622,8 @@ foreach ($authors as $author) {
 
     <div class="alert alert-success">
         <ul class="mb-0">
-            <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-queries">Model Query Methods</a> - Query methods from Model perspective</li>
-            <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-relationships">Relationships</a> - hasOne, belongsTo, hasMany, whereHas</li>
+            <li><a href="?page=docs&action=Developer/Model/abstract-model-queries">Model Query Methods</a> - Query methods from Model perspective</li>
+            <li><a href="?page=docs&action=Developer/Model/abstract-model-relationships">Relationships</a> - hasOne, belongsTo, hasMany, whereHas</li>
             <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-overview">Model Overview</a> - General Model concepts</li>
             <li><a href="?page=docs&action=Framework/Core/db-sql">Database</a> - Database connection and raw queries</li>
         </ul>

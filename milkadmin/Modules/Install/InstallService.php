@@ -1,7 +1,7 @@
 <?php
 namespace Modules\Install;
 
-use App\{Cli, Config, Get, Hooks, MessagesHandler, Route, Settings, File};
+use App\{Cli, Config, Get, Hooks, MessagesHandler, Route, Settings, File, Version};
 
 !defined('MILK_DIR') && die(); // Avoid direct access
 
@@ -140,7 +140,9 @@ class InstallService
         $messages = [];
         $module_path = MILK_DIR . '/Modules/' . $module_data[$module]['folder'];
         $module2_path = LOCAL_DIR . '/Modules/' . $module_data[$module]['folder'];
-        if (!is_dir($module_path) && !is_file($module_path) && !is_dir($module2_path) && !is_file($module2_path)) {
+        $module_path_exists = is_dir($module_path) || is_file($module_path);
+        $module2_path_exists = is_dir($module2_path) || is_file($module2_path);
+        if (!$module_path_exists && !$module2_path_exists) {
             return ['success' => false, 'message' => sprintf(_r('Module %s files not found: %s or %s'), $module, $module_path, $module2_path)];
         }
 
@@ -152,30 +154,31 @@ class InstallService
             $messages[] = "Cli::callFunction error: " . $e->getMessage();
         }
         // Remove the module files/directory regardless of uninstall function result
-        if (is_dir($module_path)) {
-            if (!self::removeDirectory($module_path)) {
-                $messages[] = sprintf(_r('Error removing module %s'), $module);
-                return ['success' => false, 'message' => implode("\n", $messages)];
+        if ($module_path_exists) {
+            if (is_dir($module_path)) {
+                if (!self::removeDirectory($module_path)) {
+                    $messages[] = sprintf(_r('Error removing module %s'), $module);
+                    return ['success' => false, 'message' => implode("\n", $messages)];
+                }
+            } else if (is_file($module_path)) {
+                if (!unlink($module_path)) {
+                    $messages[] = sprintf(_r('Error removing module %s'), $module);
+                    return ['success' => false, 'message' => implode("\n", $messages)];
+                }
             }
-        } else if (is_file($module_path)) {
-            if (!unlink($module_path)) {
-                $messages[] = sprintf(_r('Error removing module %s'), $module);
-                return ['success' => false, 'message' => implode("\n", $messages)];
+        }
+        if ($module2_path_exists) {
+            if (is_dir($module2_path)) {
+                if (!self::removeDirectory($module2_path)) {
+                    $messages[] = sprintf(_r('Error removing module %s'), $module);
+                    return ['success' => false, 'message' => implode("\n", $messages)];
+                }
+            } else if (is_file($module2_path)) {
+                if (!unlink($module2_path)) {
+                    $messages[] = sprintf(_r('Error removing module %s'), $module);
+                    return ['success' => false, 'message' => implode("\n", $messages)];
+                }
             }
-        } 
-        if (is_dir($module2_path)) {
-            if (!self::removeDirectory($module2_path)) {
-                $messages[] = sprintf(_r('Error removing module %s'), $module);
-                return ['success' => false, 'message' => implode("\n", $messages)];
-            }
-        } else if (is_file($module2_path)) {
-            if (!unlink($module2_path)) {
-                $messages[] = sprintf(_r('Error removing module %s'), $module);
-                return ['success' => false, 'message' => implode("\n", $messages)];
-            }
-        } else {
-            $messages[] = sprintf(_r('Module %s files not found'), $module);
-            return ['success' => false, 'message' => implode("\n", $messages)];
         }
 
         // Remove module from settings module_version
@@ -240,9 +243,34 @@ class InstallService
     {
         $current_versions = Config::get('modules_active') ?: [];
         $settings_versions = Settings::get('module_version') ?: [];
+
+        $settings_need_update = false;
+
+        // Normalize stored settings versions
+        foreach ($settings_versions as $module => $data) {
+            $settings_version = is_array($data) ? ($data['version'] ?? null) : $data;
+            $normalized_version = Version::normalize($settings_version);
+            if (is_array($data)) {
+                if ($normalized_version !== null && $normalized_version !== $settings_version) {
+                    $settings_versions[$module]['version'] = $normalized_version;
+                    $settings_need_update = true;
+                }
+            } else {
+                if ($normalized_version !== null && $normalized_version !== $settings_version) {
+                    $settings_versions[$module] = $normalized_version;
+                    $settings_need_update = true;
+                }
+            }
+        }
+
+        // Normalize current versions for display/comparison
+        foreach ($current_versions as $module => $current_data) {
+            if (is_array($current_data) && isset($current_data['version'])) {
+                $current_versions[$module]['version'] = Version::normalize($current_data['version']) ?? Version::DEFAULT;
+            }
+        }
         
         // Check if folder structure differs between current and settings
-        $settings_need_update = false;
         foreach ($current_versions as $module => $current_data) {
             if (!is_array($current_data) || !isset($current_data['folder'])) {
                 continue;
@@ -291,9 +319,10 @@ class InstallService
             }
             
             $current_version = $current_data['version'];
-            $settings_version = is_array($settings_data) ? ($settings_data['version'] ?? null) : $settings_data;
+            $settings_version_raw = is_array($settings_data) ? ($settings_data['version'] ?? null) : $settings_data;
+            $settings_version = Version::normalize($settings_version_raw);
             
-            if ($settings_version != $current_version) {
+            if (Version::compare($current_version, $settings_version) > 0) {
                 $modules_to_update[$module] = [
                     'current' => $current_version,
                     'previous' => $settings_version
@@ -399,6 +428,11 @@ class InstallService
         try {
             // Copy the files excluding config.php and storage
             Install::copyUpdateFiles($update_dir.'/milkadmin', MILK_DIR);
+
+            // Copy milkadmin_local files if directory exists in update package
+            if (is_dir($update_dir.'/milkadmin_local')) {
+                Install::copyUpdateFiles($update_dir.'/milkadmin_local', MILK_DIR.'/../milkadmin_local');
+            }
             
              // Copy public_html files if directory exists in update package
             if (is_dir($update_dir.'/public_html')) {
@@ -440,7 +474,7 @@ class InstallService
           
             $success = false;
             try {
-                if ($versions['previous'] == 0 || $versions['previous'] == NULL) {
+                if (Version::isEmpty($versions['previous'])) {
                 Cli::callFunction($module.":install");
                     $action = 'installed';
                 } else {
@@ -515,7 +549,7 @@ class InstallService
             // Check if there are any "Not installed" modules
             $has_not_installed = false;
             foreach ($module_data['modules_to_update'] as $module => $versions) {
-                if ($versions['previous'] == 0 || $versions['previous'] == NULL) {
+                if (Version::isEmpty($versions['previous'])) {
                     $has_not_installed = true;
                     break;
                 }
@@ -547,7 +581,7 @@ class InstallService
                 foreach ($module_data['modules_to_update'] as $module => $versions) {
                     $html .= '<tr>';
                     $html .= '<td><strong>'.htmlspecialchars($module).'</strong></td>';
-                    $html .= '<td>'.htmlspecialchars($versions['previous'] ?? _r('Not installed')).'</td>';
+                    $html .= '<td>'.htmlspecialchars(Version::isEmpty($versions['previous']) ? _r('Not installed') : $versions['previous']).'</td>';
                     $html .= '<td>'.htmlspecialchars($versions['current']).'</td>';
                     $html .= '<td><span class="badge bg-warning">'._r('Needs Update').'</span></td>';
                     $html .= '</tr>';
@@ -622,16 +656,18 @@ class InstallService
             
             // Check module folder permissions
             $module_folder = $module_data_item['folder'];
-            $module_path = MILK_DIR . '/Modules/' . $module_folder;
-            $has_write_permission = is_writable($module_path);
+            $module_path = self::resolveModulePathForWriteCheck($module_folder);
+            $has_write_permission = $module_path ? is_writable($module_path) : null;
             
             // Apply hook for additional status checks
             $status_badge = $needs_update ? 
                 '<span class="badge bg-warning">'._r('Needs Update').'</span>' : 
                 '<span class="badge bg-success">'._r('Up to Date').'</span>';
                 
-            if (!$has_write_permission) {
+            if ($has_write_permission === false) {
                 $status_badge = '<span class="badge bg-danger">'._r('Permission Issue').'</span>';
+            } elseif ($module_path === null) {
+                $status_badge = '<span class="badge bg-danger">'._r('Missing Module Path').'</span>';
             }
             
             $disable_button = '<button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleModule(\''.$module.'\', \'disable-module\')">'._r('Disable!').'</button>';
@@ -786,29 +822,37 @@ class InstallService
      * Execute system update step 3
      * 
      * @param object $model InstallModel instance
-     * @return string Generated HTML
+     * @return array Result with success flag and HTML
      */
     public static function executeUpdateStep3($model)
     {
         $model->executeUpdate();
+
+        $normalized_version = Version::normalize(NEW_VERSION) ?? Version::DEFAULT;
         
         // Update the version in the config
         $config_content = file_get_contents(LOCAL_DIR.'/config.php');
         
         $config_content = preg_replace(
             "/^\s*\\\$conf\['version'\]\s*=\s*'[^']*';\s*$/m",
-            " \$conf['version'] = '".NEW_VERSION."';",
+            " \$conf['version'] = '".$normalized_version."';",
             $config_content
         );
 
         try {
             File::putContents(LOCAL_DIR.'/config.php', $config_content);
         } catch (\App\Exceptions\FileException $e) {
-            return '<p class="alert alert-danger">Failed to update config.php: ' . $e->getMessage() . '</p>';
+            return [
+                'success' => false,
+                'html' => '<p class="alert alert-danger">Failed to update config.php: ' . $e->getMessage() . '</p>'
+            ];
         }
-        Config::set('version', NEW_VERSION);
+        Config::set('version', $normalized_version);
 
-        return '<p class="alert alert-success">'._r('Update completed successfully.').'</p>';
+        return [
+            'success' => true,
+            'html' => '<p class="alert alert-success">'._r('Update completed successfully.').'</p>'
+        ];
     }
     
     /**
@@ -838,6 +882,28 @@ class InstallService
 
         // Save to settings
         Settings::set('module_actions', $module_actions);
+    }
+
+    /**
+     * Resolve module path for write checks (core or local modules).
+     *
+     * @param string $module_folder
+     * @return string|null
+     */
+    private static function resolveModulePathForWriteCheck(string $module_folder): ?string
+    {
+        $paths = [
+            MILK_DIR . '/Modules/' . $module_folder,
+            LOCAL_DIR . '/Modules/' . $module_folder
+        ];
+
+        foreach ($paths as $path) {
+            if (is_dir($path) || is_file($path)) {
+                return $path;
+            }
+        }
+
+        return null;
     }
     
     /**

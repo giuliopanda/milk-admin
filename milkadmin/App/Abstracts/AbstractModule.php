@@ -1,7 +1,7 @@
 <?php
 namespace App\Abstracts;
 
-use App\{Config, Hooks, Logs, Permissions, Route, Theme, Get, Lang, ExtensionLoader};
+use App\{Config, Hooks, Logs, Permissions, Route, Theme, Get, Lang, ExtensionLoader, Version};
 use App\Abstracts\Traits\{InstallationTrait, RouteControllerTrait, AttributeShellTrait, AttributeApiTrait, AttributeHookTrait, ExtensionManagementTrait};
 
 !defined('MILK_DIR') && die(); // Prevent direct access
@@ -239,12 +239,11 @@ abstract class AbstractModule {
     protected $install = null;
 
     /**
-     * Version of the module 
-     * In Milk Admin the version is a number composed of year, month and progressive number es. 250801
-     * 
-     * @var int|null
+     * Version of the module (semver or legacy numeric).
+     *
+     * @var string|null
      */
-    protected $version = 0;
+    protected ?string $version = null;
 
     /**
      * Additional models for the module
@@ -372,7 +371,7 @@ abstract class AbstractModule {
             $this->is_core_module = $this->rule_builder->getIsCoreModule();
         }
         if ($this->rule_builder->getVersion() !== null) {
-            $this->version = $this->rule_builder->getVersion();
+            $this->version = Version::normalize($this->rule_builder->getVersion());
         }
         if ($this->rule_builder->getAdditionalModels() !== null) {
             $this->additional_models = $this->rule_builder->getAdditionalModels();
@@ -427,7 +426,8 @@ abstract class AbstractModule {
         }
 
         $folder = $this->getFolderOrFileCalled();
-        Config::append('modules_active', [$this->page => ['version'=>$this->version, 'folder'=>$folder]]);
+        $module_version = Version::normalize($this->version) ?? Version::DEFAULT;
+        Config::append('modules_active', [$this->page => ['version' => $module_version, 'folder' => $folder]]);
         // Load the contract if present
         $module_name = $this->getModuleName();
         $childPath = $this->getChildClassPath();
@@ -1049,7 +1049,7 @@ abstract class AbstractModule {
     /**
      * Get the version of the module
      * 
-     * @return int|null The version of the module
+     * @return string|null The version of the module
      */
     public function getVersion() {
         return $this->version;

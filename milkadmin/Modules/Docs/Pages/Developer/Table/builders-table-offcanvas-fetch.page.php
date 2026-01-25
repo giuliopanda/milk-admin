@@ -336,7 +336,6 @@ public function advancedSelect() {
             ->label('Search')
             ->placeholder('Product name...')
             ->layout('inline')
-            ->floating(false)
 
         // Category filter
         ->select('category_filter')
@@ -349,7 +348,6 @@ public function advancedSelect() {
             ])
             ->selected($_REQUEST['category'] ?? '')
             ->layout('inline')
-            ->floating(false);
 
     $table = TableBuilder::create($this->model, 'idTableAdvanced')
         ->activeFetch()

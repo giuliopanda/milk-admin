@@ -69,10 +69,18 @@ define('STORAGE_DIR', realpath(LOCAL_DIR.'/'.Config::get('storage_dir', 'storage
  */
 
 /**
- * Version identifier in format AAmmXX (YearMonth + sequence)
+ * Version identifier in semver format (1.x.y).
+ * Legacy numeric versions are normalized to "0.<value>".
+ *
  * @global string NEW_VERSION
  */
-define('NEW_VERSION', '260119');
+define('NEW_VERSION', '0.9.0');
+
+$current_version = Config::get('version');
+$normalized_version = Version::normalize($current_version);
+if ($normalized_version !== null && $normalized_version !== $current_version) {
+    Config::set('version', $normalized_version);
+}
 
 Token::config(Config::get('secret_key'), Config::get('token_key'));
 

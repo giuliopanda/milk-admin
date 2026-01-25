@@ -3,7 +3,7 @@ namespace Modules\Docs\Pages;
 use App\Route;
 /**
  * @title RuleBuilder - Schema Configuration
- * @guide developer
+ * @guide Models
  * @order 51
  * @tags RuleBuilder, schema, model, database, fields, validation, configuration, fluent-interface
  */
@@ -315,13 +315,13 @@ use App\Route;
                 </tr>
                 <tr>
                     <td><code>min($value)</code></td>
-                    <td>Set minimum value</td>
-                    <td><code>$rule->int('age')->min(18)</code></td>
+                    <td>Set minimum value (numeric/date/time) or minimum length (string/text). You can also pass another field name for backend comparison.</td>
+                    <td><code>$rule->int('age')->min(18)</code><br><code>$rule->string('name', 100)->min(3)</code><br><code>$rule->date('start')->max('end')</code></td>
                 </tr>
                 <tr>
                     <td><code>max($value)</code></td>
-                    <td>Set maximum value</td>
-                    <td><code>$rule->int('quantity')->max(100)</code></td>
+                    <td>Set maximum value (numeric/date/time) or maximum length (string/text). You can also pass another field name for backend comparison.</td>
+                    <td><code>$rule->int('quantity')->max(100)</code><br><code>$rule->string('title', 200)->max(120)</code><br><code>$rule->int('min_members')->max('max_members')</code></td>
                 </tr>
                 <tr>
                     <td><code>step($value)</code></td>
@@ -484,7 +484,7 @@ use App\Route;
     <h2 class="mt-4">Relationships</h2>
 
     <div class="alert alert-info">
-        <strong>📘 Important:</strong> Relationships are defined on the field that acts as the key. For more details, see <a href="?page=docs&action=Developer/AbstractsClass/abstract-model-relationships">Relationships Documentation</a>.
+        <strong>📘 Important:</strong> Relationships are defined on the field that acts as the key. For more details, see <a href="?page=docs&action=Developer/Model/abstract-model-relationships">Relationships Documentation</a>.
     </div>
 
     <div class="table-responsive">
@@ -787,8 +787,8 @@ class ProductsModel extends AbstractModel
         <strong>📚 Related Documentation:</strong>
         <ul class="mb-0">
             <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-overview">Abstract Model - Overview</a></li>
-            <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-relationships">Relationships</a></li>
-            <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-crud">CRUD Operations</a></li>
+            <li><a href="?page=docs&action=Developer/Model/abstract-model-relationships">Relationships</a></li>
+            <li><a href="?page=docs&action=Developer/Model/abstract-model-crud">CRUD Operations</a></li>
             <li><a href="?page=docs&action=Framework/Core/schema">Schema Management</a></li>
         </ul>
     </div>

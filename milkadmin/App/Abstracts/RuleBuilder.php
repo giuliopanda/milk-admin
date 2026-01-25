@@ -349,7 +349,7 @@ class RuleBuilder
         }
         $this->rules[$this->current_field]['form-params']['pattern'] = "^-?\\d{1,$integer_digits}(\\.\\d{0,$precision})?$";
 
-        $this->formType('string');
+        $this->formType('number');
         $this->error('The field must be a decimal number with a maximum of '.$precision.' decimal places');
         $this->label($this->createLabel($name));
         return $this;
@@ -845,6 +845,21 @@ class RuleBuilder
     public function formParams(array $params): self
     {
         $this->rules[$this->current_field]['form-params'] = $params;
+        if (isset($params['pattern'])) {
+            $this->rules[$this->current_field]['pattern'] = $params['pattern'];
+        }
+        if (isset($params['minlength'])) {
+            $this->rules[$this->current_field]['min_length'] = $params['minlength'];
+        }
+        if (isset($params['min_length'])) {
+            $this->rules[$this->current_field]['min_length'] = $params['min_length'];
+        }
+        if (isset($params['maxlength'])) {
+            $this->rules[$this->current_field]['max_length'] = $params['maxlength'];
+        }
+        if (isset($params['max_length'])) {
+            $this->rules[$this->current_field]['max_length'] = $params['max_length'];
+        }
         return $this;
     }
 
@@ -886,10 +901,20 @@ class RuleBuilder
      */
     public function min($value): self
     {
+        $type = $this->rules[$this->current_field]['type'] ?? null;
+        if (is_string($value) && !is_numeric($value) && preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $value)) {
+            $this->rules[$this->current_field]['min_field'] = $value;
+            return $this;
+        }
         if (!isset($this->rules[$this->current_field]['form-params'])) {
             $this->rules[$this->current_field]['form-params'] = [];
         }
-        $this->rules[$this->current_field]['form-params']['min'] = $value;
+        if (in_array($type, ['string', 'text'], true)) {
+            $this->rules[$this->current_field]['min_length'] = $value;
+            $this->rules[$this->current_field]['form-params']['minlength'] = $value;
+        } else {
+            $this->rules[$this->current_field]['form-params']['min'] = $value;
+        }
         return $this;
     }
 
@@ -901,10 +926,20 @@ class RuleBuilder
      */
     public function max($value): self
     {
+        $type = $this->rules[$this->current_field]['type'] ?? null;
+        if (is_string($value) && !is_numeric($value) && preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $value)) {
+            $this->rules[$this->current_field]['max_field'] = $value;
+            return $this;
+        }
         if (!isset($this->rules[$this->current_field]['form-params'])) {
             $this->rules[$this->current_field]['form-params'] = [];
         }
-        $this->rules[$this->current_field]['form-params']['max'] = $value;
+        if (in_array($type, ['string', 'text'], true)) {
+            $this->rules[$this->current_field]['max_length'] = $value;
+            $this->rules[$this->current_field]['form-params']['maxlength'] = $value;
+        } else {
+            $this->rules[$this->current_field]['form-params']['max'] = $value;
+        }
         return $this;
     }
 

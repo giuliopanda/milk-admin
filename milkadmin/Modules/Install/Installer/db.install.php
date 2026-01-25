@@ -33,7 +33,7 @@ Hooks::set('install.get_html_modules', function($html, $errors) {
                     $defaultDb = !empty($dbTypes['sqlite']) ? 'sqlite' : (!empty($dbTypes['mysql']) ? 'mysql' : '');
                     
                     if (!empty($dbTypes)) {
-                        Form::select('connectType1', 'connect_type', $dbTypes, $_REQUEST['connect_type'] ?? $defaultDb);
+                        Form::select('connectType1', 'connect_type', $dbTypes, $_REQUEST['connectType1'] ?? $defaultDb);
                     } else {
                         echo '<div class="alert alert-danger">No database extensions available. Please install either MySQLi or SQLite3 extension.</div>';
                     }
@@ -104,7 +104,11 @@ Hooks::set('install.check_data', function($errors, $data) {
         // Testa la connessione MySQL solo se tutti i campi sono compilati
         if (empty($mysql_errors)) {
             $conn = new MySql($data['prefix']);
-            if (!$conn->connect($data['connect_ip'], $data['connect_login'], $data['connect_pass'], $data['connect_dbname'])) {
+            try {
+                if (!$conn->connect($data['connect_ip'], $data['connect_login'], $data['connect_pass'], $data['connect_dbname'])) {
+                    $mysql_errors['mysql'] = 'Connection failed! Verify database existence, connection data, and database permissions.';
+                }
+            } catch (\Throwable $e) {
                 $mysql_errors['mysql'] = 'Connection failed! Verify database existence, connection data, and database permissions.';
             }
         }

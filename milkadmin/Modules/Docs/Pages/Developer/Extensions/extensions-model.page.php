@@ -303,7 +303,7 @@ class Model extends AbstractModelExtension
    <ul>
       <li><a href="<?php echo Route::url('?page=docs&action=Developer/Extensions/extensions-introduction'); ?>">Extensions Introduction</a></li>
       <li><a href="<?php echo Route::url('?page=docs&action=Developer/Extensions/extensions-module'); ?>">Module Extensions</a></li>
-      <li><a href="<?php echo Route::url('?page=docs&action=Developer/AbstractsClass/abstract-model-attributes'); ?>">Model Attributes</a></li>
+      <li><a href="<?php echo Route::url('?page=docs&action=Developer/Model/abstract-model-attributes'); ?>">Model Attributes</a></li>
    </ul>
 
 </div>

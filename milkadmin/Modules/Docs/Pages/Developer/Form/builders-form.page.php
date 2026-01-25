@@ -428,7 +428,7 @@ public function actionEdit() {
     <p>Now that you understand FormBuilder basics, explore these related topics:</p>
     <ul>
         <li><a href="?page=docs&action=Developer/Form/builders-form-fields"><strong>Field Management</strong></a>: Adding, removing, modifying, and organizing form fields</li>
-        <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-relationships"><strong>Model Relationships</strong></a>: Understanding hasOne, belongsTo, and hasMany relationships</li>
+        <li><a href="?page=docs&action=Developer/Model/abstract-model-relationships"><strong>Model Relationships</strong></a>: Understanding hasOne, belongsTo, and hasMany relationships</li>
         <li><a href="?page=docs&action=Developer/Form/builders-form-conditional-visibility"><strong>Conditional Field Visibility</strong></a>: Show/hide fields based on other field values</li>
         <li><a href="?page=docs&action=Developer/Form/builders-form-validation"><strong>Form Validation</strong></a>: Custom validation and error handling</li>
         <li><a href="?page=docs&action=Developer/Form/builders-form-containers"><strong>Organizing Fields in columns with Containers</strong></a>: Grouping fields into containers for better organization</li>

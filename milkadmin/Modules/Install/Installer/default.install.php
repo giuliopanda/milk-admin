@@ -1,7 +1,7 @@
 <?php
 namespace Modules\Install\Installer;
 
-use App\{Hooks, Form, Route};
+use App\{Hooks, Form, Route, Version};
 use Modules\Install\Install;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
@@ -25,7 +25,18 @@ Hooks::set('install.get_html_modules', function($html, $errors) {
                 $base_url = $_REQUEST['base_url'] ?? $default_base_url;
                 Form::input('text', 'base_url', 'Base Url', $base_url, $options);
                 Form::input('text', 'site-title', 'Title',  $_REQUEST['site-title'] ?? 'Milk Admin', $options);
-                Form::input('email', 'admin-email', 'Admin email',  $_REQUEST['admin-email'] ?? 'admin@example.com', $options);
+                ?>
+            </div>
+        </div>
+    </div>
+    <div class="row g-2 mb-3">
+        <div class="card" style="max-width: 960px;">
+            <div class="card-body">
+            <h5 class="card-title">Administrator Account</h5>
+                <?php
+                Form::input('text', 'admin-username', 'Admin username',  $_REQUEST['admin-username'] ?? '', $options);
+                Form::input('email', 'admin-email', 'Admin email',  $_REQUEST['admin-email'] ?? '', $options);
+                Form::input('password', 'admin-password', 'Admin password',  $_REQUEST['admin-password'] ?? '', $options);
                 ?>
             </div>
         </div>
@@ -33,6 +44,23 @@ Hooks::set('install.get_html_modules', function($html, $errors) {
 <?php
     $html .= ob_get_clean();
     return $html;
+});
+
+Hooks::set('install.check_data', function($errors, $data) {
+    $default_errors = [];
+
+    if (empty($data['admin-username'])) {
+        $default_errors['admin-username'] = 'Admin username is required';
+    }
+    if (empty($data['admin-email']) || !filter_var($data['admin-email'], FILTER_VALIDATE_EMAIL)) {
+        $default_errors['admin-email'] = 'Admin email is required';
+    }
+    if (empty($data['admin-password'])) {
+        $default_errors['admin-password'] = 'Admin password is required';
+    }
+
+    $errors = Install::setErrors('default', $errors, $default_errors);
+    return $errors;
 });
 
 /**
@@ -51,7 +79,7 @@ Hooks::set('install.execute_config', function($data) {
         'secret_key' => uniqid('', true),
         'token_key' => "t".substr(md5(uniqid()), 0, 4),
         'lang' => 'en',
-        'version' => NEW_VERSION,
+        'version' => Version::normalize(NEW_VERSION) ?? Version::DEFAULT,
         'time_zone' => 'Europe/Rome',
         'locale' => 'en_US'
     ];

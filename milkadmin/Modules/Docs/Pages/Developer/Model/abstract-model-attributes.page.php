@@ -3,7 +3,7 @@ namespace Modules\Docs\Pages;
 /**
  * @title Model Attributes
  * @guide developer
- * @order 54
+ * @order 40
  * @tags model, attributes, ToDisplayValue, ToDatabaseValue, SetValue, Validate, formatting, custom handlers
  */
 !defined('MILK_DIR') && die(); // Avoid direct access

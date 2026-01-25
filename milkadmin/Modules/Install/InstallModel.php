@@ -45,7 +45,10 @@ class InstallModel
      * 
      */
     public function executeInstall() { 
-        $data =  $_SESSION['installation_params'];
+        $data = $_SESSION['installation_params'] ?? [];
+        if (isset($_SESSION['installation_admin']) && is_array($_SESSION['installation_admin'])) {
+            $data = array_merge($data, $_SESSION['installation_admin']);
+        }
         Hooks::run('install.execute', $data);
     }
 

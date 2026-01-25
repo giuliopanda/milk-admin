@@ -17,7 +17,7 @@ use App\{Get, Form, MessagesHandler};
     <div class="alert alert-warning">
         <strong>Important:</strong> This documentation covers <strong>custom validation</strong> for complex scenarios. For standard field validation (required, min/max length, data types, etc.), use <strong>Model validation rules</strong> instead.
         <ul class="mb-0 mt-2">
-            <li><a href="?page=docs&action=Developer/Model/model-rules" class="alert-link">Model Validation Rules (TODO)</a></li>
+            <li><a href="?page=docs&action=Developer/Model/model-rules" class="alert-link">Model Validation Rules</a></li>
         </ul>
     </div>
 
@@ -260,7 +260,7 @@ field.setCustomValidity('Invalid date')
 
     <h2>Related Documentation</h2>
     <ul>
-        <li><a href="?page=docs&action=Developer/Model/model-rules"><strong>Model Validation Rules (TODO)</strong></a>: Standard field validation using Model rules</li>
+        <li><a href="?page=docs&action=Developer/Model/model-rules"><strong>Model Validation Rules</strong></a>: Standard field validation using Model rules</li>
         <li><a href="?page=docs&action=Developer/Form/builders-form-fields"><strong>Field Management</strong></a>: Adding, removing, and configuring form fields</li>
         <li><a href="?page=docs&action=Developer/Form/builders-form-conditional-visibility"><strong>Conditional Field Visibility</strong></a>: Show/hide fields based on other field values</li>
         <li><a href="?page=docs&action=Developer/Form/builders-form-containers"><strong>Organizing Fields with Containers</strong></a>: Grouping fields into columns and sections</li>

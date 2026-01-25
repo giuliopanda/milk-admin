@@ -265,6 +265,7 @@ class ObjectToForm
                 return Form::input('date', $rule['name'], $rule['label'], $value, $form_params, true);
                 break;
             case 'datetime':
+            case 'datetime-local':
                 return Form::input('datetime-local', $rule['name'], $rule['label'], $value, $form_params, true);
                 break;
              case 'time':
@@ -362,15 +363,35 @@ class ObjectToForm
                 }
                 return Form::select($rule['name'], $rule['label'], $rule_options, $value, $form_params, true);
                 break;
-             case 'checkbox':
+            case 'checkbox':
                 // value is the value the saved field has, rule['value'] is the value attribute of the checkbox. If the two values ​​are equal, the checkbox is checked. To select the checkbox, $value must equal rule['value'] or true.
                 $checkbox_html = '';
 
-                // Add hidden field BEFORE checkbox to handle unchecked state
-                // The hidden field will be sent when checkbox is unchecked
-                // When checkbox is checked, its value will override the hidden field value
-                if (isset($rule['checkbox_unchecked']) && $rule['checkbox_unchecked'] !== null) {
-                    $checkbox_html .= '<input type="hidden" name="' . _r($rule['name']) . '" value="' . _r($rule['checkbox_unchecked']) . '">';
+                $is_disabled = isset($form_params['disabled']) && $form_params['disabled'] !== false;
+                if ($is_disabled) {
+                    $submit_value = $value;
+                    if ($submit_value === true) {
+                        $submit_value = $rule['value'] ?? '1';
+                    } elseif ($submit_value === false) {
+                        $submit_value = $rule['checkbox_unchecked'] ?? '0';
+                    }
+                    if ($submit_value === '' || $submit_value === null) {
+                        if (isset($rule['default'])) {
+                            $submit_value = $rule['default'];
+                        } elseif (isset($rule['checkbox_unchecked'])) {
+                            $submit_value = $rule['checkbox_unchecked'];
+                        } elseif (isset($rule['value'])) {
+                            $submit_value = $rule['value'];
+                        }
+                    }
+                    $checkbox_html .= '<input type="hidden" name="' . _r($rule['name']) . '" value="' . _r($submit_value) . '">';
+                } else {
+                    // Add hidden field BEFORE checkbox to handle unchecked state
+                    // The hidden field will be sent when checkbox is unchecked
+                    // When checkbox is checked, its value will override the hidden field value
+                    if (isset($rule['checkbox_unchecked']) && $rule['checkbox_unchecked'] !== null) {
+                        $checkbox_html .= '<input type="hidden" name="' . _r($rule['name']) . '" value="' . _r($rule['checkbox_unchecked']) . '">';
+                    }
                 }
 
                 $checkbox_html .= Form::checkbox($rule['name'], $rule['label'],  $rule['value'], ($value === $rule['value'] || $value === true), $form_params, true);

@@ -506,12 +506,18 @@ class Query
     /**
      * Sets the result limit
      * 
-     * @param int $start First record offset
-     * @param int $limit Number of records to return
+     * @param int $start_or_limit First record offset or limit if second parameter is not provided
+     * @param int $limit Number of records to return if second parameter is provided
      * @return $this Allows method chaining
      */
-    public function limit(int $start, int $limit): self
+    public function limit(int $start_or_limit, int $limit = -1): self
     {
+        if ($limit == -1) {
+            $start = 0;
+            $limit = $start_or_limit;
+        } else {
+            $start = $start_or_limit;
+        }
         $this->limit = [_absint($start), _absint($limit)];
         return $this;
     }
@@ -644,6 +650,7 @@ class Query
         }
 
         $orderParts = [];
+        $seenFields = [];
         foreach ($this->order as $orderItem) {
             $field = $orderItem[0];
             $direction = strtolower($orderItem[1]) === 'asc' ? 'ASC' : 'DESC';
@@ -651,10 +658,20 @@ class Query
             if (isset($this->sort_mappings[$field])) {
                 $field = $this->sort_mappings[$field];
             }
+
+            $fieldKey = strtolower($field);
+            if (isset($seenFields[$fieldKey])) {
+                continue;
+            }
+            $seenFields[$fieldKey] = true;
             
             $orderParts[] = $this->db->qn($field) . ' ' . $direction;
         }
-        
+
+        if (empty($orderParts)) {
+            return '';
+        }
+
         return ' ORDER BY ' . implode(', ', $orderParts);
     }
 
@@ -707,7 +724,9 @@ class Query
     /**
      * Builds and returns the SQL query to calculate the total number of records
      *
+     * @deprecated Use total() method instead
      * @return array{0: string, 1: array<mixed>} Array containing SQL string and parameters
+     *
      */
     public function getTotal(): array
     {
@@ -892,6 +911,14 @@ class Query
         }
         
         return $result;
+    }
+
+    // Esegue la query se $db è stato inizializzato
+    public function total(): int {
+        if ($this->db === null) return 0;
+        $this->clean('select')->select('COUNT(*) as total');
+        $total = (int)$this->db->getVar(...$this->get());
+        return $total;
     }
 
     /**

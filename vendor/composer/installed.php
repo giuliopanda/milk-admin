@@ -3,7 +3,7 @@
         'name' => 'milkadmin/milk-admin',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => 'ef5eb78ee9dd2f2dab70d7d348c34a1ab21eecbd',
+        'reference' => 'd7827197f364df7e0597898e6e79f6ca6e937b78',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +13,7 @@
         'milkadmin/milk-admin' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => 'ef5eb78ee9dd2f2dab70d7d348c34a1ab21eecbd',
+            'reference' => 'd7827197f364df7e0597898e6e79f6ca6e937b78',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

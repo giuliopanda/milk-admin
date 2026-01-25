@@ -2,7 +2,7 @@
 namespace Modules\Docs\Pages;
 /**
  * @title Query Builder Methods
- * @guide developer
+ * @guide Models
  * @order 51
  * @tags model, query, where, whereIn, whereHas, order, limit, select, QueryBuilder
  */
@@ -402,8 +402,8 @@ $results = $query->getResults();</code></pre>
     <div class="alert alert-success">
         <ul class="mb-0">
             <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-overview">Model Overview</a> - General concepts</li>
-            <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-crud">CRUD Operations</a> - Create, Read, Update, Delete</li>
-            <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-relationships">Relationships</a> - hasOne, belongsTo, hasMany</li>
+            <li><a href="?page=docs&action=Developer/Model/abstract-model-crud">CRUD Operations</a> - Create, Read, Update, Delete</li>
+            <li><a href="?page=docs&action=Developer/Model/abstract-model-relationships">Relationships</a> - hasOne, belongsTo, hasMany</li>
             <li><a href="?page=docs&action=Framework/Core/query">Query Class</a> - Low-level Query class documentation</li>
         </ul>
     </div>

@@ -219,8 +219,6 @@ function performModuleUninstall(moduleName) {
         }
         return response.json();
     }).then((data) => {
-        console.log(data);
-        
         if (data.status === 'success') {
             // Show success message if available
             if (data.data && data.data.message) {

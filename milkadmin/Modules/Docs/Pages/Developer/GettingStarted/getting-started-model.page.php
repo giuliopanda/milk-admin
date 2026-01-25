@@ -209,7 +209,7 @@ php milkadmin/cli.php module:update
 
         <p class="mt-3 mb-0"><strong>To learn more:</strong></p>
         <ul class="mb-0">
-            <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model">Abstract Model</a> - Complete Model documentation</li>
+            <li><a href="?page=docs&action=Developer/Model/abstract-model">Abstract Model</a> - Complete Model documentation</li>
             <li><a href="?page=docs&action=Framework/Core/query">Query Builder</a> - Advanced and complex queries</li>
             <li><a href="?page=docs&action=Framework/Core/schema">Schema</a> - Advanced table management</li>
         </ul>

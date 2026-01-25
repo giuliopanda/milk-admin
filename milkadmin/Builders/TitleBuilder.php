@@ -24,8 +24,8 @@ class TitleBuilder {
     private $bottom_content = '';
     private $include_messages = true;
     private $page = '';
-    private $left_col = 7;
-    private $right_col = 5;
+    private $left_col = 6;
+    private $right_col = 6;
 
     /**
      * Constructor - Initialize TitleBuilder

@@ -658,7 +658,7 @@ $rule->datetime('created_at')
     <div class="alert alert-success">
         <ul class="mb-0">
             <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-overview">Model Overview</a> - General Model concepts</li>
-            <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-relationships">Relationships</a> - Detailed relationship documentation</li>
+            <li><a href="?page=docs&action=Developer/Model/abstract-model-relationships">Relationships</a> - Detailed relationship documentation</li>
             <li><a href="?page=docs&action=Framework/Core/schema">Schema Management</a> - Advanced schema operations</li>
         </ul>
     </div>

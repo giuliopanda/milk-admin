@@ -1,0 +1,97 @@
+/* Schedule Grid Styles */
+
+.schedule-grid-container {
+    margin-bottom: 1rem;
+}
+
+.schedule-grid-header {
+    border-radius: 0.375rem 0.375rem 0 0;
+}
+
+.schedule-grid {
+    background-color: #fff;
+    border-radius: 0 0 0.375rem 0.375rem;
+    overflow-x: auto;
+    min-height: 200px;
+}
+
+/* Grid cells */
+.schedule-grid-corner {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    font-weight: bold;
+}
+
+.schedule-grid-col-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    font-size: 0.875rem;
+}
+
+.schedule-grid-col-header.schedule-col-today {
+    font-weight: bold;
+}
+
+.schedule-grid-row-header {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    min-width: 120px;
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.schedule-grid-cell {
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 0.875rem;
+    transition: background-color 0.2s;
+}
+
+.schedule-grid-cell:not(.schedule-grid-cell-empty):hover {
+    opacity: 0.9;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Apply cursor pointer only when cell has click handler configured */
+.schedule-grid-cell.cursor-pointer {
+    cursor: pointer;
+}
+
+.schedule-grid-cell-empty {
+    background-color: #fff;
+}
+
+.cell-content {
+    padding: 0.25rem;
+    word-wrap: break-word;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .schedule-grid {
+        font-size: 0.75rem;
+    }
+
+    .schedule-grid-row-header {
+        min-width: 80px;
+        font-size: 0.75rem;
+    }
+
+    .schedule-grid-cell {
+        min-height: 40px;
+    }
+}
+
+/* Loading state */
+.schedule-grid.loading {
+    opacity: 0.5;
+    pointer-events: none;
+}

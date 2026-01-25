@@ -542,7 +542,7 @@ $tableBuilder = TableBuilder::create($this->model, \'tblEmployees\')
     <h2>Related Documentation</h2>
     <ul>
         <li><a href="?page=docs&action=Developer/Form/autocomplete-search">Autocomplete Search - For Large Datasets</a></li>
-        <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-relationships">Model Relationships - Complete Guide</a></li>
+        <li><a href="?page=docs&action=Developer/Model/abstract-model-relationships">Model Relationships - Complete Guide</a></li>
         <li><a href="?page=docs&action=Framework/Forms/form-milkselect">MilkSelect - Component Reference</a></li>
         <li><a href="?page=docs&action=Developer/Table/builders-table">TableBuilder - Table Management</a></li>
     </ul>

@@ -104,12 +104,6 @@ namespace Modules\Docs\Pages;
                 <td>Sets the field layout</td>
             </tr>
             <tr>
-                <td><code>floating($enabled)</code></td>
-                <td>Modifier</td>
-                <td>bool (default: true)</td>
-                <td>Enables/disables floating label</td>
-            </tr>
-            <tr>
                 <td><code>options($options)</code></td>
                 <td>Modifier</td>
                 <td>array</td>

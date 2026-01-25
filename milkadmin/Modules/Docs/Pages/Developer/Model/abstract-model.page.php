@@ -2,9 +2,9 @@
 namespace Modules\Docs\Pages;
 use App\Route;
 /**
- * @title Abstract Model   
+ * @title Abstract Model
  * @guide developer
- * @order 50
+ * @order 35
  * @tags AbstractModel, model, database, query, SQL, MySQL, get_by_id, get_by_id_or_empty, get_empty, get_by_id_for_edit, save, delete, where, order, limit, select, from, group, get, execute, get_all, first, total, build_table, drop_table, validate, clear_cache, get_last_error, has_error, set_query_params, get_filtered_columns, get_columns, add_filter, object_class, primary_key, table, CRUD, query-builder, fluent-interface, pagination, sorting, filtering, validation, schema, to_mysql_array, filter_data_by_rules, get_last_insert_id, bind_params, SQL-injection, registerVirtualTable, ArrayDb, virtual_table
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
@@ -18,7 +18,7 @@ use App\Route;
 
     <div class="alert alert-info">
         <strong>Table Structure Documentation:</strong>
-        For complete information about defining table structures and using the RuleBuilder, see the <a href="<?php echo Route::url('?page=docs&action=Developer/AbstractsClass/abstract-model-rulebuilder'); ?>">RuleBuilder documentation</a>.
+        For complete information about defining table structures and using the RuleBuilder, see the <a href="<?php echo Route::url('?page=docs&action=Developer/Model/abstract-model-rulebuilder'); ?>">RuleBuilder documentation</a>.
     </div>
 
     <p>To create a model, extend <code>AbstractModel</code> and implement the <code>configure()</code> method:</p>
@@ -71,6 +71,66 @@ class ProductsModel extends AbstractModel
         <strong>📋 Quick Reference:</strong> This table provides a complete overview of all available methods. Click on a method name to jump to its detailed documentation.
     </div>
 
+    <h3 class="mt-3">Understanding Query Builder and Execution</h3>
+
+    <div class="alert alert-primary">
+        <h5>🔄 Model vs Query Return Types</h5>
+        <p>The framework uses a dual execution system where methods return different types based on the calling context:</p>
+
+        <h6 class="mt-3">Query Builder Methods (where, order, limit, etc.)</h6>
+        <p>These methods return a <code>Query</code> object, <strong>not a Model</strong>. You are temporarily leaving the Model context:</p>
+        <pre><code class="language-php">$query = $model->where('status = ?', ['active'])->order('name');
+// $query is a Query object, not a Model</code></pre>
+
+        <h6 class="mt-3">Execution Methods (getAll, get, getResults, getRow, getVar)</h6>
+        <p><strong>Important:</strong> These methods behave differently depending on how they are called:</p>
+
+        <table class="table table-sm table-bordered mt-2">
+            <thead>
+                <tr>
+                    <th>Called from</th>
+                    <th>Return Type</th>
+                    <th>Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Model</strong><br><code>$model->getAll()</code></td>
+                    <td><code>Model</code></td>
+                    <td>The Query automatically receives the Model class via <code>setModelClass()</code></td>
+                </tr>
+                <tr>
+                    <td><strong>Query Builder Chain</strong><br><code>$model->where(...)->getAll()</code></td>
+                    <td><code>Model</code></td>
+                    <td>The Model class is propagated through the query chain</td>
+                </tr>
+                <tr>
+                    <td><strong>Standalone Query</strong><br><code>$query->getAll()</code></td>
+                    <td><code>array</code></td>
+                    <td>No Model class was set, returns raw database array</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h6 class="mt-3">Example</h6>
+        <pre><code class="language-php">// Case 1: Called from Model → returns Model
+$products = $model->getAll();
+foreach ($products as $product) {
+    echo $product->name; // Model instance
+}
+
+// Case 2: Query builder chain → returns Model
+$products = $model->where('price > ?', [10])->getAll();
+// Still returns Model because setModelClass() was set automatically
+
+// Case 3: Standalone Query → returns array
+$query = new Query($db);
+$results = $query->from('products')->getAll();
+// Returns array because no Model was associated</code></pre>
+
+        <p class="mb-0"><strong>Key Takeaway:</strong> When using the Model API (which is the recommended approach), execution methods always return <code>Model</code> instances. They only return <code>array</code> when using standalone Query objects directly.</p>
+    </div>
+
     <h3 class="mt-3">Methods Summary</h3>
 
     <div class="table-responsive">
@@ -102,14 +162,14 @@ class ProductsModel extends AbstractModel
                 </tr>
                 <tr>
                     <td><code><a href="#getById">getById()</a></code></td>
-                    <td>Retrieve single record by primary key</td>
-                    <td><span class="badge bg-success">Model|null</span></td>
+                    <td>Retrieve single record by primary key (use isEmpty() to check)</td>
+                    <td><span class="badge bg-success">Model</span></td>
                     <td><code>$model->getById(1)</code></td>
                 </tr>
                 <tr>
                     <td><code><a href="#getByIds">getByIds()</a></code></td>
-                    <td>Retrieve multiple records by IDs</td>
-                    <td><span class="badge bg-success">Model|null</span></td>
+                    <td>Retrieve multiple records by IDs (use isEmpty() to check)</td>
+                    <td><span class="badge bg-success">Model</span></td>
                     <td><code>$model->getByIds([1,2,3])</code></td>
                 </tr>
                 <tr>
@@ -150,9 +210,27 @@ class ProductsModel extends AbstractModel
                 </tr>
                 <tr>
                     <td><code><a href="#delete">delete()</a></code></td>
-                    <td>Delete record by primary key</td>
+                    <td>Delete record by primary key or single loaded record</td>
                     <td><span class="badge bg-info">bool</span></td>
                     <td><code>$model->delete(1)</code></td>
+                </tr>
+                <tr>
+                    <td><code><a href="#beforeDelete">beforeDelete()</a></code></td>
+                    <td>Hook called before delete operations</td>
+                    <td><span class="badge bg-info">bool</span></td>
+                    <td><code>protected function beforeDelete($ids)</code></td>
+                </tr>
+                <tr>
+                    <td><code><a href="#afterDelete">afterDelete()</a></code></td>
+                    <td>Hook called after delete operations</td>
+                    <td><span class="badge bg-secondary">void</span></td>
+                    <td><code>protected function afterDelete($ids)</code></td>
+                </tr>
+                <tr>
+                    <td><code><a href="#deleteAll">deleteAll()</a></code></td>
+                    <td>Delete all stored records</td>
+                    <td><span class="badge bg-info">bool</span></td>
+                    <td><code>$model->deleteAll()</code></td>
                 </tr>
                 <tr>
                     <td><code><a href="#detach">detach()</a></code></td>
@@ -205,7 +283,13 @@ class ProductsModel extends AbstractModel
 
                 <!-- Query Builder -->
                 <tr class="table-secondary">
-                    <td colspan="4"><strong>Query Builder Methods</strong></td>
+                    <td colspan="4">
+                        <strong>Query Builder Methods</strong>
+                        <div class="text-muted small mt-1">
+                            ⚠️ These methods return a <code>Query</code> object (you leave the Model context).
+                            Execution methods like <code>getAll()</code> will return the Model automatically because <code>setModelClass()</code> is set internally.
+                        </div>
+                    </td>
                 </tr>
                 <tr>
                     <td><code><a href="#where">where()</a></code></td>
@@ -246,7 +330,7 @@ class ProductsModel extends AbstractModel
                 <tr>
                     <td><code><a href="#getAll">getAll()</a></code></td>
                     <td>Get all records without limits</td>
-                    <td><span class="badge bg-warning">array</span></td>
+                    <td><span class="badge bg-success">Model</span>|<span class="badge bg-warning">array</span></td>
                     <td><code>$model->getAll()</code></td>
                 </tr>
                 <tr>
@@ -800,19 +884,25 @@ if ($success) {
     </ul>
 
     <h3 class="mt-3" id="getById"><code>getById($id, $use_cache = true)</code></h3>
-    <p>Retrieves a single record by primary key. Returns a Model instance with one record or null if not found.</p>
+    <p>Retrieves a single record by primary key. Always returns a Model instance. Use <code>isEmpty()</code> to check if the record was found.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">/**
  * @param mixed $id Primary key value
  * @param bool $use_cache Whether to use cache for data
- * @return static|null Returns Model instance with the record, or null if not found
+ * @return static Always returns Model instance (use isEmpty() to check if record exists)
  */
-public function getById($id, bool $use_cache = true): ?static;
+public function getById($id, bool $use_cache = true): static;
 
-// Example
+// Example 1: Check if record exists
 $product = $this->model->getById(123);
-if ($product && $product->count() > 0) {
+if (!$product->isEmpty()) {
     echo $product->name;  // Access properties directly
     echo "Price: €" . $product->price;
+}
+
+// Example 2: Using count()
+$product = $this->model->getById(123);
+if ($product->count() > 0) {
+    echo $product->name;
 }
     </code></pre>
     <ul>
@@ -824,9 +914,10 @@ if ($product && $product->count() > 0) {
         </li>
         <li><strong>Return value:</strong>
             <ul>
-                <li><code>static|null</code>: Returns Model instance containing one record, or <code>null</code> if not found.</li>
+                <li><code>static</code>: Always returns a Model instance. Use <code>isEmpty()</code> or <code>count()</code> to check if the record was found.</li>
             </ul>
         </li>
+        <li><strong>Note:</strong> This method never returns <code>null</code>. It always returns a Model instance, even if no record is found. Use <code>isEmpty()</code> to check if the record exists.</li>
     </ul>
 
     <h3 class="mt-3" id="getByIdAndUpdate"><code>getByIdAndUpdate($id, array $merge_data = [], $mysql_array = false)</code></h3>
@@ -1044,8 +1135,8 @@ protected function afterSave(array $data, array $results): void {
         </li>
     </ul>
 
-    <h3 class="mt-3" id="delete"><code>delete($id)</code></h3>
-    <p>Deletes a record from the database.</p>
+    <h3 class="mt-3" id="delete"><code>delete($id = null)</code></h3>
+    <p>Deletes a record from the database. If <code>$id</code> is not provided, it only works when exactly one record is loaded in <code>records_objects</code>; otherwise it throws an exception to prevent accidental deletions.</p>
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
     protected function tableActionDeleteProject($id, $request) {
@@ -1061,7 +1152,32 @@ protected function afterSave(array $data, array $results): void {
     <ul>
         <li><strong>Input parameters:</strong>
             <ul>
-                <li><code>$id</code>: (mixed) The primary key of the record to delete.</li>
+                <li><code>$id</code>: (mixed|null) The primary key of the record to delete. If null, exactly one record must be loaded in <code>records_objects</code> or an exception is thrown.</li>
+            </ul>
+        </li>
+        <li><strong>Return value:</strong>
+            <ul>
+                <li><code>bool</code>: Returns <code>true</code> if deletion was successful, otherwise <code>false</code>.</li>
+            </ul>
+        </li>
+    </ul>
+
+    <h3 class="mt-3" id="deleteAll"><code>deleteAll()</code></h3>
+    <p>Deletes all stored records from the database.</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
+    // Example: delete all stored records
+    if ($model->deleteAll()) {
+        echo "All records deleted";
+    } else {
+        echo "Delete failed: " . $model->getLastError();
+    }
+    </code></pre>
+
+    <ul>
+        <li><strong>Input parameters:</strong>
+            <ul>
+                <li><em>None</em></li>
             </ul>
         </li>
         <li><strong>Return value:</strong>
@@ -1308,33 +1424,39 @@ protected function afterSave(array $data, array $results): void {
         <h3 class="mt-3">Table display methods</h3>
         <p>These methods allow you to retrieve data, totals and execute queries:</p>
         <h4 class="mt-3" id="get"><code>get($query = null, $params = [])</code></h4>
-    <p>Executes the current query and returns an array of objects.</p>
+    <p>Executes the query and returns results. When called from a Model, it always returns a Model instance.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
     /**
-    * @param string $query The SQL query to execute
+    * @param Query|string $query A Query object or SQL string
     * @param array $params Parameters to pass to the query to prevent SQL injection
-    * @return array Returns an array of objects from the database
+    * @return static Model instance with query results
     */
-    public function get(): array;
+    public function get(Query $query, ?array $params = []): AbstractModel|array|null|false;
 
-    // Example
-    $posts = $this->model->get();
+    // Example 1: Execute Query object (returns Model)
+    $query = $this->model->query()->where('status = ?', ['active']);
+    $posts = $this->model->get($query);
     foreach ($posts as $post) {
-    echo $post->title;
+        echo $post->title; // Model instance
     }
+
+    // Example 2: Execute with raw SQL (for compatibility)
+    $posts = $this->model->get("SELECT * FROM posts WHERE status = ?", ['active']);
     </code></pre>
         <ul>
             <li><strong>Input parameters:</strong>
                 <ul>
-                    <li><code>$query</code>: (string, optional) The SQL query to execute. If not specified, the current query is executed.</li>
+                    <li><code>$query</code>: (Query|string) A Query object or SQL string to execute.</li>
                     <li><code>$params</code>: (array, optional) Parameters for the query to prevent SQL injection.</li>
                     </ul>
             </li>
                 <li><strong>Return value:</strong>
                     <ul>
-                        <li><code>array</code>: An array of objects (instances of the class specified in <code>$object_class</code>) representing records from the database.</li>
+                        <li><code>Model</code>: When called with a Query object, returns Model instance (setModelClass is automatically set).</li>
+                        <li><code>array|null</code>: When called with raw SQL string, behavior depends on the context.</li>
                 </ul>
             </li>
+            <li><strong>Note:</strong> This method is primarily used internally. For most use cases, use <code>getAll()</code>, <code>getById()</code>, or query builder methods directly.</li>
         </ul>
 
         <h4 class="mt-3" id="execute"><code>execute($query = null, $params = [])</code></h4>
@@ -1367,31 +1489,51 @@ protected function afterSave(array $data, array $results): void {
                 </li>
             </ul>
 
-                <h4 class="mt-3" id="getAll"><code>getAll()</code></h4>
-                <p>Executes the current query without limits, to retrieve all data.</p>
+                <h4 class="mt-3" id="getAll"><code>getAll($order_field = '', $order_dir = 'asc')</code></h4>
+                <p>Executes the current query without limits to retrieve all data. <strong>When called from a Model, returns a Model instance (not an array).</strong></p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
     /**
-    * @return array Returns all results
+    * @param string $order_field Optional field to order by
+    * @param string $order_dir Order direction ('asc' or 'desc')
+    * @return static|array Model instance (when called from Model) or array (standalone Query)
     */
-    public function getAll(): array;
+    public function getAll($order_field = '', $order_dir = 'asc'): static|array;
 
-    // Example
+    // Example 1: Called from Model (returns Model instance)
     $posts = $this->model->getAll();
     foreach ($posts as $post) {
-    echo $post->title;
+        echo $post->title; // $post is a Model instance
+    }
+
+    // Example 2: With ordering
+    $posts = $this->model->getAll('created_at', 'desc');
+
+    // Example 3: With query builder chain (still returns Model)
+    $posts = $this->model->where('status = ?', ['active'])->getAll();
+    // Returns Model because setModelClass() is automatically set
+
+    // Example 4: Check if results are empty
+    $posts = $this->model->getAll();
+    if (!$posts->isEmpty()) {
+        foreach ($posts as $post) {
+            echo $post->title;
+        }
     }
     </code></pre>
             <ul>
                 <li><strong>Input parameters:</strong>
                     <ul>
-                            <li><em>None</em></li>
+                            <li><code>$order_field</code>: (string, optional) Field name to order results by.</li>
+                            <li><code>$order_dir</code>: (string, optional) Order direction: 'asc' or 'desc' (default: 'asc').</li>
                         </ul>
                     </li>
                     <li><strong>Return value:</strong>
                         <ul>
-                            <li><code>array</code>: An array of objects (instances of the class specified in <code>$object_class</code>) representing records from the database.</li>
+                            <li><code>static</code>: <strong>Model instance</strong> when called from a Model (recommended usage).</li>
+                            <li><code>array</code>: Empty array if no database connection, or raw array if called from standalone Query.</li>
                     </ul>
                 </li>
+                <li><strong>Important:</strong> Unlike the documentation might suggest, <code>getAll()</code> returns a <strong>Model instance</strong> when called from a Model, not an array. Use <code>isEmpty()</code> or <code>count()</code> to check results. The Model instance is iterable and acts like an array in foreach loops.</li>
         </ul>
         <h4 class="mt-3" id="first"><code>first($query = null, $params = [])</code></h4>
         <p>Executes the current query and returns a single object. The limit is implicitly set to 1</p>
@@ -1662,23 +1804,31 @@ $doctors = $this->model->whereHas('appointments', 'date > ?', ['2024-01-01'])->g
     </code></pre>
 
     <h3 class="mt-3" id="getByIds"><code>getByIds(string|array $ids)</code></h3>
-    <p>Retrieve multiple records by their primary keys.</p>
+    <p>Retrieve multiple records by their primary keys. Always returns a Model instance. Use <code>isEmpty()</code> to check if records were found.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
 /**
  * @param string|array $ids Comma-separated list or array of IDs
- * @return static|null Model instance with records or null
+ * @return static Always returns Model instance (use isEmpty() to check if records exist)
  */
-public function getByIds(string|array $ids): ?static;
+public function getByIds(string|array $ids): static;
 
 // Example 1: Array of IDs
 $products = $this->model->getByIds([1, 5, 10, 25]);
-foreach ($products as $product) {
-    echo $product->name;
+if (!$products->isEmpty()) {
+    foreach ($products as $product) {
+        echo $product->name;
+    }
 }
 
 // Example 2: Comma-separated string
 $products = $this->model->getByIds('1,5,10,25');
+foreach ($products as $product) {
+    echo $product->name;
+}
     </code></pre>
+    <ul>
+        <li><strong>Note:</strong> This method never returns <code>null</code>. Use <code>isEmpty()</code> or <code>count()</code> to check if any records were found.</li>
+    </ul>
 
     <h3 class="mt-3" id="detach"><code>detach()</code></h3>
     <p>Mark current record for deletion. The record will be deleted when <code>save()</code> is called.</p>

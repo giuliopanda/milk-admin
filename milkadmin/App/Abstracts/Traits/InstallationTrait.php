@@ -1,7 +1,7 @@
 <?php
 namespace App\Abstracts\Traits;
 
-use App\{Cli, Config, Hooks, MessagesHandler, Permissions, Settings};
+use App\{Cli, Config, Hooks, MessagesHandler, Permissions, Settings, Version};
 
 
 !defined('MILK_DIR') && die(); // Prevent direct access
@@ -58,7 +58,7 @@ trait InstallationTrait {
      */
     public function setupInstallationHooks() {
         // Se non c'è la versione vuol dire che il sistema deve essere ancora installato
-        if (Config::get('version') == null || NEW_VERSION > Config::get('version')) {
+        if (Config::get('version') == null || Version::compare(NEW_VERSION, Config::get('version')) > 0) {
             // function($html, $errors)
             Hooks::set('install.get_html_modules', [$this, '_installGetHtmlModules'], 50);
             // function($errors, $data)
@@ -206,7 +206,7 @@ trait InstallationTrait {
     public function _installDone($html) {
         $settings_versions = Settings::get('module_version') ?: [];
         $settings_versions[$this->page] = [
-            'version' => $this->version ?? 1,
+            'version' => Version::normalize($this->version) ?? Version::DEFAULT,
             'folder' => $this->getChildClassPath()
         ];
         $module_actions = Settings::get('module_actions') ?: [];
@@ -269,7 +269,7 @@ trait InstallationTrait {
      */
     public function installExecute($data = []) {
        
-        $this->_installExecute();
+        $this->_installExecute('install');
         return $data;
     }
 
@@ -287,16 +287,23 @@ trait InstallationTrait {
      *
      * @return bool
      */
-    public function _installExecute() {
+    public function _installExecute(string $action = 'install') {
         $success = true;
         $errors = [];
+        $table_changes = [];
         $this_class= get_class($this);
         // Install main model
         if (is_object($this->model) && method_exists($this->model, 'buildTable')) {
             if ($this->model->getDbType() == 'array') {
                 return true;
             }
-            $this->model->buildTable();
+            $build_result = $this->model->buildTable();
+            if ($build_result) {
+                $change_summary = $this->formatSchemaChanges($this->model->getSchemaFieldDifferences());
+                if ($change_summary !== null) {
+                    $table_changes[] = $change_summary;
+                }
+            }
             if ($this->model->last_error != '') {
                 $success = false;
                 $errors[] = $this->model->last_error;
@@ -309,7 +316,13 @@ trait InstallationTrait {
                 return true;
             }
             try {
-                $modelInstance->buildTable();
+                $build_result = $modelInstance->buildTable();
+                if ($build_result) {
+                    $change_summary = $this->formatSchemaChanges($modelInstance->getSchemaFieldDifferences());
+                    if ($change_summary !== null) {
+                        $table_changes[] = $change_summary;
+                    }
+                }
                 if (isset($modelInstance->last_error) && $modelInstance->last_error != '') {
                     $success = false;
 
@@ -323,10 +336,22 @@ trait InstallationTrait {
 
         // Report results
         if ($success) {
+            $action_label = $action === 'update' ? 'updated' : 'installed';
             if (Cli::isCli()) {
-                Cli::success('Module '.$this->title.' installed');
+                Cli::success('Module '.$this->title.' '.$action_label);
+                if ($action === 'update' && !empty($table_changes)) {
+                    Cli::echo('Schema changes:');
+                    foreach ($table_changes as $change) {
+                        Cli::echo(' - ' . $change);
+                    }
+                }
             } else {
-                MessagesHandler::addSuccess('Module '.$this->title.' installed');
+                MessagesHandler::addSuccess('Module '.$this->title.' '.$action_label);
+                if ($action === 'update' && !empty($table_changes)) {
+                    foreach ($table_changes as $change) {
+                        MessagesHandler::addSuccess('Schema: ' . $change);
+                    }
+                }
             }
             return true;
         } else {
@@ -339,6 +364,62 @@ trait InstallationTrait {
             }
             return false;
         }
+    }
+
+    /**
+     * Format schema changes summary for CLI and UI messages
+     *
+     * @param array $differences
+     * @return string|null
+     */
+    private function formatSchemaChanges(array $differences): ?string {
+        if (empty($differences)) {
+            return null;
+        }
+
+        $action = $differences['action'] ?? '';
+        $table = $differences['table'] ?? 'unknown_table';
+
+        if ($action === 'create') {
+            return $table . ' created';
+        }
+
+        if ($action === 'drop') {
+            return $table . ' dropped';
+        }
+
+        if ($action !== 'modify') {
+            return null;
+        }
+
+        $fields = $differences['fields'] ?? [];
+        $changes = [];
+
+        if (!empty($fields['new_fields'])) {
+            $changes[] = 'added: ' . implode(', ', array_keys($fields['new_fields']));
+        }
+
+        foreach ($fields as $name => $change) {
+            if ($name === 'new_fields') {
+                continue;
+            }
+
+            if (is_array($change) && ($change['action'] ?? '') === 'update') {
+                $changed_keys = array_keys($change['new'] ?? []);
+                $changes[] = 'updated: ' . $name . (empty($changed_keys) ? '' : ' [' . implode(', ', $changed_keys) . ']');
+                continue;
+            }
+
+            if (is_array($change) && array_key_exists('action', $change)) {
+                $changes[] = 'removed: ' . $name;
+            }
+        }
+
+        if (empty($changes)) {
+            return null;
+        }
+
+        return $table . ' modified: ' . implode('; ', $changes);
     }
 
     /**
@@ -405,7 +486,7 @@ trait InstallationTrait {
      * @return string Modified HTML
      */
     public function installUpdate($html) {
-        $this->_installExecute();
+        $this->_installExecute('update');
         return $html;
     }
 

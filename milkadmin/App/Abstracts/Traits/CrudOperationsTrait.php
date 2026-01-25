@@ -292,7 +292,7 @@ trait CrudOperationsTrait
      * @param array $params Optional parameters for the query
      * @return static Model instance with results
      */
-    public function get(Query $query, ?array $params = []) : \App\Abstracts\AbstractModel|array|null|false {
+    public function get(Query $query, ?array $params = []) : \App\Abstracts\AbstractModel {
         if ($query instanceof Query) {
             $new_model = new static();
             $new_model->setRules($this->getRules());
@@ -305,8 +305,6 @@ trait CrudOperationsTrait
             $model->setResult($results);
             return $model;
         }
-
-
     }
 
     
@@ -736,13 +734,32 @@ trait CrudOperationsTrait
      * }
      * ```
      *
-     * @param mixed $id Primary key of the record to delete
+     * @param mixed|null $id Primary key of the record to delete. If null, deletes the first stored record
      * @return bool True if deletion was successful, false otherwise
      */
-    public function delete($id): bool
+    public function delete($id = null): bool
     {
         $this->error = false;
         $this->last_error = '';
+
+        if ($id === null || $id === '') {
+            if (!is_array($this->records_objects)) {
+                throw new \Exception('Delete without id requires exactly one loaded record in records_objects.');
+            }
+            $record_count = count($this->records_objects);
+            if ($record_count !== 1) {
+                throw new \Exception('Delete without id requires exactly one loaded record in records_objects; found ' . $record_count . '.');
+            }
+            $record = reset($this->records_objects);
+            if (!is_array($record) || !array_key_exists($this->primary_key, $record)) {
+                throw new \Exception('Delete without id requires a loaded record with a valid primary key.');
+            }
+            $candidate_id = $record[$this->primary_key];
+            if ($candidate_id === null || $candidate_id === '' || $candidate_id === 0) {
+                throw new \Exception('Delete without id requires a loaded record with a valid primary key.');
+            }
+            $id = $candidate_id;
+        }
 
         // Hook beforeDelete (chiamato prima di cancellare il record)
         $ris = true;
@@ -794,6 +811,47 @@ trait CrudOperationsTrait
             $this->last_error = $e->getMessage();
             return false;
         }
+    }
+
+    /**
+     * Delete all stored records from the database
+     *
+     * @return bool True if all deletions were successful, false otherwise
+     */
+    public function deleteAll(): bool
+    {
+        $this->error = false;
+        $this->last_error = '';
+
+        if (!is_array($this->records_objects) || empty($this->records_objects)) {
+            return true;
+        }
+
+        $ids = [];
+        foreach ($this->records_objects as $record) {
+            if (!is_array($record) || !array_key_exists($this->primary_key, $record)) {
+                continue;
+            }
+            $candidate_id = $record[$this->primary_key];
+            if ($candidate_id === null || $candidate_id === '' || $candidate_id === 0) {
+                continue;
+            }
+            $ids[] = $candidate_id;
+        }
+
+        if (empty($ids)) {
+            $this->error = true;
+            $this->last_error = 'No record ids available for deletion.';
+            return false;
+        }
+
+        foreach ($ids as $delete_id) {
+            if (!$this->delete($delete_id)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

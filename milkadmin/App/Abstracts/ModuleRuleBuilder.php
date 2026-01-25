@@ -1,6 +1,8 @@
 <?php
 namespace App\Abstracts;
 
+use App\Version;
+
 !defined('MILK_DIR') && die(); // Prevent direct access
 
 /**
@@ -16,7 +18,7 @@ namespace App\Abstracts;
  *          ->title('Posts')
  *          ->menu('Posts', '', 'bi bi-file-earmark-post-fill', 10)
  *          ->access('registered')
- *          ->version(250901);
+ *          ->version('1.0.0');
  * }
  */
 class ModuleRuleBuilder
@@ -99,10 +101,10 @@ class ModuleRuleBuilder
     protected ?bool $is_core_module = null;
 
     /**
-     * Version of the module
-     * @var int|null
+     * Version of the module (semver or legacy numeric).
+     * @var string|null
      */
-    protected ?int $version = null;
+    protected ?string $version = null;
 
     /**
      * Extensions to load
@@ -359,12 +361,12 @@ class ModuleRuleBuilder
     /**
      * Set the module version
      *
-     * @param int $version Version number
+     * @param string|int $version Version number
      * @return self
      */
-    public function version(int $version): self
+    public function version(string|int $version): self
     {
-        $this->version = $version;
+        $this->version = Version::normalize($version);
         return $this;
     }
 
@@ -571,7 +573,7 @@ class ModuleRuleBuilder
         return $this->is_core_module;
     }
 
-    public function getVersion(): ?int
+    public function getVersion(): ?string
     {
         return $this->version;
     }

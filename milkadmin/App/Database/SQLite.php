@@ -118,16 +118,17 @@ class SQLite
      * @var array
      */
     private $views_list = array();
+    
     /**
      * List of columns for each table (cache)
      * 
      * @var null|array
      */
-     private $show_columns_list = null; 
-
-     /** 
+    private $show_columns_list = null;
+    
+    /**
      * Constructor that initializes the connection with an optional table prefix
-     * 
+     *
      * @param string $prefix Optional prefix for database tables
      */
     function __construct($prefix = '') {
@@ -183,7 +184,7 @@ class SQLite
         $this->query_columns = [];
 
         $sql_to_log = $sql;
-       
+        
         try {
             $stmt = $this->sqlite->prepare($sql);
 

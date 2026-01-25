@@ -97,7 +97,6 @@ $search = SearchBuilder::create($chart_id)
             'paid' => 'Paid',
             'pending' => 'Pending',
         ])
-        ->floating(false)
         ->layout('inline');
 
 $response = array_merge($this->getCommonData(), $chart->getResponse());

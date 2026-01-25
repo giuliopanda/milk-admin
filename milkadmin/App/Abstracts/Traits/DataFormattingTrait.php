@@ -163,7 +163,7 @@ trait DataFormattingTrait
 
 
 
-        // PRIORITY 2: Handle created_at fields with auto-preservation
+        // Handle created_at fields with auto-preservation
         if (isset($rule['_auto_created_at']) && $rule['_auto_created_at'] === true) {
             $id_field = $this->getPrimaryKey();
             $current_record = $this->getRawData('object', false);
@@ -187,9 +187,17 @@ trait DataFormattingTrait
             return date('Y-m-d H:i:s');
         }
 
-        // PRIORITY 3: Check for save_value (static values)
+        // Check for save_value (static values)
         if (isset($rule['save_value'])) {
-            return $rule['save_value'];
+
+             return $rule['save_value'];
+        }
+
+        if (($rule['nullable'] ?? false) && $value === '') {
+            $type = $rule['type'] ?? null;
+            if (in_array($type, ['id', 'int', 'tinyint', 'float', 'bool', 'date', 'datetime', 'timestamp', 'time'], true)) {
+                return null;
+            }
         }
 
         // Handle array conversion to JSON

@@ -4,7 +4,7 @@ use App\Route;
 /**
  * @title Abstract Model - Overview
  * @guide developer
- * @order 50
+ * @order 40
  * @tags AbstractModel, model, database, overview, configure, traits, architecture
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
@@ -16,7 +16,7 @@ use App\Route;
 
     <div class="alert alert-info">
         <strong>Table Structure Documentation:</strong>
-        For complete information about defining table structures and using the RuleBuilder, see the <a href="<?php echo Route::url('?page=docs&action=Developer/AbstractsClass/abstract-model-rulebuilder'); ?>">RuleBuilder documentation</a>.
+        For complete information about defining table structures and using the RuleBuilder, see the <a href="<?php echo Route::url('?page=docs&action=Developer/Model/abstract-model-rulebuilder'); ?>">RuleBuilder documentation</a>.
     </div>
     <h2 class="mt-4">Defining a Model</h2>
 
@@ -44,6 +44,46 @@ class ProductsModel extends AbstractModel
         <strong>⚠️ Important:</strong> The <code>#__</code> prefix in table names is automatically replaced with the actual database prefix configured in your settings.
     </div>
 
+    <h3 class="mt-3">Recommended Directory Structure</h3>
+    <p>Organize your module files following this pattern:</p>
+    <pre class="language-php"><code>milkadmin_local/Modules/Products/
+  ProductsModel.php       # Data model
+  ProductsService.php     # Business logic
+  ProductsModule.php      # Controller/routing
+  Views/                  # Templates
+    list.php
+    edit.php</code></pre>
+
+    <h3>Common Field Types Quick Reference</h3>
+    <p>Most frequently used field types:</p>
+    <pre class="language-php"><code>// Text fields
+$rule->string('NAME', 100)->required();
+$rule->text('DESCRIPTION')->nullable();
+
+// Numbers
+$rule->int('QUANTITY')->default(0);
+$rule->decimal('PRICE', 10, 2)->required();
+$rule->bool('ACTIVE')->default(true);
+
+// Dates and times
+$rule->date('START_DATE')->formType('date');
+$rule->datetime('EVENT_TIME')->formType('datetime');
+$rule->time('OPENING_TIME')->formType('time');
+
+// Special types
+$rule->enum('STATUS', ['draft', 'published', 'archived'])->default('draft');
+$rule->list('CATEGORY', ['A' => 'Category A', 'B' => 'Category B'])->formType('select');
+$rule->array('TAGS')->default([]);</code></pre>
+
+    <h3>Common Modifiers</h3>
+    <p>Chain multiple modifiers for complete field configuration:</p>
+    <pre class="language-php"><code>$rule->string('EMAIL', 100)
+    ->label('Email Address')
+    ->required()
+    ->unique()
+    ->index()
+    ->hideFromEdit()           // Hide in edit form
+    ->formType('email');</code></pre>
 
     <h3>Standalone Usage</h3>
     <p>You can also instantiate and use models directly:</p>
@@ -62,6 +102,16 @@ $cheapProducts = $products
     ->getResults();</code></pre>
 
     <h2 class="mt-4">Key Concepts</h2>
+
+    <h3>Model State and Immutability</h3>
+    <div class="alert alert-warning">
+        <strong>⚠️ Important Behavior:</strong> Models hold query results internally. When you build a new query, you get a <strong>new Model instance</strong> with new results. The original model instance remains unchanged.
+    </div>
+    <pre class="language-php"><code>$model = new ProductsModel();
+$allProducts = $model->getAll();        // Model with all products
+$activeProducts = $model->where('active = ?', [1])->getResults();  // NEW Model, only active
+
+// $allProducts still has all products - it hasn't changed!</code></pre>
 
     <h3>Query Builder Pattern</h3>
     <p>Most query methods return a <code>Query</code> instance, allowing you to chain multiple operations. You must call <code>getResults()</code> or <code>getRow()</code> to execute the query and get back a Model:</p>
@@ -86,7 +136,7 @@ $product = $model
             <li><code>getRow()</code> - Executes the query and returns a Model with a single record, or null if not found</li>
             <li><code>getVar()</code> - Executes the query and returns a single value (useful for COUNT, SUM, etc.)</li>
         </ul>
-        <p class="mb-0 mt-2">💡 <strong>Learn more:</strong> See <a href="?page=docs&action=Developer/AbstractsClass/abstract-model-queries">Query Builder Methods</a> for complete documentation.</p>
+        <p class="mb-0 mt-2">💡 <strong>Learn more:</strong> See <a href="?page=docs&action=Developer/Model/abstract-model-queries">Query Builder Methods</a> for complete documentation.</p>
     </div>
 
     <h3>Result Set Navigation</h3>
@@ -198,11 +248,11 @@ if ($product->validate()) {
         <strong>📚 Explore More:</strong>
         <ul class="mb-0">
             <li><a href="?page=docs&action=Developer/GettingStarted/getting-started-model">Getting Started with Models</a> - Beginner tutorial</li>
-            <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-queries">Query Builder Methods</a> - Advanced queries</li>
-            <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-crud">CRUD Operations</a> - Detailed CRUD documentation</li>
-            <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-relationships">Relationships</a> - hasOne, belongsTo, hasMany</li>
+            <li><a href="?page=docs&action=Developer/Model/abstract-model-queries">Query Builder Methods</a> - Advanced queries</li>
+            <li><a href="?page=docs&action=Developer/Model/abstract-model-crud">CRUD Operations</a> - Detailed CRUD documentation</li>
+            <li><a href="?page=docs&action=Developer/Model/abstract-model-relationships">Relationships</a> - hasOne, belongsTo, hasMany</li>
             <li><a href="?page=docs&action=Framework/Core/schema">Schema</a> - Table schema management</li>
-            <li><a href="?page=docs&action=Developer/AbstractsClass/abstract-model-attributes">Attributes</a> - Manage operations of individual fields</li>
+            <li><a href="?page=docs&action=Developer/Model/abstract-model-attributes">Attributes</a> - Manage operations of individual fields</li>
         </ul>
     </div>
 </div>

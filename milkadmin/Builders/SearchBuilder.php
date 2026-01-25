@@ -62,7 +62,6 @@ class SearchBuilder {
             'placeholder' => '',
             'class' => '',
             'layout' => 'inline',
-            'floating' => false,
             'options' => []
         ];
         $this->current_field = array_key_last($this->fields);
@@ -79,7 +78,6 @@ class SearchBuilder {
             'label' => '',
             'class' => '',
             'layout' => 'inline',
-            'floating' => false,
             'select_options' => [],
             'selected' => '',
             'options' => []
@@ -119,7 +117,6 @@ class SearchBuilder {
             'placeholder' => '',
             'class' => '',
             'layout' => 'inline',
-            'floating' => false,
             'value' => '',
             'options' => []
         ];
@@ -174,16 +171,6 @@ class SearchBuilder {
     public function placeholder(string $placeholder): self {
         if ($this->current_field !== null) {
             $this->fields[$this->current_field]['placeholder'] = $placeholder;
-        }
-        return $this;
-    }
-
-    /**
-     * Sets floating label mode for the current field
-     */
-    public function floating(bool $enabled = true): self {
-        if ($this->current_field !== null) {
-            $this->fields[$this->current_field]['floating'] = $enabled;
         }
         return $this;
     }
@@ -429,7 +416,7 @@ class SearchBuilder {
                 break;
             case 'inline':
             default:
-                $container_classes .= ' d-inline-flex align-middle';
+                $container_classes .= ' d-inline-flex align-items-center gap-2';
                 $input_group_classes = 'input-group w-auto';
                 break;
         }
@@ -475,9 +462,11 @@ class SearchBuilder {
      */
     private function renderSelectField(array $field, string $filter_class): string {
         $options = $this->prepareFieldOptions($field, $filter_class);
-        $options['floating'] = $field['floating'] ?? false;
         $layout = $field['layout'] ?? 'inline';
         $custom_class = $field['class'] ?? '';
+        if ($layout === 'inline') {
+            $options['class'] .= ' w-auto';
+        }
 
         // Container classes based on layout
         $container_classes = 'select-field-container';
@@ -494,7 +483,7 @@ class SearchBuilder {
                 break;
             case 'inline':
             default:
-                $container_classes .= ' d-inline-block w-auto';
+                $container_classes .= ' d-inline-flex align-items-center gap-2';
                 break;
         }
 
@@ -545,7 +534,7 @@ class SearchBuilder {
                 break;
             case 'inline':
             default:
-                $container_classes .= ' d-inline-block';
+                $container_classes .= ' d-inline-flex align-items-center gap-2';
                 $action_list_classes = 'js-action-list action-list-container d-inline-flex align-items-center gap-2';
                 break;
         }
@@ -601,10 +590,12 @@ class SearchBuilder {
      */
     private function renderInputField(array $field, string $filter_class): string {
         $options = $this->prepareFieldOptions($field, $filter_class);
-        $options['floating'] = $field['floating'] ?? false;
         $options['placeholder'] = $field['placeholder'] ?? '';
         $layout = $field['layout'] ?? 'inline';
         $custom_class = $field['class'] ?? '';
+        if ($layout === 'inline') {
+            $options['class'] .= ' w-auto';
+        }
 
         // Container classes based on layout
         $container_classes = 'input-field-container';
@@ -621,7 +612,7 @@ class SearchBuilder {
                 break;
             case 'inline':
             default:
-                $container_classes .= ' d-inline-block w-auto';
+                $container_classes .= ' d-inline-flex align-items-center gap-2';
                 break;
         }
 
@@ -680,6 +671,9 @@ class SearchBuilder {
      */
     private function prepareFieldOptions(array $field, string $filter_class): array {
         $options = $field['options'] ?? [];
+
+        // SearchBuilder fields should never use floating labels
+        $options['floating'] = false;
         
         // Generate unique ID based on table ID and filter type
         $options['id'] = $this->table_id . 'SearchForm' . ucfirst($field['filter_type']);

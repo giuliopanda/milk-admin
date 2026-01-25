@@ -5,6 +5,12 @@ use App\{Hooks, MessagesHandler, Route};
 use Theme\Template;
 
 if (!defined('MILK_DIR')) die();
+
+$admin_credentials = $_SESSION['installation_admin'] ?? [];
+$admin_username = $admin_credentials['admin-username'] ?? '';
+$admin_password = $admin_credentials['admin-password'] ?? '';
+$admin_username_display = htmlspecialchars($admin_username !== '' ? $admin_username : '-', ENT_QUOTES, 'UTF-8');
+$admin_password_display = htmlspecialchars($admin_password !== '' ? $admin_password : '-', ENT_QUOTES, 'UTF-8');
 ?>
 <div class="text-center m-3">
     <?php Template::getLogo(); ?>
@@ -26,8 +32,12 @@ if (!defined('MILK_DIR')) die();
     <?php else: ?>
         <p><?php _pt('You can now log in with the following credentials:'); ?></p>
     <?php endif; ?>
-        <p><?php _ph('<b>User:</b> admin'); ?><br>
-        <?php _ph('<b>Password:</b> admin'); ?></p>
+        <p><?php _ph('<b>User:</b> '.$admin_username_display); ?><br>
+        <?php _ph('<b>Password:</b> '.$admin_password_display); ?></p>
+        <p class="text-body-secondary">
+            <?php _pt('If you forget the password, you can create an emergency administrator from the shell with:'); ?>
+            <code>php milkadmin/cli.php create-administrator</code>
+        </p>
         <p><a href="<?php _p(Route::url('?page=auth&action=login'))?>" class="btn btn-primary"><?php _pt('Go to the login page'); ?></a></p>
   
         <p><?php _pt('Please check the error message below:'); ?></p>
