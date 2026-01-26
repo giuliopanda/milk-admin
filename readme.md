@@ -249,20 +249,6 @@ Milk Admin separates the framework core from project-specific code.
 This design is inspired by real-world systems that evolve over time, not throwaway applications.
 
 
-## Current Status
-
-**Alpha Release**
-
-**What works well:**
-
-* Stable core architecture
-* Productive builder system
-* Integrated security
-* Active documentation
-
-**Ideal for:** Personal projects, experimentation, learning
-**Not yet recommended for:** Production or mission-critical systems
-
 ---
 
 ## Roadmap
