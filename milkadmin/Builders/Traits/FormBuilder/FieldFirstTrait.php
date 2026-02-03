@@ -307,6 +307,94 @@ trait FieldFirstTrait
         return $this;
     }
 
+    /**
+     * Set calculated expression for current field (MilkForm)
+     *
+     * @param string $expression Expression to calculate field value
+     * @return static For method chaining
+     *
+     * @example ->field('total')->calcExpr('[qty] * [price]')
+     */
+    public function calcExpr(string $expression): static
+    {
+        $key = $this->requireCurrentField('calcExpr');
+
+        if (!isset($this->fields[$key]['form-params'])) {
+            $this->fields[$key]['form-params'] = [];
+        }
+        $this->fields[$key]['form-params']['data-milk-expr'] = $expression;
+
+        return $this;
+    }
+
+    /**
+     * Set default expression for current field (MilkForm, JS only)
+     *
+     * @param string $expression Expression to calculate default value
+     * @return static For method chaining
+     *
+     * @example ->field('end_time')->defaultExpr('TIMEADD([start_time], 45)')
+     */
+    public function defaultExpr(string $expression): static
+    {
+        $key = $this->requireCurrentField('defaultExpr');
+
+        if (!isset($this->fields[$key]['form-params'])) {
+            $this->fields[$key]['form-params'] = [];
+        }
+        $this->fields[$key]['form-params']['data-milk-default-expr'] = $expression;
+
+        return $this;
+    }
+
+    /**
+     * Set validation expression for current field (MilkForm)
+     *
+     * @param string $expression Expression that must evaluate to true
+     * @param string|null $message Optional validation message
+     * @return static For method chaining
+     *
+     * @example ->field('end_date')->validateExpr('[start_date] < [end_date]', 'La data di fine deve essere successiva')
+     */
+    public function validateExpr(string $expression, ?string $message = null): static
+    {
+        $key = $this->requireCurrentField('validateExpr');
+
+        if (!isset($this->fields[$key]['form-params'])) {
+            $this->fields[$key]['form-params'] = [];
+        }
+        $this->fields[$key]['form-params']['data-milk-validate-expr'] = $expression;
+        if ($message !== null) {
+            $this->fields[$key]['form-params']['data-milk-message'] = $message;
+        }
+
+        return $this;
+    }
+
+    /**
+     * Make current field required if expression evaluates to true (MilkForm)
+     *
+     * @param string $expression Expression that makes field required
+     * @param string|null $message Optional validation message
+     * @return static For method chaining
+     *
+     * @example ->field('notes')->requireIf('[plan] == "enterprise"', 'Note obbligatorie per piano enterprise')
+     */
+    public function requireIf(string $expression, ?string $message = null): static
+    {
+        $key = $this->requireCurrentField('requireIf');
+
+        if (!isset($this->fields[$key]['form-params'])) {
+            $this->fields[$key]['form-params'] = [];
+        }
+        $this->fields[$key]['form-params']['data-milk-required-if'] = $expression;
+        if ($message !== null) {
+            $this->fields[$key]['form-params']['data-milk-message'] = $message;
+        }
+
+        return $this;
+    }
+
   /**
      * Reset all fields - hides all existing fields from the model
      * Useful when you want to start with a clean slate and only show specific fields
@@ -370,6 +458,74 @@ trait FieldFirstTrait
         $this->fields = $newFields;
 
         return $this;
+    }
+
+    /**
+     * Alias for moveBefore() - keeps fluent chains short
+     *
+     * @param string $fieldName Field name to insert before
+     * @return static For method chaining
+     *
+     * @example ->addHtml('...')->before('email')
+     */
+    public function before(string $fieldName): static
+    {
+        return $this->moveBefore($fieldName);
+    }
+
+    /**
+     * Move current field after another field
+     *
+     * @param string $fieldName Field name to insert after
+     * @return static For method chaining
+     *
+     * @example ->field('email')->moveAfter('password')
+     */
+    public function moveAfter(string $fieldName): static
+    {
+        $key = $this->requireCurrentField('moveAfter');
+
+        if (!isset($this->fields[$key])) {
+            return $this;
+        }
+
+        // If target field doesn't exist, do nothing
+        if (!isset($this->fields[$fieldName])) {
+            return $this;
+        }
+
+        // Store the field to move
+        $fieldToMove = $this->fields[$key];
+
+        // Remove from current position
+        unset($this->fields[$key]);
+
+        // Rebuild array with field in new position
+        $newFields = [];
+        foreach ($this->fields as $name => $field) {
+            $newFields[$name] = $field;
+            if ($name === $fieldName) {
+                // Insert field after target
+                $newFields[$key] = $fieldToMove;
+            }
+        }
+
+        $this->fields = $newFields;
+
+        return $this;
+    }
+
+    /**
+     * Alias for moveAfter() - keeps fluent chains short
+     *
+     * @param string $fieldName Field name to insert after
+     * @return static For method chaining
+     *
+     * @example ->addHtml('...')->after('email')
+     */
+    public function after(string $fieldName): static
+    {
+        return $this->moveAfter($fieldName);
     }
 
     /**

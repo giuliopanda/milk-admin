@@ -3,6 +3,8 @@ namespace App\Abstracts\Traits;
 
 use App\{Logs, MessagesHandler, Database\Query};
 use App\{Get, Config, ExtensionLoader};
+use App\Abstracts\AbstractModel;
+
 
 !defined('MILK_DIR') && die();
 
@@ -49,7 +51,7 @@ trait CrudOperationsTrait
             return null;
         }
 
-        $query = $this->query();
+        $query = $this->newQuery();
         $new_model = new static();
         $new_model->setRules($this->getRules());
         // Propagate include_relationships from current model to new model
@@ -58,7 +60,10 @@ trait CrudOperationsTrait
         }
 
         $query->setModelClass($new_model);
-        return  $query->where($this->primary_key . ' = ?', [$id])->limit(0, 1)->getRow();
+
+        $ris = $query->where($this->primary_key . ' = ?', [$id])->getRow();
+        $this->current_query = null;
+        return $ris;
 
     }
 
@@ -99,7 +104,7 @@ trait CrudOperationsTrait
 
         // Build WHERE clause for multiple IDs
         $placeholders = str_repeat('?,', count($id_array) - 1) . '?';
-        $query = $this->query();
+        $query = $this->newQuery();
         $new_model = new static();
         $new_model->setRules($this->getRules());
         // Propagate include_relationships from current model to new model
@@ -110,7 +115,27 @@ trait CrudOperationsTrait
         $query->setModelClass($new_model);
         $query->where($this->db->qn($id_name) . ' IN (' . $placeholders . ')', $id_array);
 
-        return $query->getResults();
+        $ris = $query->getResults();
+        $this->current_query = null;
+        return $ris;
+    }
+
+    public function getRow(): AbstractModel  {
+        $ris = $this->current_query->getRow();
+        $this->current_query = null;
+        return $ris;
+    }
+
+    public function getResults(): AbstractModel {
+        $ris = $this->current_query->getResults();
+        $this->current_query = null;
+        return $ris;
+    }
+
+    public function getVar(?string $value = null) : mixed {
+        $ris = $this->current_query->getVar($value);
+        $this->current_query = null;
+        return $ris;
     }
 
     /**

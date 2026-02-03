@@ -18,7 +18,7 @@ use ReflectionClass;
  *     public function configure($builder): void
  *     {
  *         // Add or modify form fields
- *         $builder->addField('custom_field', 'text', 'Custom Field', '');
+ *         $builder->addField('custom_field', 'text', ['label' => 'Custom Field']);
  *     }
  *
  *     public function beforeRender(array $fields): array

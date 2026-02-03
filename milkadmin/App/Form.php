@@ -1015,6 +1015,9 @@ class Form
         }
 
         $invalid_class = MessagesHandler::getInvalidClass($normalized_name);
+        if ($invalid_class == '' && $normalized_name !== $name) {
+            $invalid_class = MessagesHandler::getInvalidClass($name);
+        }
         if ($invalid_class != '') {
             $options['class'] = (array_key_exists('class', $options)) ?
                 $options['class'] . " " . $invalid_class :
@@ -1026,12 +1029,14 @@ class Form
                 // First check if there's a message with this exact field name
                 if (isset($errors[$normalized_name])) {
                     $options['invalid-feedback'] = $errors[$normalized_name];
+                } else if (isset($errors[$name])) {
+                    $options['invalid-feedback'] = $errors[$name];
                 } else {
                     // Otherwise, search for the field in composite keys (e.g., "field1|field2")
                     foreach ($errors as $key => $message) {
                         if (strpos($key, '|') !== false) {
                             $fields = explode('|', $key);
-                            if (in_array($normalized_name, $fields)) {
+                            if (in_array($normalized_name, $fields, true) || in_array($name, $fields, true)) {
                                 $options['invalid-feedback'] = $message;
                                 break;
                             }

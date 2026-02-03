@@ -74,7 +74,7 @@ define('STORAGE_DIR', realpath(LOCAL_DIR.'/'.Config::get('storage_dir', 'storage
  *
  * @global string NEW_VERSION
  */
-define('NEW_VERSION', '0.9.0');
+define('NEW_VERSION', '0.9.1');
 
 $current_version = Config::get('version');
 $normalized_version = Version::normalize($current_version);

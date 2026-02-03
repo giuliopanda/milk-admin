@@ -1,5 +1,16 @@
 ## Changelog
 
+### v260203
+- New: Expression system (PHP + JS) with `ExpressionParser` and frontend parser, plus docs (overview, syntax, API, examples)
+- New: FormBuilder expression helpers (calcExpr, defaultExpr, validateExpr, requireIf, showIf) with `milk-form.js`
+- New: ModelValidator for expression-based required/validation rules
+- Improved: RuleBuilder/ObjectToForm/FormBuilder traits for expression mapping and conditional visibility
+- Improved: AbstractModel / QueryBuilder / ArrayDb refinements and documentation
+- Improved: ScheduleGrid and MilkSelect plugins plus related docs
+- bug fix: schema database update
+- bug fix: small bugs in save data
+- Updated: Documentation
+
 ### v260125
 - New: ScheduleGridBuilder - Advanced grid system for schedule and planning visualization
 - New: ScheduleGrid Theme Plugin with GridRenderer and interactive JavaScript components
@@ -63,7 +74,6 @@
 - Remove Deprecated Methods
 - Add Comments Extensions
 
-
 ### v251217 
 - Better handling of related tables
 - Builder Improvements
@@ -78,7 +88,6 @@
 - Minor and medium bug fixes
 - Improved documentation
 
-
 ### v251124 
 - Refactored error handling in framework classes
 - Date formatting system refactor
@@ -90,7 +99,6 @@
 - Development of the CalendarBuilder.
 - Improved the invalid field handling system.
 - Various bug fixes.
-
 
 ### v251101
 Major rewrite introducing modern PHP practices and professional architecture:

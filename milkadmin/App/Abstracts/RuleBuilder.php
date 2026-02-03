@@ -726,6 +726,18 @@ class RuleBuilder
     }
 
     /**
+     * Make field required only if expression evaluates to true
+     *
+     * @param string $expression ExpressionParser expression
+     * @return self
+     */
+    public function requireIf(string $expression): self
+    {
+        $this->rules[$this->current_field]['required_expr'] = $expression;
+        return $this;
+    }
+
+    /**
      * Set as primary key
      *
      * @return self
@@ -875,6 +887,34 @@ class RuleBuilder
             $this->rules[$this->current_field]['form-params'] = [];
         }
         $this->rules[$this->current_field]['form-params']['invalid-feedback'] = $message;
+        return $this;
+    }
+
+    /**
+     * Set calculated value expression (ExpressionParser syntax)
+     *
+     * @param string $expression Calculation expression
+     * @return self
+     */
+    public function calcExpr(string $expression): self
+    {
+        $this->rules[$this->current_field]['calc_expr'] = $expression;
+        return $this;
+    }
+
+    /**
+     * Set validation expression (ExpressionParser syntax)
+     *
+     * @param string $expression Validation expression
+     * @param string|null $message Optional error message
+     * @return self
+     */
+    public function validateExpr(string $expression, ?string $message = null): self
+    {
+        $this->rules[$this->current_field]['validate_expr'] = $expression;
+        if ($message !== null) {
+            $this->error($message);
+        }
         return $this;
     }
 

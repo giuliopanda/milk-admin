@@ -6,7 +6,7 @@
 [![PHP Version](https://img.shields.io/badge/PHP-8%2B-purple.svg)](https://www.php.net/)
 [![MySQL](https://img.shields.io/badge/MySQL-supported-blue.svg)](https://www.mysql.com/)
 [![SQLite](https://img.shields.io/badge/SQLite-supported-blue.svg)](https://www.sqlite.org/)
-[![Status](https://img.shields.io/badge/Status-Beta-yellow.svg)](https://github.com/giuliopanda/milk-admin)
+[![Status](https://img.shields.io/badge/Status-Alpha-orange.svg)](https://github.com/giuliopanda/milk-admin)
 [![Documentation](https://img.shields.io/badge/Docs-Online-green.svg)](https://milkadmin.org/milk-admin-v251100/?page=docs&action=Developer/GettingStarted/introduction)
 
 ---
@@ -18,8 +18,8 @@ It focuses on **explicit control**, **relational CRUD flows**, and **long-term m
 Milk Admin provides a stable and structured backend core, modern PHP 8+ code, and minimal dependencies — allowing developers to focus on real business logic instead of framework workarounds.
 
 > **Project Status**  
-> Milk Admin is currently in **Beta**.  
-> The core architecture is stable, and the system is now being used in a real project.
+> Milk Admin is currently in **Alpha**.  
+> The core architecture is stable and actively evolving, while APIs and features may change.
 
 **Official links:**  
 [Website](https://www.milkadmin.org/) ·  
@@ -248,16 +248,31 @@ Milk Admin separates the framework core from project-specific code.
 
 This design is inspired by real-world systems that evolve over time, not throwaway applications.
 
+
+## Current Status
+
+**Alpha Release**
+
+**What works well:**
+
+* Stable core architecture
+* Productive builder system
+* Integrated security
+* Active documentation
+
+**Ideal for:** Personal projects, experimentation, learning
+**Not yet recommended for:** Production or mission-critical systems
+
 ---
 
 ## Roadmap
 
 Milk Admin aims to become a solid foundation for professional admin interfaces and internal tools.
--
+
 **Focus areas:**
 
-* Improved stability and test coverage 
-* Advanced builders (charts, dashboards, reports) - Nearly finished
+* Improved stability and test coverage
+* Advanced builders (charts, dashboards, reports)
 * Enhanced notification and email systems
 * Two-factor authentication
 
@@ -296,3 +311,5 @@ Use it freely for personal or commercial projects.
 
 * Website: [https://www.milkadmin.org/](https://www.milkadmin.org/)
 * Documentation: [https://milkadmin.org/milk-admin-v251100/](https://milkadmin.org/milk-admin-v251100/)
+
+```

@@ -88,20 +88,73 @@ class ScheduleGrid {
 
         if (prev_button) {
             prev_button.addEventListener('click', () => {
+                this.applyPeriodFromButton(prev_button);
                 this.update_grid();
             });
         }
 
         if (next_button) {
             next_button.addEventListener('click', () => {
+                this.applyPeriodFromButton(next_button);
                 this.update_grid();
             });
         }
 
         if (today_button) {
             today_button.addEventListener('click', () => {
+                this.applyPeriodFromButton(today_button);
                 this.update_grid();
             });
+        }
+    }
+
+    /**
+     * Apply period data from button to form fields
+     */
+    applyPeriodFromButton(button) {
+        const period_data = button.getAttribute('data-period');
+        if (!period_data) {
+            return;
+        }
+
+        try {
+            const period = JSON.parse(period_data);
+            const form = this.el_container.querySelector('.js-schedulegrid-form');
+            if (!form) {
+                return;
+            }
+
+            // Update period type
+            const period_type_field = form.querySelector('.js-field-grid-period-type');
+            if (period_type_field && period.period_type) {
+                period_type_field.value = period.period_type;
+            }
+
+            // Update week field
+            if (period.week !== undefined) {
+                const week_field = form.querySelector('.js-field-grid-week');
+                if (week_field) {
+                    week_field.value = period.week;
+                }
+            }
+
+            // Update month field
+            if (period.month !== undefined) {
+                const month_field = form.querySelector('.js-field-grid-month');
+                if (month_field) {
+                    month_field.value = period.month;
+                }
+            }
+
+            // Update year field
+            if (period.year !== undefined) {
+                const year_field = form.querySelector('.js-field-grid-year');
+                if (year_field) {
+                    year_field.value = period.year;
+                }
+            }
+        } catch (e) {
+            console.error('Failed to parse period data:', e);
         }
     }
 

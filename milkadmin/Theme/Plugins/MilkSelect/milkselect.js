@@ -112,6 +112,7 @@ class MilkSelect {
     this.loadExistingValues();
     this.addEventListeners();
     this.isMultiple ? this.createNewInput() : this.createSingleInput();
+    this.applyInitialValidationState();
   }
 
   createDOM() {
@@ -136,6 +137,16 @@ class MilkSelect {
 
     this.container.append(this.wrapper, this.dropdown);
     this.hiddenInput.parentNode.insertBefore(this.container, this.hiddenInput.nextSibling);
+  }
+
+  getValidationContainer() {
+    return this.hiddenInput.closest('.form-floating, .mb-3, .col, .form-check') || this.hiddenInput.parentElement;
+  }
+
+  setContainerInvalid(isInvalid) {
+    const container = this.getValidationContainer();
+    if (!container) return;
+    container.classList.toggle('is-invalid', isInvalid);
   }
 
   loadExistingValues() {
@@ -246,6 +257,7 @@ class MilkSelect {
       // Only add is-invalid if form was already validated
       if (this.isFormValidated()) {
         this.wrapper.classList.add('is-invalid');
+        this.setContainerInvalid(true);
       }
     }
 
@@ -300,6 +312,7 @@ class MilkSelect {
     // Add event listener for invalid event to show validation error
     validationInput.addEventListener('invalid', (e) => {
       this.wrapper.classList.add('is-invalid');
+      this.setContainerInvalid(true);
       // Focus on the actual search input instead
       this.currentInput?.focus();
     });
@@ -457,6 +470,7 @@ class MilkSelect {
         this.validationInput.value = "valid"; // Set a value to pass validation
         this.validationInput.removeAttribute('required');
         this.wrapper.classList.remove('is-invalid');
+        this.setContainerInvalid(false);
         // Only add is-valid if form was already validated or field already had validation classes
         if (this.isFormValidated() || this.wrapper.classList.contains('is-invalid')) {
           this.wrapper.classList.add('is-valid');
@@ -474,6 +488,7 @@ class MilkSelect {
       if (this.isRequired) {
         this.currentInput.removeAttribute('required');
         this.wrapper.classList.remove('is-invalid');
+        this.setContainerInvalid(false);
         // Only add is-valid if form was already validated or field already had validation classes
         if (this.isFormValidated() || this.wrapper.classList.contains('is-invalid')) {
           this.wrapper.classList.add('is-valid');
@@ -488,6 +503,32 @@ class MilkSelect {
     // Check if the form has the 'was-validated' class
     const form = this.hiddenInput.closest('form');
     return form && form.classList.contains('was-validated');
+  }
+
+  applyInitialValidationState() {
+    const inputHasInvalid = this.currentInput?.classList.contains('is-invalid');
+    const hiddenHasInvalid = this.hiddenInput.classList.contains('is-invalid');
+
+    if (hiddenHasInvalid && this.currentInput && !inputHasInvalid) {
+      this.currentInput.classList.add('is-invalid');
+    }
+
+    if (inputHasInvalid || hiddenHasInvalid) {
+      this.wrapper.classList.add('is-invalid');
+      this.setContainerInvalid(true);
+      return;
+    }
+
+    if (this.isRequired && this.isFormValidated()) {
+      const hasValue = this.isMultiple
+        ? this.selectedValues.length > 0
+        : this.selectedValues.length > 0 && this.currentInput?.value;
+
+      if (!hasValue) {
+        this.wrapper.classList.add('is-invalid');
+        this.setContainerInvalid(true);
+      }
+    }
   }
 
   addMultipleItem(value) {
@@ -518,6 +559,7 @@ class MilkSelect {
       // Only add is-invalid if form was already validated
       if (this.isFormValidated()) {
         this.wrapper.classList.add('is-invalid');
+        this.setContainerInvalid(true);
       }
     }
   }
@@ -636,6 +678,7 @@ class MilkSelect {
         this.wrapper.classList.remove('is-invalid');
         this.hiddenInput.classList.remove('is-invalid');
         this.hiddenInput.classList.remove('js-focus-remove-is-invalid');
+        this.setContainerInvalid(false);
       }
       // Don't add is-valid on focus, only when a value is selected
     }, true);

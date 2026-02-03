@@ -10,6 +10,7 @@ namespace Modules\Docs\Pages;
 ?>
 <div class="bg-white p-4">
     <h1>Abstract Module Class</h1>
+    <p class="text-muted">Revision: 2026/01/28</p>
 
     <p>When creating a new module, the first step is to create a folder inside <code>/Modules/module-name</code>.
         <br>Once the folder is created, you need to create a file <code>{module-name}Module.php</code><br />
@@ -323,6 +324,10 @@ class PostsModule extends AbstractModule
      ->permission(['access' => 'Access Posts', 'edit' => 'Edit Posts']);
 </code></pre>
     <p>These permissions can be managed from the Users module.</p>
+    <p>You can also share a single permission across multiple modules by using the <code>group.permission</code> format as the array key. If the key contains exactly one dot, the part before the dot is used as the permission group and the part after the dot is the permission key. This makes the Users module show a single permission entry that grants access to all modules using that same group and key.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$rule->access('authorized')
+     ->permission(['school.access' => 'Access School']);
+</code></pre>
 
     <h2 class="mt-4">Menu Links</h2>
     <p>The <code>menu()</code> method adds links to the sidebar navigation. Parameters:</p>

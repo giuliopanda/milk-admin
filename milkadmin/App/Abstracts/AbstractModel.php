@@ -2,7 +2,7 @@
 namespace App\Abstracts;
 
 use App\Database\{ArrayDb, SQLite, MySql, ResultInterface};
-use App\{Get, Config, ExtensionLoader};
+use App\{Get, Config, ExtensionLoader, ExpressionParser};
 use App\Abstracts\Traits\{QueryBuilderTrait, CrudOperationsTrait, SchemaAndValidationTrait, DataFormattingTrait, RelationshipsTrait, CollectionTrait, CascadeSaveTrait, RelationshipDataHandlerTrait, CopyRulesTrait, ExtensionManagementTrait, ScopeTrait, VirtualTableTrait};
 use App\Attributes\{ToDisplayValue, ToDatabaseValue , GetRawValue, SetValue, Validate, DefaultQuery, Query as QueryAttribute};
 use ReflectionClass;
@@ -773,6 +773,8 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
                 $data = $this->filterDataByRules($row);
                 $data['___action'] = null; // null = originale, non modificato
                 $this->records_objects[$counter] = $data;
+                $this->current_index = $counter;
+                $this->applyCalculatedFieldsForCurrentRecord();
                 $counter++;
             }
         }
@@ -796,6 +798,7 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
         $this->records_objects[] = $data;
 
         $this->current_index = array_key_last($this->records_objects);
+        $this->applyCalculatedFieldsForCurrentRecord();
         $this->cleanEmptyRecords();
         $this->invalidateKeysCache();
     }
@@ -838,6 +841,7 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
                                 }
                                 $this->setValueWithConversion($key, $value);
                             }
+                            $this->applyCalculatedFieldsForCurrentRecord();
                             return $this;
                         }
                     }
@@ -879,6 +883,7 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
                      $this->records_objects[$this->current_index]['___action'] = 'insert';
                     $this->invalidateKeysCache();
                 }
+                $this->applyCalculatedFieldsForCurrentRecord();
                 return $this;
             }
         }
@@ -896,8 +901,55 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
         }
 
         $this->invalidateKeysCache();
+        $this->applyCalculatedFieldsForCurrentRecord();
 
         return $this;
+    }
+
+    public function applyCalculatedFieldsForAllRecords(): void
+    {
+        foreach ($this->records_objects as $index => $_) {
+            $this->current_index = $index;
+            $this->applyCalculatedFieldsForCurrentRecord();
+        }
+    }
+
+    /**
+     * Apply calculated field expressions for the current record.
+     *
+     * @return void
+     */
+    public function applyCalculatedFieldsForCurrentRecord(): void
+    {
+        if (!isset($this->records_objects[$this->current_index]) || !is_array($this->records_objects[$this->current_index])) {
+            return;
+        }
+
+        $rules = $this->getRules();
+        $record = $this->records_objects[$this->current_index];
+        $parser = null;
+
+        foreach ($rules as $field_name => $rule) {
+            $expression = $rule['calc_expr'] ?? null;
+            if (!is_string($expression) || trim($expression) === '') {
+                continue;
+            }
+            if ($parser === null) {
+                $parser = new ExpressionParser();
+            }
+            try {
+                $parser->setParameters($record);
+                $result = $parser->execute($expression);
+            } catch (\Throwable $e) {
+                continue;
+            }
+            if (($rule['form-type'] ?? null) === 'checkbox') {
+                // NOTE: Manteniamo boolean per coerenza con JS (milk-form.js).
+                $result = $parser->normalizeCheckboxValue($result);
+            }
+            $this->setValueWithConversion($field_name, $result);
+            $record = $this->records_objects[$this->current_index] ?? $record;
+        }
     }
 
     protected function cleanEmptyRecords(): void {
@@ -1107,6 +1159,24 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
 
     public function getDbType(): string {
         return $this->db_type;
+    }
+
+    /**
+     * Set the database type
+     *
+     * @param string $db_type The database type (db, db2, array)
+     * @return void
+     */
+    public function setDbType(string $db_type): void {
+        $this->db_type = $db_type;
+        if ($this->db_type === 'db2') {
+            $this->db = Get::db2();
+        } elseif ($this->db_type === 'array' || $this->db_type === 'arraydb') {
+            $this->db = Get::arrayDb();
+        } else {
+            $this->db = Get::db();
+            $this->db_type = 'db';
+        }
     }
 
 

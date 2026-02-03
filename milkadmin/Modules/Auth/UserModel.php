@@ -39,9 +39,9 @@ class UserModel extends AbstractModel {
 
     #[ToDatabaseValue('permissions')]
     public function sqlPermissions($current_record_obj) {
+        $save_permissions = [];
         $permissions = $current_record_obj->permissions;
         $permissions_groups = Permissions::getGroups();
-        $save_permissions = [];
         foreach ($permissions_groups as $group => $_) {
             $list_of_permissions = Permissions::get($group);
             foreach ($list_of_permissions as $permission_name => $_) {

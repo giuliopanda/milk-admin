@@ -122,6 +122,8 @@ class Query
      */
     private int $join_alias_counter = 0;
 
+    private ?string $last_executed_query = null;
+
     /**
      * Supported JOIN types
      */
@@ -824,6 +826,7 @@ class Query
     public function getResults(): AbstractModel|array|null|false
     {
         if ($this->db === null)  return null;
+        $this->last_executed_query = $this->toSql();
         
         if ($this->static_model !== null) {
             $result = $this->db->getResults(...$this->get());
@@ -850,6 +853,7 @@ class Query
     public function getRow(): AbstractModel|array|null|false
     {
         if ($this->db === null)  return null;
+        $this->last_executed_query = $this->toSql();
         
         $this->limit(0, 1);
         
@@ -857,10 +861,9 @@ class Query
             $this->static_model->setRow($this->db->getRow(...$this->get()));
             $this->static_model->setQueryColumns($this->db->getQueryColumns());
             $this->applyRelationships();
-            
             return $this->static_model;
         }
-        
+       
         return $this->db->getRow(...$this->get());
     }
 
@@ -875,6 +878,14 @@ class Query
     }
 
     /**
+     * Returns the last executed query if it was executed
+     */
+    public function getLastExecutedQuery(): ?string
+    {
+        return $this->last_executed_query;
+    }
+
+    /**
      * Executes the query and returns a single value
      *
      * @param string|null $value Column name to retrieve, or null for first column
@@ -885,6 +896,7 @@ class Query
         if ($this->db === null)  return null;
         $this->limit(0, 1);
         
+        $this->last_executed_query = $this->toSql();
         if ($value === null) {
             return $this->db->getVar(...$this->get());
         }

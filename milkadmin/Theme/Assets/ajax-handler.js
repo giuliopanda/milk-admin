@@ -604,4 +604,11 @@ function updateContainer(el) {
     autoDismissAlerts(8000, container);
 
     document.dispatchEvent(new CustomEvent('updateContainer', { detail: { el: el } }));
+
+    
+    container.querySelectorAll('form.js-needs-validation').forEach(form => {
+        initMilkForm(form);
+    });
+
+
 }

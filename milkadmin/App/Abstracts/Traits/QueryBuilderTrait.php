@@ -18,30 +18,54 @@ trait QueryBuilderTrait
     protected array $fn_filter = [];
 
     /**
+     * Current query instance (reused across calls)
+     * @var Query|null
+     */
+    protected ?Query $current_query = null;
+
+    /**
      * Create a new Query instance
      * 
-     * @param Query|null $query The query to use
      * @example
      * ```php
      * $rows = $this->model->query($custom_query)->getResults();
      * ```
      * @return Query The new Query instance
      */
-    public function query(?Query $query = null): ?Query
+    public function query(): ?Query
     {
-        if ($this->db === null) return new Query($this->table);
-        if ($query !== null && $query instanceof Query) {
-            $query->setModelClass($this);
-        } else {
-            $query = new Query($this->table, $this->db, $this);
+        $apply_scopes = false;
+        if ($this->current_query !== null) {
+            if ($this->current_query->getLastExecutedQuery() !== null) {
+                $this->current_query = null;
+            } else {    
+                return $this->current_query;
+            }
+        }
+        if ($this->current_query === null) {
+            $new_model = new static();
+            if (!empty($this->include_relationships)) {
+                $new_model->with($this->include_relationships);
+            }
+            $this->current_query = new Query($this->table, $this->db, $new_model);
+            $apply_scopes = true;
         }
 
         // Apply query scopes (default and named queries)
-        if (method_exists($this, 'applyQueryScopes')) {
-            $query = $this->applyQueryScopes($query);
+        if ($apply_scopes && method_exists($this, 'applyQueryScopes')) {
+            $this->current_query = $this->applyQueryScopes($this->current_query);
         }
 
-        return $query;
+        return $this->current_query;
+    }
+
+    /**
+     * Reset current query and return a new one
+     */
+    public function newQuery(): ?Query
+    {
+        $this->current_query = null;
+        return $this->query();
     }
 
     /**
@@ -59,14 +83,6 @@ trait QueryBuilderTrait
     public function where(string $condition, array $params = []): Query
     {
         $query =  $this->query();
-        $new_model = new static();
-
-        // Propagate include_relationships from current model to new model
-        if (!empty($this->include_relationships)) {
-            $new_model->with($this->include_relationships);
-        }
-
-        $query->setModelClass($new_model);
         $query->where($condition, $params);
         return $query;
     }
@@ -91,14 +107,6 @@ trait QueryBuilderTrait
     public function whereIn(string $field, array $values, string $operator = 'AND'): Query
     {
         $query = $this->query();
-        $new_model = new static();
-
-        // Propagate include_relationships from current model to new model
-        if (!empty($this->include_relationships)) {
-            $new_model->with($this->include_relationships);
-        }
-
-        $query->setModelClass($new_model);
         $query->whereIn($field, $values, $operator);
         return $query;
     }
@@ -127,14 +135,6 @@ trait QueryBuilderTrait
     public function whereHas(string $relationAlias, string $condition, array $params = []): Query
     {
         $query = $this->query();
-        $new_model = new static();
-
-        // Propagate include_relationships from current model to new model
-        if (!empty($this->include_relationships)) {
-            $new_model->with($this->include_relationships);
-        }
-
-        $query->setModelClass($new_model);
         $query->whereHas($relationAlias, $condition, $params);
         return $query;
     }
@@ -154,14 +154,6 @@ trait QueryBuilderTrait
     public function order(string|array $field = '', string $dir = 'asc'): Query
     {
         $query = $this->query();
-        $new_model = new static();
-
-        // Propagate include_relationships from current model to new model
-        if (!empty($this->include_relationships)) {
-            $new_model->with($this->include_relationships);
-        }
-
-        $query->setModelClass($new_model);
         $query->order($field, $dir);
         return $query;
     }
@@ -181,14 +173,6 @@ trait QueryBuilderTrait
     public function select(array|string $fields): Query
     {
         $query = $this->query();
-        $new_model = new static();
-
-        // Propagate include_relationships from current model to new model
-        if (!empty($this->include_relationships)) {
-            $new_model->with($this->include_relationships);
-        }
-
-        $query->setModelClass($new_model);
         if (is_array($fields)) {
             $fields = implode(', ', $fields);
         }
@@ -215,14 +199,6 @@ trait QueryBuilderTrait
             $start = 0;
         }
         $query = $this->query();
-        $new_model = new static();
-
-        // Propagate include_relationships from current model to new model
-        if (!empty($this->include_relationships)) {
-            $new_model->with($this->include_relationships);
-        }
-
-        $query->setModelClass($new_model);
         $query->limit($start, $limit);
         return $query;
     }
@@ -247,18 +223,12 @@ trait QueryBuilderTrait
     public function getFirst($order_field = '', $order_dir = 'asc'): ?static
     {
         $query = $this->query();
-        $new_model = new static();
-
-        // Propagate include_relationships from current model to new model
-        if (!empty($this->include_relationships)) {
-            $new_model->with($this->include_relationships);
-        }
-
-        $query->setModelClass($new_model);
         if ($order_field != '') {
             $query->order($order_field, $order_dir);
         }
-        return $query->getRow();
+        $result = $query->getRow();
+        $this->current_query = null;
+        return $result;
     }
 
     /**
@@ -282,20 +252,14 @@ trait QueryBuilderTrait
     public function getAll($order_field = '', $order_dir = 'asc'): static|array
     {
         if ($this->db === null) return [];
-        $query = $this->query();
+        $query = $this->newQuery();
         if ($order_field != '') {
             $query->order($order_field, $order_dir);
         }
-        $new_model = new static();
-
-        // Propagate include_relationships from current model to new model
-        if (!empty($this->include_relationships)) {
-            $new_model->with($this->include_relationships);
-        }
-
-        $query->setModelClass($new_model);
         $query->clean('limit');
-        return $query->getResults();
+        $result = $query->getResults();
+        $this->current_query = null;
+        return $result;
     }
 
     /**
@@ -315,6 +279,7 @@ trait QueryBuilderTrait
         if ($this->db === null) return 0;
         $query = $this->query();
         $total = (int)$query->clean('select')->select('COUNT(*) as total')->getVar();
+        $this->current_query = null;
         return $total;
     }
 

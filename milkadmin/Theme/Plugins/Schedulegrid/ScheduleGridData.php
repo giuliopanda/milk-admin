@@ -524,8 +524,11 @@ class ScheduleGridData {
             $start_time = $event['start_datetime']->format('H:i');
             $end_time = $event['end_datetime']->format('H:i');
 
-            // Check if event starts at or before this time slot and ends after
-            if ($start_time <= $col_time && $end_time > $col_time) {
+            // Check if event occupies this time slot
+            // An event from 19:00 to 20:30 occupies intervals: 19:00, 19:15, 19:30, ..., 20:15
+            // But NOT 20:30 (that's the next interval after the event ends)
+            // Condition: start_time <= col_time < end_time (half-open interval [start, end))
+            if ($start_time <= $col_time && $col_time < $end_time) {
                 return [
                     'event' => $event,
                     'is_start' => ($start_time == $col_time),

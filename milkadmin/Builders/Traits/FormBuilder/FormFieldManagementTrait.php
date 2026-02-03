@@ -32,63 +32,25 @@ trait FormFieldManagementTrait {
 
 
     /**
-     * Set conditional visibility for a field
+     * Set conditional visibility for a field or container using a milk expression
      *
-     * Makes a field visible only when another field has a specific value.
-     * When the condition is not met, the field is automatically hidden.
-     *
-     * @param string $field_name Field name to apply conditional visibility to
-     * @param string $toggle_field Field name to watch for changes
-     * @param string $toggle_value Value that will make the field visible
+     * @param string $field_or_expression Field/container id, or expression when using current field
+     * @param string|null $expression Milk expression that evaluates to true/false (optional with current field)
      * @return self For method chaining
-     *
-     * @example
-     * // Show 'activation_date' only when 'status' field equals 'active'
-     * ->showFieldWhen('activation_date', 'status', 'active')
-     *
-     * @example
-     * // Show 'shipping_address' only when 'has_shipping' checkbox is checked
-     * ->showFieldWhen('shipping_address', 'has_shipping', '1')
-     *
-     * @example
-     * // Multiple fields with same condition
-     * ->showFieldWhen('field1', 'status', 'active')
-     * ->showFieldWhen('field2', 'status', 'active')
-     * ->showFieldWhen('field3', 'status', 'inactive')
      */
-    public function showFieldWhen(string $field_name, string $toggle_field, string $toggle_value): self {
+    public function showIf(string $field_or_expression, ?string $expression = null): self {
+        if ($expression === null) {
+            $expression = $field_or_expression;
+            $field_name = $this->requireCurrentField('showIf');
+        } else {
+            $field_name = $field_or_expression;
+        }
+
         if (isset($this->fields[$field_name])) {
             if (!isset($this->fields[$field_name]['form-params'])) {
                 $this->fields[$field_name]['form-params'] = [];
             }
-            $this->fields[$field_name]['form-params']['toggle-field'] = $toggle_field;
-            $this->fields[$field_name]['form-params']['toggle-value'] = $toggle_value;
-        }
-        return $this;
-    }
-
-    /**
-     * Set conditional visibility for multiple fields with the same condition
-     *
-     * Makes multiple fields visible only when another field has a specific value.
-     * This is a convenience method to avoid repeating the same toggle condition.
-     *
-     * @param array $field_names Array of field names to apply conditional visibility to
-     * @param string $toggle_field Field name to watch for changes
-     * @param string $toggle_value Value that will make the fields visible
-     * @return self For method chaining
-     *
-     * @example
-     * // Show multiple fields only when 'status' equals 'active'
-     * ->showFieldsWhen(['activation_date', 'activated_by', 'notes'], 'status', 'active')
-     *
-     * @example
-     * // Show company-specific fields only when 'user_type' equals 'company'
-     * ->showFieldsWhen(['company_name', 'vat_number', 'registration_number'], 'user_type', 'company')
-     */
-    public function showFieldsWhen(array $field_names, string $toggle_field, string $toggle_value): self {
-        foreach ($field_names as $field_name) {
-            $this->showFieldWhen($field_name, $toggle_field, $toggle_value);
+            $this->fields[$field_name]['form-params']['data-milk-show'] = $expression;
         }
         return $this;
     }
@@ -106,8 +68,7 @@ trait FormFieldManagementTrait {
      */
     public function removeFieldCondition(string $field_name): self {
         if (isset($this->fields[$field_name]['form-params'])) {
-            unset($this->fields[$field_name]['form-params']['toggle-field']);
-            unset($this->fields[$field_name]['form-params']['toggle-value']);
+            unset($this->fields[$field_name]['form-params']['data-milk-show']);
         }
         return $this;
     }
@@ -163,6 +124,7 @@ trait FormFieldManagementTrait {
                     if (!isset($merged['name'])) $merged['name'] = $key;
                     // Always update record_object with current object to ensure relationships are accessible
                     $merged['record_object'] = $object;
+                    $merged = $this->applyMilkFormAttributes($merged);
                     $this->fields_copy[$key] = $merged;
                  
                     continue;
@@ -183,6 +145,7 @@ trait FormFieldManagementTrait {
                 if (!isset($merged['name'])) $merged['name'] = $key;
                 // Always update record_object with current object to ensure relationships are accessible
                 $merged['record_object'] = $object;
+                $merged = $this->applyMilkFormAttributes($merged);
 
                 $this->fields[$key] = $merged;
                 $this->fields_copy[$key] = $merged;
@@ -199,6 +162,7 @@ trait FormFieldManagementTrait {
                     'value' => '',
                     'row_value' => ''
                 ], $field);
+                $this->fields[$key] = $this->applyMilkFormAttributes($this->fields[$key]);
                 $this->fields_copy[$key] = $this->fields[$key];
             }
         }
@@ -207,38 +171,58 @@ trait FormFieldManagementTrait {
     }
 
     /**
+     * Map model expression rules to MilkForm data-* attributes.
+     *
+     * @param array $field
+     * @return array
+     */
+    protected function applyMilkFormAttributes(array $field): array
+    {
+        $form_params = $field['form-params'] ?? [];
+
+        if (isset($field['calc_expr']) && (!isset($form_params['data-milk-expr']) || $form_params['data-milk-expr'] === '')) {
+            $form_params['data-milk-expr'] = $field['calc_expr'];
+        }
+        if (isset($field['validate_expr']) && (!isset($form_params['data-milk-validate-expr']) || $form_params['data-milk-validate-expr'] === '')) {
+            $form_params['data-milk-validate-expr'] = $field['validate_expr'];
+        }
+        if (isset($field['required_expr']) && (!isset($form_params['data-milk-required-if']) || $form_params['data-milk-required-if'] === '')) {
+            $form_params['data-milk-required-if'] = $field['required_expr'];
+        }
+        if (isset($field['precision']) && (!isset($form_params['data-milk-precision']) || $form_params['data-milk-precision'] === '')) {
+            $form_params['data-milk-precision'] = $field['precision'];
+        }
+        if (isset($form_params['invalid-feedback']) && (!isset($form_params['data-milk-message']) || $form_params['data-milk-message'] === '')) {
+            $form_params['data-milk-message'] = $form_params['invalid-feedback'];
+        }
+
+        $field['form-params'] = $form_params;
+        return $field;
+    }
+
+    /**
      * Add a single field
      *
      * @param string $field_name Field name
      * @param string $type Field type
      * @param array $options Field options
-     * @param string $position_before Field position before another field
      * @return self For method chaining
      *
      * @example ->addField('name', 'string', ['label' => 'Name'])
+     * @example ->addField('name', 'string', ['label' => 'Name'])->before('email')
      */
-    public function addField($field_name, $type, $options = [], $position_before = ''): self {
-        $newFields = [];
+    public function addField($field_name, $type, $options = []): self {
         $newField = array_merge($options, ['type' => $type, 'name' => $field_name]);
-
-        foreach ($this->fields as $name => $field) {
-            if ($name === $position_before) {
-                // Inserisci il nuovo campo prima di quello indicato
-                $newFields[$field_name] = $newField;
-            }
-            $newFields[$name] = $field;
+        $this->current_field = $field_name;
+        if (!isset($this->fields[$field_name])) {
+            $this->fields[$field_name] = $newField;
         }
-
-        // Se $position_before non è stato trovato, aggiungi il nuovo campo in fondo
-        if (!array_key_exists($field_name, $newFields)) {
-            $newFields[$field_name] = $newField;
-        }
-
-        $this->fields = $newFields;
-        $this->fields_copy = $this->fields;
+        // Preserve existing fields_copy; only add/update the single field.
+        $this->fields_copy[$field_name] = array_merge($this->fields_copy[$field_name] ?? [], $newField);
         if (isset($this->removed_fields[$field_name])) {
             unset($this->removed_fields[$field_name]);
         }
+      
         return $this;
     }
 
@@ -375,38 +359,38 @@ trait FormFieldManagementTrait {
      * Add custom HTML content
      *
      * @param string $html Custom HTML content
-     * @param string $position_before Position before which to add the HTML
+     * @param string $field_name Optional field name for the HTML block
      * @return self For method chaining
      *
-     * @example ->addHtml('<div class="alert alert-info">Please fill all required fields</div>', 'before_fields')
+     * @example ->addHtml('<div class="alert alert-info">Please fill all required fields</div>', 'custom_html')
+     * @example ->addHtml('<div class="alert alert-info">Please fill all required fields</div>')->before('email')
      */
-    public function addHtml($html, $position_before = ''): self {
-         $field_name = "H1";
-         $count_field_name = 1;
-        while (isset($this->fields[$field_name])) {
-            $field_name = "H" . str_pad($count_field_name, 3, '0', STR_PAD_LEFT);
-            $count_field_name++;
-        }
-        $newFields = [];
-        $newField = ['type' => 'html', 'value' => '', 'html' => $html, 'name' => $field_name];
-
-        foreach ($this->fields as $name => $field) {
-            if ($name === $position_before) {
-                // Inserisci il nuovo campo prima di quello indicato
-                $newFields[$field_name] = $newField;
+    public function addHtml($html, $field_name = ''): self {
+        if ($field_name === '') {
+            $field_name = "H1";
+            $count_field_name = 1;
+            while (isset($this->fields[$field_name])) {
+                $field_name = "H" . str_pad($count_field_name, 3, '0', STR_PAD_LEFT);
+                $count_field_name++;
             }
-            $newFields[$name] = $field;
+        } else {
+            $base_name = $field_name;
+            $suffix = 1;
+            while (isset($this->fields[$field_name])) {
+                $field_name = $base_name . '_' . $suffix;
+                $suffix++;
+            }
         }
 
-        // Se $position_before non è stato trovato, aggiungi il nuovo campo in fondo
-        if (!array_key_exists($field_name, $newFields)) {
-            $newFields[$field_name] = $newField;
-        }
-
-        $this->fields = $newFields;
+        $this->fields[$field_name] = [
+            'type' => 'html',
+            'value' => '',
+            'html' => $html,
+            'name' => $field_name,
+        ];
+        $this->current_field = $field_name;
 
         return $this;
-    
     }
         
 
@@ -567,4 +551,3 @@ trait FormFieldManagementTrait {
         ];
     }
 }
-

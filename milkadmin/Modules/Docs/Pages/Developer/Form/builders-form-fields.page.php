@@ -344,7 +344,7 @@ class PostsController extends AbstractController
     <p>The <code>addField()</code> method allows you to add a new field programmatically, specifying all properties in a single options array.</p>
 
     <p><strong>Syntax:</strong></p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->addField(string $field_name, string $type, array $options = [], string $position_before = '')
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->addField(string $field_name, string $type, array $options = [])
 </code></pre>
 
     <p><strong>Parameters:</strong></p>
@@ -352,8 +352,8 @@ class PostsController extends AbstractController
         <li><code>$field_name</code>: Name of the field to add</li>
         <li><code>$type</code>: Data type (string, int, date, datetime, bool, etc.)</li>
         <li><code>$options</code>: Array with all field configurations (label, form-type, required, options, etc.)</li>
-        <li><code>$position_before</code>: (Optional) Name of the field before which to insert the new field</li>
     </ul>
+    <p>To position the field, use <code>->before('field_name')</code> or <code>->after('field_name')</code> in the chain.</p>
 
     <p><strong>Basic Example:</strong></p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Adds a simple text field at the end of the form
@@ -368,7 +368,7 @@ class PostsController extends AbstractController
 </code></pre>
 
     <p><strong>Example with Positioning:</strong></p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Adds a select field before the 'status' field
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Adds a select field and moves it before the 'status' field
 ->addField('priority', 'int', [
     'label' => 'Priority',
     'form-type' => 'select',
@@ -379,7 +379,7 @@ class PostsController extends AbstractController
         4 => 'Critical'
     ],
     'default' => 2
-], 'status')
+])->before('status')
 </code></pre>
 
     <p><strong>Complete Example with All Options:</strong></p>
@@ -396,7 +396,7 @@ class PostsController extends AbstractController
         'disabled' => false,
         'invalid-feedback' => 'This field is required'
     ]
-], 'content')
+])->before('content')
 </code></pre>
 
     <p><strong>Difference between addField() and field():</strong></p>
@@ -477,7 +477,7 @@ class PostsController extends AbstractController
 </code></pre>
 
     <h3>Conditional Visibility</h3>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->showFieldWhen('publish_date', 'status', 'published')
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->showIf('publish_date', '[status] == "published"')
 </code></pre>
 
 </div>

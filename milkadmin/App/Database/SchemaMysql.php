@@ -153,29 +153,71 @@ class SchemaMysql {
     }
 
     /**
+     * Creates a small integer field
+     */
+    public function smallint(string $name, bool $null = true, ?int $default = null, ?string $after = null): self {
+        $field = new FieldMysql($name, $this->db);
+        $field->type = 'smallint';
+        $field->nullable = $null;
+        $field->default = $default;
+        $field->after = $after;
+        $this->fields[$name] = $field;
+
+        return $this;
+    }
+
+    /**
+     * Creates a medium integer field
+     */
+    public function mediumint(string $name, bool $null = true, ?int $default = null, ?string $after = null): self {
+        $field = new FieldMysql($name, $this->db);
+        $field->type = 'mediumint';
+        $field->nullable = $null;
+        $field->default = $default;
+        $field->after = $after;
+        $this->fields[$name] = $field;
+
+        return $this;
+    }
+
+    /**
+     * Creates a big integer field
+     */
+    public function bigint(string $name, bool $null = true, ?int $default = null, ?string $after = null): self {
+        $field = new FieldMysql($name, $this->db);
+        $field->type = 'bigint';
+        $field->nullable = $null;
+        $field->default = $default;
+        $field->after = $after;
+        $this->fields[$name] = $field;
+
+        return $this;
+    }
+
+    /**
      * Creates a string (VARCHAR) field
-     * 
+     *
      * This method defines a VARCHAR field in the database table.
      * VARCHAR fields are used for storing variable-length string data.
-     * 
+     *
      * @example
      * ```php
      * // Standard string field with default length (255)
      * $schema->string('title');
-     * 
+     *
      * // String field with custom length
      * $schema->string('username', 100);
-     * 
+     *
      * // Nullable string field
      * $schema->string('middle_name', 50, true);
-     * 
+     *
      * // String field with default value
      * $schema->string('status', 20, false, 'active');
-     * 
+     *
      * // String field positioned after another field
      * $schema->string('notes', 200, false, '', 'status');
      * ```
-     * 
+     *
      * @param string $name The name of the field
      * @param int $length The maximum length of the string (default: 255)
      * @param bool $null Whether the field can be NULL (default: true)
@@ -186,6 +228,39 @@ class SchemaMysql {
     public function string(string $name, int $length = 255, bool $null = true, ?string $default = null, ?string $after = null): self {
         $field = new FieldMysql($name, $this->db);
         $field->type = 'varchar';
+        $field->length = $length;
+        $field->nullable = $null;
+        $field->default = $default;
+        $field->after = $after;
+        $this->fields[$name] = $field;
+        return $this;
+    }
+
+    /**
+     * Creates a fixed-length CHAR field
+     *
+     * This method defines a CHAR field in the database table.
+     * CHAR fields are used for storing fixed-length string data.
+     *
+     * @example
+     * ```php
+     * // Single character field
+     * $schema->char('status', 1);
+     *
+     * // Fixed 10-character field
+     * $schema->char('code', 10, false, 'UNKNOWN');
+     * ```
+     *
+     * @param string $name The name of the field
+     * @param int $length The fixed length of the string (default: 1)
+     * @param bool $null Whether the field can be NULL (default: true)
+     * @param string|null $default The default value for the field (default: null)
+     * @param string|null $after The field after which this field should be positioned (default: null)
+     * @return self Returns the Schema instance for method chaining
+     */
+    public function char(string $name, int $length = 1, bool $null = true, ?string $default = null, ?string $after = null): self {
+        $field = new FieldMysql($name, $this->db);
+        $field->type = 'char';
         $field->length = $length;
         $field->nullable = $null;
         $field->default = $default;
@@ -826,7 +901,8 @@ class SchemaMysql {
             'smallint' => ['smallint', 'int', 'bigint'],
             'int' => ['int', 'bigint'],
             'bigint' => ['bigint'],
-            'varchar' => ['varchar', 'text', 'mediumtext', 'longtext'],
+            'char' => ['char', 'varchar', 'text', 'mediumtext', 'longtext'],
+            'varchar' => ['char', 'varchar', 'text', 'mediumtext', 'longtext'],
             'text' => ['text', 'mediumtext', 'longtext'],
             'mediumtext' => ['mediumtext', 'longtext'],
             'longtext' => ['longtext'],
@@ -834,20 +910,20 @@ class SchemaMysql {
             'float' => ['float', 'double'],
             'double' => ['double']
         ];
-        
+
         $old_type = strtolower($old_field->type);
         $new_type = strtolower($new_field->type);
-        
+
         // Stesso tipo è sempre compatibile
         if ($old_type === $new_type) {
             return true;
         }
-        
+
         // Verifica compatibilità dal mapping
         if (isset($compatible_types[$old_type])) {
             return in_array($new_type, $compatible_types[$old_type]);
         }
-        
+
         return false;
     }
 

@@ -158,11 +158,23 @@ HTML;
         $prevDisabled = $this->data->isPreviousPeriodDisabled() ? 'disabled' : '';
         $nextDisabled = $this->data->isNextPeriodDisabled() ? 'disabled' : '';
 
+        // Build data attributes for prev button
+        $prevDataAttrs = '';
+        if (!empty($prev)) {
+            $prevDataAttrs = 'data-period="' . htmlspecialchars(json_encode($prev), ENT_QUOTES) . '"';
+        }
+
+        // Build data attributes for next button
+        $nextDataAttrs = '';
+        if (!empty($next)) {
+            $nextDataAttrs = 'data-period="' . htmlspecialchars(json_encode($next), ENT_QUOTES) . '"';
+        }
+
         return <<<HTML
-                <button type="button" class="btn btn-sm btn-light js-grid-prev" {$prevDisabled}>
+                <button type="button" class="btn btn-sm btn-light js-schedulegrid-prev" {$prevDisabled} {$prevDataAttrs}>
                     <i class="bi bi-chevron-left"></i>
                 </button>
-                <button type="button" class="btn btn-sm btn-light js-grid-next" {$nextDisabled}>
+                <button type="button" class="btn btn-sm btn-light js-schedulegrid-next" {$nextDisabled} {$nextDataAttrs}>
                     <i class="bi bi-chevron-right"></i>
                 </button>
 HTML;

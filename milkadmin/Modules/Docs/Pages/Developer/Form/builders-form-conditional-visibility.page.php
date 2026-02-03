@@ -5,7 +5,7 @@ namespace Modules\Docs\Pages;
  * @title Conditional Field Visibility
  * @guide developer
  * @order 45
- * @tags FormBuilder, conditional-visibility, toggle-fields, showFieldWhen, showFieldsWhen, dynamic-forms, field-visibility, form-toggling
+ * @tags FormBuilder, conditional-visibility, showIf, data-milk-show, dynamic-forms, field-visibility, form-toggling
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>
@@ -38,26 +38,14 @@ namespace Modules\Docs\Pages;
 
     <h2>Basic Methods</h2>
 
-    <h3>showFieldWhen() - Single Field</h3>
-    <p>Shows a single field when another field has a specific value.</p>
+    <h3>showIf() - Single Field or Container</h3>
+    <p>Shows a field or container when a milk expression evaluates to true.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Syntax
-$formBuilder->showFieldWhen($field_name, $toggle_field, $toggle_value)
+$formBuilder->showIf($field_or_container_id, $expression)
 
 // Parameters:
-// - $field_name: The field to show/hide
-// - $toggle_field: The field to watch for changes
-// - $toggle_value: The value that will make the field visible
-</code></pre>
-
-    <h3>showFieldsWhen() - Multiple Fields</h3>
-    <p>Shows multiple fields when another field has a specific value. This is a convenience method to avoid repeating the same condition.</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Syntax
-$formBuilder->showFieldsWhen([$field1, $field2, $field3], $toggle_field, $toggle_value)
-
-// Parameters:
-// - array of field names: The fields to show/hide together
-// - $toggle_field: The field to watch for changes
-// - $toggle_value: The value that will make all fields visible
+// - $field_or_container_id: The field name or container id to show/hide
+// - $expression: Milk expression that evaluates to true/false
 </code></pre>
 
     <h2>Simple Example</h2>
@@ -84,15 +72,11 @@ class UserStatusModule extends AbstractModule {
     #[RequestAction('home')]
     public function home() {
         $form = \Builders\FormBuilder::create($this->model, $this->page)
-            // Show these fields only when status = 'active'
-            ->showFieldsWhen(['activation_date', 'activated_by'], 'status', 'active')
-
-            // Show this field only when status = 'inactive'
-            ->showFieldWhen('reason_inactive', 'status', 'inactive')
-
-            // Show these fields only when status = 'archived'
-            ->showFieldsWhen(['archive_date', 'archive_notes'], 'status', 'archived')
-
+            ->showIf('activation_date', '[status] == "active"')
+            ->showIf('activated_by', '[status] == "active"')
+            ->showIf('reason_inactive', '[status] == "inactive"')
+            ->showIf('archive_date', '[status] == "archived"')
+            ->showIf('archive_notes', '[status] == "archived"')
             ->addStandardActions()
             ->render();
 
@@ -135,13 +119,12 @@ class UserStatusModel extends AbstractModel {
     <h2>How It Works</h2>
 
     <h3>Behind the Scenes</h3>
-    <p>When you use <code>showFieldWhen()</code> or <code>showFieldsWhen()</code>, the FormBuilder:</p>
+    <p>When you use <code>showIf()</code>, the FormBuilder:</p>
     <ol>
-        <li>Adds <code>data-togglefield</code> and <code>data-togglevalue</code> attributes to the field wrapper</li>
+        <li>Adds <code>data-milk-show</code> attribute to the field wrapper or container</li>
         <li>Applies <code>style="display:none"</code> to hide the field initially</li>
-        <li>JavaScript monitors the toggle field for changes</li>
-        <li>When the toggle field value matches the toggle value, the field is shown</li>
-        <li>When the value doesn't match, the field is hidden again</li>
+        <li>JavaScript evaluates the expression on each recalculation</li>
+        <li>When the expression is true, the field is shown; otherwise it is hidden</li>
     </ol>
 
     <h3>Generated HTML Example</h3>
@@ -158,8 +141,7 @@ class UserStatusModel extends AbstractModel {
 
 &lt;!-- Conditional field - initially hidden --&gt;
 &lt;div class="mb-3"
-     data-togglefield="status"
-     data-togglevalue="active"
+     data-milk-show="[status] == &quot;active&quot;"
      style="display:none"&gt;
     &lt;label for="activation_date"&gt;Activation Date&lt;/label&gt;
     &lt;input type="date" name="activation_date" id="activation_date" class="form-control"&gt;
@@ -171,18 +153,14 @@ class UserStatusModel extends AbstractModel {
     <h3>1. Dropdown-Based Conditional Fields</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
     // Show shipping address fields only when shipping type is 'custom'
-    ->showFieldsWhen(
-        ['shipping_address', 'shipping_city', 'shipping_zip'],
-        'shipping_type',
-        'custom'
-    )
+    ->showIf('shipping_address', '[shipping_type] == "custom"')
+    ->showIf('shipping_city', '[shipping_type] == "custom"')
+    ->showIf('shipping_zip', '[shipping_type] == "custom"')
 
     // Show billing fields only when billing type is 'different'
-    ->showFieldsWhen(
-        ['billing_address', 'billing_city', 'billing_zip'],
-        'billing_type',
-        'different'
-    )
+    ->showIf('billing_address', '[billing_type] == "different"')
+    ->showIf('billing_city', '[billing_type] == "different"')
+    ->showIf('billing_zip', '[billing_type] == "different"')
     ->render();
 </code></pre>
 
@@ -190,11 +168,9 @@ class UserStatusModel extends AbstractModel {
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
     // Show company fields only when 'is_company' checkbox is checked
     // Note: Checkbox value is typically '1' when checked
-    ->showFieldsWhen(
-        ['company_name', 'vat_number', 'registration_number'],
-        'is_company',
-        '1'
-    )
+    ->showIf('company_name', '[is_company] == 1')
+    ->showIf('vat_number', '[is_company] == 1')
+    ->showIf('registration_number', '[is_company] == 1')
     ->render();
 </code></pre>
 
@@ -202,46 +178,36 @@ class UserStatusModel extends AbstractModel {
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Show different fields for different payment methods
 $form = \Builders\FormBuilder::create($this->model, $this->page)
     // Show card fields when payment method is 'credit_card'
-    ->showFieldsWhen(
-        ['card_number', 'card_expiry', 'card_cvv'],
-        'payment_method',
-        'credit_card'
-    )
+    ->showIf('card_number', '[payment_method] == "credit_card"')
+    ->showIf('card_expiry', '[payment_method] == "credit_card"')
+    ->showIf('card_cvv', '[payment_method] == "credit_card"')
 
     // Show bank fields when payment method is 'bank_transfer'
-    ->showFieldsWhen(
-        ['bank_name', 'account_number', 'swift_code'],
-        'payment_method',
-        'bank_transfer'
-    )
+    ->showIf('bank_name', '[payment_method] == "bank_transfer"')
+    ->showIf('account_number', '[payment_method] == "bank_transfer"')
+    ->showIf('swift_code', '[payment_method] == "bank_transfer"')
 
     // Show PayPal email when payment method is 'paypal'
-    ->showFieldWhen('paypal_email', 'payment_method', 'paypal')
+    ->showIf('paypal_email', '[payment_method] == "paypal"')
     ->render();
 </code></pre>
 
     <h3>4. User Type Based Fields</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
     // Show admin-specific fields
-    ->showFieldsWhen(
-        ['admin_level', 'permissions', 'department'],
-        'user_type',
-        'admin'
-    )
+    ->showIf('admin_level', '[user_type] == "admin"')
+    ->showIf('permissions', '[user_type] == "admin"')
+    ->showIf('department', '[user_type] == "admin"')
 
     // Show customer-specific fields
-    ->showFieldsWhen(
-        ['customer_type', 'discount_level', 'credit_limit'],
-        'user_type',
-        'customer'
-    )
+    ->showIf('customer_type', '[user_type] == "customer"')
+    ->showIf('discount_level', '[user_type] == "customer"')
+    ->showIf('credit_limit', '[user_type] == "customer"')
 
     // Show vendor-specific fields
-    ->showFieldsWhen(
-        ['vendor_category', 'commission_rate', 'contract_date'],
-        'user_type',
-        'vendor'
-    )
+    ->showIf('vendor_category', '[user_type] == "vendor"')
+    ->showIf('commission_rate', '[user_type] == "vendor"')
+    ->showIf('contract_date', '[user_type] == "vendor"')
     ->render();
 </code></pre>
 
@@ -273,32 +239,24 @@ class ProductModule extends AbstractModule {
             ->addFieldsFromObject($product, 'edit')
 
             // Show digital product fields when type is 'digital'
-            ->showFieldsWhen(
-                ['download_url', 'file_size', 'download_limit'],
-                'product_type',
-                'digital'
-            )
+            ->showIf('download_url', '[product_type] == "digital"')
+            ->showIf('file_size', '[product_type] == "digital"')
+            ->showIf('download_limit', '[product_type] == "digital"')
 
             // Show physical product fields when type is 'physical'
-            ->showFieldsWhen(
-                ['weight', 'dimensions', 'shipping_class'],
-                'product_type',
-                'physical'
-            )
+            ->showIf('weight', '[product_type] == "physical"')
+            ->showIf('dimensions', '[product_type] == "physical"')
+            ->showIf('shipping_class', '[product_type] == "physical"')
 
             // Show subscription fields when type is 'subscription'
-            ->showFieldsWhen(
-                ['billing_period', 'trial_days', 'renewal_price'],
-                'product_type',
-                'subscription'
-            )
+            ->showIf('billing_period', '[product_type] == "subscription"')
+            ->showIf('trial_days', '[product_type] == "subscription"')
+            ->showIf('renewal_price', '[product_type] == "subscription"')
 
             // Show discount fields only when 'has_discount' is checked
-            ->showFieldsWhen(
-                ['discount_percentage', 'discount_start_date', 'discount_end_date'],
-                'has_discount',
-                '1'
-            )
+            ->showIf('discount_percentage', '[has_discount] == 1')
+            ->showIf('discount_start_date', '[has_discount] == 1')
+            ->showIf('discount_end_date', '[has_discount] == 1')
 
             ->addStandardActions('?page=' . $this->page, true)
             ->render();
@@ -375,15 +333,11 @@ class ProductModel extends AbstractModel {
 </code></pre>
 
     <h3>3. Group Related Conditional Fields</h3>
-    <p>Use <code>showFieldsWhen()</code> for fields that should appear together.</p>
+    <p>Use <code>showIf()</code> on a container id to show/hide a full section at once.</p>
 
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Good - grouped related fields
-->showFieldsWhen(['activation_date', 'activated_by', 'activation_notes'], 'status', 'active')
-
-// Not recommended - separate calls for related fields
-->showFieldWhen('activation_date', 'status', 'active')
-->showFieldWhen('activated_by', 'status', 'active')
-->showFieldWhen('activation_notes', 'status', 'active')
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Good - grouped related fields via container
+->addContainer('CNT_ACTIVATION', ['activation_date', 'activated_by', 'activation_notes'], 3, '', 'Activation')
+->showIf('CNT_ACTIVATION', '[status] == "active"')
 </code></pre>
 
     <h3>4. Clear Field Labels</h3>
@@ -400,9 +354,9 @@ class ProductModel extends AbstractModel {
 
     <h2>Removing Conditional Visibility</h2>
 
-    <p>If you need to remove conditional visibility from a field:</p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
-    ->showFieldWhen('activation_date', 'status', 'active')
+<p>If you need to remove conditional visibility from a field:</p>
+<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
+    ->showIf('activation_date', '[status] == "active"')
 
     // Later, remove the condition
     ->removeFieldCondition('activation_date')
@@ -413,10 +367,10 @@ class ProductModel extends AbstractModel {
     <h2>Technical Details</h2>
 
     <h3>JavaScript Implementation</h3>
-    <p>The conditional visibility is handled by the <code>toggleEls</code> JavaScript class in <code>theme.js</code>. It:</p>
+    <p>The conditional visibility is handled by the <code>MilkForm</code> JavaScript class in <code>milk-form.js</code>. It:</p>
     <ul>
-        <li>Automatically detects fields with <code>data-togglefield</code> attributes</li>
-        <li>Monitors the control field for changes (input, change events)</li>
+        <li>Automatically detects elements with <code>data-milk-show</code> attributes</li>
+        <li>Evaluates expressions on each recalculation</li>
         <li>Shows/hides fields with smooth transitions</li>
         <li>Manages required field validation when fields are hidden</li>
     </ul>
@@ -433,8 +387,8 @@ class ProductModel extends AbstractModel {
 
     <h3>Fields Not Showing/Hiding</h3>
     <ol>
-        <li>Verify the control field name matches exactly (case-sensitive)</li>
-        <li>Check that the toggle value matches the actual field value</li>
+        <li>Verify field names inside the expression match the real form names (case-sensitive)</li>
+        <li>Check that the expression evaluates to true/false as expected</li>
         <li>Ensure JavaScript is loaded (check browser console)</li>
         <li>Verify field is added to form before applying conditional visibility</li>
     </ol>
@@ -444,7 +398,7 @@ class ProductModel extends AbstractModel {
     <ul>
         <li>Make conditional fields optional in the model (use <code>false</code> parameter)</li>
         <li>The JavaScript automatically disables required validation for hidden fields</li>
-        <li>Ensure you're using the latest version of <code>theme.js</code></li>
+        <li>Ensure you're using the latest version of <code>milk-form.js</code></li>
     </ul>
 
     <h2>Next Steps</h2>

@@ -7,6 +7,7 @@ use App\{Response, Route, Theme};
 
 // Load DocsService which contains DocMetadata class
 require_once __DIR__ . '/DocsService.php';
+require_once __DIR__ . '/ArrayDbDocsService.php';
 
 !defined('MILK_DIR') && die(); // Prevent direct access
 
@@ -19,6 +20,7 @@ class DocsController extends AbstractController
 {
     private const ARRAYDB_TABLE_ACTION = ArrayDbDocsService::TABLE_ACTION;
     private const ARRAYDB_CHART_ACTION = ArrayDbDocsService::CHART_ACTION;
+    private const ARRAYDB_SCHEDULEGRID_ACTION = ArrayDbDocsService::SCHEDULE_GRID_ACTION;
 
     /**
      * Default action - redirects to developer guide's home page
@@ -51,6 +53,11 @@ class DocsController extends AbstractController
 
         if ($action === self::ARRAYDB_CHART_ACTION) {
             $this->handleArrayDbChart();
+            return;
+        }
+
+        if ($action === self::ARRAYDB_SCHEDULEGRID_ACTION) {
+            $this->handleArrayDbScheduleGrid();
             return;
         }
 
@@ -121,6 +128,13 @@ class DocsController extends AbstractController
     {
         $chartId = $_REQUEST['chart_id'] ?? ArrayDbDocsService::CHART_ID;
         $response = ArrayDbDocsService::chartResponse($chartId);
+        Response::htmlJson($response);
+    }
+
+    private function handleArrayDbScheduleGrid(): void
+    {
+        $gridId = $_REQUEST['grid_id'] ?? ArrayDbDocsService::SCHEDULE_GRID_ID;
+        $response = ArrayDbDocsService::scheduleGridResponse($gridId);
         Response::htmlJson($response);
     }
 }

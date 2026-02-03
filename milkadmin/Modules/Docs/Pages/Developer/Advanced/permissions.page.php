@@ -13,6 +13,7 @@ use App\Route;
 <div class="bg-white p-4">
 
 <h1>Access Control and Permissions</h1>
+<p class="text-muted">Revision: 2026/01/28</p>
 
 <p class="lead">
     Control access to modules and actions using built-in access levels and advanced permission systems.
@@ -61,7 +62,7 @@ use App\Route;
 
 <p>Set the default access level for an entire module in the <code>configure()</code> method:</p>
 
-<pre><code class="language-php">class PostsModule extends AbstractModule
+<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">class PostsModule extends AbstractModule
 {
     protected function configure($rule): void
     {
@@ -80,7 +81,7 @@ use App\Route;
 
 <p>Override the module's access level for specific methods using the <code>#[AccessLevel]</code> attribute:</p>
 
-<pre><code class="language-php">#[RequestAction('home')]
+<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">#[RequestAction('home')]
 public function postsList() {
     // Inherits module's 'registered' access level
     $response = ['page' => $this->page, 'title' => $this->title];
@@ -114,7 +115,7 @@ public function postEdit() {
 
 <p>Use the <code>permissions()</code> method in module configuration:</p>
 
-<pre><code class="language-php">protected function configure($rule): void
+<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">protected function configure($rule): void
 {
     $rule->page('posts')
          ->access('registered')
@@ -134,7 +135,7 @@ public function postEdit() {
 
 <p>Use <code>Permissions::check()</code> to verify specific permissions in controller methods:</p>
 
-<pre><code class="language-php">#[RequestAction('delete')]
+<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">#[RequestAction('delete')]
 public function deletePost() {
     if (!Permissions::check('posts.delete')) {
         $queryString = Route::getQueryString();
@@ -146,6 +147,10 @@ public function deletePost() {
 }</code></pre>
 
 <p>Permission format: <code>'module_page.permission_name'</code></p>
+<p>You can also share a single permission across multiple modules by defining a permission key in <code>group.permission</code> format. If the key contains exactly one dot, the part before the dot is used as the permission group and the part after the dot is the permission key. This makes the Users module show a single permission entry that grants access to all modules using the same group/key.</p>
+<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$rule->access('authorized')
+     ->permissions(['school.access' => 'Access School']);
+</code></pre>
 
 <hr>
 
@@ -165,7 +170,7 @@ public function deletePost() {
     You can initialize the user by simply requesting the Auth contract:
 </p>
 
-<pre><code class="language-php">protected function configure($rule): void
+<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">protected function configure($rule): void
 {
     // Initialize the authenticated user
     Get::make('Auth');
@@ -200,9 +205,10 @@ public function deletePost() {
 
 <p>
     Setting a method's access level to <code>authorized</code> automatically checks the first permission defined in the module's <code>permissions()</code> array.
+    If that first permission uses the <code>group.permission</code> format, the check uses the provided group/key instead of the module page.
 </p>
 
-<pre><code class="language-php">// In module configuration
+<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// In module configuration
 ->permissions([
     'access' => 'Access Posts Module',  // This permission is checked
     'delete' => 'Delete Posts'
@@ -212,14 +218,14 @@ public function deletePost() {
 #[AccessLevel('authorized')]
 #[RequestAction('edit')]
 public function postEdit() {
-    // Automatically verifies 'posts.access' permission
+// Automatically verifies 'posts.access' permission
 }</code></pre>
 
 <h3>Manual Permission Checks</h3>
 
 <p>For additional permissions, use explicit <code>Permissions::check()</code> calls:</p>
 
-<pre><code class="language-php">if (!Permissions::check('posts.delete')) {
+<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">if (!Permissions::check('posts.delete')) {
     // User lacks 'delete' permission
     // Redirect or show error
 }</code></pre>
@@ -228,7 +234,7 @@ public function postEdit() {
 
 <h2>Complete Example</h2>
 
-<pre><code class="language-php">class PostsModule extends AbstractModule
+<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">class PostsModule extends AbstractModule
 {
     protected function configure($rule): void
     {

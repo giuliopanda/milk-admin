@@ -3,6 +3,8 @@ namespace App\Database;
 
 use App\ArrayQuery\ArrayEngine;
 use App\Exceptions\DatabaseException;
+use App\Exceptions\FileException;
+use App\File;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
 
@@ -20,6 +22,7 @@ class ArrayDb
     public array $fields_list = [];
     public array $query_columns = [];
     public int $affected_rows = 0;
+    public array $table_storage = [];
 
     /**
      * @var ArrayEngine|null
@@ -94,6 +97,7 @@ class ArrayDb
 
         $this->database->addTable($tableName, $data, $autoIncrementColumn);
         $this->tables_list = array_keys($this->database->getAllTables());
+        $this->persistStorageForTable($tableName);
 
         return $this;
     }
@@ -150,14 +154,23 @@ class ArrayDb
             if (isset($result['inserted'])) {
                 $this->affected_rows = (int) $result['inserted'];
                 $this->setLastInsertIdFromTable($result['table'] ?? null);
+                if (!$this->persistStorageForTable($result['table'] ?? null)) {
+                    return false;
+                }
                 return true;
             }
             if (isset($result['updated'])) {
                 $this->affected_rows = (int) $result['updated'];
+                if (!$this->persistStorageForTable($result['table'] ?? null)) {
+                    return false;
+                }
                 return true;
             }
             if (isset($result['deleted'])) {
                 $this->affected_rows = (int) $result['deleted'];
+                if (!$this->persistStorageForTable($result['table'] ?? null)) {
+                    return false;
+                }
                 return true;
             }
         }
@@ -370,6 +383,8 @@ class ArrayDb
         }
         $this->database->removeTable($table);
         $this->tables_list = array_keys($this->database->getAllTables());
+        $this->persistStorageData($table, []);
+        $this->removeStorageConfig($table);
         return true;
     }
 
@@ -395,6 +410,8 @@ class ArrayDb
         $this->database->addTable($new_name, $data, $autoIncrement);
         $this->database->removeTable($table_name);
         $this->tables_list = array_keys($this->database->getAllTables());
+        $this->moveStorageConfig($table_name, $new_name);
+        $this->persistStorageForTable($new_name);
         return true;
     }
 
@@ -404,7 +421,7 @@ class ArrayDb
             return false;
         }
         $this->database->setTable($table_name, []);
-        return true;
+        return $this->persistStorageData($table_name, []);
     }
 
     public function multiQuery(string $sql)
@@ -420,6 +437,68 @@ class ArrayDb
                 return false;
             }
         }
+
+        return true;
+    }
+
+    /**
+     * Enable persistent storage for a table.
+     * Loads data from the given path and keeps the table in sync with the file.
+     */
+    public function storage(string $tableName, string $path, string $format = 'json', ?string $autoIncrementColumn = null): bool
+    {
+        $this->error = false;
+        $this->last_error = '';
+
+        $format = strtolower(trim($format));
+        if (!in_array($format, ['json', 'csv'], true)) {
+            $this->error = true;
+            $this->last_error = 'Unsupported storage format: ' . $format;
+            return false;
+        }
+
+        if (!file_exists($path)) {
+            $this->error = true;
+            $this->last_error = 'Storage file does not exist: ' . $path;
+            return false;
+        }
+
+        if (!is_writable($path)) {
+            $this->error = true;
+            $this->last_error = 'Storage file is not writable: ' . $path;
+            return false;
+        }
+
+        if (!is_readable($path)) {
+            $this->error = true;
+            $this->last_error = 'Storage file is not readable: ' . $path;
+            return false;
+        }
+
+        $tableName = $this->qn($tableName);
+        $autoIncrementFromFile = null;
+        $rows = $this->readStorageFile($path, $format, $autoIncrementFromFile);
+        if ($rows === null) {
+            return false;
+        }
+
+        if ($this->database === null) {
+            $this->database = new ArrayEngine();
+        }
+
+        $autoIncrement = $this->database->tableExists($tableName)
+            ? $this->database->getAutoIncrementColumn($tableName)
+            : null;
+        if ($autoIncrement === null) {
+            $autoIncrement = $autoIncrementFromFile ?? $autoIncrementColumn;
+        }
+        $this->database->addTable($tableName, $rows, $autoIncrement);
+
+        $this->tables_list = array_keys($this->database->getAllTables());
+        $this->table_storage[$tableName] = [
+            'path' => $path,
+            'format' => $format
+        ];
 
         return true;
     }
@@ -680,6 +759,217 @@ class ArrayDb
 
     public function close(): void
     {
+    }
+
+    private function persistStorageForTable(?string $tableName): bool
+    {
+        if ($tableName === null || $tableName === '') {
+            return true;
+        }
+
+        $tableName = $this->qn($tableName);
+        if (!isset($this->table_storage[$tableName])) {
+            return true;
+        }
+
+        if (!$this->checkConnection()) {
+            return false;
+        }
+
+        try {
+            $rows = $this->database->getTable($tableName);
+        } catch (\Throwable $e) {
+            $rows = [];
+        }
+
+        return $this->persistStorageData($tableName, $rows);
+    }
+
+    private function persistStorageData(string $tableName, array $rows): bool
+    {
+        $tableName = $this->qn($tableName);
+        if (!isset($this->table_storage[$tableName])) {
+            return true;
+        }
+
+        $config = $this->table_storage[$tableName];
+        if (!file_exists($config['path'])) {
+            $this->error = true;
+            $this->last_error = 'Storage file does not exist: ' . $config['path'];
+            return false;
+        }
+
+        if (!is_writable($config['path'])) {
+            $this->error = true;
+            $this->last_error = 'Storage file is not writable: ' . $config['path'];
+            return false;
+        }
+
+        $payload = $this->serializeStorageData($rows, $config['format']);
+
+        try {
+            File::putContents($config['path'], $payload);
+        } catch (FileException $e) {
+            $this->error = true;
+            $this->last_error = $e->getMessage();
+            return false;
+        }
+
+        return true;
+    }
+
+    private function readStorageFile(string $path, string $format, ?string &$autoIncrementColumn = null): ?array
+    {
+        try {
+            $content = File::getContents($path);
+        } catch (FileException $e) {
+            $this->error = true;
+            $this->last_error = $e->getMessage();
+            return null;
+        }
+
+        if (trim($content) === '') {
+            return [];
+        }
+
+        if ($format === 'json') {
+            $decoded = json_decode($content, true);
+            if (!is_array($decoded)) {
+                $this->error = true;
+                $this->last_error = 'Invalid JSON storage format';
+                return null;
+            }
+            if (isset($decoded['rows']) && is_array($decoded['rows'])) {
+                if (isset($decoded['auto_increment']) && is_string($decoded['auto_increment'])) {
+                    $autoIncrementColumn = $decoded['auto_increment'];
+                }
+                $decoded = $decoded['rows'];
+            }
+            return $this->normalizeRows($decoded);
+        }
+
+        if ($format === 'csv') {
+            return $this->parseCsv($content);
+        }
+
+        $this->error = true;
+        $this->last_error = 'Unsupported storage format: ' . $format;
+        return null;
+    }
+
+    private function serializeStorageData(array $rows, string $format): string
+    {
+        $rows = $this->normalizeRows($rows);
+        if ($format === 'json') {
+            $json = json_encode($rows, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            if ($json === false) {
+                $json = '[]';
+            }
+            return $json . "\n";
+        }
+
+        if ($format === 'csv') {
+            return $this->buildCsv($rows);
+        }
+
+        return '';
+    }
+
+    private function normalizeRows(array $rows): array
+    {
+        $normalized = [];
+
+        foreach ($rows as $row) {
+            if (is_object($row)) {
+                $row = (array) $row;
+            }
+            if (!is_array($row)) {
+                continue;
+            }
+            $clean = [];
+            foreach ($row as $key => $value) {
+                if (is_array($value) || is_object($value)) {
+                    continue;
+                }
+                $clean[(string) $key] = $value;
+            }
+            $normalized[] = $clean;
+        }
+
+        return $normalized;
+    }
+
+    private function parseCsv(string $content): array
+    {
+        $lines = preg_split("/\\r\\n|\\n|\\r/", $content);
+        $header = null;
+        $rows = [];
+
+        foreach ($lines as $line) {
+            if (trim((string) $line) === '') {
+                continue;
+            }
+            $fields = str_getcsv($line);
+            if ($header === null) {
+                $header = $fields;
+                continue;
+            }
+            $row = [];
+            foreach ($header as $index => $name) {
+                $row[(string) $name] = $fields[$index] ?? null;
+            }
+            $rows[] = $row;
+        }
+
+        return $rows;
+    }
+
+    private function buildCsv(array $rows): string
+    {
+        if (empty($rows)) {
+            return '';
+        }
+
+        $header = array_keys($rows[0]);
+        $lines = [];
+        $lines[] = $this->csvLine($header);
+
+        foreach ($rows as $row) {
+            $line = [];
+            foreach ($header as $column) {
+                $line[] = $row[$column] ?? '';
+            }
+            $lines[] = $this->csvLine($line);
+        }
+
+        return implode("\n", $lines) . "\n";
+    }
+
+    private function csvLine(array $fields): string
+    {
+        $handle = fopen('php://temp', 'r+');
+        fputcsv($handle, $fields);
+        rewind($handle);
+        $line = (string) stream_get_contents($handle);
+        fclose($handle);
+        return rtrim($line, "\n");
+    }
+
+    private function removeStorageConfig(string $tableName): void
+    {
+        $tableName = $this->qn($tableName);
+        unset($this->table_storage[$tableName]);
+    }
+
+    private function moveStorageConfig(string $from, string $to): void
+    {
+        $from = $this->qn($from);
+        $to = $this->qn($to);
+        if (!isset($this->table_storage[$from])) {
+            return;
+        }
+        $this->table_storage[$to] = $this->table_storage[$from];
+        unset($this->table_storage[$from]);
     }
 
     private function setLastInsertIdFromTable(?string $tableName): void

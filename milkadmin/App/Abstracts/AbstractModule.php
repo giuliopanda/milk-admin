@@ -405,7 +405,18 @@ abstract class AbstractModule {
         
         if (is_array($this->permissions) && $this->access == 'authorized') {
             foreach ($this->permissions as $key => $desc) {
-                Permissions::set($this->page, [$key => $desc]);
+                $permission_group = $this->page;
+                $permission_key = $key;
+                if (is_string($key) && strpos($key, '.') !== false) {
+                    $parts = explode('.', $key, 3);
+                    if (count($parts) == 2) {
+                        [$permission_group, $permission_key] = $parts;
+                    }
+                }
+                if ($permission_group !== $this->page && Permissions::getGroupTitle($permission_group) === '') {
+                    Permissions::setGroupTitle($permission_group, ucfirst($permission_group));
+                }
+                Permissions::set($permission_group, [$permission_key => $desc]);
             }
         } else if ($this->access == 'authorized') {
             Permissions::set($this->page, $this->permissions);
@@ -1028,9 +1039,16 @@ abstract class AbstractModule {
                $permission = (Permissions::check('_user.is_guest', $hook) == false);
                break;
            case 'authorized':
-                $permission_name = (is_array($this->permissions) && count($this->permissions) > 0) ?
+                $permission_key = (is_array($this->permissions) && count($this->permissions) > 0) ?
                              array_key_first($this->permissions) : 'access';
-                $permission = Permissions::check($this->page.".".$permission_name, $hook);
+                $permission_group = $this->page;
+                if (is_string($permission_key) && strpos($permission_key, '.') !== false) {
+                    $parts = explode('.', $permission_key, 3);
+                    if (count($parts) == 2) {
+                        [$permission_group, $permission_key] = $parts;
+                    }
+                }
+                $permission = Permissions::check($permission_group.".".$permission_key, $hook);
                
                break;
            case 'admin':

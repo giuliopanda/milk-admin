@@ -3,13 +3,44 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         const forms = document.querySelectorAll('.js-needs-validation');
-        Array.prototype.slice.call(forms).forEach(setFormSubmit);
+        Array.prototype.slice.call(forms).forEach(form => {
+            console.log ("DOMContentLoaded");
+            initMilkForm(form);
+            setFormSubmit(form);
+        });
 
         if (typeof removeIsInvalid === 'function') {
             removeIsInvalid();
         }
     });
 })();
+
+function initMilkForm(form) {
+    if (!form || form.dataset.milkFormBound === '1') return;
+    if (typeof MilkForm !== 'function') return;
+
+    // Init MilkForm (reuses instance if already present)
+    const instance = new MilkForm(form);
+
+    // Hook custom validation to MilkForm
+    form.addEventListener('customValidation', (event) => {
+        console.log("customValidation");
+        // Ensure calculations are up to date before validation
+        if (instance && typeof instance.recalculate === 'function') {
+            instance.recalculate();
+        }
+        if (instance && typeof instance.validate === 'function') {
+            const ok = instance.validate();
+            if (!ok) {
+                event.preventDefault();
+                return false;
+            }
+        }
+        return true;
+    });
+
+    form.dataset.milkFormBound = '1';
+}
 
 /**
  * Trova il container corretto per appendere l'errore
@@ -31,19 +62,18 @@ function findContainer(field) {
 }
 
 function updateInvalidFeedback(field) {
+    if (field.type === 'hidden') return;
  
     const container = findContainer(field);
     if (!container) return;
+
+    const milkselectWrapper = field.closest('.cs-autocomplete-wrapper-single, .cs-autocomplete-wrapper-multiple');
  
     // Cerca solo feedback diretti nel container
     let feedback = container.querySelector('.invalid-feedback');
+    const hasPresetFeedback = !!(feedback && feedback.innerHTML && feedback.innerHTML.trim().length > 0);
 
     if (!field.checkValidity()) {
-
-        const message =
-            field.dataset.errorMessage ||
-            field.validationMessage ||
-            '';
 
         if (!feedback) {
             feedback = document.createElement('div');
@@ -51,11 +81,25 @@ function updateInvalidFeedback(field) {
             container.appendChild(feedback);
         }
 
-        feedback.textContent = message;
+        if (!hasPresetFeedback) {
+            const message =
+                field.dataset.errorMessage ||
+                field.validationMessage ||
+                '';
+            feedback.textContent = message;
+        }
         field.classList.add('is-invalid');
+        if (milkselectWrapper) {
+            milkselectWrapper.classList.add('is-invalid');
+            container.classList.add('is-invalid');
+        }
 
     } else {
         field.classList.remove('is-invalid');
+        if (milkselectWrapper) {
+            milkselectWrapper.classList.remove('is-invalid');
+            container.classList.remove('is-invalid');
+        }
         if (feedback) feedback.textContent = '';
     }
 }
@@ -82,6 +126,9 @@ function replaceFormHtml(formHtml) {
     if (typeof updateContainer === 'function') {
         updateContainer(newForm);
     }
+    console.log ("REPLACE FORM HTML");
+    // Re-init MilkForm on replaced form
+    initMilkForm(newForm);
 }
 
 function milkFormReload(button) {
@@ -115,7 +162,6 @@ function setFormSubmit(form) {
         const isReload = event.submitter?.name === 'reload';
         const skipValidation = isReload || event.submitter?.hasAttribute('formnovalidate');
         let isValid = true;
-
         if (!skipValidation) {
 
             // Valida tutti i campi
@@ -126,7 +172,7 @@ function setFormSubmit(form) {
                 }));
                 updateInvalidFeedback(field);
             });
-
+            console.log ("setFormSubmit");
             const customValidationEvent = new CustomEvent('customValidation', {
                 detail: { form },
                 cancelable: true

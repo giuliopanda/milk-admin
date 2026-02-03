@@ -10,7 +10,7 @@ namespace Modules\Docs\Pages;
 ?>
 <div class="bg-white p-4">
     <h1>Query Builder Methods</h1>
-    <p class="text-muted">Revision: 2025/10/13</p>
+    <p class="text-muted">Revision: 2026/01/28</p>
     <p class="lead">The Model provides a fluent query builder interface for constructing and executing database queries. All query building methods return a <code>Query</code> instance, allowing you to chain operations together.</p>
 
     <div class="alert alert-info">
@@ -323,6 +323,134 @@ $totalMatching = $model
     ->total();
 
 echo "Showing " . $products->count() . " of $totalMatching products";</code></pre>
+
+    <h2 class="mt-4">Query State Management</h2>
+    <p>Understanding how query state accumulates and resets is critical when building queries incrementally or reusing a model across multiple operations.</p>
+
+    <h3 class="mt-3">WHERE Clauses Accumulate</h3>
+    <p>Each call to <code>where()</code> adds a condition to the same <code>Query</code> instance until the query is executed. Conditions are combined with AND.</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Conditions accumulate on the same query
+$this->model->where('category_id = ?', [4]);
+$query = $this->model->query();
+$query_txt = $query->toSql();
+// SELECT * FROM `products` WHERE (category_id = 4)
+
+$query2 = $this->model->where('price > ?', [99]);
+$query_txt2 = $query2->toSql();
+// SELECT * FROM `products` WHERE (category_id = 4) AND (price > 99)
+// ↑ both conditions are present</code></pre>
+
+    <h3 class="mt-3">Automatic Reset After Execution</h3>
+    <p>When a query is <strong>executed</strong> (via <code>getRow()</code>, <code>getResults()</code>, <code>getFirst()</code>, <code>total()</code>), the <code>current_query</code> is reset. The next call to <code>where()</code> or <code>query()</code> will create a fresh instance.</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// First query: only category_id
+$this->model->where('category_id = ?', [4]);
+$query = $this->model->query();
+$query_txt = $query->toSql();
+// SELECT * FROM `products` WHERE (category_id = 4)
+
+// Execute the query → this resets the state
+$this->model->getRow();
+
+// Second query: starts fresh, price is the only condition
+$query2 = $this->model->where('price > ?', [99]);
+$query_txt2 = $query2->toSql();
+// SELECT * FROM `products` WHERE (price > 99)
+// ↑ category_id is gone, query was reset after getRow()</code></pre>
+
+    <div class="alert alert-warning">
+        <strong>⚠️ Warning:</strong> If you don't execute the query between two <code>where()</code> blocks, the conditions will stack up. The reset only happens after an execution (<code>getRow</code>, <code>getResults</code>, <code>getFirst</code>, <code>total</code>) or by explicitly calling <code>newQuery()</code>.
+    </div>
+
+    <h3 class="mt-3">Force a New Query with <code>newQuery()</code></h3>
+    <p>If you need to reset the query without executing it, use <code>newQuery()</code>:</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$this->model->where('status = ?', ['active']);
+
+// Start fresh without executing
+$query = $this->model->newQuery();
+$query->where('category_id = ?', [5]);
+$results = $query->getResults();
+// SELECT * FROM `products` WHERE (category_id = 5)
+// ↑ 'status = active' was discarded</code></pre>
+
+    <h2 class="mt-4">Joins with from()</h2>
+    <p>The <code>from()</code> method on <code>Query</code> allows adding joins or additional tables to the query. It supports full JOIN syntax including <code>LEFT JOIN</code>.</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// LEFT JOIN: combine two tables
+$results = $this->model->query()
+    ->from('LEFT JOIN orders ON products.id = orders.product_id')
+    ->where('orders.created_at > ?', ['2025-01-01'])
+    ->getResults();
+
+// Multiple JOINs
+$results = $this->model->query()
+    ->from('JOIN categories ON products.cat_id = categories.id')
+    ->from('LEFT JOIN images ON products.id = images.product_id')
+    ->select('products.*, categories.name as category, images.url')
+    ->getResults();
+
+// Subquery with from (additional table syntax)
+$results = $this->model->query()
+    ->from('(SELECT product_id, COUNT(*) as cnt FROM orders GROUP BY product_id) AS order_counts')
+    ->where('order_counts.cnt > ?', [5])
+    ->getResults();</code></pre>
+
+    <div class="alert alert-info">
+        <strong>💡 Alternative to JOINs:</strong> For filtering based on relationships defined in the model, prefer <code>whereHas()</code> which uses a more performant EXISTS subquery and doesn't require writing JOIN syntax manually.
+    </div>
+
+    <h2 class="mt-4">Testing with ArrayDb</h2>
+    <p>To test queries without hitting the real database, you can convert a model to an <code>ArrayDb</code> via <code>setDbType('array')</code>. Queries are then executed in memory on mock data.</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Convert the model to ArrayDb for testing
+$model = new ProductModel();
+$model->setDbType('array');
+
+// Queries are now executed in memory
+$results = $model->where('category_id = ?', [4])->getResults();
+
+// Also useful to inspect the generated SQL without hitting the DB
+$model->where('status = ?', ['active']);
+$query = $model->query();
+echo $query->toSql(); // See the built query without executing it</code></pre>
+
+    <div class="alert alert-info">
+        <strong>💡 Available DB types:</strong> <code>setDbType('db')</code> for the main database, <code>setDbType('db2')</code> for the secondary database, <code>setDbType('array')</code> for in-memory ArrayDb.
+    </div>
+
+    <h2 class="mt-4">Results and isEmpty()</h2>
+    <p>Execution methods like <code>getById()</code>, <code>getRow()</code> and <code>getResults()</code> always return a <strong>new model</strong> with the loaded data. If the query finds no results, the model is still returned but will be empty.</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// getById returns a new model with the data
+$product = $model->getById(123);
+
+// isEmpty() checks whether the model has data
+if (!$product->isEmpty()) {
+    echo "Found: " . $product->name;
+} else {
+    echo "Product not found";
+}
+
+// Same behavior with getRow()
+$row = $model->where('code = ?', ['ABC'])->getRow();
+if ($row->isEmpty()) {
+    echo "No results for code ABC";
+}
+
+// And with getResults() for multiple results
+$results = $model->where('status = ?', ['active'])->getResults();
+if (!$results->isEmpty()) {
+    echo "Found " . $results->count() . " active products";
+    foreach ($results as $item) {
+        echo $item->name . "\n";
+    }
+}</code></pre>
+
+    <div class="alert alert-warning">
+        <strong>⚠️ Don't check for null:</strong> Query methods always return a Model instance, never <code>null</code>. Always use <code>isEmpty()</code> or <code>count() > 0</code> to verify whether data was found.
+    </div>
 
     <h2 class="mt-4">Advanced Examples</h2>
 

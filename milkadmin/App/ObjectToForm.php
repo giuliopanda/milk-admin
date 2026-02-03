@@ -153,7 +153,6 @@ class ObjectToForm
      * @return string The HTML for the complete form field
      */
     public static function row($rule, $value) {
-        $input = self::getInput($rule, $value);
         $type = $rule['form-type'] ?? $rule['type'];
         $form_params = $rule['form-params'] ?? [];
 
@@ -168,23 +167,47 @@ class ObjectToForm
             $data_attrs .= ' data-togglevalue="' . _r($form_params['toggle-value']) . '"';
         }
 
-        // Add style="display:none" for fields with toggle to prevent flash of visible content
-        if ($has_toggle) {
+        $has_show = false;
+        if (isset($form_params['data-milk-show'])) {
+            $data_attrs .= ' data-milk-show="' . _r($form_params['data-milk-show']) . '"';
+            $has_show = true;
+            unset($form_params['data-milk-show']);
+        }
+
+        // Add style="display:none" for fields with toggle/show to prevent flash of visible content
+        if ($has_toggle || $has_show) {
             $data_attrs .= ' style="display:none"';
         }
+
+        $rule_input = $rule;
+        $rule_input['form-params'] = $form_params;
+        $input = self::getInput($rule_input, $value);
 
         // Check if field is in a container (no extra wrapper needed)
         $in_container = isset($form_params['in-container']) && $form_params['in-container'] === true;
 
-        if ($type == 'hidden' || $type == 'html') {
+        if ($type == 'hidden') {
             return $input;
-        } if ($type == 'checkbox') {
+        }
+        if ($type == 'html') {
+            if ($has_toggle || $has_show) {
+                return '<div' . $data_attrs . '>' . $input . '</div>';
+            }
+            return $input;
+        }
+        if ($type == 'checkbox') {
             // Build checkbox wrapper classes
             $checkbox_classes = 'form-check mb-3';
             if (isset($form_params['form-check-class'])) {
                 $checkbox_classes .= ' ' . $form_params['form-check-class'];
             }
+            if ($in_container && ($has_toggle || $has_show)) {
+                return '<div' . $data_attrs . '>' . $input . '</div>';
+            }
             return $in_container ? $input : '<div class="' . $checkbox_classes . '"' . $data_attrs . '>' . $input . '</div>';
+        }
+        if ($in_container && ($has_toggle || $has_show)) {
+            return '<div' . $data_attrs . '>' . $input . '</div>';
         }
         return $in_container ? $input : '<div class="mb-3"' . $data_attrs . '>' . $input .'</div>';
     }
@@ -303,8 +326,14 @@ class ObjectToForm
                     $data_attrs .= ' data-togglevalue="' . _r($rule['form-params']['toggle-value']) . '"';
                 }
 
-                // Add style="display:none" for fields with toggle to prevent flash of visible content
-                if ($has_toggle) {
+                $has_show = false;
+                if (isset($rule['form-params']['data-milk-show'])) {
+                    $data_attrs .= ' data-milk-show="' . _r($rule['form-params']['data-milk-show']) . '"';
+                    $has_show = true;
+                }
+
+                // Add style="display:none" for fields with toggle/show to prevent flash of visible content
+                if ($has_toggle || $has_show) {
                     if ($rule['attributes']['style'] ?? false) {
                         $rule['attributes']['style'] .= ';display:none';
                     } else {
