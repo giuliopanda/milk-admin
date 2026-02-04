@@ -7,7 +7,7 @@
 [![MySQL](https://img.shields.io/badge/MySQL-supported-blue.svg)](https://www.mysql.com/)
 [![SQLite](https://img.shields.io/badge/SQLite-supported-blue.svg)](https://www.sqlite.org/)
 [![Status](https://img.shields.io/badge/Status-Alpha-orange.svg)](https://github.com/giuliopanda/milk-admin)
-[![Documentation](https://img.shields.io/badge/Docs-Online-green.svg)](https://milkadmin.org/milk-admin-v251100/?page=docs&action=Developer/GettingStarted/introduction)
+[![Documentation](https://img.shields.io/badge/Docs-Online-green.svg)](https://milkadmin.org/milk-admin/?page=docs&action=Developer/GettingStarted/introduction)
 
 ---
 
@@ -23,7 +23,7 @@ Milk Admin provides a stable and structured backend core, modern PHP 8+ code, an
 
 **Official links:**  
 [Website](https://www.milkadmin.org/) ·  
-[Documentation](https://milkadmin.org/milk-admin-v251100/?page=docs&action=Developer/GettingStarted/introduction) ·  
+[Documentation](https://milkadmin.org/milk-admin/?page=docs&action=Developer/GettingStarted/introduction) ·  
 [Live Demo](https://milkadmin.org/demo/?page=auth&action=login)
 
 ---
@@ -313,3 +313,4 @@ Use it freely for personal or commercial projects.
 * Documentation: [https://milkadmin.org/milk-admin-v251100/](https://milkadmin.org/milk-admin-v251100/)
 
 ```
+
