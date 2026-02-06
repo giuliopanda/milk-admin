@@ -10,15 +10,16 @@
 [![Documentation](https://img.shields.io/badge/Docs-Online-green.svg)](https://milkadmin.org/milk-admin/?page=docs&action=Developer/GettingStarted/introduction)
 
 ---
+**Milk Admin** is a PHP admin panel designed for building backoffice administration panels.
 
-**Milk Admin** is designed to build **complex admin panels and backoffice software**.
+It focuses on explicit control, relational CRUD flows, and long-term maintainability, avoiding heavy abstractions and rigid resource-based architectures.
 
 It focuses on **explicit control**, **relational CRUD flows**, and **long-term maintainability**, avoiding heavy abstractions, and rigid resource-based architectures.
 
 Milk Admin provides a stable and structured backend core, modern PHP 8+ code, and minimal dependencies — allowing developers to focus on real business logic instead of framework workarounds.
 
 > **Project Status**  
-> Milk Admin is currently in **Alpha**.  
+> Milk Admin is currently in **Beta**.  
 > The core architecture is stable and actively evolving, while APIs and features may change.
 
 **Official links:**  
@@ -313,4 +314,5 @@ Use it freely for personal or commercial projects.
 * Documentation: [https://milkadmin.org/milk-admin-v251100/](https://milkadmin.org/milk-admin-v251100/)
 
 ```
+
 
