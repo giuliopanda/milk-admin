@@ -61,19 +61,28 @@ trait SchemaAndValidationTrait
                     $schema->id($name);
                     break;
                 case 'text':
-                    $schema->text($name, $rule['nullable'], $rule['default']);
+                    $textDbType = strtolower(trim((string) ($rule['db_type'] ?? 'text')));
+                    if ($textDbType === 'tinytext' && method_exists($schema, 'tinytext')) {
+                        $schema->tinytext($name, $rule['nullable'], $rule['default']);
+                    } elseif ($textDbType === 'mediumtext' && method_exists($schema, 'mediumtext')) {
+                        $schema->mediumtext($name, $rule['nullable'], $rule['default']);
+                    } elseif ($textDbType === 'longtext' && method_exists($schema, 'longtext')) {
+                        $schema->longtext($name, $rule['nullable'], $rule['default']);
+                    } else {
+                        $schema->text($name, $rule['nullable'], $rule['default']);
+                    }
                     break;
                 case 'string':
                     $schema->string($name, $rule['length'] ?? 255, $rule['nullable'], $rule['default']);
                     break;
                 case 'int':
-                    $schema->int($name, $rule['nullable'], $rule['default']);
+                    $schema->int($name, $rule['nullable'], $rule['default'], null, (bool) ($rule['unsigned'] ?? false));
                     break;
                 case 'tinyint':
-                    $schema->tinyint($name, $rule['nullable'], $rule['default']);
+                    $schema->tinyint($name, $rule['nullable'], $rule['default'], null, (bool) ($rule['unsigned'] ?? false));
                     break;
                 case 'float':
-                    $schema->decimal($name, $rule['length'] ?? 10, $rule['precision'] ?? 2, $rule['nullable'], $rule['default']);
+                    $schema->decimal($name, $rule['length'] ?? 10, $rule['precision'] ?? 2, $rule['nullable'], $rule['default'], null, (bool) ($rule['unsigned'] ?? false));
                     break;
                 case 'bool':
                     $schema->boolean($name, $rule['nullable'], $rule['default']);
@@ -120,7 +129,7 @@ trait SchemaAndValidationTrait
                                 $rule['default'] = null;
                             } 
                         }
-                        $schema->int($name, $rule['nullable'], $rule['default']);
+                        $schema->int($name, $rule['nullable'], $rule['default'], null, (bool) ($rule['unsigned'] ?? false));
                     } else {
                         $schema->string($name, $max ?? 255, $rule['nullable'], $rule['default']);
                     }
@@ -135,7 +144,7 @@ trait SchemaAndValidationTrait
                         }
                     }
                     if ($is_int) {
-                        $schema->int($name, $rule['nullable'], $rule['default']);
+                        $schema->int($name, $rule['nullable'], $rule['default'], null, (bool) ($rule['unsigned'] ?? false));
                     } else {
                         $schema->string($name, ($max ?? 255), $rule['nullable'], $rule['default']);
                     }

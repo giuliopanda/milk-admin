@@ -69,7 +69,15 @@ namespace Modules\Docs\Pages;
                 <td>Add custom hidden field data to the form</td>
             </tr>
             <tr>
-                <td rowspan="6">Field Management</td>
+                <td rowspan="8">Field Management</td>
+                <td><code>field(string $key)</code></td>
+                <td>Select current field context. Methods from the Field guide must be called after this</td>
+            </tr>
+            <tr>
+                <td><code>field-first methods (label, required, calcExpr, validateExpr, ...)</code></td>
+                <td>Apply to the current field selected with <code>field()</code>. Re-call <code>field()</code> to switch target field</td>
+            </tr>
+            <tr>
                 <td><code>addFieldsFromObject(object $obj, string $action)</code></td>
                 <td>Add fields from data object</td>
             </tr>
@@ -188,14 +196,18 @@ echo $form;
 
    
 
-    <h3>Field Management</h3>
+    <h3>Field Configuration</h3>
     <p>FormBuilder provides flexible methods to manage form fields. For detailed information on adding, removing, modifying, and organizing fields, see the dedicated guide:</p>
 
+    <div class="alert alert-warning">
+        <strong>Important:</strong> methods documented in <strong>Field Configuration</strong> (like <code>label()</code>, <code>required()</code>, <code>calcExpr()</code>, <code>validateExpr()</code>, <code>requireIf()</code>) are <strong>field-first</strong>. You must call <code>field('FIELD_NAME')</code> before them.
+    </div>
+
     <div class="alert alert-primary">
-        <h5 class="alert-heading">📘 Field Management Guide</h5>
+        <h5 class="alert-heading">📘 Field Configuration Guide</h5>
         <p class="mb-0">
             <a href="?page=docs&action=Developer/Form/builders-form-fields" class="alert-link">
-                <strong>→ FormBuilder - Field Management</strong>
+                <strong>→ FormBuilder - Field Configuration</strong>
             </a>
             <br>
             Learn how to add fields automatically from Models, add custom fields manually, remove/modify fields, set field order, and more.
@@ -203,13 +215,13 @@ echo $form;
     </div>
 
     <h3>Working with Related Tables (hasOne)</h3>
-    <p>FormBuilder supports editing fields from related tables using the <code>hasOne</code> relationship. For detailed documentation on using <code>addRelatedField()</code>, see the Field Management guide:</p>
+    <p>FormBuilder supports editing fields from related tables using the <code>hasOne</code> relationship. For detailed documentation on using <code>addRelatedField()</code>, see the Field Configuration guide:</p>
 
     <div class="alert alert-primary">
         <h5 class="alert-heading">📘 Related Fields Documentation</h5>
         <p class="mb-0">
             <a href="?page=docs&action=Developer/Form/builders-form-fields#addRelatedField" class="alert-link">
-                <strong>→ FormBuilder - Field Management: Working with Related Tables</strong>
+                <strong>→ FormBuilder - Field Configuration: Working with Related Tables</strong>
             </a>
             <br>
             Learn how to add fields from hasOne related tables, including examples with EmployeeBadge.
@@ -427,7 +439,7 @@ public function actionEdit() {
     <h2>Next Steps</h2>
     <p>Now that you understand FormBuilder basics, explore these related topics:</p>
     <ul>
-        <li><a href="?page=docs&action=Developer/Form/builders-form-fields"><strong>Field Management</strong></a>: Adding, removing, modifying, and organizing form fields</li>
+        <li><a href="?page=docs&action=Developer/Form/builders-form-fields"><strong>Field Configuration</strong></a>: Adding, removing, modifying, and organizing form fields</li>
         <li><a href="?page=docs&action=Developer/Model/abstract-model-relationships"><strong>Model Relationships</strong></a>: Understanding hasOne, belongsTo, and hasMany relationships</li>
         <li><a href="?page=docs&action=Developer/Form/builders-form-conditional-visibility"><strong>Conditional Field Visibility</strong></a>: Show/hide fields based on other field values</li>
         <li><a href="?page=docs&action=Developer/Form/builders-form-validation"><strong>Form Validation</strong></a>: Custom validation and error handling</li>

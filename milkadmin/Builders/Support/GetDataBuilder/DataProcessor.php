@@ -2,7 +2,7 @@
 
 namespace Builders\Support\GetDataBuilder;
 
-use App\{Get, Config};
+use App\{Get, Config, ExpressionParser};
 use App\Exceptions\DatabaseException;
 
 !defined('MILK_DIR') && die();
@@ -18,11 +18,15 @@ class DataProcessor
     private array $query_columns = [];
     private ?array $footer_data = null;
     private ?DatabaseException $error = null;
+    private ExpressionParser $expressionParser;
+    /** @var array<string, array> */
+    private array $expressionAstCache = [];
 
     public function __construct(BuilderContext $context, ColumnManager $columns)
     {
         $this->context = $context;
         $this->columns = $columns;
+        $this->expressionParser = new ExpressionParser();
     }
 
     public function setFooter(array $data): void
@@ -124,13 +128,43 @@ class DataProcessor
         $customColumns = $this->columns->getCustomColumns();
         $properties = $this->columns->getAllProperties();
 
+        [$showIfConfigs, $dotKeys] = $this->prepareShowIfConfigs($customColumns);
+
         foreach ($rows as $index => $row) {
             // First pass: Extract dot notation values
            
             $result->moveTo($index);
              $this->extractDotNotationValues($row, $customColumns);
+
+            // 1) showIf (must run BEFORE custom formatter functions)
+            $skipColumns = [];
+            if (!empty($showIfConfigs)) {
+                $rawRow = $this->rows_raw[$index] ?? null;
+                $params = $this->buildShowIfParameters($row, $rawRow, $dotKeys);
+
+                foreach ($showIfConfigs as $colKey => $cfg) {
+                    $expr = $cfg['expr'];
+                    if ($expr === '') {
+                        continue;
+                    }
+
+                    $shouldShow = $this->evaluateShowIfCondition($expr, $params);
+                    if ($shouldShow) {
+                        continue;
+                    }
+
+                    $elseValue = $cfg['else'];
+                    if (is_callable($elseValue)) {
+                        $elseValue = call_user_func($elseValue, $result);
+                    }
+
+                    $row->{$colKey} = $elseValue;
+                    $skipColumns[$colKey] = true;
+                }
+            }
+
             // Second pass: Apply custom functions to model columns
-            $this->applyCustomFunctions($row, $index, $customColumns, $result);
+            $this->applyCustomFunctions($row, $index, $customColumns, $result, $skipColumns);
 
             // Third pass: Apply column properties (truncate, etc.)
             $this->applyColumnProperties($row, $properties);
@@ -138,6 +172,110 @@ class DataProcessor
         }
         
         return $rows;
+    }
+
+    /**
+     * @return array{0: array<string, array{expr: string, else: mixed}>, 1: array<int, string>}
+     */
+    private function prepareShowIfConfigs(array $customColumns): array
+    {
+        $showIfConfigs = [];
+        $dotKeys = [];
+
+        foreach ($customColumns as $key => $config) {
+            if (!is_string($key) || $key === '' || str_starts_with($key, '_')) {
+                continue;
+            }
+
+            if (($config['action'] ?? null) === 'delete') {
+                continue;
+            }
+
+            if (str_contains($key, '.')) {
+                $dotKeys[] = $key;
+            }
+
+            if (!isset($config['showIf']) || !is_string($config['showIf'])) {
+                continue;
+            }
+
+            $showIfConfigs[$key] = [
+                'expr' => trim($config['showIf']),
+                'else' => $config['showIfElse'] ?? ''
+            ];
+        }
+
+        $dotKeys = array_values(array_unique($dotKeys));
+
+        return [$showIfConfigs, $dotKeys];
+    }
+
+    private function buildShowIfParameters(object $row, ?object $rawRow, array $dotKeys): array
+    {
+        $params = [];
+
+        if ($rawRow !== null) {
+            foreach (get_object_vars($rawRow) as $key => $value) {
+                $this->addShowIfParamAliases($params, (string)$key, $value);
+            }
+        }
+
+        // Provide dot-notation keys as direct params (e.g. [author.name])
+        if (!empty($dotKeys)) {
+            $source = $rawRow ?? $row;
+            foreach ($dotKeys as $dotKey) {
+                $value = $this->extractDotNotationValue($source, $dotKey);
+                $this->addShowIfParamAliases($params, $dotKey, $value);
+            }
+        }
+
+        // Fallback: merge also formatted row values without overriding raw values
+        foreach (get_object_vars($row) as $key => $value) {
+            $this->addShowIfParamAliases($params, (string)$key, $value, false);
+        }
+
+        return $params;
+    }
+
+    private function addShowIfParamAliases(array &$params, string $key, mixed $value, bool $override = true): void
+    {
+        if ($key === '') {
+            return;
+        }
+
+        $candidates = [$key, strtolower($key), strtoupper($key)];
+        foreach ($candidates as $candidate) {
+            if ($override) {
+                $params[$candidate] = $value;
+                continue;
+            }
+            if (!array_key_exists($candidate, $params)) {
+                $params[$candidate] = $value;
+            }
+        }
+    }
+
+    private function evaluateShowIfCondition(string $expression, array $params): bool
+    {
+        try {
+            if (!isset($this->expressionAstCache[$expression])) {
+                $this->expressionAstCache[$expression] = $this->expressionParser->parse($expression);
+            }
+            $ast = $this->expressionAstCache[$expression];
+
+            $result = $this->expressionParser
+                ->resetAll()
+                ->setParameters($params)
+                ->execute($ast);
+
+            // For showIf we accept truthy values, not only strict booleans.
+            return $this->expressionParser->normalizeCheckboxValue($result);
+        } catch (\Throwable $e) {
+            // Don't break the whole table for a configuration error.
+            // In case of failure, default to "show" and log the error.
+            error_log('TableBuilder showIf error: ' . $e->getMessage() . ' | expr: ' . $expression);
+            return true;
+        }
     }
 
     private function extractDotNotationValues(object $row, array $customColumns): void
@@ -152,11 +290,15 @@ class DataProcessor
         }
     }
 
-    private function applyCustomFunctions(object $row, int $index, array $customColumns, $result): void
+    private function applyCustomFunctions(object $row, int $index, array $customColumns, $result, array $skipColumns = []): void
     {
         // Apply to query columns first
         foreach ($this->query_columns as $column) {
             if (str_contains($column, '.')) {
+                continue;
+            }
+
+            if (isset($skipColumns[$column])) {
                 continue;
             }
 
@@ -172,6 +314,10 @@ class DataProcessor
         // Apply to custom/virtual columns
         foreach ($customColumns as $key => $config) {
             if (!isset($config['fn']) || !is_callable($config['fn'])) {
+                continue;
+            }
+
+            if (isset($skipColumns[$key])) {
                 continue;
             }
 

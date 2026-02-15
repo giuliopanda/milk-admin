@@ -35,6 +35,10 @@ trait CopyRulesTrait
 
                 case 'text':
                     $destination_rule->text($field_name);
+                    $dbType = strtolower(trim((string) ($field_rule['db_type'] ?? '')));
+                    if (in_array($dbType, ['tinytext', 'text', 'mediumtext', 'longtext'], true)) {
+                        $destination_rule->property('db_type', $dbType);
+                    }
                     break;
 
                 case 'int':

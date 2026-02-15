@@ -649,6 +649,8 @@ class Table {
      * Toggle all checkboxes selection state
      */
     toggleAllCheckboxes(table) {
+        if (!table) return;
+
         const table_head_checkbox = table.querySelector('.js-click-all-checkbox');
         const checkboxes = table.querySelectorAll('.js-col-checkbox');
 

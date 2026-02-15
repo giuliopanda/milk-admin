@@ -62,6 +62,7 @@ function findContainer(field) {
 }
 
 function updateInvalidFeedback(field) {
+    if (!field || !field.matches || !field.matches('input, select, textarea')) return;
     if (field.type === 'hidden') return;
  
     const container = findContainer(field);
@@ -249,6 +250,9 @@ function setFormSubmit(form) {
     // Revalidate live (input/change)
     const revalidateField = (e) => {
         const field = e.target;
+        if (!field || !field.matches || !field.matches('input, select, textarea')) {
+            return;
+        }
 
         if (form.classList.contains('was-validated')) {
             field.dispatchEvent(new CustomEvent('fieldValidation', {

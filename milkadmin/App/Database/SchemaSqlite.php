@@ -91,7 +91,7 @@ class SchemaSqlite {
      * @param string|null $after Not used in SQLite (kept for compatibility)
      * @return self Returns the Schema instance for method chaining
      */
-    public function int(string $name, bool $null = true, ?int $default = null, ?string $after = null): self {
+    public function int(string $name, bool $null = true, ?int $default = null, ?string $after = null, bool $unsigned = false): self {
         $field = new FieldSqlite($name);
         $field->type = 'INTEGER';
         $field->nullable = $null;
@@ -111,7 +111,7 @@ class SchemaSqlite {
      * @param string|null $after Not used in SQLite (kept for compatibility)
      * @return self Returns the Schema instance for method chaining
      */
-    public function tinyint(string $name, bool $null = true, ?int $default = null, ?string $after = null): self {
+    public function tinyint(string $name, bool $null = true, ?int $default = null, ?string $after = null, bool $unsigned = false): self {
         $field = new FieldSqlite($name);
         $field->type = 'INTEGER';
         $field->nullable = $null;
@@ -150,6 +150,22 @@ class SchemaSqlite {
      * @return self Returns the Schema instance for method chaining
      */
     public function text(string $name, bool $null = true, ?string $after = null): self {
+        $field = new FieldSqlite($name);
+        $field->type = 'TEXT';
+        $field->nullable = $null;
+        $this->fields[$name] = $field;
+        return $this;
+    }
+
+    public function tinytext(string $name, bool $null = true, ?string $after = null): self {
+        $field = new FieldSqlite($name);
+        $field->type = 'TEXT';
+        $field->nullable = $null;
+        $this->fields[$name] = $field;
+        return $this;
+    }
+
+    public function mediumtext(string $name, bool $null = true, ?string $after = null): self {
         $field = new FieldSqlite($name);
         $field->type = 'TEXT';
         $field->nullable = $null;
@@ -201,7 +217,7 @@ class SchemaSqlite {
         return $this;
     }
 
-    public function decimal(string $name, int $precision = 10, int $scale = 2, bool $null = true, ?float $default = null, ?string $after = null): self {
+    public function decimal(string $name, int $precision = 10, int $scale = 2, bool $null = true, ?float $default = null, ?string $after = null, bool $unsigned = false): self {
         $field = new FieldSqlite($name);
         $field->type = 'REAL';  
         $field->nullable = $null;

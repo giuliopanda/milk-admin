@@ -64,6 +64,14 @@ It provides a unified way to manipulate the DOM, show modals, display notificati
     <div class="col-md-6">
         <div class="card h-100">
             <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-type-h1"></i> Title Update</h5>
+                <p class="card-text">Update page titles via AJAX with automatic JS re-initialization</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
                 <h5 class="card-title"><i class="bi bi-arrow-up-circle"></i> Scroll Control</h5>
                 <p class="card-text">Scroll to top or specific elements</p>
             </div>
@@ -500,6 +508,38 @@ registerHook('process_data', function(data) {
 <!-- ========== OTHER ACTIONS ========== -->
 <h2 class="mt-5 mb-3"><i class="bi bi-grid-3x3-gap"></i> Other Actions</h2>
 
+<h4 class="mt-4">Title Update</h4>
+<p>Update a page title by ID. Replaces the inner HTML of the title container and re-initializes all JavaScript (fetch links, forms, filters, etc.) via <code>updateContainer()</code>.</p>
+<p>The title must have an ID set via <code>TitleBuilder::setId('myTitleId')</code>. Use <code>renderInner()</code> to generate only the inner content.</p>
+<pre class="pre-scrollable border p-3 bg-light"><code class="language-json">{
+    "title": {
+        "id": "myTitleId",
+        "html": "&lt;div class='row'&gt;...&lt;/div&gt;"
+    }
+}</code></pre>
+
+<div class="alert alert-warning mt-3">
+    <strong>PHP Example:</strong>
+    <pre class="mb-0 mt-2"><code>// Initial render (in home action)
+$titleBuilder = TitleBuilder::create('My Page Title')
+    ->setId('myTitleId')
+    ->addButton('Refresh', '?page=myModule&amp;action=refresh', 'primary', '', 'get');
+echo $titleBuilder;
+
+// AJAX update (in refresh action)
+$newTitle = TitleBuilder::create('Updated Title')
+    ->setId('myTitleId')
+    ->addButton('Refresh Again', '?page=myModule&amp;action=refresh', 'success', '', 'get');
+
+Response::json([
+    'success' => true,
+    'title' => [
+        'id' => 'myTitleId',
+        'html' => $newTitle->renderInner(),
+    ]
+]);</code></pre>
+</div>
+
 <h4 class="mt-4">Reload list (Table, list, calendar)</h4>
 <pre class="pre-scrollable border p-3 bg-light"><code class="language-json">{
     "list": {
@@ -716,6 +756,11 @@ fetch('?page=myModule&amp;action=submit', {
             <td><code>scroll</code></td>
             <td>Control scrolling</td>
             <td><code>scroll.to</code>, <code>scroll.selector</code></td>
+        </tr>
+        <tr>
+            <td><code>title</code></td>
+            <td>Update page title</td>
+            <td><code>title.id</code>, <code>title.html</code></td>
         </tr>
         <tr>
             <td><code>table</code></td>

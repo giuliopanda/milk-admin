@@ -41,11 +41,17 @@ namespace Modules\Docs\Pages;
     <h3>showIf() - Single Field or Container</h3>
     <p>Shows a field or container when a milk expression evaluates to true.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Syntax
+// Recommended (field-first): select the target field/container, then pass ONLY the expression
+$formBuilder->field($field_or_container_id)->showIf($expression)
+
+// Alternative (explicit target): pass field/container id + expression
 $formBuilder->showIf($field_or_container_id, $expression)
 
-// Parameters:
-// - $field_or_container_id: The field name or container id to show/hide
-// - $expression: Milk expression that evaluates to true/false
+// Under the hood the signature is:
+// showIf(string $field_or_expression, ?string $expression = null): self
+//
+// - If you omit $expression: $field_or_expression is treated as the expression, and the target is the current field
+// - If you pass $expression: $field_or_expression is the field/container id to show/hide
 </code></pre>
 
     <h2>Simple Example</h2>
@@ -72,11 +78,11 @@ class UserStatusModule extends AbstractModule {
     #[RequestAction('home')]
     public function home() {
         $form = \Builders\FormBuilder::create($this->model, $this->page)
-            ->showIf('activation_date', '[status] == "active"')
-            ->showIf('activated_by', '[status] == "active"')
-            ->showIf('reason_inactive', '[status] == "inactive"')
-            ->showIf('archive_date', '[status] == "archived"')
-            ->showIf('archive_notes', '[status] == "archived"')
+            ->field('activation_date')->showIf('[status] == "active"')
+            ->field('activated_by')->showIf('[status] == "active"')
+            ->field('reason_inactive')->showIf('[status] == "inactive"')
+            ->field('archive_date')->showIf('[status] == "archived"')
+            ->field('archive_notes')->showIf('[status] == "archived"')
             ->addStandardActions()
             ->render();
 
@@ -153,14 +159,14 @@ class UserStatusModel extends AbstractModel {
     <h3>1. Dropdown-Based Conditional Fields</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
     // Show shipping address fields only when shipping type is 'custom'
-    ->showIf('shipping_address', '[shipping_type] == "custom"')
-    ->showIf('shipping_city', '[shipping_type] == "custom"')
-    ->showIf('shipping_zip', '[shipping_type] == "custom"')
+    ->field('shipping_address')->showIf('[shipping_type] == "custom"')
+    ->field('shipping_city')->showIf('[shipping_type] == "custom"')
+    ->field('shipping_zip')->showIf('[shipping_type] == "custom"')
 
     // Show billing fields only when billing type is 'different'
-    ->showIf('billing_address', '[billing_type] == "different"')
-    ->showIf('billing_city', '[billing_type] == "different"')
-    ->showIf('billing_zip', '[billing_type] == "different"')
+    ->field('billing_address')->showIf('[billing_type] == "different"')
+    ->field('billing_city')->showIf('[billing_type] == "different"')
+    ->field('billing_zip')->showIf('[billing_type] == "different"')
     ->render();
 </code></pre>
 
@@ -168,9 +174,9 @@ class UserStatusModel extends AbstractModel {
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
     // Show company fields only when 'is_company' checkbox is checked
     // Note: Checkbox value is typically '1' when checked
-    ->showIf('company_name', '[is_company] == 1')
-    ->showIf('vat_number', '[is_company] == 1')
-    ->showIf('registration_number', '[is_company] == 1')
+    ->field('company_name')->showIf('[is_company] == 1')
+    ->field('vat_number')->showIf('[is_company] == 1')
+    ->field('registration_number')->showIf('[is_company] == 1')
     ->render();
 </code></pre>
 
@@ -178,36 +184,36 @@ class UserStatusModel extends AbstractModel {
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Show different fields for different payment methods
 $form = \Builders\FormBuilder::create($this->model, $this->page)
     // Show card fields when payment method is 'credit_card'
-    ->showIf('card_number', '[payment_method] == "credit_card"')
-    ->showIf('card_expiry', '[payment_method] == "credit_card"')
-    ->showIf('card_cvv', '[payment_method] == "credit_card"')
+    ->field('card_number')->showIf('[payment_method] == "credit_card"')
+    ->field('card_expiry')->showIf('[payment_method] == "credit_card"')
+    ->field('card_cvv')->showIf('[payment_method] == "credit_card"')
 
     // Show bank fields when payment method is 'bank_transfer'
-    ->showIf('bank_name', '[payment_method] == "bank_transfer"')
-    ->showIf('account_number', '[payment_method] == "bank_transfer"')
-    ->showIf('swift_code', '[payment_method] == "bank_transfer"')
+    ->field('bank_name')->showIf('[payment_method] == "bank_transfer"')
+    ->field('account_number')->showIf('[payment_method] == "bank_transfer"')
+    ->field('swift_code')->showIf('[payment_method] == "bank_transfer"')
 
     // Show PayPal email when payment method is 'paypal'
-    ->showIf('paypal_email', '[payment_method] == "paypal"')
+    ->field('paypal_email')->showIf('[payment_method] == "paypal"')
     ->render();
 </code></pre>
 
     <h3>4. User Type Based Fields</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
     // Show admin-specific fields
-    ->showIf('admin_level', '[user_type] == "admin"')
-    ->showIf('permissions', '[user_type] == "admin"')
-    ->showIf('department', '[user_type] == "admin"')
+    ->field('admin_level')->showIf('[user_type] == "admin"')
+    ->field('permissions')->showIf('[user_type] == "admin"')
+    ->field('department')->showIf('[user_type] == "admin"')
 
     // Show customer-specific fields
-    ->showIf('customer_type', '[user_type] == "customer"')
-    ->showIf('discount_level', '[user_type] == "customer"')
-    ->showIf('credit_limit', '[user_type] == "customer"')
+    ->field('customer_type')->showIf('[user_type] == "customer"')
+    ->field('discount_level')->showIf('[user_type] == "customer"')
+    ->field('credit_limit')->showIf('[user_type] == "customer"')
 
     // Show vendor-specific fields
-    ->showIf('vendor_category', '[user_type] == "vendor"')
-    ->showIf('commission_rate', '[user_type] == "vendor"')
-    ->showIf('contract_date', '[user_type] == "vendor"')
+    ->field('vendor_category')->showIf('[user_type] == "vendor"')
+    ->field('commission_rate')->showIf('[user_type] == "vendor"')
+    ->field('contract_date')->showIf('[user_type] == "vendor"')
     ->render();
 </code></pre>
 
@@ -239,24 +245,24 @@ class ProductModule extends AbstractModule {
             ->addFieldsFromObject($product, 'edit')
 
             // Show digital product fields when type is 'digital'
-            ->showIf('download_url', '[product_type] == "digital"')
-            ->showIf('file_size', '[product_type] == "digital"')
-            ->showIf('download_limit', '[product_type] == "digital"')
+            ->field('download_url')->showIf('[product_type] == "digital"')
+            ->field('file_size')->showIf('[product_type] == "digital"')
+            ->field('download_limit')->showIf('[product_type] == "digital"')
 
             // Show physical product fields when type is 'physical'
-            ->showIf('weight', '[product_type] == "physical"')
-            ->showIf('dimensions', '[product_type] == "physical"')
-            ->showIf('shipping_class', '[product_type] == "physical"')
+            ->field('weight')->showIf('[product_type] == "physical"')
+            ->field('dimensions')->showIf('[product_type] == "physical"')
+            ->field('shipping_class')->showIf('[product_type] == "physical"')
 
             // Show subscription fields when type is 'subscription'
-            ->showIf('billing_period', '[product_type] == "subscription"')
-            ->showIf('trial_days', '[product_type] == "subscription"')
-            ->showIf('renewal_price', '[product_type] == "subscription"')
+            ->field('billing_period')->showIf('[product_type] == "subscription"')
+            ->field('trial_days')->showIf('[product_type] == "subscription"')
+            ->field('renewal_price')->showIf('[product_type] == "subscription"')
 
             // Show discount fields only when 'has_discount' is checked
-            ->showIf('discount_percentage', '[has_discount] == 1')
-            ->showIf('discount_start_date', '[has_discount] == 1')
-            ->showIf('discount_end_date', '[has_discount] == 1')
+            ->field('discount_percentage')->showIf('[has_discount] == 1')
+            ->field('discount_start_date')->showIf('[has_discount] == 1')
+            ->field('discount_end_date')->showIf('[has_discount] == 1')
 
             ->addStandardActions('?page=' . $this->page, true)
             ->render();
@@ -337,7 +343,7 @@ class ProductModel extends AbstractModel {
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Good - grouped related fields via container
 ->addContainer('CNT_ACTIVATION', ['activation_date', 'activated_by', 'activation_notes'], 3, '', 'Activation')
-->showIf('CNT_ACTIVATION', '[status] == "active"')
+->field('CNT_ACTIVATION')->showIf('[status] == "active"')
 </code></pre>
 
     <h3>4. Clear Field Labels</h3>
@@ -356,7 +362,7 @@ class ProductModel extends AbstractModel {
 
 <p>If you need to remove conditional visibility from a field:</p>
 <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
-    ->showIf('activation_date', '[status] == "active"')
+    ->field('activation_date')->showIf('[status] == "active"')
 
     // Later, remove the condition
     ->removeFieldCondition('activation_date')

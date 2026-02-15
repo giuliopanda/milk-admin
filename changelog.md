@@ -1,6 +1,26 @@
 ## Changelog
 
-### v260203
+### v0.9.2 - 26/02/15
+- New: ExpressionParser refactored into separate classes (Lexer, Parser, Evaluator, BuiltinFunctions, TokenType, ValueHelper)
+- New: `hasMeta` relationship type in RelationshipsTrait with EAV pattern support and batched queries
+- New: MetaSaveTrait - automatic saving of hasMeta fields integrated into model save workflow
+- Improved: RelationshipsTrait and RelationshipDataHandlerTrait with hasMeta batched query support
+- Improved: TitleBuilder with fetch title support in JSON
+- Improved: TableBuilder and GetDataBuilder (DataProcessor, ColumnManager, FieldFirstTrait)
+- Improved: FormBuilder, FormFieldManagementTrait, FormSystemOperationsTrait
+- Improved: RuleBuilder with extended rules support
+- Improved: RouteControllerTrait with major refactoring
+- Improved: AbstractModel, AbstractModule, AbstractController
+- Improved: SchemaMysql with major refactoring
+- Improved: Form.php and ObjectToForm
+- Improved: Theme assets (form.js, milk-form.js, ajax-handler.js, theme.css, theme.js)
+- Improved: MilkSelect plugin and Table plugin
+- Fix: Cache bug in ExtensionLoader
+- Updated: Documentation - AbstractModel fully documented (abstract-model, crud, queries, relationships, attributes, rulebuilder, controller)
+- Updated: Documentation - Form docs (builders-form, fields, validation, conditional-visibility)
+- Updated: Documentation - builders-table, theme-json-actions, expressions (syntax, examples, API)
+
+### v0.9.1 - 26/02/03
 - New: Expression system (PHP + JS) with `ExpressionParser` and frontend parser, plus docs (overview, syntax, API, examples)
 - New: FormBuilder expression helpers (calcExpr, defaultExpr, validateExpr, requireIf, showIf) with `milk-form.js`
 - New: ModelValidator for expression-based required/validation rules
@@ -11,7 +31,7 @@
 - bug fix: small bugs in save data
 - Updated: Documentation
 
-### v260125
+### v0.9.0 - 26/01/25
 - New: ScheduleGridBuilder - Advanced grid system for schedule and planning visualization
 - New: ScheduleGrid Theme Plugin with GridRenderer and interactive JavaScript components
 - New: Version normalization system supporting both semver and legacy numeric versions

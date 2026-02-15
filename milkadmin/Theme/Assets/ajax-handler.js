@@ -326,7 +326,17 @@ function jsonAction(data, container) {
         }
     }
 
-    // 9. Table actions
+    // 9. Title update (single or multiple)
+    if ('title' in data && data.title.id) {
+        milkActionsUpdateTitle(data.title);
+    }
+    if ('titles' in data && Array.isArray(data.titles)) {
+        data.titles.forEach(titleData => {
+            milkActionsUpdateTitle(titleData);
+        });
+    }
+
+    // 10. Table actions
     if ('table' in data && data.table.id) {
         const table = getComponent(data.table.id);
         if (table) {
@@ -571,6 +581,22 @@ function milkActionsProcessElement(elementData) {
     }
 }
 
+/**
+ * Update a single title element by ID
+ * @param {Object} titleData - { id: string, html: string }
+ */
+function milkActionsUpdateTitle(titleData) {
+    if (!titleData.id) return;
+    const titleEl = document.getElementById(titleData.id);
+    if (titleEl) {
+        if (titleData.html !== undefined) {
+            titleEl.innerHTML = titleData.html;
+            updateContainer(titleEl);
+        }
+    } else {
+        console.warn('error title update id: ' + titleData.id);
+    }
+}
 
 
 /**

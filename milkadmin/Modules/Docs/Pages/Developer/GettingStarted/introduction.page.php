@@ -5,7 +5,7 @@ use App\Route;
  * @title Introduction 
  * @guide developer
  * @order 10
- * @tags Introduction, Getting Started, Framework, MVC, MilkCore, hello-world, Route::set, _pt, module, theme, Response::theme_page, modules, milkadmin_local, lang, media, storage, config.php, functions.php, WordPress, Laravel, Bootstrap, admin-panel, PHP, CSRF, SQL-injection, cron-jobs, APIs, email, users, permissions, CRUD, webapp, installation, update
+ * @tags Introduction, Getting Started, Framework, MVC, MilkCore, hello-world, Route::set, _pt, module, theme, Response::theme_page, modules, milkadmin_local, lang, media, storage, config.php, functions.php, WordPress, Laravel, Bootstrap, admin-panel, PHP, CSRF, SQL-injection, cron-jobs, APIs, email, users, permissions, CRUD, webapp, installation, update, hasMeta, relationships, EAV, metadata
  */
 
  !defined('MILK_DIR') && die(); // Avoid direct access
@@ -13,7 +13,7 @@ use App\Route;
 
 <div class="bg-white p-4">
     <h1>Welcome to Milk Admin,</h1>
-    <p class="text-muted">Revision: 2025/10/18</p>
+    <p class="text-muted">Revision: 2026/02/05</p>
     <p >a ready-to-use admin panel written in PHP and designed to support the work of developers. It manages cron jobs, allows you to create public APIs, emails, manages users, permissions and CRUD.<br>
 Developed with a Bootstrap template and a lightweight and easy-to-learn framework for creating independent systems.<br>
 The system offers an excellent level of automatic protection from CSRF and SQL Injection, as well as extensive initial documentation.<br>
@@ -39,10 +39,11 @@ Try it, the installation system is very fast and you can customize it for your n
         <li><strong>Schema Definition</strong> - Define tables using fluent syntax: <code>$rule->string('name')->required()</code></li>
         <li><strong>CRUD Operations</strong> - Built-in methods (examples): <code>save()</code>, <code>fill()</code>, <code>getEmpty()</code>, <code>store()</code>, <code>getById()</code>, <code>delete()</code>, <code>getAll()</code> and many more</li>
         <li><strong>Query Builder</strong> - Chain conditions (examples): <code>where()->order()->limit()</code> and many more</li>
-        <li><strong>Relationships</strong> - Support for <code>hasOne()</code>, <code>hasMany()</code>, <code>belongsTo()</code></li>
+        <li><strong>Relationships</strong> - Support for <code>hasOne()</code>, <code>hasMany()</code>, <code>belongsTo()</code>, <code>hasMeta()</code></li>
+        <li><strong>Flexible Metadata</strong> - EAV-style key/value fields via <code>hasMeta()</code> with automatic sync on <code>save()</code>/<code>delete()</code></li>
         <li><strong>Validation</strong> - Automatic validation based on schema rules</li>
     </ul>
-    <p>Models handle table creation, updates, and migrations automatically. See <a href="?page=docs&action=Developer/GettingStarted/getting-started-model">Getting Started - Model</a> for a complete tutorial.</p>
+    <p>Models handle table creation, updates, and migrations automatically. See <a href="?page=docs&action=Developer/GettingStarted/getting-started-model">Getting Started - Model</a> for a complete tutorial and <a href="?page=docs&action=Developer/Model/abstract-model-relationships">Model Relationships</a> for advanced relationship patterns including metadata.</p>
 
     <h3>Builders: Your Productivity Tools</h3>
     <p>MilkAdmin includes a set of <strong>Builder</strong> classes that speed up development by providing fluent, chainable interfaces for common tasks:</p>

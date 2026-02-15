@@ -5,7 +5,7 @@ namespace Modules\Docs\Pages;
  * @title Field Configuration
  * @guide developer
  * @order 41
- * @tags FormBuilder, fields, field-configuration, form-fields, resetFields
+ * @tags FormBuilder, fields, field-configuration, form-fields, resetFields, calcExpr, defaultExpr, validateExpr, requireIf
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>
@@ -13,6 +13,35 @@ namespace Modules\Docs\Pages;
     <h1>FormBuilder - Field Configuration</h1>
 
     <p>Form field configuration starts from the Model definition. FormBuilder methods allow you to modify this base configuration to customize the fields.</p>
+
+    <h2>Important: Field-First Context</h2>
+
+    <p>
+        Most methods in this page are <strong>field-first</strong>: they work on the <strong>current field</strong>.
+        The current field is set by calling <code>field('FIELD_NAME')</code>.
+    </p>
+    <p>
+        After <code>field('FIELD_NAME')</code>, every chained method (e.g. <code>label()</code>, <code>required()</code>, <code>calcExpr()</code>, <code>validateExpr()</code>, <code>requireIf()</code>) applies to that field until you call <code>field()</code> again.
+    </p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// ✅ Correct: set current field first
+->field('EMAIL')
+    ->label('Email Address')
+    ->required()
+
+// ✅ Switch context to another field
+->field('STATUS')
+    ->formType('select')
+    ->options(['active' => 'Active', 'inactive' => 'Inactive'])
+
+// ❌ Wrong: no current field selected first
+->label('Email Address')</code></pre>
+
+    <div class="alert alert-warning">
+        <strong>Note:</strong> if a field-first method is called without <code>field()</code>, FormBuilder cannot know which field to modify.
+    </div>
+
+    <p>Methods that are <strong>not</strong> field-first and can be used directly on the builder include: <code>addField()</code>, <code>modifyField()</code>, <code>removeField()</code>, <code>fieldOrder()</code>, and <code>resetFields()</code>.</p>
 
     <h2>Available Methods</h2>
 
@@ -96,6 +125,26 @@ namespace Modules\Docs\Pages;
                 <td><code>->errorMessage('Invalid email')</code></td>
             </tr>
             <tr>
+                <td><code>calcExpr(string $expression)</code></td>
+                <td>Sets a calculated expression for the field value (MilkForm expression)</td>
+                <td><code>->calcExpr('[QTY] * [PRICE]')</code></td>
+            </tr>
+            <tr>
+                <td><code>defaultExpr(string $expression)</code></td>
+                <td>Sets a soft default value expression (applied only in JS when field is empty)</td>
+                <td><code>->defaultExpr('[PRICE] * 0.22')</code></td>
+            </tr>
+            <tr>
+                <td><code>validateExpr(string $expression, ?string $message = null)</code></td>
+                <td>Sets an expression that must evaluate to true for field validity</td>
+                <td><code>->validateExpr('[END] &gt;= [START]', 'Invalid range')</code></td>
+            </tr>
+            <tr>
+                <td><code>requireIf(string $expression, ?string $message = null)</code></td>
+                <td>Makes the field required only when the expression is true</td>
+                <td><code>->requireIf('[TYPE] == "company"')</code></td>
+            </tr>
+            <tr>
                 <td><code>moveBefore(string $field)</code></td>
                 <td>Moves the field before another field</td>
                 <td><code>->moveBefore('status')</code></td>
@@ -124,6 +173,30 @@ namespace Modules\Docs\Pages;
         ->value('active')
     ->getForm();
 </code></pre>
+
+    <h2>Expression-Based Field Logic</h2>
+
+    <p>FormBuilder supports reactive expressions directly on fields. These expressions are executed by MilkForm in JavaScript.</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = FormBuilder::create($model, $this->page)
+    ->field('TOTAL')
+        ->readonly()
+        ->calcExpr('[PRICE] * [QTY]')
+
+    ->field('DISCOUNT')
+        ->defaultExpr('[TOTAL] * 0.10')
+
+    ->field('END_DATE')
+        ->validateExpr('[END_DATE] >= [START_DATE]', 'End date must be after start date')
+
+    ->field('VAT_NUMBER')
+        ->requireIf('[COUNTRY] == "IT" AND [IS_COMPANY] == 1', 'VAT number is required for Italian companies')
+    ->getForm();
+</code></pre>
+
+    <div class="alert alert-info">
+        <strong>Note:</strong> <code>validateExpr()</code>, <code>requireIf()</code>, <code>calcExpr()</code>, and <code>defaultExpr()</code> in FormBuilder are client-side (JS) features. For guaranteed save-time validation, define expression rules in the Model too.
+    </div>
 
     <h2>Creating New Fields</h2>
 
@@ -344,7 +417,7 @@ class PostsController extends AbstractController
     <p>The <code>addField()</code> method allows you to add a new field programmatically, specifying all properties in a single options array.</p>
 
     <p><strong>Syntax:</strong></p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->addField(string $field_name, string $type, array $options = [])
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->addField(string $field_name, string $type, array $options = [], string $position_before = '')
 </code></pre>
 
     <p><strong>Parameters:</strong></p>
@@ -352,8 +425,8 @@ class PostsController extends AbstractController
         <li><code>$field_name</code>: Name of the field to add</li>
         <li><code>$type</code>: Data type (string, int, date, datetime, bool, etc.)</li>
         <li><code>$options</code>: Array with all field configurations (label, form-type, required, options, etc.)</li>
+        <li><code>$position_before</code>: (Optional) Name of the field before which to insert the new field</li>
     </ul>
-    <p>To position the field, use <code>->before('field_name')</code> or <code>->after('field_name')</code> in the chain.</p>
 
     <p><strong>Basic Example:</strong></p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Adds a simple text field at the end of the form
@@ -368,7 +441,7 @@ class PostsController extends AbstractController
 </code></pre>
 
     <p><strong>Example with Positioning:</strong></p>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Adds a select field and moves it before the 'status' field
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Adds a select field before the 'status' field
 ->addField('priority', 'int', [
     'label' => 'Priority',
     'form-type' => 'select',
@@ -379,7 +452,7 @@ class PostsController extends AbstractController
         4 => 'Critical'
     ],
     'default' => 2
-])->before('status')
+], 'status')
 </code></pre>
 
     <p><strong>Complete Example with All Options:</strong></p>
@@ -396,7 +469,7 @@ class PostsController extends AbstractController
         'disabled' => false,
         'invalid-feedback' => 'This field is required'
     ]
-])->before('content')
+], 'content')
 </code></pre>
 
     <p><strong>Difference between addField() and field():</strong></p>

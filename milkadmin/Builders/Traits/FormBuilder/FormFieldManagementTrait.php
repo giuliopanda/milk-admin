@@ -19,7 +19,10 @@ trait FormFieldManagementTrait {
      *
      * @example ->removeField('created_at')
      */
-    public function removeField(string $name): self {
+    public function removeField(?string $name = null): self {
+        if ($name == null) {
+            $name = $this->requireCurrentField('removeField');
+        }
         if (isset($this->fields[$name])) {
             $this->fields_copy[$name] = $this->fields[$name];
         }
@@ -29,6 +32,12 @@ trait FormFieldManagementTrait {
         return $this;
     }
 
+
+    public function hide(): self {
+        $field_name = $this->requireCurrentField('hide');
+        $this->fields[$field_name]['form-type'] = 'hidden';
+        return $this;
+    }
 
 
     /**

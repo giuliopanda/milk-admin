@@ -187,6 +187,14 @@ class ModelValidator
 
                         if (!$field_has_error) {
                             $numeric_value = (float) $value;
+                            if (($rule['unsigned'] ?? false) && $numeric_value < 0) {
+                                $add_error(
+                                    'The field <b>' . ($rule['label'] ?? $field_name) . '</b> must be greater than or equal to 0'
+                                );
+                            }
+                        }
+
+                        if (!$field_has_error) {
                             $min = $form_params['min'] ?? null;
                             $min_label = $min;
                             if ($min !== null && $min !== '' && !is_numeric($min) && is_string($min) && array_key_exists($min, $data)) {

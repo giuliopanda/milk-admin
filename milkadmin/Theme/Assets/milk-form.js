@@ -664,6 +664,21 @@ class MilkForm {
                 console.warn(`MilkForm: Errore refresh requiredIf "${fieldId}":`, e.message);
             }
         }
+
+        // Se ha validateExpr, verifica se ora è tornato valido (es. dipendenze cambiate)
+        if (config.validateExpr && element.classList.contains(this.options.invalidClass)) {
+            try {
+                const result = this.parser.analyze(config.validateExpr, true);
+                if (result.error) return;
+
+                if (result.result === true) {
+                    this._setFieldValid(element);
+                    this.errors.delete(fieldId);
+                }
+            } catch (e) {
+                console.warn(`MilkForm: Errore refresh validateExpr "${fieldId}":`, e.message);
+            }
+        }
     }
 
     /**
@@ -674,7 +689,7 @@ class MilkForm {
         console.group('[MilkForm] Dependency Graph');
         
         console.log('Direct dependencies (field -> params):');
-        this.dependencyGraph.forEach((deps, fieldId) => {
+        this.dependencyGraph.forEacmh((deps, fieldId) => {
             console.log(`  ${fieldId} -> [${Array.from(deps).join(', ')}]`);
         });
         

@@ -40,11 +40,12 @@ class SchemaMysql {
     private string $charset = 'utf8mb4';
     private string $collate = 'utf8mb4_unicode_ci';
     private ?array $primary_keys = [];
-    private ?string $primary_key = null;  // manteniamo per retrocompatibilità
+    private ?string $primary_key = null;  // keep for backward compatibility
 
     private array $differences = [];
     private \App\Database\MySql $db;
     private array $rename_fields = [];
+    private ?bool $table_has_rows = null;
 
     public function __construct(string $table, ?\App\Database\MySql $db = null) {
         $this->table = $table;
@@ -78,7 +79,7 @@ class SchemaMysql {
         $field->type = 'int';
         $field->auto_increment = true;
         $field->primary_key = true;
-        $this->primary_key = $name;  // per retrocompatibilità
+        $this->primary_key = $name;  // backward compatibility
         $this->primary_keys = [$name];
         $this->fields[$name] = $field;
         return $this;
@@ -110,12 +111,13 @@ class SchemaMysql {
      * @param string|null $after The field after which this field should be positioned (default: null)
      * @return self Returns the Schema instance for method chaining
      */
-    public function int(string $name, bool $null = true, ?int $default = null, ?string $after = null): self {
+    public function int(string $name, bool $null = true, ?int $default = null, ?string $after = null, bool $unsigned = false): self {
         $field = new FieldMysql($name, $this->db);
         $field->type = 'int';
         $field->nullable = $null;
         $field->default = $default;
         $field->after = $after;
+        $field->unsigned = $unsigned;
         $this->fields[$name] = $field;
         return $this;
     }
@@ -141,12 +143,13 @@ class SchemaMysql {
      * @param string|null $after The field after which this field should be positioned (default: null)
      * @return self Returns the Schema instance for method chaining
      */
-    public function tinyint(string $name, bool $null = true, ?int $default = null, ?string $after = null): self {
+    public function tinyint(string $name, bool $null = true, ?int $default = null, ?string $after = null, bool $unsigned = false): self {
         $field = new FieldMysql($name, $this->db);
         $field->type = 'tinyint';
         $field->nullable = $null;
         $field->default = $default;
         $field->after = $after;
+        $field->unsigned = $unsigned;
         $this->fields[$name] = $field;
 
         return $this;
@@ -155,12 +158,13 @@ class SchemaMysql {
     /**
      * Creates a small integer field
      */
-    public function smallint(string $name, bool $null = true, ?int $default = null, ?string $after = null): self {
+    public function smallint(string $name, bool $null = true, ?int $default = null, ?string $after = null, bool $unsigned = false): self {
         $field = new FieldMysql($name, $this->db);
         $field->type = 'smallint';
         $field->nullable = $null;
         $field->default = $default;
         $field->after = $after;
+        $field->unsigned = $unsigned;
         $this->fields[$name] = $field;
 
         return $this;
@@ -169,12 +173,13 @@ class SchemaMysql {
     /**
      * Creates a medium integer field
      */
-    public function mediumint(string $name, bool $null = true, ?int $default = null, ?string $after = null): self {
+    public function mediumint(string $name, bool $null = true, ?int $default = null, ?string $after = null, bool $unsigned = false): self {
         $field = new FieldMysql($name, $this->db);
         $field->type = 'mediumint';
         $field->nullable = $null;
         $field->default = $default;
         $field->after = $after;
+        $field->unsigned = $unsigned;
         $this->fields[$name] = $field;
 
         return $this;
@@ -183,12 +188,13 @@ class SchemaMysql {
     /**
      * Creates a big integer field
      */
-    public function bigint(string $name, bool $null = true, ?int $default = null, ?string $after = null): self {
+    public function bigint(string $name, bool $null = true, ?int $default = null, ?string $after = null, bool $unsigned = false): self {
         $field = new FieldMysql($name, $this->db);
         $field->type = 'bigint';
         $field->nullable = $null;
         $field->default = $default;
         $field->after = $after;
+        $field->unsigned = $unsigned;
         $this->fields[$name] = $field;
 
         return $this;
@@ -301,6 +307,24 @@ class SchemaMysql {
         return $this;
     }
 
+    public function tinytext(string $name, bool $null = true, ?string $after = null): self {
+        $field = new FieldMysql($name, $this->db);
+        $field->type = 'tinytext';
+        $field->nullable = $null;
+        $field->after = $after;
+        $this->fields[$name] = $field;
+        return $this;
+    }
+
+    public function mediumtext(string $name, bool $null = true, ?string $after = null): self {
+        $field = new FieldMysql($name, $this->db);
+        $field->type = 'mediumtext';
+        $field->nullable = $null;
+        $field->after = $after;
+        $this->fields[$name] = $field;
+        return $this;
+    }
+
     public function longtext(string $name, bool $null = true, ?string $after = null): self {
         $field = new FieldMysql($name, $this->db);
         $field->type = 'longtext';
@@ -350,7 +374,7 @@ class SchemaMysql {
         return $this;
     }
 
-    public function decimal(string $name, int $precision = 10, int $scale = 2, bool $null = true, ?float $default = null, ?string $after = null): self {
+    public function decimal(string $name, int $precision = 10, int $scale = 2, bool $null = true, ?float $default = null, ?string $after = null, bool $unsigned = false): self {
         $field = new FieldMysql($name, $this->db);
         $field->type = 'decimal';
         $field->precision = $precision;
@@ -358,6 +382,7 @@ class SchemaMysql {
         $field->nullable = $null;
         $field->default = $default;
         $field->after = $after;
+        $field->unsigned = $unsigned;
         $this->fields[$name] = $field;
         return $this;
     }
@@ -407,7 +432,7 @@ class SchemaMysql {
         return $this;
     }
 
-    // CREATION/
+    // CREATE / DROP
     public function create(): bool {
         $this->last_error = '';
         if (empty($this->fields)) {
@@ -424,7 +449,7 @@ class SchemaMysql {
         }
 
 
-        // Gestione chiavi primarie
+        // Primary key handling
         if (!empty($this->primary_keys)) {
             $primary_keys = array_map([$this->db, 'qn'], $this->primary_keys);
             $fields_sql[] = "  PRIMARY KEY (" . implode(", ", $primary_keys) . ")";
@@ -440,8 +465,8 @@ class SchemaMysql {
         $sql .= implode(",\n", $fields_sql);
         $sql .= "\n) ENGINE={$this->engine} DEFAULT CHARSET={$this->charset} COLLATE={$this->collate};";
 
-        // resetto il prefisso a causa dell'installazione in cui ancora non è settato ??
-        //@TODO 2025/06/12 - Secondo me ora funziona anche senza resettare il prefisso
+        // Reset prefix for install flows where it may not be initialized yet.
+        //@TODO 2025/06/12 - This likely works now even without resetting the prefix.
         $this->db->prefix = Config::get('prefix');
 
         $this->db->query($sql);
@@ -466,14 +491,16 @@ class SchemaMysql {
     }
 
    /**
-     * ALTER TABLE METHODS - Versione migliorata per MySQL
+     * ALTER TABLE METHODS - Improved version for MySQL
      */
-    public function modify($force_update = false): bool {
-        // Ottieni la struttura corrente
+    public function modify(bool $force_update = false): bool {
+        $this->table_has_rows = null;
+
+        // Get current structure
         $current_fields = $this->getCurrentFields();
         $current_indices = $this->getCurrentIndices();
          $diff = $this->checkDifferencesBetweenFields($current_fields);
-        // Valida le modifiche prima di procedere
+        // Validate changes before proceeding
         if (!$this->validateModifications($current_fields) && !$force_update) {
             return false;
         }
@@ -487,22 +514,22 @@ class SchemaMysql {
     }
 
     /**
-     * Complex alter table modificato per gestire meglio il riordinamento
+     * Complex alter table updated to better handle field reordering
      */
     private function alterTable(array $current_fields, array $current_indices): bool {
         try {
-            // Inizia transazione
+            // Start transaction
             $this->db->query("START TRANSACTION");
             
-            // 1. Prepara tutti i comandi ALTER
+            // 1. Prepare all ALTER commands
             $alter_commands = $this->prepareAlterCommands($current_fields, $current_indices);
             
             if (empty($alter_commands)) {
                 $this->db->query("COMMIT");
-                return true; // Nessuna modifica necessaria
+                return true; // No changes required
             }
             
-            // 2. Esegui tutti i comandi ALTER in sequenza
+            // 2. Execute ALTER commands in sequence
             if (!$this->executeAlterCommands($alter_commands)) {
                 throw new \Exception("Error during ALTER command execution: ". $this->last_error);
             }
@@ -513,12 +540,12 @@ class SchemaMysql {
             //     throw new \Exception("Error during field reordering: ". $this->last_error);
             // }
             
-            // 4. Manage indices
+            // 4. Manage indexes
             if (!$this->updateIndices($current_indices)) {
                 throw new \Exception("Error during index update: ". $this->last_error);
             }
             
-            // Commit della transazione
+            // Commit transaction
             $this->db->query("COMMIT");
             return true;
             
@@ -544,7 +571,7 @@ class SchemaMysql {
                 $new_field = $this->fields[$name];
                 $add = [];
                 
-                // Verifica se il campo è stato modificato
+                // Check whether the field was modified
                 if (!$new_field->compare($old_field)) {
                     foreach ($new_field as $key=>$value) {
                         if ($old_field->$key != $value) {
@@ -563,7 +590,7 @@ class SchemaMysql {
             }
         }
         
-        // Trova campi nuovi
+        // Find new fields
         foreach ($this->fields as $name => $new_field) {
             if (!isset($current_fields[$name])) {
                 $results['new_fields'][$name] = $new_field;
@@ -581,15 +608,15 @@ class SchemaMysql {
     }
 
     /**
-     * FIX PER SCHEMA MYSQL - CORREZIONE DEI PROBLEMI ALTER TABLE
+     * MySQL schema fix - ALTER TABLE handling improvements
      * 
-     * Problemi risolti:
-     * 1. Ordine errato dei comandi ALTER (ADD deve venire prima di MODIFY)
-     * 2. Generazione di MODIFY non necessari per campi che non cambiano
-     * 3. Posizionamento corretto dei nuovi campi con AFTER clause
-     * 4. Debug dettagliato per tracciare le operazioni
+     * Issues addressed:
+     * 1. Incorrect ALTER command ordering (ADD must run before MODIFY)
+     * 2. Unnecessary MODIFY statements for unchanged fields
+     * 3. Correct placement of new fields using AFTER clause
+     * 4. Detailed debug traces for troubleshooting
      * 
-     * I metodi corretti da sostituire nella classe SchemaMysql sono:
+     * Key methods involved in SchemaMysql:
      * - prepareAlterCommands()
      * - prepareModifyCommands()
      * - executeAlterCommands()
@@ -598,31 +625,33 @@ class SchemaMysql {
      */
 
     /**
-     * Prepara tutti i comandi ALTER necessari - VERSIONE CORRETTA CON DEBUG
+     * Prepare all required ALTER commands - corrected debug version
      */
     private function prepareAlterCommands(array $current_fields, array $current_indices): array {
         $alter_commands = [];
         $debug_info = [];
+        $deferred_auto_increment_fields = [];
+        $table_has_rows = null;
         $rename_from = array_keys($this->rename_fields);
         $rename_to = array_values($this->rename_fields);
         
-        // DEBUG: Stato iniziale
+        // DEBUG: initial state
         $debug_info[] = "=== PREPARE ALTER COMMANDS DEBUG ===";
-        $debug_info[] = "Campi correnti: " . implode(', ', array_keys($current_fields));
-        $debug_info[] = "Campi definiti: " . implode(', ', array_keys($this->fields));
+        $debug_info[] = "Current fields: " . implode(', ', array_keys($current_fields));
+        $debug_info[] = "Defined fields: " . implode(', ', array_keys($this->fields));
         
-        // 1. Drop indici che verranno ricreati (per evitare conflitti)
+        // 1. Drop indexes that will be recreated (to avoid conflicts)
         foreach ($current_indices as $name => $index) {
             if (!isset($this->indices[$name])) {
                 $alter_commands[] = "DROP INDEX " . $this->db->qn($name);
                 $debug_info[] = "DROP INDEX: $name";
             } elseif (isset($this->indices[$name]) && !$index->compare($this->indices[$name])) {
                 $alter_commands[] = "DROP INDEX " . $this->db->qn($name);
-                $debug_info[] = "DROP INDEX (per modifica): $name";
+                $debug_info[] = "DROP INDEX (for modification): $name";
             }
         }
         
-        // 2. Gestione chiave primaria (drop se necessario)
+        // 2. Primary key handling (drop if needed)
         $current_primary_keys = array_keys(array_filter($current_fields, fn($f) => $f->primary_key));
         $new_primary_keys = !empty($this->primary_keys) ? $this->primary_keys : ($this->primary_key ? [$this->primary_key] : []);
         
@@ -633,7 +662,7 @@ class SchemaMysql {
             }
         }
         
-        // 3. Drop campi rimossi
+        // 3. Drop removed fields
         foreach ($current_fields as $name => $field) {
             if (!isset($this->fields[$name]) && !$field->primary_key && !in_array($name, $rename_from, true)) {
                 $alter_commands[] = "DROP COLUMN " . $this->db->qn($name);
@@ -641,25 +670,25 @@ class SchemaMysql {
             }
         }
         
-        // 4. Add nuovi campi con posizionamento corretto
+        // 4. Add new fields with correct placement
         $current_field_names = array_keys($current_fields);
         $defined_field_order = array_keys($this->fields);
         
         foreach ($this->fields as $name => $field) {
             if (!isset($current_fields[$name]) && !in_array($name, $rename_to, true)) {
-                $debug_info[] = "Nuovo campo da aggiungere: $name";
+                $debug_info[] = "New field to add: $name";
                 
-                // Trova dove posizionare il nuovo campo
+                // Find where to place the new field
                 $index = array_search($name, $defined_field_order);
                 $position_clause = "";
                 
                 if ($index !== false) {
-                    // Cerca il campo precedente che esiste già nella tabella
+                    // Find the previous field that already exists in the table
                     $after_field = null;
                     for ($i = $index - 1; $i >= 0; $i--) {
                         if (isset($current_fields[$defined_field_order[$i]])) {
                             $after_field = $defined_field_order[$i];
-                            $debug_info[] = "  - Posizionare dopo: $after_field";
+                            $debug_info[] = "  - Place after: $after_field";
                             break;
                         }
                     }
@@ -668,20 +697,56 @@ class SchemaMysql {
                         $position_clause = " AFTER " . $this->db->qn($after_field);
                     } elseif ($index === 0) {
                         $position_clause = " FIRST";
-                        $debug_info[] = "  - Posizionare come FIRST";
+                        $debug_info[] = "  - Place as FIRST";
                     }
                 }
                 
-                // Salva temporaneamente l'after originale
+                // Temporarily save original AFTER value
                 $original_after = $field->after;
-                $field->after = null; // Rimuovi per evitare doppio AFTER
+                $original_auto_increment = $field->auto_increment;
+                $original_default = $field->default;
+                $defer_auto_increment = $original_auto_increment && in_array($name, $new_primary_keys, true);
+
+                // MySQL requires AUTO_INCREMENT to be indexed.
+                // With ALTER commands executed one by one, PK may be added later,
+                // so we defer AUTO_INCREMENT to a subsequent MODIFY.
+                if ($defer_auto_increment) {
+                    $field->auto_increment = false;
+                }
+
+                // In strict mode MySQL can fail with "Incorrect date value: '0000-00-00'"
+                // when adding NOT NULL temporal fields without explicit defaults on non-empty tables.
+                if ($this->shouldUseTemporaryDefaultForAdd($field)) {
+                    if ($table_has_rows === null) {
+                        $table_has_rows = $this->tableHasRows();
+                    }
+                    if ($table_has_rows) {
+                        $temporary_default = $this->getTemporaryDefaultForAdd($field);
+                        if ($temporary_default !== null) {
+                            $field->default = $temporary_default;
+                            $debug_info[] = "  - Temporary default for {$name}: {$temporary_default}";
+                        }
+                    }
+                }
+
+                $field->after = null; // Avoid duplicate AFTER clause
                 
                 $sql = "ADD COLUMN " . $field->toSql() . $position_clause;
                 $alter_commands[] = $sql;
                 $debug_info[] = "  - SQL: $sql";
+
+                if ($defer_auto_increment) {
+                    $deferred_auto_increment_fields[] = [
+                        'name' => $name,
+                        'position_clause' => $position_clause
+                    ];
+                    $debug_info[] = "  - AUTO_INCREMENT deferred for: $name";
+                }
                 
-                // Ripristina l'after originale
+                // Restore original AFTER value
                 $field->after = $original_after;
+                $field->auto_increment = $original_auto_increment;
+                $field->default = $original_default;
             }
         }
 
@@ -695,96 +760,113 @@ class SchemaMysql {
             $alter_commands[] = $sql;
         }
         
-        // 5. Prepara comandi MODIFY solo per campi che necessitano modifiche
+        // 5. Prepare MODIFY commands only for fields that need changes
         $modify_commands = $this->prepareModifyCommands($current_fields);
         if (!empty($modify_commands)) {
             $debug_info[] = "MODIFY commands: " . count($modify_commands);
             $alter_commands = array_merge($alter_commands, $modify_commands);
         }
         
-        // 6. Ricrea chiave primaria se necessario
+        // 6. Recreate primary key if needed
         if ($current_primary_keys !== $new_primary_keys && !empty($new_primary_keys)) {
             $alter_commands[] = "ADD PRIMARY KEY (`" . implode("`, `", $new_primary_keys) . "`)";
             $debug_info[] = "ADD PRIMARY KEY: " . implode(', ', $new_primary_keys);
+        }
+
+        // 7. Apply AUTO_INCREMENT after PK (required with single-step ALTER execution)
+        foreach ($deferred_auto_increment_fields as $field_info) {
+            $field_name = $field_info['name'];
+            if (!isset($this->fields[$field_name])) {
+                continue;
+            }
+
+            $field = $this->fields[$field_name];
+            $original_after = $field->after;
+            $field->after = null;
+
+            $alter_commands[] = "MODIFY COLUMN " . $field->toSql() . $field_info['position_clause'];
+            $debug_info[] = "MODIFY AUTO_INCREMENT: {$field_name}";
+
+            $field->after = $original_after;
         }
         
         return $alter_commands;
     }
 
     /**
-     * Prepara i comandi MODIFY per gestire modifiche e riordinamento - VERSIONE CORRETTA
+     * Prepare MODIFY commands for changes and reordering - corrected version
      */
     private function prepareModifyCommands(array $current_fields): array {
         $modify_commands = [];
         $debug_info = [];
         
-        // Ottieni l'ordine corrente e quello desiderato
+        // Get current and desired field order
         $current_field_order = $this->getCurrentFieldOrder();
         $defined_field_order = array_keys($this->fields);
         
-        // Determina se è necessario riordinare
+        // Determine whether reordering is required
         $needs_reordering = $this->needsFieldReordering($current_fields);
         
         $debug_info[] = "=== PREPARE MODIFY COMMANDS DEBUG ===";
-        $debug_info[] = "Ordine corrente: " . implode(', ', $current_field_order);
-        $debug_info[] = "Ordine desiderato: " . implode(', ', $defined_field_order);
-        $debug_info[] = "Riordinamento necessario: " . ($needs_reordering ? 'SI' : 'NO');
+        $debug_info[] = "Current order: " . implode(', ', $current_field_order);
+        $debug_info[] = "Desired order: " . implode(', ', $defined_field_order);
+        $debug_info[] = "Reordering required: " . ($needs_reordering ? 'YES' : 'NO');
         
-        // Gestisci modifiche ai campi e riordinamento
+        // Handle field changes and reordering
         foreach ($this->fields as $field_name => $field) {
             if (!isset($current_fields[$field_name])) {
-                continue; // Il campo è nuovo, già aggiunto
+                continue; // Field is new and already added
             }
             
             $needs_modify = false;
             $position_clause = "";
             
-            // Verifica se il campo necessita di modifica del tipo/attributi
+            // Check whether the field needs type/attribute changes
             if (!$field->compare($current_fields[$field_name])) {
                 $needs_modify = true;
-                $debug_info[] = "Campo $field_name: modifica tipo/attributi necessaria";
+                $debug_info[] = "Field $field_name: type/attribute modification required";
             }
             
-            // Verifica se il campo necessita di riposizionamento SOLO se c'è un riordinamento generale
+            // Check whether field repositioning is needed ONLY when global reordering is required
             if ($needs_reordering) {
-                // Trova la posizione corretta per questo campo
+                // Find the correct position for this field
                 $index = array_search($field_name, $defined_field_order);
                 
                 if ($index !== false) {
-                    // Determina il campo dopo cui posizionare
+                    // Determine which field this should be placed after
                     $after_field = null;
                     for ($i = $index - 1; $i >= 0; $i--) {
-                        // Cerca il campo precedente che esiste nella tabella corrente
+                        // Find the previous field that exists in current table
                         if (isset($current_fields[$defined_field_order[$i]])) {
                             $after_field = $defined_field_order[$i];
                             break;
                         }
                     }
                     
-                    // Verifica se la posizione attuale è diversa da quella desiderata
+                    // Check whether current position differs from desired position
                     $current_index = array_search($field_name, $current_field_order);
                     $current_after = $current_index > 0 ? $current_field_order[$current_index - 1] : null;
                     
                     if ($after_field !== $current_after) {
                         $position_clause = $after_field ? " AFTER " . $this->db->qn($after_field) : " FIRST";
                         $needs_modify = true;
-                        $debug_info[] = "Campo $field_name: riposizionamento necessario $position_clause";
+                        $debug_info[] = "Field $field_name: repositioning required $position_clause";
                     } elseif ($index === 0 && $current_index !== 0) {
-                        // Il campo dovrebbe essere primo ma non lo è
+                        // Field should be first but currently is not
                         $position_clause = " FIRST";
                         $needs_modify = true;
-                        $debug_info[] = "Campo $field_name: deve essere FIRST";
+                        $debug_info[] = "Field $field_name: must be FIRST";
                     }
                 }
             }
             
-            // Aggiungi il comando MODIFY solo se necessario
+            // Add MODIFY command only if required
             if ($needs_modify) {
                 $sql = "MODIFY COLUMN " . $field->toSql() . $position_clause;
                 $modify_commands[] = $sql;
                 $debug_info[] = "  - MODIFY SQL: $sql";
             } else {
-                $debug_info[] = "Campo $field_name: nessuna modifica necessaria";
+                $debug_info[] = "Field $field_name: no changes required";
             }
         }
 
@@ -792,39 +874,78 @@ class SchemaMysql {
     }
 
     /**
-     * Esegue i comandi ALTER preparati - CON DEBUG
+     * Execute ALTER commands one at a time to identify the exact failing command
      */
     private function executeAlterCommands(array $alter_commands): bool {
         if (empty($alter_commands)) {
             return true;
         }
-        
-        $sql = "ALTER TABLE " . $this->db->qn($this->table) . " \n" . implode(",\n", $alter_commands) . ";";
-        
-        // Resetta il prefisso per l'installazione
+
         $this->db->prefix = Config::get('prefix');
-        
-        $this->db->query($sql);
-        if ($this->db->error) {
-            if (Config::get('debug')) {
-                $this->last_error = "QUERY: " . $sql . "\nERRORE: " . $this->db->last_error;
-            } else {
-                $this->last_error = $this->db->last_error;
+        $table_qn = $this->db->qn($this->table);
+
+        foreach ($alter_commands as $command) {
+            $sql = "ALTER TABLE {$table_qn} {$command};";
+            $this->db->query($sql);
+            if ($this->db->error) {
+                $this->last_error = $this->db->last_error . " | " . $command;
+                return false;
             }
-            return false;
         }
-        
+
         return true;
     }
 
+    private function shouldUseTemporaryDefaultForAdd(FieldMysql $field): bool
+    {
+        if ($field->nullable || $field->default !== null || $field->auto_increment) {
+            return false;
+        }
+
+        return in_array(strtolower((string) $field->type), ['date', 'datetime', 'time'], true);
+    }
+
+    private function getTemporaryDefaultForAdd(FieldMysql $field): ?string
+    {
+        $type = strtolower((string) $field->type);
+        if ($type === 'date') {
+            return '1970-01-01';
+        }
+        if ($type === 'datetime') {
+            return '1970-01-01 00:00:00';
+        }
+        if ($type === 'time') {
+            return '00:00:00';
+        }
+
+        return null;
+    }
+
+    private function tableHasRows(): bool
+    {
+        if ($this->table_has_rows !== null) {
+            return $this->table_has_rows;
+        }
+
+        try {
+            $this->db->prefix = Config::get('prefix');
+            $result = $this->db->query('SELECT 1 FROM ' . $this->db->qn($this->table) . ' LIMIT 1');
+            $this->table_has_rows = is_object($result) && method_exists($result, 'num_rows') && $result->num_rows() > 0;
+        } catch (\Throwable $e) {
+            $this->table_has_rows = false;
+        }
+
+        return $this->table_has_rows;
+    }
+
     /**
-     * Verifica se è necessario riordinare i campi
+     * Check whether field reordering is required
      */
     private function needsFieldReordering(array $current_fields): bool {
         $current_order = $this->getCurrentFieldOrder();
         $defined_order = array_keys($this->fields);
         
-        // Filtra solo i campi che esistono in entrambe le definizioni
+        // Keep only fields that exist in both definitions
         $common_fields_current = array_intersect($current_order, $defined_order);
         $common_fields_defined = array_intersect($defined_order, $current_order);
         
@@ -832,13 +953,13 @@ class SchemaMysql {
     }
 
     /**
-     * Aggiorna gli indici (per entrambe le modalità)
+     * Update indexes (for both modes)
      */
     private function updateIndices(array $current_indices): bool {
-        // Aggiungi nuovi indici o ricrea quelli modificati
+        // Add new indexes or recreate modified ones
         foreach ($this->indices as $name => $index) {
             if (!isset($current_indices[$name])) {
-                // Nuovo indice
+                // New index
                 $sql = "ALTER TABLE " . $this->db->qn($this->table) . " ADD " . $index->toSql();
                 $this->db->query($sql);
                 if ($this->db->error) {
@@ -846,7 +967,7 @@ class SchemaMysql {
                     return false;
                 }
             } elseif (!$index->compare($current_indices[$name])) {
-                // Indice modificato (già droppato nei comandi ALTER)
+                // Modified index (already dropped during ALTER commands)
                 $sql = "ALTER TABLE " . $this->db->qn($this->table) . " ADD " . $index->toSql();
                 $this->db->query($sql);
                 if ($this->db->error) {
@@ -860,29 +981,29 @@ class SchemaMysql {
     }
 
     /**
-     * Valida la struttura prima delle modifiche
+     * Validate table structure before applying modifications
      */
     private function validateModifications(array $current_fields): bool {
-        // Verifica che i campi obbligatori non vengano rimossi se contengono dati
+        // Ensure required fields are not removed when they still contain data
         foreach ($current_fields as $name => $field) {
             if (!isset($this->fields[$name]) && !$field->nullable && !$field->primary_key) {
-                // Verifica se il campo contiene dati non null
+                // Check if the field contains non-null data
                 $result = $this->db->query("SELECT COUNT(*) as count FROM " . $this->db->qn($this->table) . " WHERE " . $this->db->qn($name) . " IS NOT NULL LIMIT 1");
                 if ($result) {
                     $row = $result->fetch_object();
                     if ($row->count > 0) {
-                        $this->last_error = "Impossibile rimuovere il campo '{$name}': contiene dati non null";
+                        $this->last_error = "Cannot remove field '{$name}': it contains non-null data";
                         return false;
                     }
                 }
             }
         }
         
-        // Verifica compatibilità dei tipi per modifiche
+        // Check type compatibility for modifications
         foreach ($this->fields as $name => $field) {
             if (isset($current_fields[$name])) {
                 if (!$this->areTypesCompatible($current_fields[$name], $field)) {
-                    $this->last_error = "Modifica del campo '{$name}': tipi incompatibili ({$current_fields[$name]->type} -> {$field->type})";
+                    $this->last_error = "Field '{$name}' modification failed: incompatible types ({$current_fields[$name]->type} -> {$field->type})";
                     return false;
                 }
             }
@@ -892,17 +1013,18 @@ class SchemaMysql {
     }
 
     /**
-     * Verifica se due tipi sono compatibili per una modifica
+     * Check whether two types are compatible for a modification
      */
     private function areTypesCompatible(FieldMysql $old_field, FieldMysql $new_field): bool {
-        // Mapping di compatibilità dei tipi
+        // Type compatibility map
         $compatible_types = [
             'tinyint' => ['tinyint', 'smallint', 'int', 'bigint'],
             'smallint' => ['smallint', 'int', 'bigint'],
             'int' => ['int', 'bigint'],
             'bigint' => ['bigint'],
-            'char' => ['char', 'varchar', 'text', 'mediumtext', 'longtext'],
-            'varchar' => ['char', 'varchar', 'text', 'mediumtext', 'longtext'],
+            'char' => ['char', 'varchar', 'tinytext', 'text', 'mediumtext', 'longtext'],
+            'varchar' => ['char', 'varchar', 'tinytext', 'text', 'mediumtext', 'longtext'],
+            'tinytext' => ['tinytext', 'text', 'mediumtext', 'longtext'],
             'text' => ['text', 'mediumtext', 'longtext'],
             'mediumtext' => ['mediumtext', 'longtext'],
             'longtext' => ['longtext'],
@@ -914,12 +1036,12 @@ class SchemaMysql {
         $old_type = strtolower($old_field->type);
         $new_type = strtolower($new_field->type);
 
-        // Stesso tipo è sempre compatibile
+        // Same type is always compatible
         if ($old_type === $new_type) {
             return true;
         }
 
-        // Verifica compatibilità dal mapping
+        // Check compatibility using the map
         if (isset($compatible_types[$old_type])) {
             return in_array($new_type, $compatible_types[$old_type]);
         }
@@ -963,6 +1085,7 @@ class SchemaMysql {
 
             $field->nullable = ($row->Null === 'YES');
             $field->default = $row->Default;
+            $field->unsigned = (stripos((string) $row->Type, 'unsigned') !== false);
             $field->auto_increment = (strpos($row->Extra, 'auto_increment') !== false);
             $field->primary_key = in_array($row->Field, $primary_keys, true);
 

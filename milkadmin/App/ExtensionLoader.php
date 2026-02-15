@@ -17,13 +17,6 @@ use App\{Logs};
 class ExtensionLoader
 {
     /**
-     * Cache of loaded extension instances
-     * Structure: [extension_name => [type => instance]]
-     * @var array
-     */
-    private static array $loaded_extensions = [];
-
-    /**
      * Cache of loaded extension file paths and class names
      * Structure: [file_path => class_name]
      * @var array
@@ -91,20 +84,9 @@ class ExtensionLoader
      */
     private static function loadExtension(string $extension_name, string $type, object $target, array $params = []): ?object
     {
-        // IMPORTANT: Do NOT use cache for Model extensions because each model instance
-        // needs its own extension instance with the correct $this->model reference.
-        // Only cache Controller/Module extensions which are typically singletons.
-        $cache_key = $extension_name . '::' . $type;
-
-        // Only use cache for non-Model types
-        if ($type !== 'Model' && isset(self::$loaded_extensions[$cache_key])) {
-            $cached_instance = self::$loaded_extensions[$cache_key];
-            // Apply new parameters to cached instance
-            if (method_exists($cached_instance, 'applyParameters')) {
-                $cached_instance->applyParameters($params);
-            }
-            return $cached_instance;
-        }
+        // Safety-first policy:
+        // always create a fresh extension instance bound to the current target.
+        // This avoids stale-state leaks between different target instances.
 
         // Determine the directory of the calling module/model
         $target_reflection = new \ReflectionClass($target);
@@ -166,11 +148,6 @@ class ExtensionLoader
             $instance->applyParameters($params);
         }
 
-        // Cache the instance only for non-Model types
-        if ($type !== 'Model') {
-            self::$loaded_extensions[$cache_key] = $instance;
-        }
-
         return $instance;
     }
 
@@ -184,9 +161,16 @@ class ExtensionLoader
      */
     private static function loadExtensionFile(string $file_path, string $type): ?string
     {
+        $real_path = realpath($file_path) ?: $file_path;
+
         // Check if file was already loaded
         if (isset(self::$loaded_files[$file_path])) {
             return self::$loaded_files[$file_path];
+        }
+        if (isset(self::$loaded_files[$real_path])) {
+            $cached_class = self::$loaded_files[$real_path];
+            self::$loaded_files[$file_path] = $cached_class;
+            return $cached_class;
         }
 
         // Capture declared classes before loading
@@ -200,9 +184,13 @@ class ExtensionLoader
         $new_classes = array_diff($classes_after, $classes_before);
 
         if (empty($new_classes)) {
-            // File already loaded or no class declared
-            // Try to find the class by convention in already loaded classes
-            // This can happen with require_once on subsequent calls
+            // File may have been loaded previously through another path or earlier bootstrap.
+            $resolved = self::resolveDeclaredClassForFile($real_path, $type);
+            if ($resolved !== null) {
+                self::$loaded_files[$file_path] = $resolved;
+                self::$loaded_files[$real_path] = $resolved;
+                return $resolved;
+            }
             return null;
         }
 
@@ -242,8 +230,51 @@ class ExtensionLoader
 
         // Cache the mapping
         self::$loaded_files[$file_path] = $extension_class;
+        self::$loaded_files[$real_path] = $extension_class;
 
         return $extension_class;
+    }
+
+    /**
+     * Resolve an already-declared extension class that comes from $real_path.
+     */
+    private static function resolveDeclaredClassForFile(string $real_path, string $type): ?string
+    {
+        $expected_base_class = "App\\Abstracts\\Abstract{$type}Extension";
+
+        foreach (get_declared_classes() as $class_name) {
+            $reflection = new \ReflectionClass($class_name);
+            if ($reflection->isAbstract()) {
+                continue;
+            }
+            $class_file = $reflection->getFileName();
+            if (!is_string($class_file) || $class_file === '') {
+                continue;
+            }
+            if ((realpath($class_file) ?: $class_file) !== $real_path) {
+                continue;
+            }
+
+            if (is_subclass_of($class_name, $expected_base_class)) {
+                return $class_name;
+            }
+        }
+
+        foreach (get_declared_classes() as $class_name) {
+            $reflection = new \ReflectionClass($class_name);
+            if ($reflection->isAbstract()) {
+                continue;
+            }
+            $class_file = $reflection->getFileName();
+            if (!is_string($class_file) || $class_file === '') {
+                continue;
+            }
+            if ((realpath($class_file) ?: $class_file) === $real_path) {
+                return $class_name;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -323,7 +354,6 @@ class ExtensionLoader
      */
     public static function clearCache(): void
     {
-        self::$loaded_extensions = [];
         self::$loaded_files = [];
     }
 }

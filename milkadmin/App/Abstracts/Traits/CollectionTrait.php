@@ -348,6 +348,24 @@ trait CollectionTrait
 
 
     /**
+     * Iterate over records yielding each row as an associative array
+     * Useful for foreach loops where you want plain array access per record
+     *
+     * @return \Generator Yields each record as array (without ___action key)
+     */
+    public function rows(): \Generator
+    {
+       
+        foreach ($this as $_) {
+            $newClass = new static();
+            $record = $this->records_objects[$this->current_index] ?? [];
+            unset($record['___action']);
+            $newClass->setRow($record);
+            yield $newClass;
+        }
+    }
+
+    /**
      * Save the current record from result set
      *
      * @return bool True if save succeeded, false otherwise

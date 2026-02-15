@@ -827,6 +827,11 @@ trait CrudOperationsTrait
                     ExtensionLoader::callReturnHook($this->loaded_extensions, 'afterDelete',  [[$id]]);
                 } 
                 ExtensionLoader::freeRecursion('afterDelete');
+
+                // Call afterDelete method if it exists in the model
+                if (method_exists($this, 'afterDelete')) {
+                    $this->afterDelete([$id]);
+                }
                
             }
 

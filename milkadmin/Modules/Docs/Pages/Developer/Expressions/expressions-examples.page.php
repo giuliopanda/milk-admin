@@ -65,4 +65,36 @@ $form->field('end_date')
     <div class="alert alert-info">
         <strong>Tip:</strong> use the same expression in Model and FormBuilder to get consistent validation on both levels.
     </div>
+
+    <hr>
+
+    <h2>4) Working with arrays of objects (COUNT / SUM / MIN / MAX / FIND ...)</h2>
+    <p>These helpers are useful when you set a complex parameter (object/array) and reference it via dot-notation.</p>
+
+    <p><strong>JS: set an object with nested arrays</strong></p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-js">const parser = new ExpressionParser();
+
+parser.setParameter('user', {
+  orders: [
+    { id: 1, total: 100, status: 'paid' },
+    { id: 2, total: 250, status: 'pending' },
+    { id: 3, total: 75,  status: 'paid' }
+  ]
+});</code></pre>
+
+    <p><strong>Expressions</strong></p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-text">COUNT([user.orders])                          // → 3
+COUNT([user.orders], "status")                // → 3 (counts items where status is not null/undefined)
+
+SUM([user.orders], "total")                   // → 425
+MIN([user.orders], "total")                   // → 75
+MAX([user.orders], "total")                   // → 250
+
+FIND([user.orders], "id", 2)                  // → {id:2, total:250, status:"pending"}
+CONTAINS([user.orders], "status", "paid")     // → true
+
+FIRST([user.orders], "total")                 // → 100
+FIRST([user.orders], "total", 0)              // → 100 (default only if array is empty / missing field)
+LAST([user.orders], "status")                 // → "paid"
+LAST([user.orders], "status", "n/a")          // → "paid"</code></pre>
 </div>

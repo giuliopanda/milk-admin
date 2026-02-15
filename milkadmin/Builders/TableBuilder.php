@@ -20,6 +20,8 @@ class TableBuilder extends GetDataBuilder
     protected $table_id = '';
     protected $footer_data = [];
     protected $table_attrs = [];
+    protected ?bool $pagination_override = null;
+    protected bool $show_header = true;
    
 
     /**
@@ -38,11 +40,14 @@ class TableBuilder extends GetDataBuilder
             $data['rows']->with();
         }
 
+        $this->applyPaginationVisibilityRules($data['page_info']);
+
         $tableHtml = Get::themePlugin('table', [
             'info' => $data['info'],
             'rows' => $data['rows'],
             'page_info' => $data['page_info'],
-            'table_attrs' => $this->table_attrs
+            'table_attrs' => $this->table_attrs,
+            'show_header' => $this->show_header
         ]);
 
         return $tableHtml;
@@ -58,6 +63,43 @@ class TableBuilder extends GetDataBuilder
      */
     public function setErrorMessage(string $message): static {
         $this->customErrorMessage = $message;
+        return $this;
+    }
+
+    /**
+     * Force pagination visibility for this table.
+     * When set, automatic pagination visibility rules are skipped.
+     */
+    public function setPagination(bool $enabled): static {
+        $this->pagination_override = $enabled;
+        return $this;
+    }
+
+    /**
+     * Show or hide table header rendering.
+     *
+     * @param bool $show Show header when true, skip rendering when false
+     * @return static For method chaining
+     *
+     * @example ->setShowHeader(false)
+     */
+    public function setShowHeader(bool $show): static {
+        $this->show_header = $show;
+        return $this;
+    }
+
+    /**
+     * Reduce font size for all table texts (rows, header, bulk row, pagination).
+     *
+     * Applies the `table-text-small` class to the table container.
+     *
+     * @param bool $enabled Enable compact text mode
+     * @return static For method chaining
+     *
+     * @example ->setSmallText(true)
+     */
+    public function setSmallText(bool $enabled = true): static {
+        $this->toggleClassOnAttrElement('container', 'table-text-small', $enabled);
         return $this;
     }
 
@@ -465,6 +507,82 @@ class TableBuilder extends GetDataBuilder
             'even_classes' => $even_classes ?? ''
         ];
         return $this;
+    }
+
+    /**
+     * Add or remove a CSS class from a table attribute element without clobbering existing classes.
+     */
+    private function toggleClassOnAttrElement(string $element, string $class_name, bool $enabled): void
+    {
+        $current = trim((string) ($this->table_attrs[$element]['class'] ?? ''));
+        $classes = $current === '' ? [] : preg_split('/\s+/', $current);
+        $classes = array_values(array_filter(is_array($classes) ? $classes : [], static function ($value) {
+            return is_string($value) && $value !== '';
+        }));
+
+        if ($enabled) {
+            if (!in_array($class_name, $classes, true)) {
+                $classes[] = $class_name;
+            }
+        } else {
+            $classes = array_values(array_filter($classes, static function ($value) use ($class_name) {
+                return $value !== $class_name;
+            }));
+        }
+
+        if (empty($classes)) {
+            unset($this->table_attrs[$element]['class']);
+            return;
+        }
+
+        $this->table_attrs[$element]['class'] = implode(' ', $classes);
+    }
+
+    /**
+     * Apply default pagination visibility rules unless explicitly overridden.
+     */
+    private function applyPaginationVisibilityRules($page_info): void
+    {
+        if (!(is_array($page_info) || $page_info instanceof \ArrayAccess)) {
+            return;
+        }
+
+        if ($this->pagination_override !== null) {
+            $page_info['pagination'] = $this->pagination_override;
+            return;
+        }
+
+        if ($this->isLimitExplicitlyProvidedInRequest()) {
+            return;
+        }
+
+        $limit = (int) ($page_info['limit'] ?? 0);
+        $total = (int) ($page_info['total_record'] ?? 0);
+
+        if ($limit < 1 || $total < 0) {
+            return;
+        }
+
+        $current_page = $this->resolveCurrentPage($page_info, $limit);
+
+        if ($current_page === 1 && $total < $limit) {
+            $page_info['pagination'] = false;
+        }
+    }
+
+    private function isLimitExplicitlyProvidedInRequest(): bool
+    {
+        $request = $this->getRequest();
+
+        return array_key_exists('limit', $request) && $request['limit'] !== '' && $request['limit'] !== null;
+    }
+
+    private function resolveCurrentPage($page_info, int $limit): int
+    {
+        $limit_start = (int) ($page_info['limit_start'] ?? 0);
+        $limit_start = max(0, $limit_start);
+
+        return (int) floor($limit_start / $limit) + 1;
     }
 
     // ========================================================================

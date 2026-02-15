@@ -4,14 +4,14 @@ namespace Modules\Docs\Pages;
  * @title Model Relationships
  * @guide Models
  * @order 53
- * @tags model, relationships, hasOne, hasMany, belongsTo, foreign key, lazy loading, batch loading, eager loading, with, cascade save, withoutGlobalScopes
+ * @tags model, relationships, hasOne, hasMany, belongsTo, hasMeta, foreign key, lazy loading, batch loading, eager loading, with, withMeta, cascade save, withoutGlobalScopes, metadata, EAV
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>
 <div class="bg-white p-4">
     <h1>Model Relationships</h1>
-    <p class="text-muted">Revision: 2025/12/27</p>
-    <p class="lead">Define and use relationships between models with <code>hasOne</code>, <code>hasMany</code>, and <code>belongsTo</code>.</p>
+    <p class="text-muted">Revision: 2026/02/05</p>
+    <p class="lead">Define and use relationships between models with <code>hasOne</code>, <code>hasMany</code>, <code>belongsTo</code>, and <code>hasMeta</code>.</p>
 
     <div class="alert alert-info">
         <strong>Key Features:</strong>
@@ -19,6 +19,7 @@ namespace Modules\Docs\Pages;
             <li><strong>Lazy Loading:</strong> Related data loads only when accessed</li>
             <li><strong>Batch Loading:</strong> Prevents N+1 queries automatically</li>
             <li><strong>Eager Loading:</strong> Preload relationships with <code>with()</code></li>
+            <li><strong>Meta Fields (EAV):</strong> Load key/value metadata with <code>hasMeta()</code> and <code>withMeta()</code></li>
             <li><strong>Cascade Save:</strong> Save related records with <code>save($cascade = true)</code></li>
             <li><strong>Cascade Delete:</strong> Auto-delete child records with CASCADE</li>
         </ul>
@@ -70,6 +71,14 @@ namespace Modules\Docs\Pages;
                     <td>Adds a COUNT subquery. Returns count of related records.</td>
                 </tr>
                 <tr>
+                    <td><code>hasMeta()</code></td>
+                    <td>
+                        <code>$alias, $relatedModel, $foreignKey = null, $localKey = null, $metaKeyColumn = 'meta_key', $metaValueColumn = 'meta_value', $metaKeyValue = null</code>
+                    </td>
+                    <td>✅ Auto-saved on <code>save()</code></td>
+                    <td>EAV metadata relationship. Maps scalar virtual fields to rows in a meta table.</td>
+                </tr>
+                <tr>
                     <td><code>where()</code></td>
                     <td>
                         <code>$condition, $params = []</code>
@@ -87,6 +96,7 @@ namespace Modules\Docs\Pages;
             <li><code>save($cascade = false)</code>: Default. Saves only the main record.</li>
             <li><code>save($cascade = true)</code>: Saves main record + related records that have <code>allowCascadeSave = true</code>.</li>
             <li><code>belongsTo</code> relationships are <strong>never saved</strong> (read-only).</li>
+            <li><code>hasMeta</code> fields are saved automatically after successful <code>save()</code> and removed after <code>delete()</code>.</li>
         </ul>
     </div>
 
@@ -230,6 +240,12 @@ $corsi = $corsiModel
                     <td>1:N</td>
                     <td>Author → Books</td>
                 </tr>
+                <tr>
+                    <td><code>hasMeta()</code></td>
+                    <td>In the META table (entity_id + meta_key + meta_value)</td>
+                    <td>1:N (key/value rows)</td>
+                    <td>User → user_meta (nickname, city, theme...)</td>
+                </tr>
             </tbody>
         </table>
     </div>
@@ -335,6 +351,79 @@ $post->save(); // Only saves the post
 
     <div class="alert alert-info">
         <strong>Why belongsTo is Read-Only:</strong> The parent record (User) exists independently. Creating/modifying it when saving a child (Post) doesn't make semantic sense.
+    </div>
+
+    <h2 class="mt-4">hasMeta Relationship (EAV Metadata)</h2>
+
+    <p>
+        <code>hasMeta()</code> maps virtual scalar fields in your model to rows in a metadata table
+        (Entity-Attribute-Value pattern). This is useful for flexible attributes without adding many physical columns.
+    </p>
+
+    <h3 class="mt-3">Definition</h3>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// UserModel
+protected function configure($rule): void {
+    $rule->table('#__users')
+        ->id()
+            ->hasMeta('nickname', UserMetaModel::class, 'user_id', 'id')
+            ->hasMeta('city', UserMetaModel::class, 'user_id', 'id')
+            ->hasMeta('theme', UserMetaModel::class, 'user_id', 'id', 'meta_key', 'meta_value', 'ui_theme')
+        ->string('name', 100)->required();
+}
+
+// UserMetaModel
+protected function configure($rule): void {
+    $rule->table('#__user_meta')
+        ->id()
+        ->int('user_id')
+        ->string('meta_key', 100)
+        ->text('meta_value');
+}</code></pre>
+
+    <p><strong>Parameters:</strong></p>
+    <ul>
+        <li><code>$alias</code>: Virtual field name in the main model (e.g. <code>nickname</code>).</li>
+        <li><code>$relatedModel</code>: Meta model class (e.g. <code>UserMetaModel::class</code>).</li>
+        <li><code>$foreignKey</code>: Entity key in meta table (e.g. <code>user_id</code>).</li>
+        <li><code>$localKey</code>: Entity key in main table (usually <code>id</code>).</li>
+        <li><code>$metaKeyColumn</code>: Meta key field (default <code>meta_key</code>).</li>
+        <li><code>$metaValueColumn</code>: Meta value field (default <code>meta_value</code>).</li>
+        <li><code>$metaKeyValue</code>: Actual key stored in DB (defaults to alias).</li>
+    </ul>
+
+    <h3 class="mt-3">Usage</h3>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Read (lazy meta loading)
+$user = $usersModel->getById(10);
+echo $user->nickname; // value from user_meta where meta_key = 'nickname'
+
+// Preload all meta fields for export/performance
+$users = $usersModel->getAll()->withMeta();
+$data = $users->getRawData();
+
+// Write meta with normal save()
+$user->fill([
+    'id' => 10,
+    'nickname' => 'mario.rossi',
+    'city' => 'Rome'
+]);
+$user->save(); // main row + dirty meta rows are synced automatically
+
+// Delete meta by setting empty value
+$user->fill([
+    'id' => 10,
+    'city' => ''
+]);
+$user->save(); // removes 'city' meta row</code></pre>
+
+    <div class="alert alert-info">
+        <strong>Save/Delete behavior:</strong>
+        <ul class="mb-0">
+            <li><code>hasMeta</code> does not require <code>save(true)</code>.</li>
+            <li>Dirty meta fields are synced automatically after a successful model <code>save()</code>.</li>
+            <li>Meta rows are deleted automatically when the parent record is deleted.</li>
+        </ul>
     </div>
 
     <h2 class="mt-4">hasMany Relationship</h2>
@@ -517,7 +606,7 @@ echo "Reviews: " . $author->reviews_count;</code></pre>
 
     <h2 class="mt-4">Filtering Relationships with where()</h2>
 
-    <p>Apply custom WHERE conditions to relationship queries using the <code>where()</code> method. This method must be called immediately after a relationship method (withCount, hasMany, hasOne, belongsTo).</p>
+    <p>Apply custom WHERE conditions to relationship queries using the <code>where()</code> method. This method must be called immediately after a relationship method (withCount, hasMany, hasOne, belongsTo, hasMeta).</p>
 
     <h3 class="mt-3">Syntax</h3>
 
@@ -600,6 +689,16 @@ protected function configure($rule): void {
         ->string('title', 200);
 }</code></pre>
 
+    <h3 class="mt-3">Usage with hasMeta</h3>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">protected function configure($rule): void {
+    $rule->table('#__users')
+        ->id()
+            ->hasMeta('public_nickname', UserMetaModel::class, 'user_id', 'id')
+                ->where('is_public = ?', [1])
+        ->string('name', 100);
+}</code></pre>
+
     <h3 class="mt-3">Combining where() with Default Scopes</h3>
 
     <p>The <code>where()</code> method is applied in addition to any default scopes defined on the related model:</p>
@@ -645,7 +744,7 @@ $rule->table('authors')
 
     <div class="alert alert-info">
         <strong>Error Message:</strong> If you call <code>where()</code> without an active relationship, you'll get:
-        <br><code>LogicException: where() can only be called immediately after a relationship method (withCount, hasMany, hasOne, belongsTo).</code>
+        <br><code>LogicException: where() can only be called immediately after a relationship method (withCount, hasMany, hasOne, belongsTo, hasMeta).</code>
     </div>
 
     <h3 class="mt-3">Difference from hasMany</h3>
@@ -729,6 +828,11 @@ $post->save(true); // Comments saved</code></pre>
                     <td><code>belongsTo</code></td>
                     <td>N/A</td>
                     <td>Never</td>
+                </tr>
+                <tr>
+                    <td><code>hasMeta</code></td>
+                    <td>N/A</td>
+                    <td>Always (dirty meta only) on <code>save()</code></td>
                 </tr>
             </tbody>
         </table>
@@ -968,6 +1072,11 @@ if ($model->hasRelationship('books')) {
                     <td><code>->int('user_id')->belongsTo('user', UserModel::class)</code></td>
                 </tr>
                 <tr>
+                    <td>Define metadata field</td>
+                    <td><code>hasMeta()</code></td>
+                    <td><code>->id()->hasMeta('nickname', UserMetaModel::class, 'user_id', 'id')</code></td>
+                </tr>
+                <tr>
                     <td>Add count subquery</td>
                     <td><code>withCount()</code></td>
                     <td><code>->id()->withCount('posts_count', PostModel::class, 'author_id')</code></td>
@@ -986,6 +1095,11 @@ if ($model->hasRelationship('books')) {
                     <td>Preload for export</td>
                     <td><code>with()</code></td>
                     <td><code>$posts->with(['author', 'comments'])</code></td>
+                </tr>
+                <tr>
+                    <td>Preload metadata</td>
+                    <td><code>withMeta()</code></td>
+                    <td><code>$users->withMeta()</code></td>
                 </tr>
                 
                 <tr>

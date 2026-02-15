@@ -15,6 +15,7 @@ class MilkSelect {
     this.apiUrl = element.dataset.apiUrl || null;
     this.fetchTimeout = null;
     this.isLoading = false;
+    this.isEditing = false; // Track if user has modified the input text
 
     this.init();
   }
@@ -150,45 +151,45 @@ class MilkSelect {
   }
 
   loadExistingValues() {
-  if (!this.initialDisplayValue) return;
+    if (!this.initialDisplayValue) return;
 
-  const displayValues = Array.isArray(this.initialDisplayValue)
-    ? this.initialDisplayValue
-    : [this.initialDisplayValue];
+    const displayValues = Array.isArray(this.initialDisplayValue)
+      ? this.initialDisplayValue
+      : [this.initialDisplayValue];
 
-  this.selectedValues = displayValues;
+    this.selectedValues = displayValues;
 
-  // Legge valore hidden (se già esiste, es. da PHP)
-  const hiddenValue = this.hiddenInput.value;
-  if (hiddenValue) {
-    try {
-      const parsed = JSON.parse(hiddenValue);
-      this.selectedKeys = Array.isArray(parsed) ? parsed : [parsed];
-    } catch {
-      // Non è JSON, quindi è singolo valore
-      this.selectedKeys = [hiddenValue];
+    // Legge valore hidden (se già esiste, es. da PHP)
+    const hiddenValue = this.hiddenInput.value;
+    if (hiddenValue) {
+      try {
+        const parsed = JSON.parse(hiddenValue);
+        this.selectedKeys = Array.isArray(parsed) ? parsed : [parsed];
+      } catch {
+        // Non è JSON, quindi è singolo valore
+        this.selectedKeys = [hiddenValue];
+      }
     }
-  }
 
-  if (this.isMultiple) {
-    this.selectedValues.forEach(v => this.addMultipleItem(v));
+    if (this.isMultiple) {
+      this.selectedValues.forEach(v => this.addMultipleItem(v));
 
-    // If there are existing values in multiple mode, mark validation as passed
-    if (this.isRequired && this.selectedValues.length > 0 && this.validationInput) {
-      this.validationInput.value = "valid";
-      this.validationInput.removeAttribute('required');
-      // Only add is-valid if form was already validated
-      if (this.isFormValidated()) {
+      // If there are existing values in multiple mode, mark validation as passed
+      if (this.isRequired && this.selectedValues.length > 0 && this.validationInput) {
+        this.validationInput.value = "valid";
+        this.validationInput.removeAttribute('required');
+        // Only add is-valid if form was already validated
+        if (this.isFormValidated()) {
+          this.wrapper.classList.add('is-valid');
+        }
+      }
+    } else if (this.selectedValues.length > 0) {
+      // Single mode with existing value - mark as valid if required and form was validated
+      if (this.isRequired && this.isFormValidated()) {
         this.wrapper.classList.add('is-valid');
       }
     }
-  } else if (this.selectedValues.length > 0) {
-    // Single mode with existing value - mark as valid if required and form was validated
-    if (this.isRequired && this.isFormValidated()) {
-      this.wrapper.classList.add('is-valid');
-    }
   }
-}
 
 
   /** --- DYNAMIC UPDATE --- */
@@ -221,7 +222,7 @@ class MilkSelect {
     }
 
     input.addEventListener("input", e => this.handleSingleInput(e));
-    input.addEventListener("focus", e => this.showDropdown());
+    input.addEventListener("focus", e => this.handleSingleFocus(e));
     input.addEventListener("keydown", e => this.handleKeydown(e));
     input.addEventListener("blur", e => this.validateSingleInput(e));
 
@@ -245,6 +246,7 @@ class MilkSelect {
   clearSingleValue() {
     this.selectedValues = [];
     this.selectedKeys = [];
+    this.isEditing = false;
     this.currentInput.value = "";
     this.currentInput.classList.remove('has-value');
     this.updateHiddenInput();
@@ -261,7 +263,10 @@ class MilkSelect {
       }
     }
 
-    this.showDropdown();
+    // For API mode, don't show dropdown on clear - wait for typing
+    if (!this.apiUrl) {
+      this.showDropdown();
+    }
   }
 
   removeClearButton() {
@@ -282,7 +287,7 @@ class MilkSelect {
     }
 
     input.addEventListener("input", e => this.handleInput(e));
-    input.addEventListener("focus", () => this.showDropdown());
+    input.addEventListener("focus", () => this.handleMultipleFocus());
     input.addEventListener("keydown", e => this.handleKeydown(e));
     this.wrapper.appendChild(input);
     this.currentInput = input;
@@ -290,7 +295,6 @@ class MilkSelect {
 
   createValidationInput() {
     // Create a visible but styled-as-hidden input for HTML5 validation in multiple mode
-    // This input will receive focus and show the browser's validation message
     const validationInput = document.createElement("input");
     validationInput.type = "text";
     validationInput.className = "milkselect-validation-input";
@@ -322,36 +326,85 @@ class MilkSelect {
     this.validationInput = validationInput;
   }
 
+  // --- FOCUS HANDLERS ---
+
+  handleSingleFocus(e) {
+    // API mode: don't show dropdown on focus, wait for typing
+    if (this.apiUrl) {
+      // Keep the current value displayed, do nothing
+      return;
+    }
+
+    // Static mode: show dropdown with all options
+    // Keep the selected value visible in the input
+    this.showDropdown();
+  }
+
+  handleMultipleFocus() {
+    // API mode: don't show dropdown on focus, wait for typing
+    if (this.apiUrl) {
+      return;
+    }
+
+    // Static mode: show dropdown
+    this.showDropdown();
+  }
+
+  // --- INPUT HANDLERS ---
+
   handleInput(e) {
     const searchTerm = e.target.value;
     if (this.apiUrl) {
       this.fetchOptionsDebounced(searchTerm);
     } else {
       this.filterOptions(searchTerm.toLowerCase());
+      this.showDropdownIfNeeded();
     }
-    this.showDropdown();
   }
 
   handleSingleInput(e) {
     const searchTerm = e.target.value;
+    this.isEditing = true; // User has modified the input
+
     if (this.apiUrl) {
       this.fetchOptionsDebounced(searchTerm);
     } else {
       this.filterOptions(searchTerm.toLowerCase());
+      this.showDropdownIfNeeded();
     }
-    this.showDropdown();
   }
 
   fetchOptionsDebounced(searchTerm) {
     clearTimeout(this.fetchTimeout);
+
+    if (!searchTerm || searchTerm.trim().length === 0) {
+      this.dropdown.innerHTML = "";
+      this.hideDropdown();
+      return;
+    }
+
+    // Show loading immediately when user types
+    this.showLoading();
+
     this.fetchTimeout = setTimeout(() => {
       this.fetchOptions(searchTerm);
     }, 300);
   }
 
+  showLoading() {
+    this.dropdown.innerHTML = "";
+    const loadingItem = document.createElement("div");
+    loadingItem.className = "cs-autocomplete-loading";
+    loadingItem.innerHTML = `<span class="cs-loading-spinner"></span> Loading...`;
+    this.dropdown.appendChild(loadingItem);
+    this.dropdown.classList.add("show");
+    this.adjustDropdownPosition();
+  }
+
   async fetchOptions(searchTerm) {
     if (!searchTerm || searchTerm.trim().length === 0) {
       this.dropdown.innerHTML = "";
+      this.hideDropdown();
       return;
     }
 
@@ -366,10 +419,15 @@ class MilkSelect {
       if (data.success === 'ok' && data.options) {
         this.processApiOptions(data.options);
         this.filterOptions(searchTerm.toLowerCase());
+        this.showDropdownIfNeeded();
       } else {
+        this.dropdown.innerHTML = "";
+        this.hideDropdown();
         alert('Errore nel caricamento dei dati');
       }
     } catch (error) {
+      this.dropdown.innerHTML = "";
+      this.hideDropdown();
       alert('Errore di rete: ' + error.message);
     } finally {
       this.isLoading = false;
@@ -403,8 +461,11 @@ class MilkSelect {
       // Check if current value matches any valid option
       const isValidOption = this.options.some(opt => opt === currentValue);
 
+      // Also check if it matches the currently selected value (for API mode where options may not be loaded)
+      const isCurrentSelection = this.selectedValues.length > 0 && this.selectedValues[0] === currentValue;
+
       // If not valid, reset to previous selected value or clear
-      if (!isValidOption) {
+      if (!isValidOption && !isCurrentSelection) {
         if (this.selectedValues.length > 0) {
           // Restore the last valid selection
           e.target.value = this.selectedValues[0];
@@ -420,7 +481,7 @@ class MilkSelect {
   filterOptions(searchTerm) {
     this.dropdown.innerHTML = "";
 
-    // On first open, don't filter by search term to show all options
+    // On first open (static mode), don't filter to show all options
     const shouldFilter = !this.isFirstOpen || (searchTerm && searchTerm.length > 0);
 
     const filtered = this.options.filter(opt => {
@@ -428,20 +489,26 @@ class MilkSelect {
       if (this.isMultiple && this.selectedValues.includes(opt)) {
         return false;
       }
-      // For single select, include the current value on first open
-      if (!this.isMultiple && this.isFirstOpen && this.selectedValues.includes(opt)) {
-        return true;
-      }
       // Filter by search term
       return !shouldFilter || opt.toLowerCase().includes(searchTerm);
     });
 
-    if (filtered.length === 0) {
-       this.dropdown.innerHTML = "";
+    // In single mode: exclude the currently selected value ONLY if user hasn't started editing
+    // Once user modifies the input, show all matching options including the selected one
+    const filteredFinal = filtered.filter(opt => {
+      if (!this.isMultiple && !this.isEditing && this.selectedValues.length > 0 && this.selectedValues[0] === opt) {
+        return false;
+      }
+      return true;
+    });
+
+    if (filteredFinal.length === 0) {
+      // No results to show (or only the already-selected option)
+      this.dropdown.innerHTML = "";
       return;
     }
 
-    filtered.forEach((opt, idx) => {
+    filteredFinal.forEach((opt, idx) => {
       const item = document.createElement("div");
       item.className = "cs-autocomplete-item";
       item.textContent = opt;
@@ -452,9 +519,23 @@ class MilkSelect {
     this.activeIndex = -1;
   }
 
+  /**
+   * Show dropdown only if there are meaningful options to display
+   */
+  showDropdownIfNeeded() {
+    const items = this.dropdown.querySelectorAll(".cs-autocomplete-item");
+    if (items.length > 0) {
+      this.dropdown.classList.add("show");
+      this.adjustDropdownPosition();
+    } else {
+      this.hideDropdown();
+    }
+  }
+
   selectOption(value) {
     // Get the corresponding ID/key if using value mapping
     const key = this.valueMap ? this.valueMap[value] : value;
+    this.isEditing = false; // Reset editing state
 
     if (this.isMultiple) {
       if (!this.selectedValues.includes(value)) {
@@ -467,11 +548,10 @@ class MilkSelect {
 
       // Remove required when at least one item is selected in multiple mode
       if (this.isRequired && this.selectedValues.length > 0 && this.validationInput) {
-        this.validationInput.value = "valid"; // Set a value to pass validation
+        this.validationInput.value = "valid";
         this.validationInput.removeAttribute('required');
         this.wrapper.classList.remove('is-invalid');
         this.setContainerInvalid(false);
-        // Only add is-valid if form was already validated or field already had validation classes
         if (this.isFormValidated() || this.wrapper.classList.contains('is-invalid')) {
           this.wrapper.classList.add('is-valid');
         }
@@ -489,7 +569,6 @@ class MilkSelect {
         this.currentInput.removeAttribute('required');
         this.wrapper.classList.remove('is-invalid');
         this.setContainerInvalid(false);
-        // Only add is-valid if form was already validated or field already had validation classes
         if (this.isFormValidated() || this.wrapper.classList.contains('is-invalid')) {
           this.wrapper.classList.add('is-valid');
         }
@@ -500,7 +579,6 @@ class MilkSelect {
   }
 
   isFormValidated() {
-    // Check if the form has the 'was-validated' class
     const form = this.hiddenInput.closest('form');
     return form && form.classList.contains('was-validated');
   }
@@ -553,10 +631,9 @@ class MilkSelect {
 
     // Re-add required if all items are removed in multiple mode
     if (this.isRequired && this.selectedValues.length === 0 && this.validationInput) {
-      this.validationInput.value = ""; // Clear value to trigger validation
+      this.validationInput.value = "";
       this.validationInput.setAttribute('required', '');
       this.wrapper.classList.remove('is-valid');
-      // Only add is-invalid if form was already validated
       if (this.isFormValidated()) {
         this.wrapper.classList.add('is-invalid');
         this.setContainerInvalid(true);
@@ -571,6 +648,11 @@ class MilkSelect {
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault();
+        // If dropdown is not open in static mode, open it
+        if (!isDropdownOpen && !this.apiUrl) {
+          this.showDropdown();
+          return;
+        }
         this.activeIndex = Math.min(this.activeIndex + 1, items.length - 1);
         this.updateActiveItem(items);
         break;
@@ -580,10 +662,8 @@ class MilkSelect {
         this.updateActiveItem(items);
         break;
       case "Tab":
-        // Solo se il dropdown è aperto
         if (isDropdownOpen && items.length > 0) {
           e.preventDefault();
-          // Cicla tra le opzioni: incrementa e ricomincia da 0 quando arriva alla fine
           this.activeIndex = (this.activeIndex + 1) % items.length;
           this.updateActiveItem(items);
         }
@@ -591,24 +671,25 @@ class MilkSelect {
       case "Enter":
         e.preventDefault();
 
-        // Get current input value
         const inputValue = this.currentInput?.value.trim() || "";
 
-        // Se c'è un'opzione attiva (navigata con le frecce), selezionala
         if (this.activeIndex >= 0 && items[this.activeIndex]) {
           items[this.activeIndex].click();
         }
-        // Se l'utente ha digitato qualcosa, seleziona la prima opzione filtrata
         else if (inputValue.length > 0 && items.length > 0) {
           items[0].click();
         }
-        // Altrimenti (campo vuoto, nessuna ricerca), non fare nulla (lascia vuoto)
         else {
           this.hideDropdown();
         }
         break;
       case "Escape":
         this.hideDropdown();
+        this.isEditing = false;
+        // Restore selected value if in single mode
+        if (!this.isMultiple && this.selectedValues.length > 0) {
+          this.currentInput.value = this.selectedValues[0];
+        }
         break;
     }
   }
@@ -619,10 +700,9 @@ class MilkSelect {
   }
 
   showDropdown() {
-    this.dropdown.classList.add("show");
     this.filterOptions(this.currentInput?.value.toLowerCase() || "");
-    this.adjustDropdownPosition();
-    this.isFirstOpen = false; // Mark that dropdown was opened
+    this.showDropdownIfNeeded();
+    this.isFirstOpen = false;
   }
 
   hideDropdown() {
@@ -631,13 +711,11 @@ class MilkSelect {
   }
 
   adjustDropdownPosition() {
-    // Verifica se il dropdown dovrebbe essere mostrato sopra invece che sotto
     const rect = this.wrapper.getBoundingClientRect();
-    const dropdownHeight = this.dropdown.offsetHeight || 200; // Altezza stimata
+    const dropdownHeight = this.dropdown.offsetHeight || 200;
     const spaceBelow = window.innerHeight - rect.bottom;
     const spaceAbove = rect.top;
 
-    // Se non c'è abbastanza spazio sotto ma c'è spazio sopra, mostra sopra
     if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
       this.dropdown.classList.add("show-above");
     } else {
@@ -645,16 +723,13 @@ class MilkSelect {
     }
   }
 
-    updateHiddenInput() {
-    // Use selectedKeys (IDs) if we have a value map, otherwise use selectedValues
+  updateHiddenInput() {
     const valuesToSave = this.valueMap ? this.selectedKeys : this.selectedValues;
 
     let val;
     if (this.isMultiple) {
-      // Multiple: save as JSON array
       val = JSON.stringify(valuesToSave);
     } else {
-      // Single: save first value without JSON encoding
       val = valuesToSave.length > 0 ? valuesToSave[0] : "";
     }
 
@@ -672,7 +747,7 @@ class MilkSelect {
       this.currentInput?.focus();
     });
 
-    // Remove is-invalid class on focus (like other form inputs)
+    // Remove is-invalid class on focus
     this.wrapper.addEventListener("focus", () => {
       if (this.wrapper.classList.contains('is-invalid')) {
         this.wrapper.classList.remove('is-invalid');
@@ -680,10 +755,9 @@ class MilkSelect {
         this.hiddenInput.classList.remove('js-focus-remove-is-invalid');
         this.setContainerInvalid(false);
       }
-      // Don't add is-valid on focus, only when a value is selected
     }, true);
 
-    // Add is-valid class when field loses focus and has a valid value (only if form was validated)
+    // Add is-valid class when field loses focus and has a valid value
     this.wrapper.addEventListener("blur", () => {
       if (this.isRequired && this.isFormValidated()) {
         const hasValue = this.isMultiple
@@ -700,20 +774,16 @@ class MilkSelect {
 }
 
 // Auto-initialization for dynamically loaded content
-// This MutationObserver watches for new MilkSelect elements added to the DOM
 if (typeof MutationObserver !== 'undefined') {
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       mutation.addedNodes.forEach((node) => {
-        // Check if the added node is an element
         if (node.nodeType === 1) {
-          // Check if the node itself is a milkselect input
           if (node.matches && node.matches('input[type="hidden"][data-milkselect-config]')) {
             if (node.dataset.milkselectInitialized !== 'true') {
               MilkSelect.initFromConfig(node.id);
             }
           }
-          // Check for milkselect inputs within the added node
           if (node.querySelectorAll) {
             const selects = node.querySelectorAll('input[type="hidden"][data-milkselect-config]');
             selects.forEach(select => {
@@ -727,7 +797,6 @@ if (typeof MutationObserver !== 'undefined') {
     });
   });
 
-  // Start observing when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       observer.observe(document.body, {

@@ -96,7 +96,11 @@ trait FormSystemOperationsTrait {
 
         // Call beforeSave hook on extensions
         if (method_exists($this, 'callExtensionPipeline')) {
+            $hadErrorsBeforePipeline = MessagesHandler::hasErrors();
             $request = $this->callExtensionPipeline('beforeSave', $request);
+            if (!$hadErrorsBeforePipeline && MessagesHandler::hasErrors()) {
+                return false;
+            }
         }
 
         // Get primary key value

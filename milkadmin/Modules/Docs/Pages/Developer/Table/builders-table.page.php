@@ -87,7 +87,7 @@ namespace Modules\Docs\Pages;
                 <td>Custom query logic</td>
             </tr>
             <tr>
-                <td rowspan="14">Field Configuration<br>(Field-First)</td>
+                <td rowspan="15">Field Configuration<br>(Field-First)</td>
                 <td><code>field(string $key)</code></td>
                 <td>Start configuring a field</td>
             </tr>
@@ -106,6 +106,10 @@ namespace Modules\Docs\Pages;
             <tr>
                 <td><code>fn(callable $fn)</code></td>
                 <td>Custom formatter function</td>
+            </tr>
+            <tr>
+                <td><code>showIf(string $expression, mixed $elseValue = '')</code></td>
+                <td>Conditionally print field value (evaluated before <code>fn()</code>)</td>
             </tr>
             <tr>
                 <td><code>link(string $link, array $options = [])</code></td>
@@ -197,6 +201,19 @@ namespace Modules\Docs\Pages;
             <tr>
                 <td><code>getFunctionsResults()</code></td>
                 <td>Get action callback results</td>
+            </tr>
+            <tr>
+                <td rowspan="3">Display Controls</td>
+                <td><code>setSmallText(bool $enabled = true)</code></td>
+                <td>Reduce text size for table, bulk row and pagination controls</td>
+            </tr>
+            <tr>
+                <td><code>setShowHeader(bool $show)</code></td>
+                <td>Show or hide table header rendering (<code>&lt;thead&gt;</code>)</td>
+            </tr>
+            <tr>
+                <td><code>setPagination(bool $enabled)</code></td>
+                <td>Force pagination visibility on/off</td>
             </tr>
         </tbody>
     </table>
@@ -344,6 +361,11 @@ Response::render('view.php', $response);
                 <td><code>->field('name')->fn(fn($row) => strtoupper($row['name']))</code></td>
             </tr>
             <tr>
+                <td><code>showIf(string $expression, mixed $elseValue = '')</code></td>
+                <td>Conditionally print the value using an expression (runs before <code>fn()</code>)</td>
+                <td><code>->field('name')->showIf('[STATUS] == "active"', '-')</code></td>
+            </tr>
+            <tr>
                 <td><code>hide()</code></td>
                 <td>Hide field from display</td>
                 <td><code>->field('password')->hide()</code></td>
@@ -360,6 +382,39 @@ Response::render('view.php', $response);
             </tr>
         </tbody>
     </table>
+
+    <h3>Conditional Rendering - showIf() method</h3>
+    <p>
+        Use <code>showIf()</code> to decide if a cell should be printed or replaced with a fallback.
+        The condition is evaluated using the same mini-language of <code>App\\ExpressionParser</code>.
+    </p>
+    <div class="alert alert-info">
+        <ul class="mb-0">
+            <li><strong>Runs first</strong>: if the condition is false, the column formatter (<code>fn()</code>) is <strong>not executed</strong></li>
+            <li><strong>Row parameters</strong>: use <code>[FIELD]</code> to access row values (case-insensitive: <code>[STATUS]</code>, <code>[status]</code>)</li>
+            <li><strong>Dot notation</strong>: supports keys like <code>[user.name]</code> when the value is available/extractable</li>
+            <li><strong>Fallback</strong>: the 2nd argument is the value to display when the condition is false (default: empty string)</li>
+        </ul>
+    </div>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$table = \Builders\TableBuilder::create($model, 'users_table')
+    ->field('NAME')
+        ->type('html')
+        ->fn(function($rowModel) {
+            // executed ONLY when showIf() is true
+            return '&lt;strong&gt;' . $rowModel->NAME . '&lt;/strong&gt;';
+        })
+        ->showIf('[STATUS] == "active"', '&lt;span class="text-muted"&gt;Hidden&lt;/span&gt;');
+</code></pre>
+
+    <p class="mb-2">
+        <strong>Optional:</strong> the fallback can also be a callable (same signature used by <code>fn()</code>),
+        useful for dynamic placeholders.
+    </p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">->field('NAME')
+    ->fn(fn($rowModel) => 'CUSTOM-' . $rowModel->ID)
+    ->showIf('[STATUS] == "active"', fn($rowModel) => 'N/A (#' . $rowModel->ID . ')');
+</code></pre>
 
     <h2>Display Formatting Methods</h2>
 
@@ -397,6 +452,15 @@ Response::render('view.php', $response);
 // 'target' => '_blank' | '_self' | '_parent' | '_top'
 // 'class' => 'css-classes-here'
 // 'data-fetch' => 'post' | 'get' - Enable AJAX loading
+    </code></pre>
+    <p class="mb-2"><strong>Note:</strong> When <code>activeFetch()</code> is enabled, links are treated as fetch links by default. To force a normal navigation, pass <code>['data-fetch' => false]</code>. If you have a normal table, you can opt-in a single link to fetch with <code>['data-fetch' =&gt; 'get']</code> or <code>['data-fetch' =&gt; 'post']</code>.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// activeFetch() table, force normal link
+->field('socio.NOME')
+    ->link('?page=soci&action=edit&id=%MATRIC_SOCIO%', ['data-fetch' => false])
+
+// normal table, opt-in fetch for a single link
+->field('socio.NOME')
+    ->link('?page=soci&action=edit&id=%MATRIC_SOCIO%', ['data-fetch' => 'get'])
     </code></pre>
 
     <h3>Files - file() method</h3>
@@ -562,6 +626,28 @@ Response::render('view.php', $response);
     <h2>Table Styling</h2>
     <p>TableBuilder provides comprehensive styling options including field-specific styling with conditional classes.</p>
     <p><strong>See: <a href="?page=docs&action=styling">Table Styling Documentation</a></strong></p>
+
+    <h2>Display Controls</h2>
+    <p>Use display controls to tune table rendering behavior without changing data/query logic.</p>
+
+    <h3>Smaller Table Text - setSmallText()</h3>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$table = \Builders\TableBuilder::create($model, 'posts_table')
+    ->setSmallText()         // Equivalent to ->setSmallText(true)
+    ->getTable();</code></pre>
+
+    <h3>Hide Table Header - setShowHeader()</h3>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$table = \Builders\TableBuilder::create($model, 'posts_table')
+    ->setShowHeader(false)   // Do not render &lt;thead&gt;
+    ->getTable();</code></pre>
+
+    <div class="alert alert-warning">
+        <p class="mb-1"><strong>When header is hidden:</strong></p>
+        <ul class="mb-0">
+            <li>Column sorting UI in header is not available</li>
+            <li>The header "select all" checkbox is not rendered</li>
+            <li>Row checkboxes and bulk actions continue to work normally</li>
+        </ul>
+    </div>
 
     <h2>Output Methods</h2>
 

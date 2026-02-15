@@ -296,6 +296,14 @@ abstract class AbstractModule {
 
     protected $bootstrap_loaded = false;
     
+    /**
+     * Check if current request page matches this module page.
+     * Extensions for AbstractModule must load only in this case.
+     */
+    private function isCurrentModulePageRequest(): bool
+    {
+        return isset($_REQUEST['page']) && $_REQUEST['page'] == $this->page;
+    }
 
     /**
      * Constructor
@@ -327,14 +335,6 @@ abstract class AbstractModule {
 
             // Merge extensions using the new method
             $this->extensions = $this->mergeExtensions($original_extensions, $new_extensions);
-
-            // Reload extensions if new ones were added
-            if (count($this->extensions) > count($original_extensions)) {
-                $this->loadExtensions();
-
-                // Call hooks for newly loaded extensions
-                \App\ExtensionLoader::callHook($this->loaded_extensions, 'configure', [$this->rule_builder]);
-            }
         }
    
         if ($this->rule_builder->getMenuLinks() !== null) {
@@ -424,6 +424,11 @@ abstract class AbstractModule {
        
      
         if ((isset($_REQUEST['page']) && $_REQUEST['page'] == $this->page)) {
+            if (!empty($this->extensions)) {
+                $this->loadExtensions();
+                \App\ExtensionLoader::callHook($this->loaded_extensions, 'configure', [$this->rule_builder]);
+            }
+
             $this->loadLang();
             Hooks::set('after_modules_loaded', [$this, 'init'], 10);
             Hooks::set('after_modules_loaded', [$this, 'setStylesAndScripts'], 15);
@@ -600,6 +605,28 @@ abstract class AbstractModule {
         }
 
         if (is_object($this->controller) && method_exists($this->controller, 'setHandleRoutes')) {
+            // If actions were registered on Module before Controller was loaded, move them to Controller.
+            if (
+                method_exists($this->controller, 'registerRequestAction')
+                && !empty($this->programmaticRouteMap)
+            ) {
+                foreach ($this->programmaticRouteMap as $action => $handler) {
+                    $forwardHandler = $handler;
+
+                    // Preserve Module method handlers when not present on Controller.
+                    if (
+                        is_string($handler)
+                        && method_exists($this, $handler)
+                        && !method_exists($this->controller, $handler)
+                    ) {
+                        $forwardHandler = [$this, $handler];
+                    }
+
+                    $accessLevel = $this->programmaticAccessByAction[$action] ?? null;
+                    $this->controller->registerRequestAction($action, $forwardHandler, $accessLevel);
+                }
+            }
+
             $this->controller->setHandleRoutes($this);
 
             // Call hookInit to register the route (needed for CLI context where 'init' hook doesn't run)
@@ -1113,7 +1140,8 @@ abstract class AbstractModule {
 
     /**
      * Automatically load controller file and class if they exist
-     * Also loads Controller extensions and scans for #[RequestAction] attributes (always, even if Controller class doesn't exist)
+     * Also loads Controller extensions and scans for #[RequestAction] attributes
+     * only when current request page matches this module page.
      *
      * @return void
      */
@@ -1130,8 +1158,8 @@ abstract class AbstractModule {
             $this->controller = new $controllerClass();
         }
 
-        // Load Controller extensions ALWAYS (even if Controller class doesn't exist)
-        if (!empty($this->extensions)) {
+        // Load Controller extensions only when current request page matches this module page
+        if ($this->isCurrentModulePageRequest() && !empty($this->extensions)) {
             $this->loaded_controller_extensions = ExtensionLoader::load($this->extensions, 'Controller', $this);
 
             // Call onInit hook on all Controller extensions
@@ -1166,7 +1194,8 @@ abstract class AbstractModule {
 
     /**
      * Automatically load shell file and class if they exist
-     * Also loads Shell extensions and scans for #[Shell] attributes (always, even if Shell class doesn't exist)
+     * Also loads Shell extensions and scans for #[Shell] attributes
+     * only when current request page matches this module page.
      *
      * @return void
      */
@@ -1184,8 +1213,8 @@ abstract class AbstractModule {
             $this->shell = new $shellClass();
         }
 
-        // Load Shell extensions ALWAYS (even if Shell class doesn't exist)
-        if (!empty($this->extensions)) {
+        // Load Shell extensions only when current request page matches this module page
+        if ($this->isCurrentModulePageRequest() && !empty($this->extensions)) {
             $this->loaded_shell_extensions = ExtensionLoader::load($this->extensions, 'Shell', $this);
 
             // Call onInit hook on all Shell extensions
@@ -1203,6 +1232,7 @@ abstract class AbstractModule {
     /**
      * Automatically load hooks file and class if they exist
      * Also loads Hook extensions and scans for #[HookCallback] attributes
+     * only when current request page matches this module page.
      *
      * @return void
      */
@@ -1219,7 +1249,7 @@ abstract class AbstractModule {
             $this->hook = new $hookClass();
         } 
         // Load Hook extensions
-        if (!empty($this->extensions)) {
+        if ($this->isCurrentModulePageRequest() && !empty($this->extensions)) {
             
             $this->loaded_hook_extensions = ExtensionLoader::load($this->extensions, 'Hook', $this);
             
@@ -1239,7 +1269,8 @@ abstract class AbstractModule {
 
     /**
      * Automatically load api file and class if they exist
-     * Also loads Api extensions and scans for #[ApiEndpoint] attributes (always, even if Api class doesn't exist)
+     * Also loads Api extensions and scans for #[ApiEndpoint] attributes
+     * only when current request page matches this module page.
      *
      * @return void
      */
@@ -1256,8 +1287,8 @@ abstract class AbstractModule {
             $this->api = new $apiClass();
         }
 
-        // Load Api extensions ALWAYS (even if Api class doesn't exist)
-        if (!empty($this->extensions)) {
+        // Load Api extensions only when current request page matches this module page
+        if ($this->isCurrentModulePageRequest() && !empty($this->extensions)) {
             $this->loaded_api_extensions = ExtensionLoader::load($this->extensions, 'Api', $this);
 
             // Call onInit hook on all Api extensions
@@ -1275,7 +1306,7 @@ abstract class AbstractModule {
 
     /**
      * Automatically load install file and class if they exist
-     * Also loads Install extensions (always, even if Install class doesn't exist)
+     * Also loads Install extensions only when current request page matches this module page
      *
      * @return void
      */
@@ -1292,8 +1323,8 @@ abstract class AbstractModule {
             $this->install = new $installClass();
         }
 
-        // Load Install extensions ALWAYS (even if Install class doesn't exist)
-        if (!empty($this->extensions)) {
+        // Load Install extensions only when current request page matches this module page
+        if ($this->isCurrentModulePageRequest() && !empty($this->extensions)) {
             $this->loaded_install_extensions = ExtensionLoader::load($this->extensions, 'Install', $this);
 
             // Call onInit hook on all Install extensions
@@ -1323,7 +1354,7 @@ abstract class AbstractModule {
      * @throws \Exception If extension is not found
      */
     protected function loadExtensions(): void {
-        if (empty($this->extensions)) {
+        if (!$this->isCurrentModulePageRequest() || empty($this->extensions)) {
             return;
         }
 
@@ -1476,6 +1507,8 @@ abstract class AbstractModule {
      */
     protected function buildRouteMap(): void
     {
+        $this->routeMapBuilt = true;
+
         // Scan the module itself (if it has route methods)
         if (method_exists($this, 'scanAttributesFromClass')) {
             $this->scanAttributesFromClass($this);
@@ -1497,6 +1530,11 @@ abstract class AbstractModule {
                     $this->scanAttributesFromClass($extension);
                 }
             }
+        }
+
+        // Programmatic routes are applied at the end so they can override scanned routes.
+        if (method_exists($this, 'applyProgrammaticRequestActions')) {
+            $this->applyProgrammaticRequestActions();
         }
     }
 

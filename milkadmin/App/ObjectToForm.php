@@ -110,6 +110,25 @@ class ObjectToForm
         // Merge with custom data (custom data overrides defaults)
         $hidden_fields = array_merge($hidden_fields, $custom_data);
 
+        // Debug helper: show how custom_data is injected (top-level hidden inputs, not inside data[...] payload).
+        // Enable only when debug is true and ?debug_objecttoform=1 is present (keeps normal pages clean).
+        if (Config::get('debug', false) && _absint($_REQUEST['debug_objecttoform'] ?? 0) === 1) {
+            $debug_payload = [
+                'page' => $page,
+                'action_save' => $action_save,
+                'custom_data' => $custom_data,
+                'hidden_fields' => $hidden_fields,
+                '_REQUEST_keys' => array_keys($_REQUEST),
+                '_REQUEST_data_keys' => (isset($_REQUEST['data']) && is_array($_REQUEST['data'])) ? array_keys($_REQUEST['data']) : null,
+            ];
+            ob_start();
+            var_dump($debug_payload);
+            $dump = (string) ob_get_clean();
+            $html .= '<pre style="background:#111;color:#eee;padding:12px;white-space:pre-wrap;overflow:auto;">'
+                . htmlspecialchars($dump, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+                . '</pre>';
+        }
+
         // Generate hidden inputs
         foreach ($hidden_fields as $name => $value) {
             $html .= '<input type="hidden" name="' . _r($name) . '" value="' . _r($value) . '">';
@@ -244,6 +263,9 @@ class ObjectToForm
         $rule['label'] = $rule['label'] ?? $rule['name'];
         $rule['label'] = $rule['form-label'] ?? $rule['label'];
         $form_params = $rule['form-params'] ?? [];
+        if (($rule['unsigned'] ?? false) && !isset($form_params['min']) && in_array($type, ['number', 'range'], true)) {
+            $form_params['min'] = 0;
+        }
         $rule['value'] = $rule['value'] ?? '';
         if (strpos($rule['name'], '[') !== false) {
             $rule['name'] = 'data[' . str_replace('[', '][', $rule['name']);

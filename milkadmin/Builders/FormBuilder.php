@@ -289,13 +289,10 @@ class FormBuilder {
             if ($form_builder->only_json === true) {
                 return ['success' => false, 'message' => $error_message];
             } else {
-                $redirect_error = Route::replaceUrlPlaceholders($redirect_error, [...$request]);
-                if ($redirect_error != '') {
-                    Route::redirectError($redirect_error, $error_message);
-                }
-                return [];
+                // Do not redirect on save error in page mode.
+                // Re-render the form in the same request with posted values.
+                return ['success' => false, 'message' => $error_message];
             }
-            return ['success' => false, 'message' => $error_message];
         };
     }
 

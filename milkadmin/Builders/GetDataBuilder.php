@@ -66,8 +66,10 @@ class GetDataBuilder
     // If the query fails and config debug is true, this message will be displayed
     protected ?string $customErrorMessage = null;
 
-    public function __construct(AbstractModel $model, string $table_id, ?array $request = null)
+    public function __construct(AbstractModel|string $model, string $table_id, ?array $request = null)
     {
+        $model = self::normalizeModel($model);
+
         // Alias immediati per backward compatibility
         $this->model = $model;
         $this->table_id = $table_id;
@@ -94,9 +96,35 @@ class GetDataBuilder
     /**
      * Factory method to create builder instance
      */
-    public static function create(AbstractModel $model, string $table_id, ?array $request = null): static
+    public static function create(AbstractModel|string $model, string $table_id, ?array $request = null): static
     {
         return new static($model, $table_id, $request);
+    }
+
+    /**
+     * Normalize model input to an AbstractModel instance.
+     */
+    private static function normalizeModel(AbstractModel|string $model): AbstractModel
+    {
+        if ($model instanceof AbstractModel) {
+            return $model;
+        }
+
+        if (is_string($model)) {
+            if (!class_exists($model)) {
+                throw new BuilderException("Model class '{$model}' not found.");
+            }
+
+            $instance = new $model();
+            if (!$instance instanceof AbstractModel) {
+                throw new BuilderException("Model '{$model}' must extend App\\Abstracts\\AbstractModel.");
+            }
+
+            return $instance;
+        }
+
+        $type = is_object($model) ? get_class($model) : gettype($model);
+        throw new BuilderException("Model must be an instance of AbstractModel or a class name string; received {$type}.");
     }
 
     /**

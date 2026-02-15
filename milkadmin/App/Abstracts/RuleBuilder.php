@@ -62,7 +62,7 @@ class RuleBuilder
     /**
      * Track if we are currently defining a relationship
      * Used to validate that where() is called immediately after a relationship method
-     * Format: ['type' => 'withCount|hasMany|hasOne|belongsTo', 'field' => 'field_name', 'index' => 0]
+     * Format: ['type' => 'withCount|hasMany|hasOne|belongsTo|hasMeta', 'field' => 'field_name', 'index' => 0]
      * @var array|null
      */
     protected ?array $active_relationship = null;
@@ -348,6 +348,9 @@ class RuleBuilder
             $this->rules[$this->current_field]['form-params'] = [];
         }
         $this->rules[$this->current_field]['form-params']['pattern'] = "^-?\\d{1,$integer_digits}(\\.\\d{0,$precision})?$";
+        $this->rules[$this->current_field]['form-params']['step'] = $precision > 0
+            ? '0.' . str_repeat('0', $precision - 1) . '1'
+            : '1';
 
         $this->formType('number');
         $this->error('The field must be a decimal number with a maximum of '.$precision.' decimal places');
@@ -530,6 +533,7 @@ class RuleBuilder
     public function boolean(string $name): self
     {
         $this->field($name, 'bool');
+        $this->formType('checkbox');
         $this->label($this->createLabel($name));
         return $this;
     }
@@ -1321,10 +1325,122 @@ class RuleBuilder
     }
 
     /**
+     * Define a hasMeta relationship (EAV pattern - Entity-Attribute-Value)
+     *
+     * hasMeta: Links to a meta table following the WordPress-style EAV pattern.
+     * Each meta is stored as a separate row with (entity_id, meta_key, meta_value).
+     * Multiple hasMeta definitions are batched into a single query for efficiency.
+     *
+     * Example meta table structure:
+     * - id (primary key)
+     * - user_id (foreign key to main entity)
+     * - meta_key (string, e.g., 'first_name', 'phone')
+     * - meta_value (text/longtext for flexibility)
+     *
+     * Example usage:
+     * ```php
+     * $rule->id()
+     *      ->hasMeta('first_name', UserMetaModel::class)
+     *      ->hasMeta('last_name', UserMetaModel::class)
+     *      ->hasMeta('phone', UserMetaModel::class, 'user_id', 'id', 'meta_key', 'meta_value');
+     * ```
+     *
+     * @param string $alias Meta field alias (used as property name AND as meta_key value in DB)
+     * @param string $related_model Meta table model class name
+     * @param string|null $foreign_key Foreign key column in meta table (default: guessed from main table name + '_id')
+     * @param string|null $local_key Local key column in main table (default: current field, usually 'id')
+     * @param string $meta_key_column Column name for meta keys (default: 'meta_key')
+     * @param string $meta_value_column Column name for meta values (default: 'meta_value')
+     * @param string|null $meta_key_value Actual meta_key value in DB (default: same as $alias)
+     * @return self
+     */
+    public function hasMeta(
+        string $alias,
+        string $related_model,
+        ?string $foreign_key = null,
+        ?string $local_key = null,
+        string $meta_key_column = 'meta_key',
+        string $meta_value_column = 'meta_value',
+        ?string $meta_key_value = null
+    ): self {
+        // Use current field as local key if not specified (typically primary key)
+        $local_key = $local_key ?? $this->current_field;
+
+        // Ensure the local key field exists in rules
+        if (!isset($this->rules[$local_key])) {
+            throw new \InvalidArgumentException("Local key field '$local_key' must be defined before calling hasMeta()");
+        }
+
+        // Auto-generate foreign key if not provided (table_name + '_id')
+        if ($foreign_key === null) {
+            // Try to get table name and derive foreign key
+            $table_name = $this->table;
+            if ($table_name !== null) {
+                // Remove common prefixes like #__
+                $clean_table = preg_replace('/^#__/', '', $table_name);
+                // Convert to singular if it ends with 's'
+                if (str_ends_with($clean_table, 's')) {
+                    $clean_table = substr($clean_table, 0, -1);
+                }
+                $foreign_key = $clean_table . '_id';
+            } else {
+                $foreign_key = 'entity_id'; // Fallback
+            }
+        }
+
+        // Use alias as meta_key value if not specified
+        $meta_key_value = $meta_key_value ?? $alias;
+
+        // Initialize hasMeta array if not exists
+        if (!isset($this->rules[$local_key]['hasMeta'])) {
+            $this->rules[$local_key]['hasMeta'] = [];
+        }
+
+        // Store hasMeta configuration
+        $this->rules[$local_key]['hasMeta'][] = [
+            'alias' => $alias,
+            'local_key' => $local_key,
+            'foreign_key' => $foreign_key,
+            'related_model' => $related_model,
+            'meta_key_column' => $meta_key_column,
+            'meta_value_column' => $meta_value_column,
+            'meta_key_value' => $meta_key_value,
+        ];
+
+        // Add the alias as a virtual field in rules so it can be accessed like a normal field
+        $this->rules[$alias] = [
+            'type' => 'string',  // Meta values are typically stored as text
+            'virtual' => true,
+            'hasMeta' => true,
+            'sql' => false,      // Not a real database field in main table
+            'nullable' => true,
+            'label' => $this->createLabel($alias),
+            'list' => true,
+            'edit' => true,
+            'view' => true,
+            // Reference back to the meta configuration
+            '_meta_config' => [
+                'local_key' => $local_key,
+                'index' => count($this->rules[$local_key]['hasMeta']) - 1,
+            ],
+        ];
+
+        // Activate relationship for potential where() call
+        $index = count($this->rules[$local_key]['hasMeta']) - 1;
+        $this->active_relationship = [
+            'type' => 'hasMeta',
+            'field' => $local_key,
+            'index' => $index,
+        ];
+
+        return $this;
+    }
+
+    /**
      * Add a WHERE condition to the active relationship
      *
      * This method can only be called immediately after a relationship method
-     * (withCount, hasMany, hasOne, belongsTo). It allows filtering the related
+     * (withCount, hasMany, hasOne, belongsTo, hasMeta). It allows filtering the related
      * records in the relationship query.
      *
      * @example
@@ -1352,7 +1468,7 @@ class RuleBuilder
         if ($this->active_relationship === null) {
             throw new \LogicException(
                 "where() can only be called immediately after a relationship method " .
-                "(withCount, hasMany, hasOne, belongsTo). " .
+                "(withCount, hasMany, hasOne, belongsTo, hasMeta). " .
                 "Example: ->withCount('lezioni', LezioniModel::class, 'MATR_CRS')->where('DISPONIBILE = ?', ['D'])"
             );
         }
@@ -1365,6 +1481,14 @@ class RuleBuilder
 
             // Store the where condition in the withCount config
             $this->rules[$field]['withCount'][$index]['where'] = [
+                'condition' => $condition,
+                'params' => $params,
+            ];
+        } elseif ($type === 'hasMeta') {
+            $index = $this->active_relationship['index'];
+
+            // Store the where condition in the hasMeta config
+            $this->rules[$field]['hasMeta'][$index]['where'] = [
                 'condition' => $condition,
                 'params' => $params,
             ];
@@ -1439,16 +1563,25 @@ class RuleBuilder
      */
     public function getRules(): array
     {
-        // Special handling for radio fields
+        // Normalize group labels for option groups.
         foreach ($this->rules as $name => $rule) {
-            if (isset($rule['type']) && $rule['type'] === 'radio') {
-                if (isset($rule['label']) && $rule['label'] !== null) {
-                    if (!isset($this->rules[$name]['form-params'])) {
-                        $this->rules[$name]['form-params'] = [];
-                    }
-                    $this->rules[$name]['form-params']['label'] = $rule['label'];
-                    $this->rules[$name]['label'] = null;
-                }
+            $type = strtolower(trim((string) ($rule['form-type'] ?? ($rule['type'] ?? ''))));
+            if (!in_array($type, ['radio', 'checkboxes'], true)) {
+                continue;
+            }
+
+            $label = trim((string) ($rule['label'] ?? ''));
+            if ($label === '') {
+                continue;
+            }
+
+            if (!isset($this->rules[$name]['form-params']) || !is_array($this->rules[$name]['form-params'])) {
+                $this->rules[$name]['form-params'] = [];
+            }
+
+            $groupLabel = trim((string) ($this->rules[$name]['form-params']['label'] ?? ''));
+            if ($groupLabel === '') {
+                $this->rules[$name]['form-params']['label'] = $label;
             }
         }
 
@@ -1573,5 +1706,23 @@ class RuleBuilder
         }
         $this->primary_key = null;
         return $this;
+    }
+
+    /**
+     * Get all hasMeta configurations from all fields
+     *
+     * @return array Array of hasMeta configurations with their local_key
+     */
+    public function getAllHasMeta(): array
+    {
+        $all_meta = [];
+        foreach ($this->rules as $field_name => $rule) {
+            if (isset($rule['hasMeta']) && is_array($rule['hasMeta'])) {
+                foreach ($rule['hasMeta'] as $meta_config) {
+                    $all_meta[] = $meta_config;
+                }
+            }
+        }
+        return $all_meta;
     }
 }

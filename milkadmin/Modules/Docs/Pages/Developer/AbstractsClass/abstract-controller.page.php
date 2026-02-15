@@ -28,7 +28,7 @@ class BaseModuleController extends AbstractController
     <p>The <code>#[RequestAction]</code> attribute is used to define which methods respond to specific URL actions. This provides a clean and declarative way to map URLs to methods.</p>
 
     <h5 class="mt-3">Basic Action Usage</h5>
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">use App\Attributes\Action;
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">use App\Attributes\RequestAction;
 
 class BaseModuleController extends AbstractController
 {
@@ -75,6 +75,50 @@ protected function home() {
     Response::themePage('default', '<h1>'.$this->title.'</h1>');
 }</code></pre>
 
+    <h5 class="mt-3">Programmatic Action Registration</h5>
+    <p>
+        You can also register routes without attributes using
+        <code>registerRequestAction(string $action, string|array $handler, ?string $accessLevel = null)</code>.
+    </p>
+    <p><strong>In a Controller:</strong></p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">class PostsController extends AbstractController
+{
+    public function __construct()
+    {
+        parent::__construct();
+        $this->registerRequestAction('sync', 'syncAction');
+        $this->registerRequestAction('admin-sync', 'syncAction', 'admin');
+    }
+
+    public function syncAction()
+    {
+        Response::themePage('default', 'Sync completed');
+    }
+}</code></pre>
+
+    <p><strong>In a Controller Extension:</strong></p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">use App\Abstracts\AbstractControllerExtension;
+
+class Controller extends AbstractControllerExtension
+{
+    public function onInit(): void
+    {
+        $module = $this->module->get();
+        if ($module) {
+            $module->registerRequestAction('ext-sync', [$this, 'extSync']);
+        }
+    }
+
+    public function extSync(): void
+    {
+        Response::themePage('default', 'Extension sync completed');
+    }
+}</code></pre>
+    <p>
+        When a dedicated Controller exists, calling <code>registerRequestAction()</code> from Module/extension is forwarded
+        to the active Controller automatically.
+    </p>
+
     <h2 class="mt-4">AbstractController Overview</h2>
 
     <p>The <code>AbstractController</code> class is the foundation for all module controllers in the framework. It provides automatic routing, access control, and integration with the data layer through models. Controllers handle HTTP requests, coordinate with models to fetch/update data, and render views.</p>
@@ -82,6 +126,7 @@ protected function home() {
     <h3 class="mt-3">Key Features</h3>
     <ul>
         <li><strong>Attribute-Based Routing:</strong> Use <code>#[RequestAction]</code> attributes to map URLs to methods</li>
+        <li><strong>Programmatic Routing:</strong> Use <code>registerRequestAction()</code> to register actions at runtime</li>
         <li><strong>Access Control:</strong> Built-in permission checking with <code>#[AccessLevel]</code> attributes</li>
         <li><strong>Model Integration:</strong> Automatic connection to module models</li>
         <li><strong>Table Management:</strong> Helper methods for building dynamic tables with pagination, sorting, and filtering</li>
@@ -143,6 +188,12 @@ protected function home() {
                     <td>Main route handler - calls action methods</td>
                     <td><span class="badge bg-secondary">void</span></td>
                     <td><code>// Auto-called by framework</code></td>
+                </tr>
+                <tr>
+                    <td><code>registerRequestAction()</code></td>
+                    <td>Register actions programmatically without attributes</td>
+                    <td><span class="badge bg-secondary">void</span></td>
+                    <td><code>$this->registerRequestAction('sync', 'syncAction')</code></td>
                 </tr>
                 <tr>
                     <td><code>relatedSearchField()</code></td>
@@ -520,6 +571,41 @@ class PostsController extends \App\Abstract\AbstractController {
                      <li><strong>Return value:</strong>
                           <ul>
                              <li><code>void</code>: This method does not return any value.</li>
+                         </ul>
+                     </li>
+                 </ul>
+
+            <h3 class="mt-3"><code>registerRequestAction($action, $handler, $accessLevel = null)</code></h3>
+            <p>Registers request actions at runtime without using <code>#[RequestAction]</code> attributes.</p>
+<pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">/**
+ * @param string $action Route action (example: "home", "edit", "sync-data")
+ * @param string|array $handler Method name or callable [object, method]
+ * @param string|null $accessLevel Optional access level
+ * @return bool True when registered, false when already registered
+ */
+public function registerRequestAction(string $action, string|array $handler, ?string $accessLevel = null): bool;
+
+// Usage in Controller
+$this->registerRequestAction('sync', 'syncAction');
+$this->registerRequestAction('admin-sync', 'syncAction', 'admin');
+
+// Usage in Controller extension
+$module = $this->module->get();
+if ($module) {
+    $module->registerRequestAction('ext-sync', [$this, 'extSync']);
+}
+</code></pre>
+                <ul>
+                     <li><strong>Input parameters:</strong>
+                        <ul>
+                             <li><code>$action</code>: (string) URL action key.</li>
+                             <li><code>$handler</code>: (string|array) Method name or callable pair <code>[object, method]</code>.</li>
+                             <li><code>$accessLevel</code>: (string|null) Optional method-level access override.</li>
+                        </ul>
+                    </li>
+                 <li><strong>Return value:</strong>
+                      <ul>
+                             <li><code>bool</code>: <code>true</code> if the action was registered, <code>false</code> if it was already registered.</li>
                          </ul>
                      </li>
                  </ul>

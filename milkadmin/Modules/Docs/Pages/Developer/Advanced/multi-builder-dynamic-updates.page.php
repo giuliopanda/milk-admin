@@ -104,6 +104,7 @@ public function home(): void
         ->select(\'category_filter\')
             ->label(\'Category\')
             ->options([\'\' => \'All\', \'A\' => \'Category A\', \'B\' => \'Category B\'])
+            ->floating(false)
             ->layout(\'inline\');
 
     // Prepare data for the view

@@ -9,6 +9,7 @@
  * - Parentesi: ()
  * - Variabili e assegnazioni: a = 5
  * - Parametri da form: [birth_date] prende valore da input name="data[birth_date]"
+ * - Parametri oggetto con dot-notation: [user.comment.title], [user.comments.0.title]
  * - IF statements: IF condizione THEN ... ELSE ... ENDIF
  * - Funzioni: NOW(), AGE(date), ROUND(n, decimals), ABS(n), IFNULL(val, default),
  *             UPPER(str), LOWER(str), CONCAT(str1, str2, ...), TRIM(str),
@@ -76,7 +77,9 @@ class ExpressionParser {
         this._builtinFunctions = [
             'NOW', 'AGE', 'ROUND', 'ABS', 'IFNULL',
             'UPPER', 'LOWER', 'CONCAT', 'TRIM', 'ISEMPTY',
-            'PRECISION', 'DATEONLY', 'TIMEADD', 'ADDMINUTES'
+            'PRECISION', 'DATEONLY', 'TIMEADD', 'ADDMINUTES',
+            'COUNT', 'SUM', 'MIN', 'MAX',
+            'FIND', 'CONTAINS', 'FIRST', 'LAST'
         ];
     }
 
@@ -234,6 +237,111 @@ class ExpressionParser {
             seconds,
             hasSeconds: time.hasSeconds
         };
+    }
+
+    // ==================== RISOLUZIONE PARAMETRI CON DOT-NOTATION ====================
+
+    /**
+     * Risolve un parametro, supportando dot-notation per navigare oggetti/array.
+     *
+     * Esempi:
+     *   [salary]                → this.parameters['salary']
+     *   [user.name]             → this.parameters['user'].name
+     *   [user.comment.title]    → this.parameters['user'].comment.title
+     *   [user.comments.0.title] → this.parameters['user'].comments[0].title
+     *
+     * Ad ogni livello verifica se il corrente è un oggetto o un array.
+     *
+     * @param {string} path - Il path completo del parametro (es. "user.comment.title")
+     * @returns {*} Il valore risolto
+     */
+    _resolveParameter(path) {
+        // Nessun punto → parametro semplice (fast path, retrocompatibile)
+        if (path.indexOf('.') === -1) {
+            if (!(path in this.parameters)) {
+                throw new Error(`Parametro non definito: [${path}]`);
+            }
+            return this.parameters[path];
+        }
+
+        const segments = path.split('.');
+        const root = segments.shift();
+
+        if (!(root in this.parameters)) {
+            throw new Error(`Parametro non definito: [${root}] (in [${path}])`);
+        }
+
+        let current = this.parameters[root];
+        let traversed = root;
+
+        for (const segment of segments) {
+            traversed += '.' + segment;
+            current = this._resolvePathSegment(current, segment, path, traversed);
+        }
+
+        return current;
+    }
+
+    /**
+     * Risolve un singolo segmento di path su un valore (oggetto o array).
+     *
+     * @param {*} current - Valore corrente
+     * @param {string} segment - Segmento da risolvere (proprietà, chiave, o indice numerico)
+     * @param {string} fullPath - Path completo (per messaggi di errore)
+     * @param {string} traversed - Porzione di path già attraversata (per messaggi di errore)
+     * @returns {*}
+     */
+    _resolvePathSegment(current, segment, fullPath, traversed) {
+        if (this._isNullish(current)) {
+            throw new Error(
+                `Impossibile accedere a '${segment}' su valore null/undefined (in [${fullPath}], a [${traversed}])`
+            );
+        }
+
+        // Array → accesso per indice numerico o chiave
+        if (Array.isArray(current)) {
+            // Indice numerico
+            if (/^\d+$/.test(segment)) {
+                const idx = parseInt(segment, 10);
+                if (idx >= 0 && idx < current.length) {
+                    return current[idx];
+                }
+                throw new Error(
+                    `Indice ${idx} fuori range (lunghezza ${current.length}) (in [${fullPath}], a [${traversed}])`
+                );
+            }
+            throw new Error(
+                `Impossibile accedere a '${segment}' su un Array (usare indice numerico) (in [${fullPath}], a [${traversed}])`
+            );
+        }
+
+        // Oggetto → accesso per proprietà
+        if (typeof current === 'object' && current !== null) {
+            // Proprietà diretta (funziona con plain object, class instance, prototype chain)
+            if (segment in current) {
+                return current[segment];
+            }
+
+            // Indice numerico su oggetto con chiavi numeriche (raro ma possibile)
+            if (/^\d+$/.test(segment) && parseInt(segment, 10) in current) {
+                return current[parseInt(segment, 10)];
+            }
+
+            // Prova getter method: getSegment()
+            const getter = 'get' + segment.charAt(0).toUpperCase() + segment.slice(1);
+            if (typeof current[getter] === 'function') {
+                return current[getter]();
+            }
+
+            throw new Error(
+                `Proprietà '${segment}' non trovata sull'oggetto (in [${fullPath}], a [${traversed}])`
+            );
+        }
+
+        // Scalare → non navigabile
+        throw new Error(
+            `Impossibile accedere a '${segment}' su un valore di tipo ${typeof current} (in [${fullPath}], a [${traversed}])`
+        );
     }
 
     // ==================== BUILTIN FUNCTIONS ====================
@@ -433,6 +541,241 @@ class ExpressionParser {
         return this._func_TIMEADD(args);
     }
 
+    // ==================== ARRAY FUNCTIONS ====================
+
+    /**
+     * Helper: estrae un campo da un elemento (oggetto o array).
+     * Supporta dot-notation nel field (es. "address.city").
+     * @param {*} item - L'elemento
+     * @param {string} field - Il nome del campo (o path con punti)
+     * @returns {*} Il valore del campo
+     */
+    _getField(item, field) {
+        if (this._isNullish(item)) return undefined;
+
+        const segments = field.split('.');
+        let current = item;
+
+        for (const seg of segments) {
+            if (this._isNullish(current)) return undefined;
+
+            if (Array.isArray(current)) {
+                if (/^\d+$/.test(seg)) {
+                    current = current[parseInt(seg, 10)];
+                } else {
+                    return undefined;
+                }
+            } else if (typeof current === 'object') {
+                current = current[seg];
+            } else {
+                return undefined;
+            }
+        }
+
+        return current;
+    }
+
+    /**
+     * Helper: valida che il primo argomento sia un array
+     */
+    _ensureArray(funcName, value) {
+        if (!Array.isArray(value)) {
+            throw new Error(`${funcName}() richiede un array come primo argomento, ricevuto ${typeof value}`);
+        }
+        return value;
+    }
+
+    /**
+     * COUNT(array) - Restituisce la lunghezza dell'array
+     * COUNT(array, "field") - Conta gli elementi dove field non è null/undefined
+     */
+    _func_COUNT(args) {
+        if (args.length < 1 || args.length > 2) {
+            throw new Error('COUNT() richiede 1 o 2 argomenti (array, campo opzionale)');
+        }
+
+        const arr = this._ensureArray('COUNT', args[0]);
+
+        if (args.length === 1) {
+            return arr.length;
+        }
+
+        const field = this._toString(args[1]);
+        let count = 0;
+        for (const item of arr) {
+            const val = this._getField(item, field);
+            if (!this._isNullish(val)) count++;
+        }
+        return count;
+    }
+
+    /**
+     * SUM(array, "field") - Somma i valori numerici di un campo
+     */
+    _func_SUM(args) {
+        if (args.length !== 2) {
+            throw new Error('SUM() richiede esattamente 2 argomenti (array, campo)');
+        }
+
+        const arr = this._ensureArray('SUM', args[0]);
+        const field = this._toString(args[1]);
+
+        let sum = 0;
+        for (const item of arr) {
+            const val = this._getField(item, field);
+            if (!this._isNullish(val)) {
+                const num = Number(val);
+                if (!isNaN(num)) sum += num;
+            }
+        }
+        return sum;
+    }
+
+    /**
+     * MIN(array, "field") - Restituisce il valore minimo di un campo numerico
+     * Restituisce null se l'array è vuoto o non ci sono valori numerici
+     */
+    _func_MIN(args) {
+        if (args.length !== 2) {
+            throw new Error('MIN() richiede esattamente 2 argomenti (array, campo)');
+        }
+
+        const arr = this._ensureArray('MIN', args[0]);
+        const field = this._toString(args[1]);
+
+        let min = null;
+        for (const item of arr) {
+            const val = this._getField(item, field);
+            if (!this._isNullish(val)) {
+                const num = Number(val);
+                if (!isNaN(num) && (min === null || num < min)) {
+                    min = num;
+                }
+            }
+        }
+        return min;
+    }
+
+    /**
+     * MAX(array, "field") - Restituisce il valore massimo di un campo numerico
+     * Restituisce null se l'array è vuoto o non ci sono valori numerici
+     */
+    _func_MAX(args) {
+        if (args.length !== 2) {
+            throw new Error('MAX() richiede esattamente 2 argomenti (array, campo)');
+        }
+
+        const arr = this._ensureArray('MAX', args[0]);
+        const field = this._toString(args[1]);
+
+        let max = null;
+        for (const item of arr) {
+            const val = this._getField(item, field);
+            if (!this._isNullish(val)) {
+                const num = Number(val);
+                if (!isNaN(num) && (max === null || num > max)) {
+                    max = num;
+                }
+            }
+        }
+        return max;
+    }
+
+    /**
+     * FIND(array, "field", value) - Trova il primo elemento dove field == value
+     * Restituisce l'oggetto trovato o null.
+     * Il risultato può essere usato come parametro per ulteriori dot-notation
+     * assegnandolo a una variabile: found = FIND([users], "role", "admin")
+     */
+    _func_FIND(args) {
+        if (args.length !== 3) {
+            throw new Error('FIND() richiede esattamente 3 argomenti (array, campo, valore)');
+        }
+
+        const arr = this._ensureArray('FIND', args[0]);
+        const field = this._toString(args[1]);
+        const searchValue = args[2];
+
+        for (const item of arr) {
+            const val = this._getField(item, field);
+            // Confronto loose: converte entrambi a stringa se tipi diversi
+            if (val === searchValue) return item;
+            if (!this._isNullish(val) && !this._isNullish(searchValue) &&
+                String(val) === String(searchValue)) {
+                return item;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * CONTAINS(array, "field", value) - Verifica se esiste un elemento dove field == value
+     * Restituisce true/false
+     */
+    _func_CONTAINS(args) {
+        if (args.length !== 3) {
+            throw new Error('CONTAINS() richiede esattamente 3 argomenti (array, campo, valore)');
+        }
+
+        return this._func_FIND(args) !== null;
+    }
+
+    /**
+     * FIRST(array) - Restituisce il primo elemento
+     * FIRST(array, "field") - Restituisce il campo del primo elemento
+     * FIRST(array, "field", default) - Come sopra, con valore default se array vuoto
+     */
+    _func_FIRST(args) {
+        if (args.length < 1 || args.length > 3) {
+            throw new Error('FIRST() richiede da 1 a 3 argomenti (array, campo opzionale, default opzionale)');
+        }
+
+        const arr = this._ensureArray('FIRST', args[0]);
+        const field = args.length >= 2 ? this._toString(args[1]) : null;
+        const defaultVal = args.length >= 3 ? args[2] : null;
+
+        if (arr.length === 0) {
+            return defaultVal;
+        }
+
+        const item = arr[0];
+
+        if (field === null) {
+            return item;
+        }
+
+        const val = this._getField(item, field);
+        return this._isNullish(val) ? defaultVal : val;
+    }
+
+    /**
+     * LAST(array) - Restituisce l'ultimo elemento
+     * LAST(array, "field") - Restituisce il campo dell'ultimo elemento
+     * LAST(array, "field", default) - Come sopra, con valore default se array vuoto
+     */
+    _func_LAST(args) {
+        if (args.length < 1 || args.length > 3) {
+            throw new Error('LAST() richiede da 1 a 3 argomenti (array, campo opzionale, default opzionale)');
+        }
+
+        const arr = this._ensureArray('LAST', args[0]);
+        const field = args.length >= 2 ? this._toString(args[1]) : null;
+        const defaultVal = args.length >= 3 ? args[2] : null;
+
+        if (arr.length === 0) {
+            return defaultVal;
+        }
+
+        const item = arr[arr.length - 1];
+
+        if (field === null) {
+            return item;
+        }
+
+        const val = this._getField(item, field);
+        return this._isNullish(val) ? defaultVal : val;
+    }
+
     /**
      * Esegue una funzione builtin
      */
@@ -455,13 +798,16 @@ class ExpressionParser {
     // ==================== GESTIONE PARAMETRI DA FORM ====================
     
     /**
-     * Imposta i parametri da una form HTML o da un oggetto
+     * Aggiorna i parametri dalla form HTML o da un oggetto piatto.
+     * NON cancella i parametri esistenti: sovrascrive solo le chiavi presenti nella source.
+     * Questo permette ai parametri settati con setParameter() (es. oggetti complessi)
+     * di sopravvivere agli aggiornamenti della form.
+     * Se la form contiene un campo con lo stesso nome di un parametro esistente, la form vince.
+     *
      * @param {HTMLFormElement|Object} source - Form HTML o oggetto {key: value}
      */
     setParametersFromForm(source) {
-        this.parameters = {};
-        
-        if (source instanceof HTMLFormElement) {
+        if (typeof HTMLFormElement !== 'undefined' && source instanceof HTMLFormElement) {
             const formData = new FormData(source);
             for (let [key, value] of formData.entries()) {
                 // Gestisce sia "name" che "data[name]"
@@ -480,16 +826,25 @@ class ExpressionParser {
 
     /**
      * Imposta un singolo parametro
+     * Gli oggetti e gli array vengono mantenuti così come sono (per dot-notation).
      */
     setParameter(name, value) {
         this.parameters[name] = this._parseValue(value);
         return this;
     }
 
+    /**
+     * Converte un valore nel tipo appropriato.
+     * Gli oggetti (non-Date) e gli array vengono mantenuti intatti per dot-notation.
+     */
     _parseValue(value) {
-        // numeri e boolean/Date ecc: lascia stare
+        // numeri e boolean: lascia stare
         if (typeof value === 'number' || typeof value === 'boolean') return value;
         if (value instanceof Date) return value;
+
+        // Oggetti e array: mantieni intatti per dot-notation
+        if (typeof value === 'object' && value !== null) return value;
+
         if (typeof value !== 'string') return value;
 
         const trimmed = value.trim();
@@ -499,13 +854,11 @@ class ExpressionParser {
 
         // datetime-local: YYYY-MM-DDTHH:MM o YYYY-MM-DDTHH:MM:SS
         if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(trimmed)) {
-            // invece di new Date(trimmed) -> usa parsing deterministico
             return this._toDate(trimmed);
         }
 
         // date-only: YYYY-MM-DD
         if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-            // invece di new Date(trimmed) -> usa parsing deterministico (mezzanotte locale)
             return this._toDate(trimmed);
         }
 
@@ -518,8 +871,7 @@ class ExpressionParser {
             return hours * 3600 + minutes * 60 + seconds;
         }
 
-        // numeri: mantieni il tuo comportamento (parseFloat)
-        // NB: parseFloat("123abc") = 123; se vuoi più strict usa una regex, ma non lo cambio
+        // numeri
         const num = parseFloat(trimmed);
         if (!isNaN(num)) return num;
 
@@ -556,14 +908,12 @@ class ExpressionParser {
             const startPos = pos;
             let hasDecimalPoint = false;
             
-            // Leggi tutti i caratteri che potrebbero essere parte di un numero o data
             while (peek() && /[0-9]/.test(peek())) {
                 num += advance();
             }
             
             // Supporto per numeri decimali con punto (es: 1.22, 3.14)
             if (peek() === '.' && peek(1) && /[0-9]/.test(peek(1))) {
-                // Salva lo stato nel caso dovessimo tornare indietro
                 const savedPos = pos;
                 const savedCol = column;
                 const savedLine = line;
@@ -571,18 +921,15 @@ class ExpressionParser {
                 num += advance(); // aggiungi il punto
                 hasDecimalPoint = true;
                 
-                // Leggi la parte decimale
                 while (peek() && /[0-9]/.test(peek())) {
                     num += advance();
                 }
                 
-                // Se dopo il punto c'era almeno una cifra, è un numero decimale valido
-                // Altrimenti torna indietro (era un punto non numerico)
                 if (num.endsWith('.')) {
                     pos = savedPos;
                     column = savedCol;
                     line = savedLine;
-                    num = num.slice(0, -1); // rimuovi il punto
+                    num = num.slice(0, -1);
                     hasDecimalPoint = false;
                 }
             }
@@ -612,7 +959,6 @@ class ExpressionParser {
                     
                     if (day.length === 2) {
                         dateStr += day;
-                        // Valida la data
                         const date = new Date(dateStr);
                         if (!isNaN(date.getTime())) {
                             return { type: TT.DATE, value: dateStr, line, column: startCol };
@@ -620,7 +966,6 @@ class ExpressionParser {
                     }
                 }
                 
-                // Non è una data valida, torna indietro
                 pos = savedPos;
                 column = savedCol;
                 line = savedLine;
@@ -649,7 +994,6 @@ class ExpressionParser {
                     }
                     
                     if (year.length === 4) {
-                        // Converti in formato ISO per creare la data
                         const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
                         const date = new Date(isoDate);
                         if (!isNaN(date.getTime())) {
@@ -658,7 +1002,6 @@ class ExpressionParser {
                     }
                 }
                 
-                // Non è una data valida, torna indietro
                 pos = savedPos;
                 column = savedCol;
                 line = savedLine;
@@ -691,6 +1034,7 @@ class ExpressionParser {
                 'THEN': TT.THEN, 'then': TT.THEN,
                 'ELSE': TT.ELSE, 'else': TT.ELSE,
                 'ENDIF': TT.ENDIF, 'endif': TT.ENDIF,
+                'END': TT.ENDIF, 'end': TT.ENDIF,
                 'AND': TT.AND, 'and': TT.AND,
                 'OR': TT.OR, 'or': TT.OR,
                 'NOT': TT.NOT, 'not': TT.NOT
@@ -816,9 +1160,6 @@ class ExpressionParser {
             while (peek().type === TT.NEWLINE) advance();
         };
 
-        // Precedenza operatori (dal basso all'alto):
-        // OR -> AND -> Confronto -> Add/Sub -> Mul/Div -> Power -> Unary -> Primary
-
         const parseExpression = () => parseOr();
 
         const parseOr = () => {
@@ -888,7 +1229,7 @@ class ExpressionParser {
                 const op = advance();
                 const node = this._createNode(NT.BINARY_OP, op.value);
                 node.left = left;
-                node.right = parsePower(); // Associatività a destra
+                node.right = parsePower();
                 return node;
             }
             return left;
@@ -922,11 +1263,9 @@ class ExpressionParser {
             if (token.type === TT.IDENTIFIER) {
                 const idToken = advance();
                 
-                // Controlla se è una funzione (IDENTIFIER seguito da LPAREN)
                 if (peek().type === TT.LPAREN) {
                     advance(); // (
                     
-                    // Leggi argomenti
                     const args = [];
                     if (peek().type !== TT.RPAREN) {
                         args.push(parseExpression());
@@ -989,7 +1328,6 @@ class ExpressionParser {
             if (peek().type === TT.THEN) advance();
             skipNewlines();
             
-            // THEN branch
             const thenStatements = [];
             while (![TT.ELSE, TT.ENDIF, TT.EOF].includes(peek().type)) {
                 skipNewlines();
@@ -999,7 +1337,6 @@ class ExpressionParser {
             }
             node.thenBranch = thenStatements;
             
-            // ELSE branch (opzionale)
             if (peek().type === TT.ELSE) {
                 advance();
                 skipNewlines();
@@ -1017,7 +1354,6 @@ class ExpressionParser {
             return node;
         };
 
-        // Parse programma
         const statements = [];
         while (peek().type !== TT.EOF) {
             skipNewlines();
@@ -1034,8 +1370,6 @@ class ExpressionParser {
 
     /**
      * Parsa il codice sorgente e restituisce l'AST
-     * @param {string} source - Codice sorgente
-     * @returns {Object} AST
      */
     parse(source) {
         this._nodeId = 0;
@@ -1045,8 +1379,6 @@ class ExpressionParser {
 
     /**
      * Restituisce l'elenco delle operazioni nell'ordine di esecuzione
-     * @param {Object} ast - Albero AST (o stringa da parsare)
-     * @returns {Array} Lista operazioni in ordine
      */
     getOperationOrder(ast) {
         if (typeof ast === 'string') {
@@ -1149,8 +1481,6 @@ class ExpressionParser {
 
     /**
      * Visualizza l'albero AST come stringa formattata
-     * @param {Object} ast - Albero AST (o stringa da parsare)
-     * @returns {string} Rappresentazione testuale dell'albero
      */
     visualizeTree(ast, indent = '', isLast = true) {
         if (typeof ast === 'string') {
@@ -1232,8 +1562,6 @@ class ExpressionParser {
 
     /**
      * Esegue l'AST e restituisce il risultato
-     * @param {Object} ast - Albero AST (o stringa da parsare)
-     * @returns {*} Risultato dell'esecuzione
      */
     execute(ast) {
         if (typeof ast === 'string') {
@@ -1259,21 +1587,24 @@ class ExpressionParser {
                     return new Date(node.value);
 
                 case NT.IDENTIFIER:
-                    if (!(node.value in this.variables)) {
-                        throw new Error(`Variabile non definita: ${node.value}`);
+                    if (typeof node.value === 'string') {
+                        const upper = node.value.toUpperCase();
+                        if (upper === 'TRUE') return true;
+                        if (upper === 'FALSE') return false;
                     }
-                    return this.variables[node.value];
+                    if (node.value in this.variables) {
+                        return this.variables[node.value];
+                    }
+                    if (node.value in this.parameters) {
+                        return this.parameters[node.value];
+                    }
+                    throw new Error(`Variabile non definita: ${node.value}`);
 
                 case NT.PARAMETER:
-                    if (!(node.value in this.parameters)) {
-                        throw new Error(`Parametro non definito: [${node.value}]`);
-                    }
-                    return this.parameters[node.value];
+                    return this._resolveParameter(node.value);
 
                 case NT.FUNCTION_CALL: {
-                    // Valuta gli argomenti
                     const args = (node.arguments || []).map(argNode => exec(argNode));
-                    // Esegui la funzione
                     return this._executeFunction(node.value, args);
                 }
 
@@ -1287,36 +1618,30 @@ class ExpressionParser {
                     
                     switch (node.value) {
                         case '+': 
-                            // Data + Numero (giorni) = Data
                             if (isDate(left) && isNumber(right)) {
                                 const result = new Date(left.getTime());
                                 result.setDate(result.getDate() + right);
                                 return result;
                             }
-                            // Numero + Data (giorni) = Data
                             if (isNumber(left) && isDate(right)) {
                                 const result = new Date(right.getTime());
                                 result.setDate(result.getDate() + left);
                                 return result;
                             }
-                            // Data + Data = Errore
                             if (isDate(left) && isDate(right)) {
                                 throw new Error('Non è possibile sommare due date');
                             }
                             return left + right;
                             
                         case '-': 
-                            // Data - Data = Numero (differenza in giorni)
                             if (isDate(left) && isDate(right)) {
                                 return Math.floor((left.getTime() - right.getTime()) / MS_PER_DAY);
                             }
-                            // Data - Numero (giorni) = Data
                             if (isDate(left) && isNumber(right)) {
                                 const result = new Date(left.getTime());
                                 result.setDate(result.getDate() - right);
                                 return result;
                             }
-                            // Numero - Data = Errore
                             if (isNumber(left) && isDate(right)) {
                                 throw new Error('Non è possibile sottrarre una data da un numero');
                             }
@@ -1467,7 +1792,6 @@ class ExpressionParser {
                     return null;
                 }
 
-
                 default:
                     throw new Error(`Tipo nodo non supportato: ${node.type}`);
             }
@@ -1478,9 +1802,6 @@ class ExpressionParser {
 
     /**
      * Metodo completo: parsa, analizza e opzionalmente esegue
-     * @param {string} source - Codice sorgente
-     * @param {boolean} executeCode - Se true, esegue il codice
-     * @returns {Object} { ast, operations, tree, result?, error? }
      */
     analyze(source, executeCode = true) {
         const ast = this.parse(source);
@@ -1524,8 +1845,6 @@ class ExpressionParser {
 
     /**
      * Formatta il risultato per output leggibile
-     * @param {*} value - Valore da formattare
-     * @returns {string} Valore formattato
      */
     formatResult(value) {
         if (value instanceof Date) {
@@ -1548,7 +1867,6 @@ class ExpressionParser {
 
     /**
      * Restituisce la lista delle funzioni builtin disponibili
-     * @returns {Array}
      */
     getBuiltinFunctions() {
         return this._builtinFunctions;

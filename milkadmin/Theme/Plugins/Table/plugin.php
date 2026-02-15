@@ -3,6 +3,7 @@
  * The structure of the variables that need to be passed to the plugin table:
  * 
  * @var array $table_attrs the table attributes, es. ['table' => ['class' => 'table table-hover']]
+ * @var bool $show_header show/hide table header rendering
  * @var array $rows the table rows, es. [[...], [...], [...]]
  * @var App\Modellist\ListStructure|array $info  the table information, es. ['id' => ['label' => 'ID', 'type' => 'text'], ...]
  * @var \App\Modellist\PageInfo|array $page_info the page information for the action,  pagination ecc.. 
@@ -25,6 +26,7 @@
 
 
 $page_info['ajax'] = $page_info['ajax'] ?? true;
+$show_header = $show_header ?? true;
 
 // Inizializza le condizioni per classi dinamiche
 $row_conditions = $page_info['row_conditions'] ?? [];
@@ -171,30 +173,32 @@ if (($info instanceof App\Modellist\ListStructure || is_array($info))  && ($page
     
     <div class="table-responsive">
     <table <?php Theme\Template::addAttrs($table_attrs, 'table'); ?>>
-        <thead <?php Theme\Template::addAttrs($table_attrs, 'thead'); ?>>
-            <tr>
-                <?php foreach ($info as $key => $header) { ?>
-                    <?php if ($header['type'] == 'hidden') continue; ?>
-                    <th data-attrid="th.<?php _p(str_replace(' ','_', $key)); ?>" 
-                     scope="col" <?php  Theme\Template::addAttrs($table_attrs, 'th.'.str_replace(' ','_', $key), 'th', 'th');   ?>>
-                    <?php if ($header['type'] == 'checkbox') { ?>
-                        <input type="checkbox" class="form-check-input js-click-all-checkbox">
-                    <?php } else { ?>
-                            <?php if ($header['type'] == 'action' || $header['type'] == 'checkbox' || !($header['order'] ?? true) ) { ?>
-                                <div class="d-flex"><span class="me-2"><?php _pt($header['label']); ?> </span></div>
-                            <?php } else { ?>
-                                <?php if ($order_field == $key) { ?>
-                                    <div class="d-flex table-order-selected link-action js-table-change-order" data-table-field="<?php _p($key); ?>" data-table-dir="<?php echo (($order_dir == 'desc') ? 'asc' : 'desc'); ?>"><span class="me-2 table-head-link"><?php _pt($header['label']); ?> </span> <i class="bi bi-<?php echo ($order_dir == 'desc') ? 'sort-up' : 'sort-down-alt'; ?> bi-head-sort"></i> </div>
+        <?php if ($show_header) { ?>
+            <thead <?php Theme\Template::addAttrs($table_attrs, 'thead'); ?>>
+                <tr>
+                    <?php foreach ($info as $key => $header) { ?>
+                        <?php if ($header['type'] == 'hidden') continue; ?>
+                        <th data-attrid="th.<?php _p(str_replace(' ','_', $key)); ?>" 
+                         scope="col" <?php  Theme\Template::addAttrs($table_attrs, 'th.'.str_replace(' ','_', $key), 'th', 'th');   ?>>
+                        <?php if ($header['type'] == 'checkbox') { ?>
+                            <input type="checkbox" class="form-check-input js-click-all-checkbox">
+                        <?php } else { ?>
+                                <?php if ($header['type'] == 'action' || $header['type'] == 'checkbox' || !($header['order'] ?? true) ) { ?>
+                                    <div class="d-flex"><span class="me-2"><?php _pt($header['label']); ?> </span></div>
                                 <?php } else { ?>
-                                    <div class="d-flex link-action js-table-change-order" data-table-field="<?php _p($key); ?>" data-table-dir="asc"><span class="me-2 table-head-link"><?php _pt($header['label']); ?> </span> <i class="bi bi-filter-left bi-head-sort"></i> </div>
+                                    <?php if ($order_field == $key) { ?>
+                                        <div class="d-flex table-order-selected link-action js-table-change-order" data-table-field="<?php _p($key); ?>" data-table-dir="<?php echo (($order_dir == 'desc') ? 'asc' : 'desc'); ?>"><span class="me-2 table-head-link"><?php _pt($header['label']); ?> </span> <i class="bi bi-<?php echo ($order_dir == 'desc') ? 'sort-up' : 'sort-down-alt'; ?> bi-head-sort"></i> </div>
+                                    <?php } else { ?>
+                                        <div class="d-flex link-action js-table-change-order" data-table-field="<?php _p($key); ?>" data-table-dir="asc"><span class="me-2 table-head-link"><?php _pt($header['label']); ?> </span> <i class="bi bi-filter-left bi-head-sort"></i> </div>
+                                    <?php } ?>
                                 <?php } ?>
-                            <?php } ?>
-                        </div>
+                            </div>
+                        <?php } ?>
+                        </th>
                     <?php } ?>
-                    </th>
-                <?php } ?>
-            </tr>
-        </thead>
+                </tr>
+            </thead>
+        <?php } ?>
         <?php 
         $footer_row = false;
         if (($page_info['footer'] ?? false) && count($rows) > 0) {

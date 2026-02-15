@@ -76,10 +76,10 @@ abstract class AbstractController {
      *
      * This method automatically calls the appropriate action method based on the 'action' URL parameter.
      * It supports two systems:
-     * 1. Traditional: action=view calls actionView() method
-     * 2. Attribute-based: #[RequestAction('view')] on any method
+     * 1. Deprecated legacy: action=view calls actionView() method
+     * 2. Preferred: #[RequestAction('view')] on any method
      *
-     * Priority: Attribute-based routes take precedence over traditional actionXxx methods
+     * Priority: Attribute-based routes take precedence over legacy actionXxx methods
      *
      * ACCESS CONTROL:
      * - Module-level access is checked first (defined in AbstractModule)
@@ -103,7 +103,7 @@ abstract class AbstractController {
      *
      * IMPORTANT:
      * - Action methods are automatically called based on the URL parameter 'action'
-     * - Hyphens in the action name are automatically converted to underscores for traditional methods
+     * - Hyphens in the action name are automatically converted to underscores for legacy methods
      * - Attribute-based routes can map any action to any method name
      * - If no action is specified, 'actionHome()' is called by default
      * - If access is denied, user is redirected to ?page=deny

@@ -24,6 +24,16 @@ IF [type] == "company" THEN "Y" ELSE "N" ENDIF</code></pre>
         <br><strong>Backend:</strong> parameters come from the record array (Model field keys).
     </div>
 
+    <h3>Dot-notation (nested parameters)</h3>
+    <p>When a parameter is an object/array, you can access nested values using dot-notation:</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-text">[user.name]
+[user.address.city]
+[user.orders.0.total]</code></pre>
+    <div class="alert alert-warning">
+        <strong>Note:</strong> dot-notation works only on parameters you set programmatically (e.g. <code>setParameter("user", {...})</code> in JS or
+        <code>setParameters(["user" =&gt; $user])</code> in PHP). Form fields are flat, so <code>[user.name]</code> is not automatically built from multiple inputs.
+    </div>
+
     <h2>Operators</h2>
     <table class="table table-bordered">
         <thead class="table-dark">
@@ -84,6 +94,14 @@ IF [type] == "company" THEN "Y" ELSE "N" ENDIF</code></pre>
         <li><code>DATEONLY(datetime)</code></li>
         <li><code>TIMEADD(time, minutes)</code></li>
         <li><code>ADDMINUTES(time, minutes)</code></li>
+        <li><code>COUNT(array)</code>, <code>COUNT(array, "field")</code></li>
+        <li><code>SUM(array, "field")</code></li>
+        <li><code>MIN(array, "field")</code></li>
+        <li><code>MAX(array, "field")</code></li>
+        <li><code>FIND(array, "field", value)</code></li>
+        <li><code>CONTAINS(array, "field", value)</code></li>
+        <li><code>FIRST(array)</code>, <code>FIRST(array, "field", default?)</code></li>
+        <li><code>LAST(array)</code>, <code>LAST(array, "field", default?)</code></li>
     </ul>
 
     <h3>TIMEADD / ADDMINUTES</h3>
@@ -91,8 +109,58 @@ IF [type] == "company" THEN "Y" ELSE "N" ENDIF</code></pre>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-text">TIMEADD([start_time], 45)
 ADDMINUTES([start_time], -30)</code></pre>
 
+    <h3>Array / Object helpers</h3>
+    <p>These functions are designed to work with arrays of objects/arrays. The <code>"field"</code> parameter supports dot-notation too (e.g. <code>"customer.id"</code>).</p>
+    <table class="table table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>Function</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>COUNT(array)</code></td>
+                <td>Array length</td>
+            </tr>
+            <tr>
+                <td><code>COUNT(array, "field")</code></td>
+                <td>Counts items where <code>field</code> is not null (JS: not null/undefined)</td>
+            </tr>
+            <tr>
+                <td><code>SUM(array, "field")</code></td>
+                <td>Sums numeric values of <code>field</code> (skips null/non-numeric)</td>
+            </tr>
+            <tr>
+                <td><code>MIN(array, "field")</code></td>
+                <td>Minimum numeric value of <code>field</code> (returns <code>null</code> if none)</td>
+            </tr>
+            <tr>
+                <td><code>MAX(array, "field")</code></td>
+                <td>Maximum numeric value of <code>field</code> (returns <code>null</code> if none)</td>
+            </tr>
+            <tr>
+                <td><code>FIND(array, "field", value)</code></td>
+                <td>Returns the first item where <code>field == value</code> (or <code>null</code> if not found)</td>
+            </tr>
+            <tr>
+                <td><code>CONTAINS(array, "field", value)</code></td>
+                <td>Returns <code>true</code> if an item exists where <code>field == value</code></td>
+            </tr>
+            <tr>
+                <td><code>FIRST(array, "field"?, default?)</code></td>
+                <td>Returns the first item (or its field). If array is empty/missing field, returns <code>default</code></td>
+            </tr>
+            <tr>
+                <td><code>LAST(array, "field"?, default?)</code></td>
+                <td>Returns the last item (or its field). If array is empty/missing field, returns <code>default</code></td>
+            </tr>
+        </tbody>
+    </table>
+
     <h3>Quick Examples</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-text">ROUND([total] * 0.22, 2)
 IF ISEMPTY([discount]) THEN 0 ELSE [discount] ENDIF
+[TIME_FROM] &lt; [TIME_TO] OR ISEMPTY([TIME_TO])
 DATEONLY(NOW())</code></pre>
 </div>

@@ -29,6 +29,34 @@
     margin-bottom: 1rem;
 }
 
+/* Compact text mode for dense tables */
+.table-text-small .table,
+.table.table-text-small {
+    font-size: 0.875rem;
+}
+
+.table-text-small .table .table-head-link,
+.table-text-small .table .link-action,
+.table-text-small .table .bi,
+.table.table-text-small .table-head-link,
+.table.table-text-small .link-action,
+.table.table-text-small .bi {
+    font-size: inherit;
+}
+
+.table-text-small .js-row-bulk-actions,
+.table-text-small .js-row-bulk-actions .link-action {
+    font-size: 0.875rem;
+}
+
+.table-text-small .pagination {
+    --bs-pagination-font-size: 0.875rem;
+}
+
+.table-text-small .form-select {
+    font-size: 0.875rem;
+}
+
 
 .table-container th.th-small {
     width: 1%;
@@ -229,4 +257,3 @@ th .link-action {
 .table-header-dark .bi {
     color: white !important;
 }
-

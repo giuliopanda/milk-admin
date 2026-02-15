@@ -2,17 +2,19 @@
 namespace App\Abstracts\Traits;
 
 /**
- * RelationshipsTrait - Handles model relationships (hasOne, belongsTo, hasMany)
+ * RelationshipsTrait - Handles model relationships (hasOne, belongsTo, hasMany, hasMeta)
  *
  * REFACTORED VERSION:
  * - Relationship data is stored directly in records_objects as arrays
  * - No separate cache (loaded_relationships removed)
  * - Lazy loading: data loaded on first access and stored in records_objects[i][alias]
  * - Batch queries: loads all missing relationships in one whereIn query
+ * - hasMeta: EAV pattern support with batched queries for efficiency
  *
  * Structure in records_objects:
  * - belongsTo/hasOne: records_objects[i]['doctor'] = ['id' => 5, 'name' => 'Dr. Smith', ...]
  * - hasMany: records_objects[i]['appointments'] = [['id' => 1, ...], ['id' => 2, ...]]
+ * - hasMeta: records_objects[i]['first_name'] = 'John' (scalar value from meta table)
  *
  * Usage:
  * - Define relationships in configure() method
@@ -30,14 +32,25 @@ trait RelationshipsTrait
     protected array $include_relationships = [];
 
     /**
+     * Track which meta fields have been loaded to avoid duplicate queries
+     * @var bool
+     */
+    protected bool $meta_loaded = false;
+
+    /**
      * Get a related model data for the current record
      * Triggers batch loading on first access if not already loaded
      *
      * @param string $alias Relationship alias
-     * @return mixed|null Related data (array for belongsTo/hasOne, array of arrays for hasMany)
+     * @return mixed|null Related data (array for belongsTo/hasOne, array of arrays for hasMany, scalar for hasMeta)
      */
     protected function getRelatedModel(string $alias): mixed
     {
+        // Check if it's a hasMeta field first
+        if ($this->hasMetaRelationship($alias)) {
+            return $this->getMetaValue($alias);
+        }
+
         // Get relationship configuration
         $relationship = $this->getRelationship($alias);
 
@@ -161,6 +174,180 @@ trait RelationshipsTrait
     }
 
     /**
+     * Check if an alias is a hasMeta relationship
+     *
+     * @param string $alias Relationship alias
+     * @return bool
+     */
+    protected function hasMetaRelationship(string $alias): bool
+    {
+        $rules = $this->rule_builder->getRules();
+        return isset($rules[$alias]['hasMeta']) && $rules[$alias]['hasMeta'] === true;
+    }
+
+    /**
+     * Get meta value for a specific alias
+     * Triggers batch loading of all meta fields if not already loaded
+     *
+     * @param string $alias Meta field alias
+     * @return mixed Meta value or null
+     */
+    protected function getMetaValue(string $alias): mixed
+    {
+        if (!isset($this->records_objects[$this->current_index])) {
+            return null;
+        }
+
+        // Check if already loaded
+        if (array_key_exists($alias, $this->records_objects[$this->current_index])) {
+            return $this->records_objects[$this->current_index][$alias];
+        }
+
+        // Not loaded yet - trigger batch loading for all meta fields
+        if (!$this->meta_loaded) {
+            $this->loadAllMeta();
+        }
+
+        return $this->records_objects[$this->current_index][$alias] ?? null;
+    }
+
+    /**
+     * Load all hasMeta fields in a single batched query
+     * Groups meta fields by related_model for efficiency
+     *
+     * @return void
+     */
+    protected function loadAllMeta(): void
+    {
+        if ($this->records_objects === null || empty($this->records_objects)) {
+            $this->meta_loaded = true;
+            return;
+        }
+
+        $rules = $this->rule_builder->getRules();
+        $all_meta_configs = $this->rule_builder->getAllHasMeta();
+
+        if (empty($all_meta_configs)) {
+            $this->meta_loaded = true;
+            return;
+        }
+
+        // Group meta configs by related_model for batched queries
+        $grouped_by_model = [];
+        foreach ($all_meta_configs as $meta_config) {
+            $model_class = $meta_config['related_model'];
+            if (!isset($grouped_by_model[$model_class])) {
+                $grouped_by_model[$model_class] = [];
+            }
+            $grouped_by_model[$model_class][] = $meta_config;
+        }
+
+        // Collect all entity IDs we need to query
+        $local_key = null;
+        $entity_ids = [];
+        
+        // Get local key from first meta config (they should all share the same local_key)
+        $first_config = reset($all_meta_configs);
+        $local_key = $first_config['local_key'];
+
+        foreach ($this->records_objects as $index => $record) {
+            $entity_id = $record[$local_key] ?? null;
+            if ($entity_id !== null) {
+                $entity_ids[$entity_id] = true;
+            }
+        }
+
+        if (empty($entity_ids)) {
+            $this->meta_loaded = true;
+            return;
+        }
+
+        $entity_ids = array_keys($entity_ids);
+
+        // Execute one query per related_model (typically just one)
+        foreach ($grouped_by_model as $model_class => $meta_configs) {
+            $this->loadMetaBatch($model_class, $meta_configs, $entity_ids, $local_key);
+        }
+
+        $this->meta_loaded = true;
+    }
+
+    /**
+     * Load a batch of meta fields from a single meta table
+     *
+     * @param string $model_class Related model class
+     * @param array $meta_configs Array of meta configurations
+     * @param array $entity_ids Array of entity IDs to load
+     * @param string $local_key Local key field name
+     * @return void
+     */
+    protected function loadMetaBatch(string $model_class, array $meta_configs, array $entity_ids, string $local_key): void
+    {
+        // Get configuration from first meta (they share the same table structure)
+        $first_config = reset($meta_configs);
+        $foreign_key = $first_config['foreign_key'];
+        $meta_key_column = $first_config['meta_key_column'];
+        $meta_value_column = $first_config['meta_value_column'];
+
+        // Collect all meta_key values we need
+        $meta_keys = [];
+        $alias_by_meta_key = [];
+        foreach ($meta_configs as $config) {
+            $meta_keys[] = $config['meta_key_value'];
+            $alias_by_meta_key[$config['meta_key_value']] = $config['alias'];
+        }
+
+        // Create meta model instance
+        $meta_model = new $model_class();
+        
+        // Build query: SELECT * FROM meta_table WHERE foreign_key IN (...) AND meta_key IN (...)
+        $query = $meta_model->query()
+            ->whereIn($foreign_key, $entity_ids)
+            ->whereIn($meta_key_column, $meta_keys);
+
+        // Add any custom where conditions from meta configs
+        foreach ($meta_configs as $config) {
+            if (isset($config['where'])) {
+                $query->where($config['where']['condition'], $config['where']['params']);
+            }
+        }
+
+        $results = $query->getResults();
+
+        // Build lookup: entity_id => [meta_key => meta_value]
+        $meta_lookup = [];
+        if ($results && $results->count() > 0) {
+            foreach ($results as $row) {
+                $entity_id = $row->$foreign_key;
+                $key = $row->$meta_key_column;
+                $value = $row->$meta_value_column;
+
+                if (!isset($meta_lookup[$entity_id])) {
+                    $meta_lookup[$entity_id] = [];
+                }
+                $meta_lookup[$entity_id][$key] = $value;
+            }
+        }
+
+        // Populate records_objects with meta values
+        foreach ($this->records_objects as $index => &$record) {
+            $entity_id = $record[$local_key] ?? null;
+            if ($entity_id === null) {
+                continue;
+            }
+
+            foreach ($meta_configs as $config) {
+                $alias = $config['alias'];
+                $meta_key = $config['meta_key_value'];
+
+                // Set value from lookup, or null if not found
+                $record[$alias] = $meta_lookup[$entity_id][$meta_key] ?? null;
+            }
+        }
+        unset($record);
+    }
+
+    /**
      * Get relationship configuration by alias
      *
      * @param string $alias Relationship alias
@@ -181,14 +368,40 @@ trait RelationshipsTrait
     }
 
     /**
-     * Check if a relationship alias exists
+     * Check if a relationship alias exists (including hasMeta)
      *
      * @param string $alias Relationship alias
      * @return bool
      */
     protected function hasRelationship(string $alias): bool
     {
+        // Check for hasMeta first
+        if ($this->hasMetaRelationship($alias)) {
+            return true;
+        }
+        
         return $this->getRelationship($alias) !== null;
+    }
+
+    /**
+     * Get hasMeta configuration by alias
+     *
+     * @param string $alias Meta field alias
+     * @return array|null Meta configuration or null if not found
+     */
+    protected function getMetaConfig(string $alias): ?array
+    {
+        $rules = $this->rule_builder->getRules();
+        
+        if (!isset($rules[$alias]['_meta_config'])) {
+            return null;
+        }
+
+        $meta_ref = $rules[$alias]['_meta_config'];
+        $local_key = $meta_ref['local_key'];
+        $index = $meta_ref['index'];
+
+        return $rules[$local_key]['hasMeta'][$index] ?? null;
     }
 
     /**
@@ -204,18 +417,24 @@ trait RelationshipsTrait
             return;
         }
 
+        // Reset meta loaded flag
+        $this->meta_loaded = false;
+
         foreach ($this->records_objects as $index => $record) {
             if ($alias === null) {
-                // Clear all relationships
+                // Clear all relationships and meta
                 $rules = $this->rule_builder->getRules();
                 foreach ($rules as $field_name => $rule) {
                     if (isset($rule['relationship'])) {
                         $rel_alias = $rule['relationship']['alias'];
                         unset($this->records_objects[$index][$rel_alias]);
                     }
+                    if (isset($rule['hasMeta']) && $rule['hasMeta'] === true) {
+                        unset($this->records_objects[$index][$field_name]);
+                    }
                 }
             } else {
-                // Clear specific relationship
+                // Clear specific relationship or meta
                 unset($this->records_objects[$index][$alias]);
             }
         }
@@ -292,6 +511,20 @@ trait RelationshipsTrait
             }
         }
 
+        return $this;
+    }
+
+    /**
+     * Preload all meta fields
+     * Useful when you know you'll need meta data and want to avoid lazy loading
+     *
+     * @return static Returns $this for method chaining
+     */
+    public function withMeta(): static
+    {
+        if (!$this->meta_loaded) {
+            $this->loadAllMeta();
+        }
         return $this;
     }
 
@@ -531,7 +764,6 @@ trait RelationshipsTrait
 
             if (property_exists($model, 'records_objects')) {
                 $records_objects_prop = $reflection->getProperty('records_objects');
-                $records_objects_prop->setAccessible(true);
 
                 // Get current records_objects (should have been populated by field setters above)
                 $current_records = $records_objects_prop->getValue($model);
@@ -552,7 +784,6 @@ trait RelationshipsTrait
             // Ensure current_index is set to 0
             if (property_exists($model, 'current_index')) {
                 $current_index_prop = $reflection->getProperty('current_index');
-                $current_index_prop->setAccessible(true);
                 $current_index_prop->setValue($model, 0);
             }
         }

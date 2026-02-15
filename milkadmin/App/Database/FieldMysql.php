@@ -14,6 +14,7 @@ namespace App\Database;
     public ?int $length = null;
     public ?int $precision = null;
     public ?int $scale = null;
+    public bool $unsigned = false;
     public bool $nullable = false;
     public mixed $default = null;
     public bool $auto_increment = false;
@@ -35,6 +36,13 @@ namespace App\Database;
             $sql .= "({$this->length})";
         } elseif ($this->precision !== null) {
             $sql .= "({$this->precision},{$this->scale})";
+        }
+
+        if ($this->unsigned) {
+            $numeric_types = ['tinyint', 'smallint', 'mediumint', 'int', 'bigint', 'decimal', 'float', 'double', 'real', 'numeric'];
+            if (in_array(strtolower($this->type), $numeric_types, true)) {
+                $sql .= " UNSIGNED";
+            }
         }
 
         // Null/Not Null
@@ -69,6 +77,7 @@ namespace App\Database;
                 $this->length === $other->length &&
                 $this->precision === $other->precision &&
                 $this->scale === $other->scale &&
+                $this->unsigned === $other->unsigned &&
                 $this->nullable === $other->nullable &&
                 $this->default === $other->default &&
                 $this->auto_increment === $other->auto_increment);
@@ -81,6 +90,7 @@ namespace App\Database;
             'length' => $this->length,
             'precision' => $this->precision,
             'scale' => $this->scale,
+            'unsigned' => $this->unsigned,
             'nullable' => $this->nullable,
             'default' => $this->default,
             'auto_increment' => $this->auto_increment,

@@ -75,6 +75,11 @@ Visita: `?page=playground`
 $table = TableBuilder::create($this->model, 'test')
     ->resetFields()
     ->field('name')->label('Nome')
+    // Conditionally print a field (evaluated before custom formatter)
+    ->field('email')
+        ->label('Email')
+        ->type('html')
+        ->showIf('[active] == 1', '<span class="text-muted">Nascosta</span>')
     ->render();
 
 Response::render('<div class="p-4">' . $table . '</div>');

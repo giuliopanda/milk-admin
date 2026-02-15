@@ -29,7 +29,7 @@ namespace Modules\Docs\Pages;
                 <td><code>setParameters(...)</code></td>
                 <td><code>setParameters(array $params)</code></td>
                 <td><code>setParametersFromForm(form|object)</code></td>
-                <td>Sets parameters available for <code>[field]</code></td>
+                <td>Loads parameters used by <code>[field]</code> (JS merges, PHP replaces)</td>
             </tr>
             <tr>
                 <td><code>setParameter(...)</code></td>
@@ -103,6 +103,50 @@ $parser->setParameters([
 
 $result = $parser->execute('[qty] * [price]'); // 30</code></pre>
 
+    <h2>PHP: execute expressions on Model query results</h2>
+    <p>Typical flow:</p>
+    <ol>
+        <li>Run a query on a Model (e.g. <code>query()-&gt;getResults()</code> or <code>query()-&gt;getRow()</code>)</li>
+        <li>Convert results into plain data via <code>getSqlData()</code> (so you have arrays/stdClass ready for dot-notation and helpers)</li>
+        <li>Inject data into the parser with <code>setParameter()</code></li>
+        <li>Execute the expression (wrap in <code>try/catch</code> to handle invalid expressions)</li>
+    </ol>
+
+    <h3>Multiple rows (getResults)</h3>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$model = (new DotNotationParameterModel())
+    ->query()
+    ->getResults();
+
+$parser = new \App\ExpressionParser();
+$parser->setParameter('data', $model->getSqlData()); // array of stdClass rows
+
+try {
+    $lastId = $parser->execute('LAST([data], "ID")');
+} catch (\Exception $e) {
+    $error = $e->getMessage();
+}</code></pre>
+
+    <h3>Single row (getRow)</h3>
+    <p><code>getRow()</code> returns a Model containing a single record. <code>getSqlData()</code> still returns an array (with 1 element), so you can either:</p>
+    <ul>
+        <li>Keep the array and continue using array helpers like <code>LAST()</code> / <code>FIRST()</code></li>
+        <li>Extract the first element (<code>$ris[0]</code>) and use dot-notation like <code>[data.ID]</code></li>
+    </ul>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$model = (new DotNotationParameterModel())
+    ->query()
+    ->getRow();
+
+$parser = new \App\ExpressionParser();
+
+// Option A: keep array (1 row) -> helpers like LAST() work
+$parser->setParameter('data', $model->getSqlData());
+$lastId = $parser->execute('LAST([data], "ID")');
+
+// Option B: extract first row -> treat as object with dot-notation
+$ris = $model->getSqlData();
+$parser->setParameter('data', $ris[0]);
+$id = $parser->execute('[data.ID]');</code></pre>
+
     <h2>Example (JS)</h2>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-js">const parser = new ExpressionParser();
 parser.setParameter('qty', 3);
@@ -110,10 +154,24 @@ parser.setParameter('price', 10);
 
 const result = parser.execute('[qty] * [price]'); // 30</code></pre>
 
+    <h2>JS: complex parameters + merging from form</h2>
+    <p>On the frontend you can set complex objects/arrays once (e.g. at page load), then merge form values multiple times without resetting:</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-js">// 1) Set complex objects (once)
+parser.setParameter('user', userObject);
+parser.setParameter('config', configObject);
+
+// 2) Form updates (can happen many times)
+parser.setParametersFromForm(form); // merge, not reset</code></pre>
+    <ul>
+        <li><code>user</code> and <code>config</code> stay intact unless the form contains a field with the same name (the form wins).</li>
+        <li>Use dot-notation to access nested data: <code>[user.orders.0.total]</code>, <code>[config.flags.someFlag]</code>.</li>
+        <li><code>reset()</code> clears variables only; <code>resetAll()</code> clears variables and parameters.</li>
+    </ul>
+
     <div class="alert alert-warning">
         <strong>Important differences:</strong>
         <ul class="mb-0 mt-2">
-            <li>In JS you can use <code>setParametersFromForm(form)</code> to load values directly from an HTML form.</li>
+            <li>In JS <code>setParametersFromForm(form)</code> loads values from an HTML form and <strong>merges</strong> them into existing parameters (it does not reset).</li>
             <li>In PHP <code>getVariables()</code> and <code>getParameters()</code> are available to inspect the internal state.</li>
         </ul>
     </div>

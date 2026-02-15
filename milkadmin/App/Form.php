@@ -290,9 +290,41 @@ class Form
      * @return string|void Returns HTML if $return is true, otherwise echoes it
      */
     public static function checkbox($name, $label, $value, $is_checked = false, $options = [], $return = false) {
+        $normalized_name = $name;
+        if (preg_match('/^data\[(.+)\]$/', $name, $matches)) {
+            $normalized_name = $matches[1];
+        }
+
+        $invalid_class = '';
+        if (strpos($name, '[]') === false) {
+            $invalid_class = MessagesHandler::getInvalidClass($normalized_name);
+            if ($invalid_class != '') {
+                $options['class'] = (array_key_exists('class', $options)) ?
+                    $options['class'] . " " . $invalid_class :
+                    $invalid_class;
+
+                if (!array_key_exists('invalid-feedback', $options)) {
+                    $errors = MessagesHandler::getErrors();
+                    if (isset($errors[$normalized_name])) {
+                        $options['invalid-feedback'] = $errors[$normalized_name];
+                    } else {
+                        foreach ($errors as $key => $message) {
+                            if (strpos($key, '|') !== false) {
+                                $fields = explode('|', $key);
+                                if (in_array($normalized_name, $fields, true)) {
+                                    $options['invalid-feedback'] = $message;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         $options['class'] = (array_key_exists('class', $options)) ? $options['class']." ".'form-check-input' : 'form-check-input';
-     
-        $field = '<input type="checkbox" value="'._r($value).'" name="'._r($name).'"';
+       $field = '<div class="d-flex align-items-center w-100 h-100 no-form-check-mt">';
+        $field .= '<input type="checkbox" value="'._r($value).'" name="'._r($name).'"';
         if ($is_checked) {
             $field .= ' checked';
         }
@@ -305,13 +337,10 @@ class Form
             $field .= '<div class="invalid-feedback">'._rh($options['invalid-feedback']).'</div>';
         }
         // invalid 
-        if (strpos($name, '[]') === false) {
-            $invalid_class = MessagesHandler::getInvalidClass($name);
-            if ($invalid_class != '') {
-                $field = '<div class="' . $invalid_class . ' js-checkbox-remove-is-invalid ">' .  $field . '</div>';
-            }
+        if (strpos($name, '[]') === false && $invalid_class != '') {
+            $field = '<div class="' . $invalid_class . ' js-checkbox-remove-is-invalid ">' .  $field . '</div>';
         }
-      
+        $field .= '</div>';
         // hook per modificare il campo
         $field = Hooks::run('form_checkbox', $field, $name, $label, $value, $options);
         if ($return) {
@@ -330,17 +359,17 @@ class Form
      *     'sports' => 'Sports',
      *     'music' => 'Music',
      *     'reading' => 'Reading'
-     ];
+     * ];
      * $selected = ['sports', 'music'];
      * 
      * Form::checkboxes('interests', $interests, $selected, true, [
      *     'form-group-class' => 'mb-3',
      *     'label' => 'Your Interests',
      *     'invalid-feedback' => 'Please select at least one interest'
-     ], [
+     * ], [
      *     'class' => 'form-check-input me-2',
      *     'required' => true
-     ]);
+     * ]);
      *
      * @param string $name The name attribute for all checkboxes in the group (will be suffixed with [] for array submission)
      * @param array $list_of_radio Associative array of value => label pairs for the checkboxes
@@ -420,7 +449,7 @@ class Form
      * Form::radio('gender', 'Male', 'm', $selectedGender, [
      *     'class' => 'form-check-input me-2',
      *     'required' => true
-     ]);
+     * ]);
      *
      * @param string $name The name attribute of the radio button (should be the same for all radio buttons in a group)
      * @param string $label The label text displayed next to the radio button
@@ -436,7 +465,8 @@ class Form
     public static function radio($name, $label, $value, $selected_value = '',  $options = [], $return = false) {
         $options['class'] = (array_key_exists('class', $options)) ? $options['class']." ".'form-control' : 'form-control';
         self::applyInvalidClass($options, $name);
-        $field = '<input class="form-check-input" type="radio" value="'._r($value).'" name="'._r($name).'"';
+        $field = '<div class="d-flex align-items-center w-100 h-100 no-form-check-mt">';
+        $field .= '<input class="form-check-input" type="radio" value="'._r($value).'" name="'._r($name).'"';
         if ($selected_value == $value) {
             $field .= ' checked';
         }
@@ -449,7 +479,7 @@ class Form
             $field .= '<div class="invalid-feedback">'._rt($options['invalid-feedback']).'</div>';
         }
         // invalid-feedback is not supported on single radio buttons (It will be supported on radio groups!)
-
+        $field .= "</div>";
         // hook per modificare il campo
         $field = Hooks::run('form_radio', $field, $name, $label, $value, $options);
         if ($return) {
@@ -601,6 +631,12 @@ class Form
     public static function select($name, $label, $select_options, $selected = '', $options = [],  $return = false) {
         $options['class'] = (array_key_exists('class', $options)) ? $options['class']." ".'form-select' : 'form-select';
         self::applyInvalidClass($options, $name);
+
+        // HTML select does not support readonly. Convert it to disabled behavior.
+        $isReadonly = array_key_exists('readonly', $options) && $options['readonly'] !== false;
+        if ($isReadonly && (!array_key_exists('disabled', $options) || $options['disabled'] !== true)) {
+            $options['disabled'] = true;
+        }
        
         if ((array_key_exists('floating', $options) && $options['floating'] == false) ) {
             $floating = false;
@@ -643,6 +679,22 @@ class Form
         }
 
         $field .= '</select>';
+
+        // Disabled controls are not submitted, so preserve readonly select value(s).
+        if ($isReadonly) {
+            $isMultiple = array_key_exists('multiple', $options) && $options['multiple'] !== false;
+            if ($isMultiple) {
+                $hiddenName = str_ends_with((string) $name, '[]') ? (string) $name : ((string) $name . '[]');
+                $selectedValues = is_array($selected) ? $selected : (($selected === '' || $selected === null) ? [] : [$selected]);
+                foreach ($selectedValues as $selectedValue) {
+                    $field .= '<input type="hidden" name="' . _r($hiddenName) . '" value="' . _r((string) $selectedValue) . '">';
+                }
+            } else {
+                $hiddenValue = is_array($selected) ? (string) (reset($selected) ?: '') : (string) $selected;
+                $field .= '<input type="hidden" name="' . _r($name) . '" value="' . _r($hiddenValue) . '">';
+            }
+        }
+
         $field .= ($floating) ? $label_dom : '';
         if (array_key_exists('invalid-feedback', $options)) {
             $field .= '<div class="invalid-feedback">'._rt($options['invalid-feedback']).'</div>';

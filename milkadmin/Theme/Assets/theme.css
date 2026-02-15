@@ -1688,3 +1688,7 @@ trix-toolbar .trix-button-group {
         font-size: 1rem;
     }
 }
+
+.no-form-check-mt .form-check-input {
+    margin-top: 0;
+}

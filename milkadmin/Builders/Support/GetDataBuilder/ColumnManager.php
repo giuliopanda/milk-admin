@@ -141,6 +141,23 @@ class ColumnManager
         $this->configure($key, ['showIfFilter' => $condition]);
     }
 
+    /**
+     * Conditionally display a cell value based on an ExpressionParser expression.
+     *
+     * The expression is evaluated against the current row data using parameters syntax:
+     * - Example: '[STATUS] == "active"'
+     *
+     * If the expression evaluates to false, the column formatter (fn) is skipped and
+     * the cell is replaced with $elseValue (defaults to empty string).
+     */
+    public function setShowIf(string $key, string $expression, mixed $elseValue = ''): void
+    {
+        $this->configure($key, [
+            'showIf' => $expression,
+            'showIfElse' => $elseValue
+        ]);
+    }
+
     // ========================================================================
     // COLUMN VISIBILITY
     // ========================================================================

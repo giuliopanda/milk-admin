@@ -72,7 +72,10 @@ trait FieldFirstTrait
         $key = $this->columns->requireCurrentField('link');
 
         // Auto-add fetch attribute in fetch mode
-        if ($this->context->isFetchMode() && !isset($options['data-fetch'])) {
+        if (isset($options['data-fetch']) && $options['data-fetch'] === false) {
+            unset($options['data-fetch']);
+            // do nothing
+        } elseif ($this->context->isFetchMode() && !isset($options['data-fetch'])) {
             $options['data-fetch'] = 'post';
         }
 
@@ -155,6 +158,22 @@ trait FieldFirstTrait
     {
         $key = $this->columns->requireCurrentField('showIfFilter');
         $this->columns->setShowIfFilter($key, $condition);
+        return $this;
+    }
+
+    /**
+     * Conditionally print the current field value using an expression.
+     *
+     * The expression is evaluated against the current row using ExpressionParser parameters:
+     * - Example: '[status] == "active"'
+     *
+     * If the condition is false, the value is not printed and $elseValue is used instead.
+     * If the condition is true and a custom formatter (fn) exists, it will be executed.
+     */
+    public function showIf(string $expression, mixed $elseValue = ''): static
+    {
+        $key = $this->columns->requireCurrentField('showIf');
+        $this->columns->setShowIf($key, $expression, $elseValue);
         return $this;
     }
 

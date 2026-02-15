@@ -982,6 +982,7 @@ class Modal {
     title(html) {
         if (html !== undefined) {
             this.el_title.innerHTML = html
+            updateContainer(this.el_title);
         }
     }
 
@@ -2099,4 +2100,3 @@ document.addEventListener("DOMContentLoaded", function() {
     window.initFetchLinks = initFetchLinks;
     window.initFetchDiv = initFetchDiv;
 })();
-

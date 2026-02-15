@@ -20,6 +20,88 @@ trait RouteControllerTrait {
 
     private array $routeMap = [];
     private array $accessLevelMap = [];
+    private array $programmaticRouteMap = [];
+    private array $programmaticAccessLevelMap = [];
+    private array $programmaticAccessByAction = [];
+    private bool $routeMapBuilt = false;
+    private array $attributeActionSet = [];
+    private bool $attributeActionSetBuilt = false;
+
+    /**
+     * Register a request action programmatically (without #[RequestAction] attribute).
+     *
+     * This works both in Module and Controller because both use RouteControllerTrait.
+     *
+     * Examples:
+     * - $this->registerRequestAction('home', 'myHomeMethod');
+     * - $this->registerRequestAction('sync', 'runSync', 'admin');
+     * - $this->registerRequestAction('custom', [$someObject, 'methodName']);
+     *
+     * @param string $action Route action (e.g. "home", "my-action")
+     * @param string|array $handler Method name or callable pair [object, method]
+     * @param string|null $accessLevel Optional access level ('public', 'registered', 'admin', 'authorized[:permission]')
+     * @return bool True when registered, false when already registered
+     */
+    public function registerRequestAction(string $action, string|array $handler, ?string $accessLevel = null): bool
+    {
+        $action = trim($action);
+        if ($action === '') {
+            throw new \InvalidArgumentException('Action cannot be empty');
+        }
+
+        // If called on a Module that has an active Controller, register the route on the Controller
+        // so it is effective even when the controller is the active route handler.
+        if (
+            property_exists($this, 'controller')
+            && is_object($this->controller)
+            && $this->controller !== $this
+            && method_exists($this->controller, 'registerRequestAction')
+        ) {
+            $forwardHandler = $handler;
+
+            // If handler string belongs to Module but not to Controller, preserve Module method call.
+            if (
+                is_string($handler)
+                && method_exists($this, $handler)
+                && !method_exists($this->controller, $handler)
+            ) {
+                $forwardHandler = [$this, $handler];
+            }
+
+            return (bool) $this->controller->registerRequestAction($action, $forwardHandler, $accessLevel);
+        }
+
+        // Avoid accidental overrides: if already registered, do not re-register.
+        if (isset($this->programmaticRouteMap[$action])) {
+            return false;
+        }
+
+        // If routes were already built, also avoid overriding attribute-based routes.
+        if ($this->routeMapBuilt && isset($this->routeMap[$action])) {
+            return false;
+        }
+
+        // If routes are not built yet, prevent overriding request actions declared on this class via attribute.
+        // Note: we intentionally do NOT build the full route map here, to avoid freezing extension scanning too early.
+        if (!$this->routeMapBuilt && $this->hasRequestActionAttribute($action)) {
+            return false;
+        }
+
+        $normalizedHandler = $this->normalizeRequestActionHandler($handler);
+
+        $this->programmaticRouteMap[$action] = $normalizedHandler;
+        $this->routeMap[$action] = $normalizedHandler;
+
+        if ($accessLevel !== null) {
+            $access = new AccessLevel($accessLevel);
+            $accessKey = $this->getAccessMapKeyForHandler($normalizedHandler);
+            $this->programmaticAccessLevelMap[$accessKey] = $access;
+            $this->accessLevelMap[$accessKey] = $access;
+            $this->programmaticAccessByAction[$action] = $accessLevel;
+        }
+
+        return true;
+    }
 
     public function handleRoutes() {
 
@@ -55,8 +137,7 @@ trait RouteControllerTrait {
             return;
         }
 
-        // Fall back to traditional actionXxx methods
-        // OLD SYSTEM actionFunctionName
+        // Deprecated fallback: legacy actionXxx methods (kept for backward compatibility)
         $function = $this->actionName($action);
 
         if (method_exists($this, $function)) {
@@ -110,7 +191,7 @@ trait RouteControllerTrait {
     }
 
     private function findRouteMethod(string $action): string|array|null {
-        if (empty($this->routeMap)) {
+        if (!$this->routeMapBuilt) {
             $this->buildRouteMap();
         }
 
@@ -118,6 +199,8 @@ trait RouteControllerTrait {
     }
 
     private function buildRouteMap(): void {
+        $this->routeMapBuilt = true;
+
         // Scan the controller itself
         $this->scanAttributesFromClass($this);
 
@@ -137,6 +220,9 @@ trait RouteControllerTrait {
                 }
             }
         }
+
+        // Programmatic routes are applied at the end so they can override scanned routes.
+        $this->applyProgrammaticRequestActions();
     }
 
     /**
@@ -182,6 +268,11 @@ trait RouteControllerTrait {
         }
     }
 
+    /**
+     * Convert action name to legacy actionXxx method name.
+     *
+     * @deprecated Legacy routing fallback. Prefer #[RequestAction] or registerRequestAction().
+     */
     private function actionName($action) {
         $action = strtolower(_raz(str_replace("-","_", $action)));
         $action_array = explode("_", $action);
@@ -197,7 +288,7 @@ trait RouteControllerTrait {
      */
     private function checkMethodAccess(string|array $methodName): bool {
         // Build maps if not already built
-        if (empty($this->routeMap) && empty($this->accessLevelMap)) {
+        if (!$this->routeMapBuilt) {
             $this->buildRouteMap();
         }
 
@@ -248,5 +339,84 @@ trait RouteControllerTrait {
             default:
                 return false;
         }
+    }
+
+    /**
+     * Normalize handler to a supported internal format.
+     *
+     * @param string|array $handler
+     * @return string|array
+     */
+    private function normalizeRequestActionHandler(string|array $handler): string|array
+    {
+        if (is_string($handler)) {
+            return $handler;
+        }
+
+        if (is_array($handler) && count($handler) === 2 && is_object($handler[0]) && is_string($handler[1])) {
+            return [$handler[0], $handler[1]];
+        }
+
+        throw new \InvalidArgumentException(
+            'Handler must be a method name string or [object, method] pair'
+        );
+    }
+
+    /**
+     * Return access-level map key for a handler.
+     *
+     * @param string|array $handler
+     * @return string
+     */
+    private function getAccessMapKeyForHandler(string|array $handler): string
+    {
+        if (is_array($handler)) {
+            [$obj, $method] = $handler;
+            return spl_object_id($obj) . '::' . $method;
+        }
+
+        return $handler;
+    }
+
+    /**
+     * Merge request actions registered with registerRequestAction().
+     *
+     * @return void
+     */
+    protected function applyProgrammaticRequestActions(): void
+    {
+        foreach ($this->programmaticRouteMap as $action => $handler) {
+            $this->routeMap[$action] = $handler;
+        }
+
+        foreach ($this->programmaticAccessLevelMap as $key => $accessLevel) {
+            $this->accessLevelMap[$key] = $accessLevel;
+        }
+    }
+
+    private function hasRequestActionAttribute(string $action): bool
+    {
+        if (!$this->attributeActionSetBuilt) {
+            $this->attributeActionSetBuilt = true;
+            $this->attributeActionSet = [];
+
+            try {
+                $reflection = new ReflectionClass($this);
+                foreach ($reflection->getMethods(ReflectionMethod::IS_PUBLIC | ReflectionMethod::IS_PROTECTED | ReflectionMethod::IS_PRIVATE) as $method) {
+                    foreach ($method->getAttributes(RequestAction::class) as $attr) {
+                        $instance = $attr->newInstance();
+                        $attrAction = trim((string) ($instance->action ?? ''));
+                        if ($attrAction !== '') {
+                            $this->attributeActionSet[$attrAction] = true;
+                        }
+                    }
+                }
+            } catch (\Throwable) {
+                // If reflection fails for any reason, do not block registrations here.
+                $this->attributeActionSet = [];
+            }
+        }
+
+        return isset($this->attributeActionSet[$action]);
     }
 }

@@ -3,7 +3,7 @@ namespace App\Abstracts;
 
 use App\Database\{ArrayDb, SQLite, MySql, ResultInterface};
 use App\{Get, Config, ExtensionLoader, ExpressionParser};
-use App\Abstracts\Traits\{QueryBuilderTrait, CrudOperationsTrait, SchemaAndValidationTrait, DataFormattingTrait, RelationshipsTrait, CollectionTrait, CascadeSaveTrait, RelationshipDataHandlerTrait, CopyRulesTrait, ExtensionManagementTrait, ScopeTrait, VirtualTableTrait};
+use App\Abstracts\Traits\{QueryBuilderTrait, CrudOperationsTrait, SchemaAndValidationTrait, DataFormattingTrait, RelationshipsTrait, CollectionTrait, CascadeSaveTrait, RelationshipDataHandlerTrait, CopyRulesTrait, ExtensionManagementTrait, ScopeTrait, VirtualTableTrait, MetaSaveTrait};
 use App\Attributes\{ToDisplayValue, ToDatabaseValue , GetRawValue, SetValue, Validate, DefaultQuery, Query as QueryAttribute};
 use ReflectionClass;
 use ReflectionMethod;
@@ -19,6 +19,8 @@ use ArrayAccess;
  * - CrudOperationsTrait: Create, Read, Update, Delete operations
  * - SchemaAndValidationTrait: Database schema and validation
  * - ResultSetTrait: Result set navigation with ArrayAccess support
+ * - RelationshipsTrait: Handles relationships including hasMeta
+ * - MetaSaveTrait: Automatic meta saving on record save/delete
  *
  * Query methods return a single Model instance containing ResultInterface with all records.
  * Navigation through records is done using next(), prev(), first(), last(), moveTo() methods.
@@ -49,6 +51,10 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
     use ExtensionManagementTrait;
     use ScopeTrait;
     use VirtualTableTrait;
+    use MetaSaveTrait;
+
+    // ... rest of the AbstractModel code remains the same ...
+    // (Include the full content from the original file)
 
     /**
      * Instance cache for methods with attributes defined in Models
@@ -767,6 +773,7 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
      */
     public function setResults(array $result): void {
         $this->records_objects = [];
+        $this->meta_loaded = false; // Reset meta loaded flag
         $counter = 0;
         if (is_array($result) && count($result) > 0) {
             foreach ($result as $row) {
@@ -792,6 +799,7 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
     public function setRow(array|object|null $data): void {
         $this->records_objects = [];
         $this->dates_in_user_timezone = false;
+        $this->meta_loaded = false; // Reset meta loaded flag
         $data = $this->filterDataByRules($data);
         $data['___action'] = null; // null = originale, non modificato
 
@@ -1136,6 +1144,31 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
         return $filtered_rules;  
     }
 
+    /**
+     * Get rules defined directly in the model configure() method, excluding all extensions.
+     *
+     * It creates a raw instance without running constructor logic and invokes configure()
+     * against a fresh RuleBuilder, so extension hooks are never executed.
+     *
+     * @return array<string,mixed>
+     */
+    public function getRulesDefinedInModelConfigureOnly(): array
+    {
+        try {
+            $reflection = new \ReflectionClass($this);
+            $rawModel = $reflection->newInstanceWithoutConstructor();
+            $builder = new RuleBuilder();
+
+            $configureMethod = $reflection->getMethod('configure');
+            $configureMethod->invoke($rawModel, $builder);
+
+            $rules = $builder->getRules();
+            return is_array($rules) ? $rules : [];
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
     public function getRule(string $key = ''): ?array {
         $rules = $this->rule_builder->getRules();
         if (!array_key_exists($key, $rules)) {
@@ -1178,6 +1211,4 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
             $this->db_type = 'db';
         }
     }
-
-
 }
