@@ -29,7 +29,7 @@ class InstallModule extends AbstractModule
              ->isCoreModule()
              ->addHeaderLink('Install', '?page=install', 'bi bi-gear-fill')
              ->addHeaderLink('Update modules', '?page=install&action=update-modules', 'bi bi-gear-fill')
-             ->version(251100);
+             ->version('0.9.2');
     }
 
     /**
