@@ -60,6 +60,7 @@ class SearchBuilder {
             'filter_type' => $filter_type,
             'label' => '',
             'placeholder' => '',
+            'value' => '',
             'class' => '',
             'layout' => 'inline',
             'options' => []
@@ -134,6 +135,18 @@ class SearchBuilder {
             'label' => 'Search',
             'class' => 'btn btn-primary',
             'options' => []
+        ];
+        $this->current_field = array_key_last($this->fields);
+        return $this;
+    }
+
+    /**
+     * Creates a newline separator that forces subsequent fields onto a new row.
+     */
+    public function newline(): self {
+        $this->fields[] = [
+            'type' => 'newline',
+            'options' => [],
         ];
         $this->current_field = array_key_last($this->fields);
         return $this;
@@ -379,6 +392,9 @@ class SearchBuilder {
             case 'clear_button':
                 return $this->renderClearButton($field);
 
+            case 'newline':
+                return $this->renderNewline();
+
             default:
                 return '';
         }
@@ -394,6 +410,7 @@ class SearchBuilder {
     private function renderSearchField(array $field, string $filter_class): string {
         $options = $this->prepareFieldOptions($field, $filter_class);
         $placeholder = $field['placeholder'] ?: $field['label'];
+        $value = isset($field['value']) && is_scalar($field['value']) ? (string) $field['value'] : '';
         $layout = $field['layout'] ?? 'inline';
         $custom_class = $field['class'] ?? '';
 
@@ -438,6 +455,7 @@ class SearchBuilder {
         $html .= ' name="search"';
         $html .= ' id="' . _r($id) . '"';
         $html .= ' placeholder="' . _r($placeholder) . '"';
+        $html .= ' value="' . _r($value) . '"';
         $html .= ' data-filter-id="' . _r($this->filter_id_attr) . '"';
         $html .= ' data-filter-type="' . _r($field['filter_type']) . '"';
         $html .= '>';
@@ -663,6 +681,13 @@ class SearchBuilder {
         return '<button type="button"' . Form::attr($options) . '>' . _rh($field['label']) . '</button>';
     }
     /**
+     * Renders a newline separator (forces a line break in flex-wrap layout).
+     */
+    private function renderNewline(): string {
+        return '<div class="w-100"></div>';
+    }
+
+    /**
      * Prepares field options with required data attributes
      * 
      * @param array $field Field configuration
@@ -703,7 +728,7 @@ class SearchBuilder {
      * @param array $field Field configuration
      * @return array
      */
-    private function prepareActionListOptions(array $field): string {
+    private function prepareActionListOptions(array $field): array {
         $options = $field['options'] ?? [];
 
         // Generate unique ID based on table ID and filter type for action lists too
@@ -721,7 +746,7 @@ class SearchBuilder {
      * @param string $filter_class CSS class for filter behavior
      * @return array
      */
-    private function prepareActionListInputOptions(array $field, string $filter_class): string {
+    private function prepareActionListInputOptions(array $field, string $filter_class): array {
         $input_options = $field['input_options'] ?? [];
         
         // Add required data attributes to the hidden input

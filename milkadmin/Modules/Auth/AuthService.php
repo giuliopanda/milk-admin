@@ -10,6 +10,23 @@ use App\{Config, Get, Hooks, MessagesHandler, Permissions, Response, Route, Sani
 
 class AuthService {
 
+    /**
+     * Table requests send token value in "token" while legacy forms use Token::getTokenName($table_id).
+     * Support both formats to keep backward compatibility.
+     */
+    static private function checkTableToken(string $table_id): bool {
+        if (Token::check($table_id)) {
+            return true;
+        }
+
+        $token = $_REQUEST['token'] ?? null;
+        if (!is_string($token) || $token === '') {
+            return false;
+        }
+
+        return Token::checkValue($token, $table_id);
+    }
+
     static public function tmplTitle() {
         $title = Theme::get('site.title', (Config::get('site-title', '')));
         echo '<div class="login-title">'.$title.'</div>';
@@ -417,8 +434,8 @@ class AuthService {
             $user_list_actions = str_replace($table_id . '-', '', $user_list_actions);
             $your_user = Get::make('Auth')->getUser();
             if ($user_list_actions == 'trash' || $user_list_actions == 'delete' || $user_list_actions == 'delete') {
-                if (Token::check($table_id) === false) {
-                    $msg_json = _r('Invalid token');
+                if (self::checkTableToken($table_id) === false) {
+                    $msg_json = _r('Invalid token !!!');
                     $success = false;
                 } else {
                     $ids = $_REQUEST[$table_id]['table_ids'] ?? '';
@@ -451,7 +468,7 @@ class AuthService {
             }
 
             if (in_array($user_list_actions, ['suspended', 'active', 'restore'])) {
-                if (Token::check($table_id) === false) {
+                if (self::checkTableToken($table_id) === false) {
                     $msg_json = _r('Invalid token');
                     $success = false;
                 } else {

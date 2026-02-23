@@ -103,6 +103,13 @@ trait SchemaAndValidationTrait
                     $schema->text($name, $rule['nullable'], $rule['default']);
                     break;
                 case 'list':
+                    $isMultipleList = !empty($rule['form-params']['multiple'])
+                        || ($rule['form-params']['multiple'] ?? null) === 'multiple';
+                    if ($isMultipleList) {
+                        // Multiple list stores JSON array, needs text column
+                        $schema->text($name, $rule['nullable'], $rule['default']);
+                        break;
+                    }
                     $max = 0;
                     $is_int = true;
                     $seqence = true;
@@ -127,7 +134,7 @@ trait SchemaAndValidationTrait
                             $rule['default'] = array_search($rule['default'], $rule['options']);
                             if ($rule['default'] === false) {
                                 $rule['default'] = null;
-                            } 
+                            }
                         }
                         $schema->int($name, $rule['nullable'], $rule['default'], null, (bool) ($rule['unsigned'] ?? false));
                     } else {

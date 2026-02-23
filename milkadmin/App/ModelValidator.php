@@ -310,9 +310,32 @@ class ModelValidator
                     }
                 } elseif ($type === 'list') {
                     $handled = true;
-                    $key = is_scalar($value) ? (string) $value : '';
-                    if (!array_key_exists($key, $rule['options'] ?? [])) {
-                        $add_error('Invalid List');
+                    $allowEmpty = !empty($rule['allow_empty']);
+                    $isMultipleList = !empty($rule['form-params']['multiple'])
+                        || ($rule['form-params']['multiple'] ?? null) === 'multiple';
+                    if ($isMultipleList && is_string($value)) {
+                        // Empty JSON array or empty string are valid when allowEmpty
+                        if ($allowEmpty && ($value === '' || $value === '[]')) {
+                            // valid, skip
+                        } else {
+                            $decoded = json_decode($value, true);
+                            $multipleValues = is_array($decoded) ? $decoded : [$value];
+                            $options = $rule['options'] ?? [];
+                            foreach ($multipleValues as $mv) {
+                                $mvKey = is_scalar($mv) ? (string) $mv : '';
+                                if ($mvKey !== '' && !array_key_exists($mvKey, $options)) {
+                                    $add_error('Invalid List');
+                                    break;
+                                }
+                            }
+                        }
+                    } else {
+                        $key = is_scalar($value) ? (string) $value : '';
+                        if ($allowEmpty && $key === '') {
+                            // valid, skip
+                        } elseif (!array_key_exists($key, $rule['options'] ?? [])) {
+                            $add_error('Invalid List');
+                        }
                     }
                 } elseif ($rule_type === 'string' || $rule_type === 'text') {
                     $handled = true;

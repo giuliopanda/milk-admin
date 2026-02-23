@@ -388,12 +388,15 @@ class Form
         $checkboxes = [];
         $base_id = self::id($options_field, $name);
         $count = 0;
+        $columns = isset($options_group['columns']) ? max(2, min(4, (int)$options_group['columns'])) : 0;
         self::applyInvalidClass($options_group, $name);
-        
+
         foreach ($list_of_radio as $value => $label) {
             $temp_field = '<div class="form-check';
             if ($inline) {
                 $temp_field .= ' form-check-inline';
+            } elseif ($columns > 0) {
+                $temp_field .= ' col';
             }
             if (array_key_exists('form-check-class', $options_group)) {
                 $temp_field .= ' '._r($options_group['form-check-class']).'';
@@ -422,14 +425,39 @@ class Form
         if (stripos($classes_field, 'is-invalid') !== false) {
             $classes_field .= ' js-checkbox-remove-is-invalid';
         }
+        $label_left = isset($options_group['label-position']) && $options_group['label-position'] === 'left';
+        if ($label_left) {
+            $classes_field .= ' d-flex align-items-start';
+        }
         $field = '<div class="js-form-checkboxes-group form-group'.$classes_field.'">';
+
+        // items wrapper class (used when label-position=left, or when columns is set)
+        if ($inline && $label_left) {
+            $items_wrap_class = 'd-flex flex-wrap gap-1';
+        } elseif ($columns > 0 && !$inline) {
+            $items_wrap_class = 'row row-cols-'.$columns.' gy-1';
+        } else {
+            $items_wrap_class = '';
+        }
+        $has_items_wrap = $label_left || ($columns > 0 && !$inline);
 
         if (array_key_exists('label', $options_group)) {
             if ($options_group['label'] != '') {
-                $field .= '<label class="label-checkboxes me-4">'._rt($options_group['label']).'</label>';
+                if ($label_left) {
+                    $label_width = _r($options_group['label-width'] ?? '8rem');
+                    $field .= '<label class="label-checkboxes flex-shrink-0 pt-1 me-3" style="min-width:'.$label_width.'">'._rt($options_group['label']).'</label>';
+                } else {
+                    $field .= '<label class="label-checkboxes me-4">'._rt($options_group['label']).'</label>';
+                }
             }
         }
+        if ($has_items_wrap) {
+            $field .= '<div'.($items_wrap_class ? ' class="'.$items_wrap_class.'"' : '').'>';
+        }
         $field .= implode('', $checkboxes);
+        if ($has_items_wrap) {
+            $field .= '</div>';
+        }
      
         $field .= '</div>';
         // hook per modificare il campo
@@ -530,11 +558,14 @@ class Form
         $radios = [];
         $base_id = self::id($options_field, $name);
         $count = 0;
+        $columns = isset($options_group['columns']) ? max(2, min(4, (int)$options_group['columns'])) : 0;
         self::applyInvalidClass($options_group, $name);
         foreach ($list_of_radio as $value => $label) {
             $temp_field = '<div class="form-check';
             if ($inline) {
                 $temp_field .= ' form-check-inline';
+            } elseif ($columns > 0) {
+                $temp_field .= ' col';
             }
             if (array_key_exists('form-check-class', $options_group)) {
                 $temp_field .= ' '._r($options_group['form-check-class']).'';
@@ -561,12 +592,37 @@ class Form
         if (stripos($classes_field, 'is-invalid') !== false) {
             $classes_field .= ' js-radio-remove-is-invalid';
         }
+        $label_left = isset($options_group['label-position']) && $options_group['label-position'] === 'left';
+        if ($label_left) {
+            $classes_field .= ' d-flex align-items-start';
+        }
         $field = '<div class="js-form-radios-group form-group'.$classes_field.'">';
 
+        // items wrapper class (used when label-position=left, or when columns is set)
+        if ($inline && $label_left) {
+            $items_wrap_class = 'd-flex flex-wrap gap-1';
+        } elseif ($columns > 0 && !$inline) {
+            $items_wrap_class = 'row row-cols-'.$columns.' gy-1';
+        } else {
+            $items_wrap_class = '';
+        }
+        $has_items_wrap = $label_left || ($columns > 0 && !$inline);
+
         if (array_key_exists('label', $options_group)) {
-            $field .= '<label class="label-radios me-4 text-body-secondary">'._rt($options_group['label']).'</label>';
+            if ($label_left) {
+                $label_width = _r($options_group['label-width'] ?? '8rem');
+                $field .= '<label class="label-radios flex-shrink-0 pt-1 me-3 text-body-secondary" style="min-width:'.$label_width.'">'._rt($options_group['label']).'</label>';
+            } else {
+                $field .= '<label class="label-radios me-4 text-body-secondary">'._rt($options_group['label']).'</label>';
+            }
+        }
+        if ($has_items_wrap) {
+            $field .= '<div'.($items_wrap_class ? ' class="'.$items_wrap_class.'"' : '').'>';
         }
         $field .= implode('', $radios);
+        if ($has_items_wrap) {
+            $field .= '</div>';
+        }
         
         $field .= '</div>';
         // hook per modificare il campo

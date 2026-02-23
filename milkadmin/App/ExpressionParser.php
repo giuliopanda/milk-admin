@@ -29,7 +29,7 @@ use App\ExpressionParser\ValueHelper;
  * - Funzioni: NOW(), AGE(date), ROUND(n, decimals), ABS(n), IFNULL(val, default),
  *             UPPER(str), LOWER(str), CONCAT(str1, str2, ...), TRIM(str),
  *             ISEMPTY(val), PRECISION(n, decimals), DATEONLY(datetime),
- *             TIMEADD(time, minutes), ADDMINUTES(time, minutes)
+ *             TIMEADD(time, minutes), ADDMINUTES(time, minutes), USERID()
  */
 class ExpressionParser
 {

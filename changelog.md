@@ -1,5 +1,20 @@
 ## Changelog
 
+### v0.9.3 - 26/02/23
+- New: Audit field types `updated_at()`, `created_by()`, `updated_by()` in RuleBuilder with automatic population; new `USERID()` expression function (PHP + JS)
+- New: Module instance registry (`AbstractModule::getInstance()`, `getAllInstances()`, `getAllModels()`)
+- New: UploadFiles/UploadImages plugins: drag-and-drop sortable order (`sortable()`) and download button (`downloadLink()`)
+- New: Multiple selection support for list/select fields (JSON array storage) and `allow_empty` option for deselection
+- New: `where()` condition support on `belongsTo` relationship search
+- New: sidebar layout support in `list_page.php`
+- New: "Update core only" option in Install module (updates only `milkadmin/` by default, optionally includes `milkadmin_local/`, `vendor/`, `public_html/`)
+- Improved: CSRF hardening - token binds to user/session ID, client-side injection at submit time, failure preserves page context
+- Improved: Upload plugins guard against re-initialization, support `updateContainer` event; FormSystemOperationsTrait handles edge cases for temp files
+- Improved: ObjectToForm auto-switches to milkSelect for lists with 25+ options; FieldFirstTrait enhanced file/image display in tables
+- Fix: New records with calculated fields were incorrectly saved as edit instead of insert (`rebuildActions()` in CrudOperationsTrait)
+- Fix: Uninitialized `$save_permissions` in UserModel; unreachable code in Route.php; stale `console.log` in image uploader
+- Security fix: `milkadmin_local/storage/.htaccess` added with `Require all denied` to block direct browser access to storage files
+
 ### v0.9.2 - 26/02/15
 - New: ExpressionParser refactored into separate classes (Lexer, Parser, Evaluator, BuiltinFunctions, TokenType, ValueHelper)
 - New: `hasMeta` relationship type in RelationshipsTrait with EAV pattern support and batched queries

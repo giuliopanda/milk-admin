@@ -685,6 +685,17 @@ class Get
     }
 
     /**
+     * Return user object by ID or current user if ID is 0
+     */
+    public static function user($id = 0) {
+        if ($id == 0) {
+            return Get::make('Auth')->getUser();
+        } else {
+            return Get::make('Auth')->getUser($id);
+        }
+    }
+
+    /**
      * Bind a service to the dependency container
      * 
      * Example:

@@ -1,0 +1,2 @@
+# Block direct access to all files in this folder
+Require all denied

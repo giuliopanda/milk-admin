@@ -113,6 +113,76 @@ Hooks::set('upload_accept_my_upload1', function($accept) {
     <p>In the 'upload_name' setting is the name of the upload that must be instantiated when I create the field and which allows you to set the Hooks that handle the upload</p>
     <p>If you want to allow multiple file uploads you can add the 'multiple' => true option</p>
     <pre class="pre-scrollable border p-2" class="text-bg-gray"><code class="language-php">Get::themePlugin('UploadFiles',['name'=>'file', 'label'=>'File', 'value'=>'', 'options'=>['multiple'=>true], 'upload_name' => 'my_upload2'] );</code></pre>
+
+    <h5>Sortable order for multiple uploads</h5>
+    <p>Manual sorting is optional and disabled by default. To enable drag and drop ordering, add <code>'sortable' => true</code> in plugin options.</p>
+    <p>The same option works for both <code>UploadFiles</code> and <code>UploadImages</code>. The visual order is saved in hidden inputs and persisted when the form is saved.</p>
+    <div class="row g-3">
+        <div class="form-group col-xl-6">
+            <?php echo Get::themePlugin('UploadFiles', ['name' => 'file_sortable', 'label' => 'Sortable files (multiple)', 'value' => '', 'options' => ['multiple' => true, 'max-files' => 5, 'sortable' => true], 'upload_name' => 'my_upload_sortable_files']); ?>
+        </div>
+        <div class="form-group col-xl-6">
+            <?php echo Get::themePlugin('UploadImages', ['name' => 'image_sortable', 'label' => 'Sortable images (multiple)', 'value' => '', 'options' => ['multiple' => true, 'max-files' => 5, 'sortable' => true], 'upload_name' => 'my_upload_sortable_images']); ?>
+        </div>
+    </div>
+    <pre class="pre-scrollable border p-2" class="text-bg-gray"><code class="language-php">echo Get::themePlugin('UploadFiles', [
+    'name' => 'file_sortable',
+    'label' => 'Sortable files (multiple)',
+    'value' => '',
+    'options' => ['multiple' => true, 'max-files' => 5, 'sortable' => true],
+    'upload_name' => 'my_upload_sortable_files'
+]);
+
+echo Get::themePlugin('UploadImages', [
+    'name' => 'image_sortable',
+    'label' => 'Sortable images (multiple)',
+    'value' => '',
+    'options' => ['multiple' => true, 'max-files' => 5, 'sortable' => true],
+    'upload_name' => 'my_upload_sortable_images'
+]);</code></pre>
+
+    <h5>Download button for existing uploads</h5>
+    <p>To show a download button next to the delete button for already saved files/images, add <code>'download-link' => true</code> in plugin options.</p>
+    <p>In modules managed by the <code>Projects</code> extension, this is enabled automatically for upload fields in edit mode.</p>
+    <p>Outside Projects, the plugin is only a renderer: pass a <code>download_url</code> for each uploaded item in <code>value</code>.</p>
+    <div class="row g-3">
+        <div class="form-group col-xl-6">
+            <?php echo Get::themePlugin('UploadFiles', ['name' => 'file_download', 'label' => 'Files with download', 'value' => '', 'options' => ['multiple' => true, 'max-files' => 5, 'download-link' => true], 'upload_name' => 'my_upload_download_files']); ?>
+        </div>
+        <div class="form-group col-xl-6">
+            <?php echo Get::themePlugin('UploadImages', ['name' => 'image_download', 'label' => 'Images with download', 'value' => '', 'options' => ['multiple' => true, 'max-files' => 5, 'download-link' => true], 'upload_name' => 'my_upload_download_images']); ?>
+        </div>
+    </div>
+    <pre class="pre-scrollable border p-2" class="text-bg-gray"><code class="language-php">echo Get::themePlugin('UploadFiles', [
+    'name' => 'file_download',
+    'label' => 'Files with download',
+    'value' => '',
+    'options' => ['multiple' => true, 'max-files' => 5, 'download-link' => true],
+    'upload_name' => 'my_upload_download_files'
+]);
+
+echo Get::themePlugin('UploadImages', [
+    'name' => 'image_download',
+    'label' => 'Images with download',
+    'value' => '',
+    'options' => ['multiple' => true, 'max-files' => 5, 'download-link' => true],
+    'upload_name' => 'my_upload_download_images'
+]);</code></pre>
+    <pre class="pre-scrollable border p-2" class="text-bg-gray"><code class="language-php">$value = [
+    1 => [
+        'url' => 'media/manual.pdf',
+        'name' => 'manual.pdf',
+        'download_url' => '?page=docs&action=download-file&filename=media%2Fmanual.pdf&token=...'
+    ],
+];
+
+echo Get::themePlugin('UploadFiles', [
+    'name' => 'file_download_external',
+    'label' => 'Files with external download link',
+    'value' => $value,
+    'options' => ['download-link' => true],
+    'upload_name' => 'my_upload_download_external'
+]);</code></pre>
     
     <b>$max_size = Hooks::run("upload_maxsize_".$name, 10000000);</b><br>
     <b>$accept = Hooks::run("upload_accept_".$name, '');</b><br>

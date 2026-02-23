@@ -215,6 +215,18 @@ trait FormSystemOperationsTrait {
                         $original_name = $file_info['name'];
                         $is_existing_file = isset($file_info['existing']) && $file_info['existing'] == '1';
 
+                        // Defensive fallback: if a file is marked as existing but still present in temp
+                        // with a plain filename, treat it as a new upload and move it.
+                        if ($is_existing_file) {
+                            $has_path_separator = strpos($temp_file_name, '/') !== false || strpos($temp_file_name, '\\') !== false;
+                            if (!$has_path_separator) {
+                                $possible_temp_file = $temp_dir . '/' . $temp_file_name;
+                                if (file_exists($possible_temp_file)) {
+                                    $is_existing_file = false;
+                                }
+                            }
+                        }
+
                         if ($is_existing_file) {
                             // File già esistente, non spostarlo - mantieni il percorso attuale
                             $moved_files[$file_index] = [
@@ -457,7 +469,7 @@ trait FormSystemOperationsTrait {
             if (isset($field['row_value']) && $field['row_value'] !== '' && $field['row_value'] !== null) {
                 $value = $field['row_value'];
             } elseif (isset($field['default']) && $field['default'] !== '' && $field['default'] !== null) {
-                $value = $field['default'];
+                $value = $this->resolveDefaultValue($field['default']);
             }
             $html .= ObjectToForm::row($field, $value);
         }
@@ -482,6 +494,69 @@ trait FormSystemOperationsTrait {
         // End form
         $html .= ObjectToForm::end();
         return $html;
+    }
+
+    /**
+     * Resolve default value with optional ExpressionParser evaluation.
+     * Falls back to literal default when parsing/execution fails.
+     */
+    private function resolveDefaultValue(mixed $defaultValue): mixed
+    {
+        if (!is_string($defaultValue)) {
+            return $defaultValue;
+        }
+
+        $expression = trim($defaultValue);
+        if ($expression === '' || !$this->looksLikeExpression($expression)) {
+            return $defaultValue;
+        }
+
+        try {
+            $parser = new \App\ExpressionParser();
+            $params = [];
+            if (is_object($this->model) && method_exists($this->model, 'getRawData')) {
+                $rawData = $this->model->getRawData('array', false);
+                if (is_array($rawData)) {
+                    $params = $rawData;
+                } elseif (is_object($rawData)) {
+                    $params = (array) $rawData;
+                }
+            }
+
+            if (!empty($params)) {
+                $parser->setParameters($params);
+            }
+
+            $analysis = $parser->analyze($expression, true);
+            if (!empty($analysis['error']) || !array_key_exists('result', $analysis)) {
+                return $defaultValue;
+            }
+
+            return $analysis['result'];
+        } catch (\Throwable) {
+            return $defaultValue;
+        }
+    }
+
+    /**
+     * Fast guard to avoid evaluating plain literals as expressions.
+     */
+    private function looksLikeExpression(string $value): bool
+    {
+        if (preg_match('/\\[[^\\]]+\\]/', $value) === 1) {
+            return true;
+        }
+        if (preg_match('/(?:==|!=|<>|<=|>=|&&|\\|\\||[+\\-*\\/\\^%<>!=])/', $value) === 1) {
+            return true;
+        }
+        if (preg_match('/\\b(?:IF|THEN|ELSE|ENDIF|AND|OR|NOT)\\b/i', $value) === 1) {
+            return true;
+        }
+        if (preg_match('/[A-Za-z_][A-Za-z0-9_]*\\s*\\(/', $value) === 1) {
+            return true;
+        }
+
+        return false;
     }
 
 

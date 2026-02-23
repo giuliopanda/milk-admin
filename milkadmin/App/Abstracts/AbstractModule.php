@@ -45,6 +45,12 @@ abstract class AbstractModule {
     use ExtensionManagementTrait;
 
     /**
+     * Registry of all instantiated module instances indexed by page identifier
+     * @var array<string, AbstractModule>
+     */
+    private static array $instances = [];
+
+    /**
      * RuleBuilder instance for module configuration
      * @var ModuleRuleBuilder|null
      */
@@ -427,6 +433,17 @@ abstract class AbstractModule {
             if (!empty($this->extensions)) {
                 $this->loadExtensions();
                 \App\ExtensionLoader::callHook($this->loaded_extensions, 'configure', [$this->rule_builder]);
+
+                // Re-apply values that extensions may have overridden.
+                if ($this->rule_builder->getMenuLinks() !== null) {
+                    $this->menu_links = $this->rule_builder->getMenuLinks();
+                }
+                if ($this->rule_builder->getAdditionalModels() !== null) {
+                    $this->additional_models = $this->rule_builder->getAdditionalModels();
+                }
+                if ($this->rule_builder->getModel() !== null) {
+                    $this->model = $this->rule_builder->getModel();
+                }
             }
 
             $this->loadLang();
@@ -439,11 +456,12 @@ abstract class AbstractModule {
             if ($selected_menu !== null) {
                 Theme::set('sidebar.selected', $selected_menu);
             }
-        }
+        } 
 
         $folder = $this->getFolderOrFileCalled();
         $module_version = Version::normalize($this->version) ?? Version::DEFAULT;
         Config::append('modules_active', [$this->page => ['version' => $module_version, 'folder' => $folder]]);
+        self::$instances[$this->page] = $this;
         // Load the contract if present
         $module_name = $this->getModuleName();
         $childPath = $this->getChildClassPath();
@@ -928,6 +946,169 @@ abstract class AbstractModule {
     }
     public function getModel() {
         return $this->model;
+    }
+
+    /**
+     * Returns all instantiated module instances
+     * @return array<string, AbstractModule>
+     */
+    public static function getAllInstances(): array {
+        return self::$instances;
+    }
+
+    /**
+     * Returns a module instance by its page identifier
+     * @param string $page
+     * @return AbstractModule|null
+     */
+    public static function getInstance(string $page): ?self {
+        return self::$instances[$page] ?? null;
+    }
+
+    /**
+     * Returns all models from all modules with their namespace info.
+     * Supports model defined as object instance, FQCN, short class name, or
+     * implicit <ModuleName>Model convention when not explicitly configured.
+     *
+     * @return array<string, array{class: string, namespace: string, shortName: string, instance: object|null}>
+     */
+    public static function getAllModels(): array {
+        $models = [];
+        foreach (self::$instances as $page => $module) {
+            if (!$module instanceof self) {
+                continue;
+            }
+
+            $modelMeta = $module->resolveModelMeta();
+            if ($modelMeta === null) {
+                continue;
+            }
+
+            $models[$page] = $modelMeta;
+        }
+        return $models;
+    }
+
+    /**
+     * Resolve model metadata for current module without throwing.
+     *
+     * @return array{class: string, namespace: string, shortName: string, instance: object|null}|null
+     */
+    private function resolveModelMeta(): ?array
+    {
+        $instance = null;
+        $className = '';
+        $model = $this->getModel();
+
+        if (is_object($model)) {
+            $instance = $model;
+            $className = get_class($model);
+        } elseif (is_scalar($model)) {
+            $className = $this->resolveModelClassName((string) $model);
+        }
+
+        if ($className === '') {
+            $className = $this->resolveConventionalModelClassName();
+        }
+
+        if ($className === '') {
+            return null;
+        }
+
+        if (!is_object($instance)) {
+            $instance = $this->instantiateModelSafely($className);
+        }
+
+        try {
+            $reflection = new \ReflectionClass($className);
+        } catch (\ReflectionException $e) {
+            return null;
+        }
+
+        return [
+            'class' => $reflection->getName(),
+            'namespace' => $reflection->getNamespaceName(),
+            'shortName' => $reflection->getShortName(),
+            'instance' => $instance,
+        ];
+    }
+
+    /**
+     * Resolve model class name from explicit module model configuration.
+     */
+    private function resolveModelClassName(string $model): string
+    {
+        $model = trim($model);
+        if ($model === '') {
+            return '';
+        }
+
+        $candidate = ltrim($model, '\\');
+        if (class_exists($candidate)) {
+            return $candidate;
+        }
+
+        // Short model names like "UserModel" are resolved in module namespace.
+        if (strpos($candidate, '\\') === false) {
+            $moduleNamespaceCandidate = $this->getChildNameSpace() . '\\' . $candidate;
+            if (class_exists($moduleNamespaceCandidate)) {
+                return $moduleNamespaceCandidate;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Resolve model class by default module naming convention.
+     */
+    private function resolveConventionalModelClassName(): string
+    {
+        try {
+            $moduleReflection = new \ReflectionClass($this);
+        } catch (\ReflectionException $e) {
+            return '';
+        }
+
+        $moduleShortName = $moduleReflection->getShortName();
+        $moduleBaseName = str_replace('Module', '', $moduleShortName);
+        if ($moduleBaseName === '' || $moduleBaseName === $moduleShortName) {
+            return '';
+        }
+
+        $candidate = $moduleReflection->getNamespaceName() . '\\' . $moduleBaseName . 'Model';
+        return class_exists($candidate) ? $candidate : '';
+    }
+
+    /**
+     * Instantiate model class, returning null when not instantiable.
+     */
+    private function instantiateModelSafely(string $className): ?object
+    {
+        if ($className === '' || !class_exists($className)) {
+            return null;
+        }
+
+        try {
+            $reflection = new \ReflectionClass($className);
+        } catch (\ReflectionException $e) {
+            return null;
+        }
+
+        if (!$reflection->isInstantiable()) {
+            return null;
+        }
+
+        $constructor = $reflection->getConstructor();
+        if ($constructor !== null && $constructor->getNumberOfRequiredParameters() > 0) {
+            return null;
+        }
+
+        try {
+            return $reflection->newInstance();
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     public function getInstall() {

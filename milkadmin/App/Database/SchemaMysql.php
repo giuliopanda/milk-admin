@@ -657,6 +657,16 @@ class SchemaMysql {
         
         if ($current_primary_keys !== $new_primary_keys) {
             if (!empty($current_primary_keys)) {
+                // Remove AUTO_INCREMENT from old PK columns before dropping PK
+                // MySQL requires AUTO_INCREMENT columns to always be a KEY
+                foreach ($current_primary_keys as $pk_name) {
+                    if (isset($current_fields[$pk_name]) && $current_fields[$pk_name]->auto_increment) {
+                        $old_field = clone $current_fields[$pk_name];
+                        $old_field->auto_increment = false;
+                        $alter_commands[] = "MODIFY COLUMN " . $old_field->toSql();
+                        $debug_info[] = "REMOVE AUTO_INCREMENT from: $pk_name (before DROP PK)";
+                    }
+                }
                 $alter_commands[] = "DROP PRIMARY KEY";
                 $debug_info[] = "DROP PRIMARY KEY";
             }

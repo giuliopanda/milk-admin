@@ -24,6 +24,7 @@ namespace Modules\Docs\Pages;
         <li><strong>Bootstrap Grid Layout</strong>: Uses Bootstrap's responsive <code>col-md-X</code> classes</li>
         <li><strong>Equal or Custom Columns</strong>: Specify number of columns or custom column sizes</li>
         <li><strong>Automatic Wrapping</strong>: Extra fields automatically wrap to new rows</li>
+        <li><strong>Vertical Field Stacks</strong>: Use nested arrays to place multiple fields in the same column (top-to-bottom)</li>
         <li><strong>Custom Styling</strong>: Add class, style, id, or any HTML attributes</li>
         <li><strong>Positioning Control</strong>: Insert before specific fields or append at the end</li>
         <li><strong>Optional Titles</strong>: Add descriptive titles to each container</li>
@@ -33,7 +34,7 @@ namespace Modules\Docs\Pages;
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">public function addContainer(
     string $id,              // Unique container ID
-    array $fields,           // Array of field names to include
+    array $fields,           // Field names and/or nested arrays for vertical stacks in the same column
     int|array $cols,         // Number of columns OR array of column sizes
     string $position_before, // Field name before which to insert (empty = append)
     string $title,           // Optional container title
@@ -103,6 +104,25 @@ namespace Modules\Docs\Pages;
 
     <div class="alert alert-success">
         <strong>✓ Result:</strong> Creates 2 rows. First row has 3 fields (first_name, last_name, email), second row has 2 fields (phone, birthdate).
+    </div>
+
+    <h3>Example 4: Multiple Fields in the Same Column (Nested Arrays)</h3>
+    <p>Use nested arrays inside <code>$fields</code> to stack multiple fields vertically inside one Bootstrap column:</p>
+
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$form = \Builders\FormBuilder::create($this->model, $this->page)
+
+    ->addContainer(
+        'contact_stack',
+        [['phone', 'email'], 'notes'], // First column: phone + email stacked; second column: notes
+        2,
+        '',
+        'Contact'
+    )
+
+    ->render();</code></pre>
+
+    <div class="alert alert-success">
+        <strong>✓ Result:</strong> In a 2-column layout, <code>phone</code> and <code>email</code> are rendered one below the other in the first column, while <code>notes</code> stays in the second column.
     </div>
 
     <h2>Complete Module Example</h2>
@@ -195,13 +215,27 @@ class TestFormContainerModel extends AbstractModel {
 // Generates: &lt;div id="my_container" class="..."&gt;...&lt;/div&gt;</code></pre>
 
     <h3>2. Field Names Array</h3>
-    <p>Specify which fields to include in the container. All fields must exist in the form. You can also include inline HTML snippets in the array to render custom content inside a column.</p>
+    <p>Specify which fields to include in the container. All fields must exist in the form. You can also include inline HTML snippets and one-level nested arrays.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// ✓ Valid - fields exist
 ->addContainer('container1', ['name', 'email', 'phone'], 3, '', '', [])
 
+// ✓ Valid - nested arrays stack fields vertically in one column
+->addContainer('container_stack', [['phone', 'email'], 'notes'], 2, '', '', [])
+
+// ✓ Valid - nested arrays can include inline HTML too
+->addContainer('container_html_stack', [['name', '&lt;small class="text-muted"&gt;help&lt;/small&gt;'], 'email'], 2, '', '', [])
+
 // ✗ Invalid - 'nonexistent_field' doesn't exist
 ->addContainer('container2', ['name', 'nonexistent_field'], 2, '', '', [])
-// Throws: InvalidArgumentException: Field 'nonexistent_field' does not exist in the form</code></pre>
+// Throws: InvalidArgumentException: Field 'nonexistent_field' does not exist in the form
+
+// ✗ Invalid - nesting deeper than one level is not supported
+->addContainer('container3', [[['phone']]], 1, '', '', [])
+// Throws: InvalidArgumentException: Nested container field arrays are supported only one level deep</code></pre>
+
+    <div class="alert alert-info">
+        <strong>Note:</strong> When a column contains 2+ stacked fields, each field is wrapped with <code>&lt;div class="milk-col-stack-item"&gt;</code>, and all except the last receive <code>mb-3</code> for vertical spacing.
+    </div>
 
     <h3>3. Column Configuration</h3>
     <p><strong>Integer (Equal Columns):</strong></p>
@@ -240,7 +274,7 @@ class TestFormContainerModel extends AbstractModel {
 
     <h2>Generated HTML Structure</h2>
 
-    <p>The <code>addContainer()</code> method generates a Bootstrap grid structure:</p>
+	    <p>The <code>addContainer()</code> method generates a Bootstrap grid structure:</p>
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-html">&lt;!-- Container with 3 equal columns --&gt;
 &lt;div class="border rounded p-3 mb-4" id="contact_info" style="background-color: #f8f9fa;"&gt;
@@ -264,6 +298,22 @@ class TestFormContainerModel extends AbstractModel {
         &lt;div class="col-md-4"&gt;
             &lt;!-- additional field --&gt;
         &lt;/div&gt;
+    &lt;/div&gt;
+	&lt;/div&gt;</code></pre>
+
+    <p>When nested arrays are used, the generated column structure is:</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-html">&lt;!-- Nested array example: [['phone','email'], 'notes'] --&gt;
+&lt;div class="row g-3 milk-row-1"&gt;
+    &lt;div class="col-md-6"&gt;
+        &lt;div class="milk-col-stack-item mb-3"&gt;
+            &lt;!-- phone field HTML --&gt;
+        &lt;/div&gt;
+        &lt;div class="milk-col-stack-item"&gt;
+            &lt;!-- email field HTML --&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+    &lt;div class="col-md-6"&gt;
+        &lt;!-- notes field HTML --&gt;
     &lt;/div&gt;
 &lt;/div&gt;</code></pre>
 

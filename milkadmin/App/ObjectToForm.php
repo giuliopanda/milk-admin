@@ -99,7 +99,6 @@ class ObjectToForm
         }
         $attributes['class'] = (array_key_exists('class', $attributes)) ? $attributes['class']." ".'needs-validation js-needs-validation' : 'needs-validation js-needs-validation';
         $html = '<form method="post" novalidate action="' . Route::url() . '"' . Form::attr($attributes) . '>';
-        $html .= Token::input('token_' . $page);
 
         // Prepare hidden fields with defaults
         $hidden_fields = [
@@ -374,10 +373,48 @@ class ObjectToForm
              case 'select':
              case 'list':
                 $rule['options'] = $rule['options'] ?? [];
+                $allowEmpty = !empty($rule['allow_empty']);
+                // When multiple is enabled, use milkSelect with type=multiple
+                $hasMultiple = isset($form_params['multiple']) && ($form_params['multiple'] === 'multiple' || $form_params['multiple'] === true);
+                if ($hasMultiple) {
+                    unset($form_params['multiple']);
+                    $form_params['type'] = 'multiple';
+                    // Decode JSON string from DB into array for milkSelect
+                    if (is_string($value) && $value !== '' && $value[0] === '[') {
+                        $decoded = json_decode($value, true);
+                        if (is_array($decoded)) {
+                            $value = $decoded;
+                        }
+                    }
+                    return Form::milkSelect($rule['name'], $rule['label'], $rule['options'], $value, $form_params, true);
+                }
+                // When allowEmpty + options <= 25 + not multiple: normal select with empty option
+                if ($allowEmpty && count($rule['options']) <= 25) {
+                    $rule['options'] = ['' => ''] + $rule['options'];
+                    return Form::select($rule['name'], $rule['label'], $rule['options'], $value, $form_params, true);
+                }
+                // Use milkSelect for large option sets (> 25) for better UX (autocomplete/search)
+                if (count($rule['options']) > 25) {
+                    return Form::milkSelect($rule['name'], $rule['label'], $rule['options'], $value, $form_params, true);
+                }
                 return Form::select($rule['name'], $rule['label'],  $rule['options'], $value, $form_params, true);
                 break;
             case 'milkSelect':
                 $rule['options'] = $rule['options'] ?? [];
+
+                // When multiple is enabled, convert form-params to milkSelect type=multiple
+                $hasMultiple = isset($form_params['multiple']) && ($form_params['multiple'] === 'multiple' || $form_params['multiple'] === true);
+                if ($hasMultiple) {
+                    unset($form_params['multiple']);
+                    $form_params['type'] = 'multiple';
+                    // Decode JSON string from DB into array for milkSelect
+                    if (is_string($value) && $value !== '' && $value[0] === '[') {
+                        $decoded = json_decode($value, true);
+                        if (is_array($decoded)) {
+                            $value = $decoded;
+                        }
+                    }
+                }
 
                 // Pass api_url if present
                 if (isset($rule['api_url'])) {
@@ -417,6 +454,7 @@ class ObjectToForm
             case 'checkbox':
                 // value is the value the saved field has, rule['value'] is the value attribute of the checkbox. If the two values ​​are equal, the checkbox is checked. To select the checkbox, $value must equal rule['value'] or true.
                 $checkbox_html = '';
+                unset($form_params['inline'], $form_params['columns'], $form_params['label-position'], $form_params['label-width']);
 
                 $is_disabled = isset($form_params['disabled']) && $form_params['disabled'] !== false;
                 if ($is_disabled) {
@@ -450,11 +488,15 @@ class ObjectToForm
                 return $checkbox_html;
                 break;
             case 'checkboxes':
-                return Form::checkboxes($rule['name'], $rule['options'],  $value, false, $form_params, [], true);
+                $inline = self::normalizeBool($form_params['inline'] ?? false);
+                unset($form_params['inline']);
+                return Form::checkboxes($rule['name'], $rule['options'],  $value, $inline, $form_params, [], true);
                 break;
             case 'radio':
             case 'radios':
-                return Form::radios($rule['name'], $rule['options'],  $value, false, $form_params, [], true);
+                $inline = self::normalizeBool($form_params['inline'] ?? false);
+                unset($form_params['inline']);
+                return Form::radios($rule['name'], $rule['options'],  $value, $inline, $form_params, [], true);
                 break;
             case 'file':
 
@@ -492,6 +534,19 @@ class ObjectToForm
     // stampo la parte finale del form
     public static function end(): string {
         return '</form>';
+    }
+
+    private static function normalizeBool(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+        if (is_int($value) || is_float($value)) {
+            return (int) $value === 1;
+        }
+
+        $normalized = strtolower(trim((string) $value));
+        return in_array($normalized, ['1', 'true', 'yes', 'on'], true);
     }
 
     

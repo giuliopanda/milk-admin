@@ -82,8 +82,9 @@ class CarsModel extends AbstractModel
             // Single selection with belongsTo
             ->int('manufacturer_id')
                 ->belongsTo('manufacturer', ManufacturersModel::class, 'id')
+                ->where('active = 1')  // Optional: filter related records
                 ->formType('milkSelect')
-                ->apiUrl('?page=cars&action=search-manufacturers', 'name')
+                ->apiUrl('?page=cars&action=search-manufacturers&f=manufacturer_id', 'name')
                 ->required()
                 ->error('Please select a manufacturer');
     }
@@ -93,7 +94,9 @@ class CarsModel extends AbstractModel
         <strong>📌 Important:</strong>
         <ul>
             <li><code>apiUrl()</code> takes 2 parameters: the API endpoint and the field to display</li>
+            <li>The URL must include <code>&f=field_name</code> so the handler knows which field/relationship to use</li>
             <li><code>belongsTo()</code> is required for automatic relationship handling</li>
+            <li><code>where()</code> must be called immediately after <code>belongsTo()</code> — it filters both the form display and the API search results</li>
             <li>The field type should be <code>int</code> for single selection with belongsTo</li>
         </ul>
     </div>
@@ -117,6 +120,27 @@ class CarsController extends AbstractController
 
     <div class="alert alert-warning">
         <strong>⚠️ Note:</strong> The action name must match the one in <code>apiUrl()</code>. The search term is passed as <code>q</code> parameter.
+    </div>
+
+    <h4>Step 2b: Built-in Action (Alternative)</h4>
+    <p>If you don't need custom search logic, you can skip creating a controller action entirely. The framework provides a built-in <code>related-search-field</code> action
+    that works automatically with any <code>belongsTo</code> relationship:</p>
+
+    <pre class="border p-2"><code class="language-php">// In your Model - just point apiUrl to the built-in action:
+->int('manufacturer_id')
+    ->belongsTo('manufacturer', ManufacturersModel::class, 'id')
+    ->where('active = 1')
+    ->formType('milkSelect')
+    ->apiUrl('?page=cars&action=related-search-field&f=manufacturer_id', 'name')</code></pre>
+
+    <div class="alert alert-success">
+        <strong>✅ No controller code needed!</strong> The built-in handler automatically:
+        <ul>
+            <li>Reads the <code>belongsTo</code> relationship configuration from the field specified by <code>&f=</code></li>
+            <li>Instantiates the related model and searches by the display field</li>
+            <li>Applies <code>where()</code> conditions if defined on the relationship</li>
+            <li>Returns the first 20 matching results</li>
+        </ul>
     </div>
 
     <h4>Step 3: Add Search Method to Model</h4>
@@ -166,6 +190,7 @@ public function searchRelated(string $search = '', string $field_name = 'manufac
             <li>The related model class from <code>belongsTo()</code></li>
             <li>The display field from <code>apiUrl()</code></li>
             <li>The key field from the relationship</li>
+            <li>The <code>where()</code> condition if defined on the relationship</li>
         </ul>
     </div>
 
@@ -227,41 +252,17 @@ class CarsModel extends AbstractModel
             ->string('model', 100)->required()
             ->int('manufacturer_id')
                 ->belongsTo('manufacturer', ManufacturersModel::class, 'id')
+                ->where('active = 1')  // Only show active manufacturers
                 ->formType('milkSelect')
-                ->apiUrl('?page=examples-cars&action=search-manufacturers', 'name')
+                ->apiUrl('?page=examples-cars&action=related-search-field&f=manufacturer_id', 'name')
                 ->required();
     }
-
-    public function searchRelated(string $search = '', string $field_name = 'manufacturer_id'): array
-    {
-        $rules = $this->getRules();
-        if (!isset($rules[$field_name]['relationship']) ||
-            $rules[$field_name]['relationship']['type'] !== 'belongsTo') {
-            return [];
-        }
-
-        $relationship = $rules[$field_name]['relationship'];
-        $related_model_class = $relationship['related_model'];
-        $display_field = $rules[$field_name]['api_display_field'] ?? 'name';
-        $related_key = $relationship['related_key'] ?? 'id';
-
-        $relatedModel = new $related_model_class();
-        $query = $relatedModel->query();
-
-        if (!empty($search)) {
-            $query->where("$display_field LIKE ?", '%' . $search . '%');
-        }
-
-        $results = $query->limit(0, 20)->getResults();
-        $options = [];
-
-        foreach ($results as $result) {
-            $options[$result->$related_key] = $result->$display_field;
-        }
-
-        return $options;
-    }
 }</code></pre>
+
+    <div class="alert alert-info">
+        <strong>📌 Note:</strong> Using the built-in <code>related-search-field</code> action, no <code>searchRelated()</code> method override is needed.
+        The framework handles everything automatically, including the <code>where()</code> condition.
+    </div>
 
     <h3>2. Create the Controller</h3>
     <pre class="border p-2"><code class="language-php">namespace Modules\Examples;
@@ -336,6 +337,11 @@ class CarsController extends AbstractController
                 <td><code>belongsTo()</code></td>
                 <td>$alias, $model, $key</td>
                 <td>Define relationship for automatic handling</td>
+            </tr>
+            <tr>
+                <td><code>where()</code></td>
+                <td>$condition, $params</td>
+                <td>Filter related records (must be called right after <code>belongsTo()</code>). Applied to both form display and API search.</td>
             </tr>
             <tr>
                 <td><code>formType()</code></td>
@@ -426,6 +432,56 @@ class CarsController extends AbstractController
     <div class="alert alert-danger">
         <strong>⚠️ Error Handling:</strong> If the response has <code>"success" !== "ok"</code> or fetch fails, a simple alert will be shown to the user.
     </div>
+
+    <hr>
+
+    <h2>Filtering with where()</h2>
+    <p>You can filter the related records shown in the autocomplete dropdown using <code>where()</code> on the relationship. The condition is applied consistently in all contexts:</p>
+
+    <ul>
+        <li><strong>Form display</strong> (lazy loading existing value)</li>
+        <li><strong>API search</strong> (autocomplete results via <code>searchRelated()</code> or built-in <code>related-search-field</code>)</li>
+    </ul>
+
+    <h3>Example: Show only active categories</h3>
+    <pre class="border p-2"><code class="language-php">->int('category_id')->label('Category')
+    ->belongsTo('category', CategoriesModel::class, 'id')
+    ->where('active = 1')
+    ->formType('milkSelect')
+    ->apiUrl('?page=mypage&action=related-search-field&f=category_id', 'name')</code></pre>
+
+    <h3>Example: Filter with parameters</h3>
+    <pre class="border p-2"><code class="language-php">->int('teacher_id')->label('Teacher')
+    ->belongsTo('teacher', UsersModel::class, 'id')
+    ->where('role = ? AND status = ?', ['teacher', 'active'])
+    ->formType('milkSelect')
+    ->apiUrl('?page=courses&action=related-search-field&f=teacher_id', 'name')</code></pre>
+
+    <div class="alert alert-info">
+        <strong>📌 Important:</strong> <code>where()</code> must be called <strong>immediately after</strong> <code>belongsTo()</code>.
+        Calling it after <code>apiUrl()</code> or <code>formType()</code> will throw a <code>LogicException</code>.
+    </div>
+
+    <h3>JSON Configuration</h3>
+    <p>When using JSON schema (Projects extension), the where condition is defined inside the <code>belongsTo</code> object:</p>
+    <pre class="border p-2"><code class="language-json">{
+    "name": "category_id",
+    "method": "int",
+    "formType": "milkSelect",
+    "belongsTo": {
+        "alias": "category",
+        "related_model": "CategoriesModel",
+        "related_key": "id",
+        "where": {
+            "condition": "active = 1",
+            "params": []
+        }
+    },
+    "apiUrl": {
+        "url": "?page=mypage&action=related-search-field&f=category_id",
+        "display_field": "name"
+    }
+}</code></pre>
 
     <hr>
 

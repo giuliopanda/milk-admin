@@ -1,7 +1,12 @@
 <?php
 namespace App\Abstracts;
 
-!defined('MILK_DIR') && die(); // Prevent direct access
+!defined('MILK_DIR') && die();
+
+use App\Abstracts\Traits\RuleBuilderFieldTypesTrait;
+use App\Abstracts\Traits\RuleBuilderFileFieldsTrait;
+use App\Abstracts\Traits\RuleBuilderFieldConfigTrait;
+use App\Abstracts\Traits\RuleBuilderRelationshipsTrait;
 
 /**
  * RuleBuilder - Simple fluent interface for building field rules
@@ -18,6 +23,11 @@ namespace App\Abstracts;
  */
 class RuleBuilder
 {
+    use RuleBuilderFieldTypesTrait;
+    use RuleBuilderFileFieldsTrait;
+    use RuleBuilderFieldConfigTrait;
+    use RuleBuilderRelationshipsTrait;
+
     /**
      * All defined field rules
      * @var array
@@ -41,6 +51,7 @@ class RuleBuilder
      * @var array<string, string>
      */
     protected array $rename_fields = [];
+
     /**
      * Table name
      * @var string|null
@@ -61,11 +72,14 @@ class RuleBuilder
 
     /**
      * Track if we are currently defining a relationship
-     * Used to validate that where() is called immediately after a relationship method
      * Format: ['type' => 'withCount|hasMany|hasOne|belongsTo|hasMeta', 'field' => 'field_name', 'index' => 0]
      * @var array|null
      */
     protected ?array $active_relationship = null;
+
+    // ========================================
+    // Core field definition
+    // ========================================
 
     /**
      * Start defining a new field
@@ -79,28 +93,25 @@ class RuleBuilder
         $this->deactivateRelationship();
         $this->current_field = $name;
         $this->rules[$name] = [
-            'type' => $type,// tipo PHP e SQL (primary, text, string, int, float, bool, date, datetime, time, list, enum, array)
-            'length' => null,         // lunghezza massima per stringhe
-            'precision' => null,      // precisione per i float
-            'nullable' => true,      // se può essere null
-            'default' => null,        // valore default
-            'primary' => false,       // se è chiave primaria
-            'label' => $name,         // etichetta per la visualizzazione
-            'options' => null,        // opzioni per i list e enum
-            'index' => false,         // se deve essere creato un indice nel database
-            'unique' => false,        // se deve essere impostato come campo unico nel database
-            // le visualizzazioni
-            'list' => true,   // se deve essere visualizzato nella lista
-            'edit' => true,   // se deve essere visualizzato nel form
-            'view' => true,   // se deve essere visualizzato nella vista
-            'sql' => true,  // se deve essere creato nel database
-            //
-            'form-type' => null,   // tipo di campo per il form
-            'form-label' => null,  // etichetta per il form
+            'type' => $type,
+            'length' => null,
+            'precision' => null,
+            'nullable' => true,
+            'default' => null,
+            'primary' => false,
+            'label' => $name,
+            'options' => null,
+            'index' => false,
+            'unique' => false,
+            'list' => true,
+            'edit' => true,
+            'view' => true,
+            'sql' => true,
+            'form-type' => null,
+            'form-label' => null,
             'timezone_conversion' => false,
-            // checkbox values
-            'checkbox_checked' => null,   // valore quando checkbox è selezionato
-            'checkbox_unchecked' => null, // valore quando checkbox non è selezionato
+            'checkbox_checked' => null,
+            'checkbox_unchecked' => null,
         ];
         return $this;
     }
@@ -111,48 +122,20 @@ class RuleBuilder
      * @param string $name Field name
      * @return self
      */
-    public function ChangeCurrentField($name): self {
+    public function ChangeCurrentField($name): self
+    {
         $this->current_field = $name;
         return $this;
     }
 
-    /**
-     * Define an ID field
-     *
-     * @param string $name Field name (default: 'id')
-     * @return self
-     */
-    public function id(string $name = 'id'): self
-    {
-        $this->field($name, 'id');
-        $this->primary($name);
-        $this->formType('hidden');
-        $this->nullable(false);
-        return $this;
-    }
-
-    /**
-     * Define a primary key field
-     *
-     * @param string $name Field name
-     * @return self
-     */
-    public function primaryKey(string $name): self
-    {
-        $this->id($name);
-        return $this;
-    }
-
-    public function array(string $name): self
-    {
-        $this->field($name, 'array');
-        return $this;
-    }
+    // ========================================
+    // Table and database configuration
+    // ========================================
 
     /**
      * Define table
      *
-     * @param string $name Field name
+     * @param string $name Table name
      * @return self
      */
     public function table(string $name): self
@@ -164,7 +147,7 @@ class RuleBuilder
     /**
      * Define database type
      *
-     * @param string $name Field name
+     * @param string $name Database type
      * @return self
      */
     public function db(string $name): self
@@ -187,1368 +170,14 @@ class RuleBuilder
     }
 
     /**
-     * Define a string field
+     * Set extensions to load
      *
-     * @param string $name Field name
-     * @param int $length Max length (default: 255)
+     * @param array $extensions Array of extension names
      * @return self
      */
-    public function string(string $name, int $length = 255): self
+    public function extensions(array $extensions): self
     {
-        $this->field($name, 'string');
-        $this->rules[$this->current_field]['length'] = $length;
-        $this->label($this->createLabel($name));
-        return $this;
-    }
-
-    /**
-     * Define a title field (varchar 255, auto-used in belongsTo relationships)
-     *
-     * @param string $name Field name (default: 'title')
-     * @param int $length Maximum length (default: 255)
-     * @return self
-     */
-    public function title(string $name = 'title', int $length = 255): self
-    {
-        $this->field($name, 'string');
-        $this->rules[$this->current_field]['length'] = $length;
-        $this->rules[$this->current_field]['_is_title_field'] = true;
-        $this->rules[$this->current_field]['form-params']['required'] = true;
-        $this->label($this->createLabel($name));
-        return $this;
-    }
-
-    /**
-     * Define a text field
-     *
-     * @param string $name Field name
-     * @return self
-     */
-    public function text(string $name): self
-    {
-        $this->field($name, 'text');
-        $this->label($this->createLabel($name));
-        return $this;
-    }
-
-    /**
-     * Define an integer field
-     *
-     * @param string $name Field name
-     * @return self
-     */
-    public function int(string $name): self
-    {
-        $this->field($name, 'int');
-        $this->label($this->createLabel($name));
-        return $this;
-    }
-
-    /**
-     * Define a datetime field
-     *
-     * @param string $name Field name
-     * @return self
-     */
-    public function datetime(string $name): self
-    {
-        $this->field($name, 'datetime');
-        $this->label($this->createLabel($name));
-        $this->rules[$name]['timezone_conversion'] = true; 
-        return $this;
-    }
-
-    /**
-     * Disable timezone conversion for current datetime field
-     * Use for fields that should remain in UTC (system timestamps, etc)
-     *
-     * @return self
-     */
-    public function noTimezoneConversion(): self
-    {
-        if ($this->current_field !== null) {
-            $this->rules[$this->current_field]['timezone_conversion'] = false;
-        }
-        return $this;
-    }
-
-    /**
-     * Define a created_at field with auto-preservation on updates
-     *
-     * @param string $name Field name (default: 'created_at')
-     * @return self
-     */
-    public function created_at(string $name = 'created_at'): self
-    {
-        $this->field($name, 'datetime');
-        $this->rules[$this->current_field]['_auto_created_at'] = true;
-        $this->label($this->createLabel($name));
-        $this->hideFromEdit();
-        return $this;
-    }
-
-    /**
-     * Define a date field
-     *
-     * @param string $name Field name
-     * @return self
-     */
-    public function date(string $name): self
-    {
-        $this->field($name, 'date');
-        $this->label($this->createLabel($name));
-        return $this;
-    }
-
-    /**
-     * Define a time field
-     *
-     * @param string $name Field name
-     * @return self
-     */
-    public function time(string $name): self
-    {
-        $this->field($name, 'time');
-        $this->label($this->createLabel($name));
-        return $this;
-    }
-
-    /**
-     * Define a timestamp field
-     *
-     * @param string $name Field name
-     * @return self
-     */
-    public function timestamp(string $name): self
-    {
-        $this->field($name, 'timestamp');
-        $this->label($this->createLabel($name));
-        return $this;
-    }
-
-    /**
-     * Define a decimal/float field
-     *
-     * @param string $name Field name
-     * @param int $length Total digits
-     * @param int $precision Decimal places
-     * @return self
-     */
-    public function decimal(string $name, int $length = 10, int $precision = 2): self
-    {
-        $this->field($name, 'float');
-        if ($length < $precision) {
-            $length = $precision + 1;
-        }
-        $this->rules[$this->current_field]['length'] = $length;
-        $this->rules[$this->current_field]['precision'] = $precision;
-        $integer_digits = $length - $precision;
-
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
-        }
-        $this->rules[$this->current_field]['form-params']['pattern'] = "^-?\\d{1,$integer_digits}(\\.\\d{0,$precision})?$";
-        $this->rules[$this->current_field]['form-params']['step'] = $precision > 0
-            ? '0.' . str_repeat('0', $precision - 1) . '1'
-            : '1';
-
-        $this->formType('number');
-        $this->error('The field must be a decimal number with a maximum of '.$precision.' decimal places');
-        $this->label($this->createLabel($name));
-        return $this;
-    }
-
-    /**
-     * Define an email field
-     *
-     * @param string $name Field name
-     * @return self
-     */
-    public function email(string $name): self
-    {
-        $this->field($name, 'string');
-        $this->rules[$this->current_field]['length'] = 255;
-        $this->formType('email');
-        $this->label($this->createLabel($name));
-        return $this;
-    }
-
-    /**
-     * Define a telephone field
-     *
-     * @param string $name Field name
-     * @return self
-     */
-    public function tel(string $name): self
-    {
-        $this->field($name, 'string');
-        $this->rules[$this->current_field]['length'] = 25;
-        $this->formType('tel');
-        $this->label($this->createLabel($name));
-        return $this;
-    }
-
-    /**
-     * Define a URL field
-     *
-     * @param string $name Field name
-     * @return self
-     */
-    public function url(string $name): self
-    {
-        $this->field($name, 'string');
-        $this->rules[$this->current_field]['length'] = 255;
-        $this->formType('url');
-        $this->label($this->createLabel($name));
-        return $this;
-    }
-
-    /**
-     * Define a file upload field
-     *
-     * @param string $name Field name
-     * @return self
-     */
-    public function file(string $name): self
-    {
-        $this->field($name, 'array');
-        $this->formType('file');
-        $this->label($this->createLabel($name));
-        return $this;
-    }
-
-    /**
-     * Define an image upload field
-     *
-     * @param string $name Field name
-     * @return self
-     */
-    public function image(string $name): self
-    {
-        $this->field($name, 'array');
-        $this->formType('image');
-        $this->label($this->createLabel($name));
-
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
-        }
-        $this->rules[$this->current_field]['form-params']['accept'] = 'image/*';
-
-        return $this;
-    }
-
-    /**
-     * Allow multiple file uploads
-     *
-     * @param bool|int $multiple True for multiple, or max number
-     * @return self
-     */
-    public function multiple(bool|int $multiple = true): self
-    {
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
-        }
-
-        if (is_bool($multiple)) {
-            if ($multiple) {
-                $this->rules[$this->current_field]['form-params']['multiple'] = 'multiple';
-            } else {
-                unset($this->rules[$this->current_field]['form-params']['multiple']);
-            }
-        } elseif (is_int($multiple)) {
-            $this->maxFiles($multiple);
-        }
-        return $this;
-    }
-
-    /**
-     * Set maximum number of files
-     *
-     * @param int $max Maximum files
-     * @return self
-     */
-    public function maxFiles(int $max): self
-    {
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
-        }
-        if ($max > 1) {
-            $this->rules[$this->current_field]['form-params']['multiple'] = 'multiple';
-        }
-        $this->rules[$this->current_field]['form-params']['max-files'] = $max;
-        return $this;
-    }
-
-    /**
-     * Set accepted file types
-     *
-     * @param string $accept e.g., 'image/*', '.pdf,.doc'
-     * @return self
-     */
-    public function accept(string $accept): self
-    {
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
-        }
-        $this->rules[$this->current_field]['form-params']['accept'] = $accept;
-        return $this;
-    }
-
-    /**
-     * Set maximum file size in bytes
-     *
-     * @param int $size Max size in bytes
-     * @return self
-     */
-    public function maxSize(int $size): self
-    {
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
-        }
-        $this->rules[$this->current_field]['form-params']['max-size'] = $size;
-        return $this;
-    }
-
-    /**
-     * Set upload directory
-     *
-     * @param string $dir Directory path
-     * @return self
-     */
-    public function uploadDir(string $dir): self
-    {
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
-        }
-        $this->rules[$this->current_field]['form-params']['upload-dir'] = $dir;
-        return $this;
-    }
-
-    /**
-     * Define a boolean/checkbox field
-     *
-     * @param string $name Field name
-     * @return self
-     */
-    public function boolean(string $name): self
-    {
-        $this->field($name, 'bool');
-        $this->formType('checkbox');
-        $this->label($this->createLabel($name));
-        return $this;
-    }
-
-    /**
-     * Alias for boolean()
-     */
-    public function checkbox(string $name): self
-    {
-        return $this->boolean($name);
-    }
-
-    /**
-     * Define a checkboxes field with options
-     *
-     * @param string $name Field name
-     * @param array $options Options array
-     * @return self
-     */
-    public function checkboxes(string $name, array $options): self
-    {
-        $this->field($name, 'array');
-        $this->rules[$this->current_field]['options'] = $options;
-        $this->formType('checkboxes');
-        $this->label($this->createLabel($name));
-        return $this;
-    }
-
-    /**
-     * Define a radio field with options
-     *
-     * @param string $name Field name
-     * @param array $options Options array
-     * @return self
-     */
-    public function radio(string $name, array $options): self
-    {
-        $this->field($name, 'radio');
-        $this->rules[$this->current_field]['options'] = $options;
-        $this->label($this->createLabel($name));
-        return $this;
-    }
-
-    /**
-     * Define a list/select field with options
-     *
-     * @param string $name Field name
-     * @param array $options Options array
-     * @return self
-     */
-    public function list(string $name, array $options): self
-    {
-        $this->field($name, 'list');
-        $this->rules[$this->current_field]['options'] = $options;
-        $this->label($this->createLabel($name));
-        return $this;
-    }
-
-    /**
-     * Alias for list()
-     */
-    public function select(string $name, array $options): self
-    {
-        return $this->list($name, $options);
-    }
-
-    public function options(array $options): self
-    {
-        $this->rules[$this->current_field]['options'] = $options;
-        return $this;
-    }
-
-    /**
-     * Set API URL for dynamic options loading
-     *
-     * @param string $url API endpoint URL for fetching options
-     * @param string|null $display_field Field name to display (e.g., 'name'). If null, auto-detects title field from belongsTo relationship
-     * @return self
-     */
-    public function apiUrl(string $url, ?string $display_field = null): self
-    {
-        $this->rules[$this->current_field]['api_url'] = $url;
-        if ($display_field !== null) {
-            $this->rules[$this->current_field]['api_display_field'] = $display_field;
-        }
-        return $this;
-    }
-
-    /**
-     * Define an enum field
-     *
-     * @param string $name Field name
-     * @param array $options Options array
-     * @return self
-     */
-    public function enum(string $name, array $options): self
-    {
-        $this->field($name, 'enum');
-        $this->rules[$this->current_field]['options'] = $options;
-        $this->label($this->createLabel($name));
-        return $this;
-    }
-
-    // ========================================
-    // Field configuration methods
-    // ========================================
-
-    /**
-     * Set field label
-     *
-     * @param string $label Label text
-     * @return self
-     */
-    public function label(string $label): self
-    {
-        $this->rules[$this->current_field]['label'] = $label;
-        return $this;
-    }
-
-    /**
-     * Set default value
-     *
-     * @param mixed $value Default value
-     * @return self
-     */
-    public function default($value): self
-    {
-        $this->rules[$this->current_field]['default'] = $value;
-        return $this;
-    }
-
-    /**
-     * Define checkbox values (checked and unchecked)
-     *
-     * Use this method to specify the values for checkboxes with non-boolean values.
-     * Common patterns: 'S'/'N', 'Y'/'N', '1'/'0'
-     *
-     * @param mixed $checked_value Value when checkbox is checked (e.g., 'S', 'Y', '1')
-     * @param mixed $unchecked_value Value when checkbox is unchecked (e.g., 'N', 'N', '0')
-     * @return self
-     *
-     * @example ->string('active', 1)->formType('checkbox')->checkboxValues('Y', 'N')
-     * @example ->string('enabled', 1)->formType('checkbox')->checkboxValues('S', 'N')
-     */
-    public function checkboxValues($checked_value, $unchecked_value = null): self
-    {
-        $this->rules[$this->current_field]['checkbox_checked'] = $checked_value;
-        $this->rules[$this->current_field]['checkbox_unchecked'] = $unchecked_value;
-        return $this;
-    }
-
-    /**
-     * Set a value that will always be saved
-     *
-     * @param mixed $value Value to save
-     * @return self
-     */
-    public function saveValue($value): self
-    {
-        $this->rules[$this->current_field]['save_value'] = $value;
-        return $this;
-    }
-
-    public function changeType($name, string $type): self
-    {
-        $this->rules[$name]['type'] = $type;
-        return $this;
-    }
-
-    /**
-     * Make field nullable
-     *
-     * @param bool $nullable Nullable flag
-     * @return self
-     */
-    public function nullable(bool $nullable = true): self
-    {
-        $this->rules[$this->current_field]['nullable'] = $nullable;
-        return $this;
-    }
-
-    /**
-     * Make field required
-     *
-     * @return self
-     */
-    public function required(): self
-    {
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
-        }
-        $this->rules[$this->current_field]['form-params']['required'] = true;
-        return $this;
-    }
-
-    /**
-     * Make field required only if expression evaluates to true
-     *
-     * @param string $expression ExpressionParser expression
-     * @return self
-     */
-    public function requireIf(string $expression): self
-    {
-        $this->rules[$this->current_field]['required_expr'] = $expression;
-        return $this;
-    }
-
-    /**
-     * Set as primary key
-     *
-     * @return self
-     */
-    public function primary($primary_key): self
-    {
-
-        $this->primary_key = $primary_key;
-        $this->rules[$this->current_field]['primary'] = true;
-        return $this;
-    }
-
-    /**
-     * Make field unique
-     *
-     * @return self
-     */
-    public function unique(): self
-    {
-        $this->rules[$this->current_field]['unique'] = true;
-        return $this;
-    }
-
-    /**
-     * Add database index
-     *
-     * @return self
-     */
-    public function index(): self
-    {
-        $this->rules[$this->current_field]['index'] = true;
-        return $this;
-    }
-
-    /**
-     * Hide from list view
-     *
-     * @return self
-     */
-    public function hideFromList(): self
-    {
-        $this->rules[$this->current_field]['list'] = false;
-        return $this;
-    }
-
-    public function hide(): self
-    {
-        $this->rules[$this->current_field]['list'] = false;
-        $this->rules[$this->current_field]['edit'] = false;
-        $this->rules[$this->current_field]['view'] = false;
-        return $this;
-    }
-
-    /**
-     * Hide from edit form
-     *
-     * @return self
-     */
-    public function hideFromEdit(): self
-    {
-        $this->rules[$this->current_field]['edit'] = false;
-        return $this;
-    }
-
-    /**
-     * Hide from detail view
-     *
-     * @return self
-     */
-    public function hideFromView(): self
-    {
-        $this->rules[$this->current_field]['view'] = false;
-        return $this;
-    }
-
-    /**
-     * Exclude from database
-     *
-     * @return self
-     */
-    public function excludeFromDatabase(): self
-    {
-        $this->rules[$this->current_field]['sql'] = false;
-        return $this;
-    }
-
-    /**
-     * Set form type
-     *
-     * @param string $type Form type
-     * @return self
-     */
-    public function formType(string $type): self
-    {
-        $this->rules[$this->current_field]['form-type'] = $type;
-        return $this;
-    }
-
-    /**
-     * Set form label
-     *
-     * @param string $label Form label
-     * @return self
-     */
-    public function formLabel(string $label): self
-    {
-        $this->rules[$this->current_field]['form-label'] = $label;
-        return $this;
-    }
-
-    /**
-     * Set form parameters
-     *
-     * @param array $params Parameters array
-     * @return self
-     */
-    public function formParams(array $params): self
-    {
-        $this->rules[$this->current_field]['form-params'] = $params;
-        if (isset($params['pattern'])) {
-            $this->rules[$this->current_field]['pattern'] = $params['pattern'];
-        }
-        if (isset($params['minlength'])) {
-            $this->rules[$this->current_field]['min_length'] = $params['minlength'];
-        }
-        if (isset($params['min_length'])) {
-            $this->rules[$this->current_field]['min_length'] = $params['min_length'];
-        }
-        if (isset($params['maxlength'])) {
-            $this->rules[$this->current_field]['max_length'] = $params['maxlength'];
-        }
-        if (isset($params['max_length'])) {
-            $this->rules[$this->current_field]['max_length'] = $params['max_length'];
-        }
-        return $this;
-    }
-
-    /**
-     * Set validation error message
-     *
-     * @param string $message Error message
-     * @return self
-     */
-    public function error(string $message): self
-    {
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
-        }
-        $this->rules[$this->current_field]['form-params']['invalid-feedback'] = $message;
-        return $this;
-    }
-
-    /**
-     * Set calculated value expression (ExpressionParser syntax)
-     *
-     * @param string $expression Calculation expression
-     * @return self
-     */
-    public function calcExpr(string $expression): self
-    {
-        $this->rules[$this->current_field]['calc_expr'] = $expression;
-        return $this;
-    }
-
-    /**
-     * Set validation expression (ExpressionParser syntax)
-     *
-     * @param string $expression Validation expression
-     * @param string|null $message Optional error message
-     * @return self
-     */
-    public function validateExpr(string $expression, ?string $message = null): self
-    {
-        $this->rules[$this->current_field]['validate_expr'] = $expression;
-        if ($message !== null) {
-            $this->error($message);
-        }
-        return $this;
-    }
-
-    /**
-     * Set step value for numeric fields
-     *
-     * @param mixed $value Step value
-     * @return self
-     */
-    public function step($value): self
-    {
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
-        }
-        $this->rules[$this->current_field]['form-params']['step'] = $value;
-        return $this;
-    }
-
-    /**
-     * Set minimum value
-     *
-     * @param mixed $value Min value
-     * @return self
-     */
-    public function min($value): self
-    {
-        $type = $this->rules[$this->current_field]['type'] ?? null;
-        if (is_string($value) && !is_numeric($value) && preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $value)) {
-            $this->rules[$this->current_field]['min_field'] = $value;
-            return $this;
-        }
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
-        }
-        if (in_array($type, ['string', 'text'], true)) {
-            $this->rules[$this->current_field]['min_length'] = $value;
-            $this->rules[$this->current_field]['form-params']['minlength'] = $value;
-        } else {
-            $this->rules[$this->current_field]['form-params']['min'] = $value;
-        }
-        return $this;
-    }
-
-    /**
-     * Set maximum value
-     *
-     * @param mixed $value Max value
-     * @return self
-     */
-    public function max($value): self
-    {
-        $type = $this->rules[$this->current_field]['type'] ?? null;
-        if (is_string($value) && !is_numeric($value) && preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $value)) {
-            $this->rules[$this->current_field]['max_field'] = $value;
-            return $this;
-        }
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
-        }
-        if (in_array($type, ['string', 'text'], true)) {
-            $this->rules[$this->current_field]['max_length'] = $value;
-            $this->rules[$this->current_field]['form-params']['maxlength'] = $value;
-        } else {
-            $this->rules[$this->current_field]['form-params']['max'] = $value;
-        }
-        return $this;
-    }
-
-    /**
-     * Make numeric field unsigned
-     *
-     * @return self
-     */
-    public function unsigned(): self
-    {
-        $this->rules[$this->current_field]['unsigned'] = true;
-        return $this;
-    }
-
-    /**
-     * Set custom getter function
-     *
-     * @param callable $fn Getter function
-     * @return self
-     */
-    public function getter(callable $fn): self
-    {
-        $this->rules[$this->current_field]['_get'] = $fn;
-        return $this;
-    }
-
-    /**
-     * Set custom raw getter function
-     *
-     * @param callable $fn Raw getter function
-     * @deprecated 
-     * @return self
-     */
-    public function rawGetter(callable $fn): self
-    {
-        $this->rules[$this->current_field]['_get_raw'] = $fn;
-        return $this;
-    }
-
-    /**
-     * Set custom setter function
-     *
-     * @param callable $fn Setter function
-     * @return self
-     */
-    public function setter(callable $fn): self
-    {
-        $this->rules[$this->current_field]['_set'] = $fn;
-        return $this;
-    }
-
-    /**
-     * Set custom editor function
-     *
-     * @param callable $fn Editor function
-     * @return self
-     */
-    public function editor(callable $fn): self
-    {
-        $this->rules[$this->current_field]['_edit'] = $fn;
-        return $this;
-    }
-
-    /**
-     * Define a hasOne relationship
-     *
-     * hasOne: The foreign key is in the RELATED table, not in this table.
-     * Example: Actor hasOne Biography -> biography.actor_id references actor.id
-     *
-     * @param string $alias Relationship alias (property name to access the related model)
-     * @param string $related_model Related model class name
-     * @param string $foreign_key_in_related Foreign key field name in the related table (e.g., 'actor_id')
-     * @param string $onDelete Delete behavior: 'CASCADE' (default), 'SET NULL', or 'RESTRICT'
-     *                         - CASCADE: Delete child records when parent is deleted
-     *                         - SET NULL: Set foreign key to NULL in child records
-     *                         - RESTRICT: Prevent parent deletion if child records exist
-     * @return self
-     */
-    public function hasOne(string $alias, string $related_model, string $foreign_key_in_related, string $onDelete = 'CASCADE', bool $allowCascadeSave = false): self
-    {
-        // Validate onDelete parameter
-        $valid_onDelete = ['CASCADE', 'SET NULL', 'RESTRICT'];
-        $onDelete = strtoupper($onDelete);
-        if (!in_array($onDelete, $valid_onDelete)) {
-            throw new \InvalidArgumentException(
-                "Invalid onDelete value '$onDelete'. Must be one of: " . implode(', ', $valid_onDelete)
-            );
-        }
-
-        // Current field should be the local key (typically primary key)
-        $local_key = $this->current_field;
-
-        // Ensure the local key field exists in rules
-        if (!isset($this->rules[$local_key])) {
-            throw new \InvalidArgumentException("Local key field must be defined before calling hasOne()");
-        }
-
-        // Instantiate the related model to verify foreign key exists
-        $related_instance = new $related_model();
-        $related_rules = $related_instance->getRules();
-
-        // Verify the foreign key exists in related model
-        if (!isset($related_rules[$foreign_key_in_related])) {
-            throw new \InvalidArgumentException(
-                "Foreign key '$foreign_key_in_related' not found in related model '$related_model'"
-            );
-        }
-
-        // Verify type compatibility between local key and foreign key in related table
-        $local_type = $this->rules[$local_key]['type'];
-        $foreign_type = $related_rules[$foreign_key_in_related]['type'];
-
-        // Map compatible types
-        $compatible_types = [
-            'id' => ['int', 'id', 'string'],
-            'int' => ['int', 'id', 'string'],
-            'string' => ['string', 'int', 'id'],
-        ];
-
-        if (isset($compatible_types[$local_type]) && !in_array($foreign_type, $compatible_types[$local_type])) {
-            throw new \InvalidArgumentException(
-                "Local key '$local_key' type ($local_type) is not compatible with foreign key '$foreign_key_in_related' type ($foreign_type) in model '$related_model'"
-            );
-        }
-
-        // Store relationship configuration in the local key field
-        $this->rules[$local_key]['relationship'] = [
-            'type' => 'hasOne',
-            'alias' => $alias,
-            'local_key' => $local_key,              // Field in THIS table (e.g., 'id')
-            'foreign_key' => $foreign_key_in_related, // Field in RELATED table (e.g., 'actor_id')
-            'related_model' => $related_model,
-            'onDelete' => $onDelete,                 // Delete behavior: CASCADE, SET NULL, RESTRICT
-            'allowCascadeSave' => $allowCascadeSave, // Allow automatic cascade save when parent is saved
-        ];
-
-        // Activate relationship for potential where() call
-        $this->active_relationship = [
-            'type' => 'hasOne',
-            'field' => $local_key,
-        ];
-
-        return $this;
-    }
-
-    /**
-     * Define a hasMany relationship
-     *
-     * hasMany: The foreign key is in the RELATED table, not in this table.
-     * Similar to hasOne but returns multiple records instead of one.
-     * Example: Actor hasMany Films -> films.actor_id references actor.id
-     *
-     * @param string $alias Relationship alias (property name to access the related model)
-     * @param string $related_model Related model class name
-     * @param string $foreign_key_in_related Foreign key field name in the related table (e.g., 'actor_id')
-     * @param string $onDelete Delete behavior: 'CASCADE' (default), 'SET NULL', or 'RESTRICT'
-     *                         - CASCADE: Delete child records when parent is deleted
-     *                         - SET NULL: Set foreign key to NULL in child records
-     *                         - RESTRICT: Prevent parent deletion if child records exist
-     * @param bool $allowCascadeSave If true, allows automatic cascade save when parent is saved with $cascade=true
-     * @return self
-     */
-    public function hasMany(string $alias, string $related_model, string $foreign_key_in_related, string $onDelete = 'CASCADE', bool $allowCascadeSave = false): self
-    {
-        // Validate onDelete parameter
-        $valid_onDelete = ['CASCADE', 'SET NULL', 'RESTRICT'];
-        $onDelete = strtoupper($onDelete);
-        if (!in_array($onDelete, $valid_onDelete)) {
-            throw new \InvalidArgumentException(
-                "Invalid onDelete value '$onDelete'. Must be one of: " . implode(', ', $valid_onDelete)
-            );
-        }
-
-        // Current field should be the local key (typically primary key)
-        $local_key = $this->current_field;
-
-
-        // Ensure the local key field exists in rules
-        if (!isset($this->rules[$local_key])) {
-            throw new \InvalidArgumentException("Local key field must be defined before calling hasMany()");
-        }
-
-        // Skip validation to prevent circular instantiation during configuration
-        // Validation will be done at runtime when relationships are actually used
-
-        // Store relationship configuration in the local key field
-        $this->rules[$local_key]['relationship'] = [
-            'type' => 'hasMany',
-            'alias' => $alias,
-            'local_key' => $local_key,              // Field in THIS table (e.g., 'id')
-            'foreign_key' => $foreign_key_in_related, // Field in RELATED table (e.g., 'actor_id')
-            'related_model' => $related_model,
-            'onDelete' => $onDelete,                 // Delete behavior: CASCADE, SET NULL, RESTRICT
-            'allowCascadeSave' => $allowCascadeSave, // Allow automatic cascade save when parent is saved
-        ];
-
-        // Activate relationship for potential where() call
-        $this->active_relationship = [
-            'type' => 'hasMany',
-            'field' => $local_key,
-        ];
-
-        return $this;
-    }
-
-    /**
-     * Define a withCount aggregate relationship
-     *
-     * withCount: Adds a subquery COUNT to the SELECT clause without loading the actual related records.
-     * This is useful for displaying counts in lists and allows ordering by the count.
-     *
-     * Example SQL generated:
-     * SELECT authors.*,
-     * (SELECT COUNT(*) FROM books WHERE books.author_id = authors.id) AS books_count
-     * FROM authors
-     *
-     * @param string $alias Field name for the count (e.g., 'books_count')
-     * @param string $related_model Related model class name
-     * @param string $foreign_key_in_related Foreign key field name in the related table
-     * @return self
-     */
-    public function withCount(string $alias, string $related_model, string $foreign_key_in_related): self
-    {
-        // Current field should be the local key (typically primary key)
-        $local_key = $this->current_field;
-
-        // Ensure the local key field exists in rules
-        if (!isset($this->rules[$local_key])) {
-            throw new \InvalidArgumentException("Local key field must be defined before calling withCount()");
-        }
-
-        // Initialize withCount array if not exists
-        if (!isset($this->rules[$local_key]['withCount'])) {
-            $this->rules[$local_key]['withCount'] = [];
-        }
-
-        // Store withCount configuration
-        $this->rules[$local_key]['withCount'][] = [
-            'alias' => $alias,
-            'local_key' => $local_key,
-            'foreign_key' => $foreign_key_in_related,
-            'related_model' => $related_model,
-        ];
-
-        // Add the alias as a virtual field in rules so it's preserved by filterDataByRules()
-        $this->rules[$alias] = [
-            'type' => 'int',
-            'virtual' => true,
-            'withCount' => true,
-            'sql' => false,  // Not a real database field
-            'nullable' => true,
-            'label' => ucfirst(str_replace('_', ' ', $alias)),
-        ];
-
-        // Activate relationship for potential where() call
-        $index = count($this->rules[$local_key]['withCount']) - 1;
-        $this->active_relationship = [
-            'type' => 'withCount',
-            'field' => $local_key,
-            'index' => $index,
-        ];
-
-        return $this;
-    }
-
-    /**
-     * Define a belongsTo relationship
-     *
-     * belongsTo: The foreign key is in THIS table, referencing the related table.
-     * Example: Post belongsTo User -> post.user_id references user.id
-     *
-     * @param string $alias Relationship alias (property name to access the related model)
-     * @param string $related_model Related model class name
-     * @param string|null $related_key Primary key of the related model (default: 'id')
-     * @return self
-     */
-    public function belongsTo(string $alias, string $related_model, ?string $related_key = 'id'): self
-    {
-        // Use current field as foreign key (in THIS table)
-        $foreign_key = $this->current_field;
-
-        // Ensure the foreign key field exists in rules
-        if (!isset($this->rules[$foreign_key])) {
-            throw new \InvalidArgumentException("Foreign key field must be defined before calling belongsTo()");
-        }
-
-        // Skip validation to prevent circular instantiation during configuration
-        // Validation will be done at runtime when relationships are actually used
-
-        // Auto-detect title field in related model - will be done lazy at runtime
-        $auto_display_field = null;
-       
-        // Store relationship configuration first
-        $this->rules[$foreign_key]['relationship'] = [
-            'type' => 'belongsTo',
-            'alias' => $alias,
-            'foreign_key' => $foreign_key,           // Field in THIS table (e.g., 'actor_id')
-            'related_key' => $related_key,           // Field in RELATED table (usually 'id')
-            'related_model' => $related_model
-        ];
-    
-
-        // Now try to get auto_display_field - wrapped in try/catch to prevent loops
-        $auto_display_field = null;
-        try {
-            static $instantiating = [];
-            $key = $related_model;
-
-            if (!isset($instantiating[$key])) {
-                $instantiating[$key] = true;
-                $related_instance = new $related_model();
-                $related_rules = $related_instance->getRules();
-
-                // Find title field
-                foreach ($related_rules as $field_name => $rule) {
-                    if (($rule['title'] ?? false) === true) {
-                        $auto_display_field = $field_name;
-                        break;
-                    }
-                }
-                unset($instantiating[$key]);
-            }
-        } catch (\Throwable) {
-            // Ignore errors during auto-detect to prevent circular loops
-        }
-
-        // Update with auto_display_field if found
-        if ($auto_display_field) {
-            $this->rules[$foreign_key]['relationship']['auto_display_field'] = $auto_display_field;
-        }
-
-        // Activate relationship for potential where() call
-        $this->active_relationship = [
-            'type' => 'belongsTo',
-            'field' => $foreign_key,
-        ];
-
-        return $this;
-    }
-
-    /**
-     * Define a hasMeta relationship (EAV pattern - Entity-Attribute-Value)
-     *
-     * hasMeta: Links to a meta table following the WordPress-style EAV pattern.
-     * Each meta is stored as a separate row with (entity_id, meta_key, meta_value).
-     * Multiple hasMeta definitions are batched into a single query for efficiency.
-     *
-     * Example meta table structure:
-     * - id (primary key)
-     * - user_id (foreign key to main entity)
-     * - meta_key (string, e.g., 'first_name', 'phone')
-     * - meta_value (text/longtext for flexibility)
-     *
-     * Example usage:
-     * ```php
-     * $rule->id()
-     *      ->hasMeta('first_name', UserMetaModel::class)
-     *      ->hasMeta('last_name', UserMetaModel::class)
-     *      ->hasMeta('phone', UserMetaModel::class, 'user_id', 'id', 'meta_key', 'meta_value');
-     * ```
-     *
-     * @param string $alias Meta field alias (used as property name AND as meta_key value in DB)
-     * @param string $related_model Meta table model class name
-     * @param string|null $foreign_key Foreign key column in meta table (default: guessed from main table name + '_id')
-     * @param string|null $local_key Local key column in main table (default: current field, usually 'id')
-     * @param string $meta_key_column Column name for meta keys (default: 'meta_key')
-     * @param string $meta_value_column Column name for meta values (default: 'meta_value')
-     * @param string|null $meta_key_value Actual meta_key value in DB (default: same as $alias)
-     * @return self
-     */
-    public function hasMeta(
-        string $alias,
-        string $related_model,
-        ?string $foreign_key = null,
-        ?string $local_key = null,
-        string $meta_key_column = 'meta_key',
-        string $meta_value_column = 'meta_value',
-        ?string $meta_key_value = null
-    ): self {
-        // Use current field as local key if not specified (typically primary key)
-        $local_key = $local_key ?? $this->current_field;
-
-        // Ensure the local key field exists in rules
-        if (!isset($this->rules[$local_key])) {
-            throw new \InvalidArgumentException("Local key field '$local_key' must be defined before calling hasMeta()");
-        }
-
-        // Auto-generate foreign key if not provided (table_name + '_id')
-        if ($foreign_key === null) {
-            // Try to get table name and derive foreign key
-            $table_name = $this->table;
-            if ($table_name !== null) {
-                // Remove common prefixes like #__
-                $clean_table = preg_replace('/^#__/', '', $table_name);
-                // Convert to singular if it ends with 's'
-                if (str_ends_with($clean_table, 's')) {
-                    $clean_table = substr($clean_table, 0, -1);
-                }
-                $foreign_key = $clean_table . '_id';
-            } else {
-                $foreign_key = 'entity_id'; // Fallback
-            }
-        }
-
-        // Use alias as meta_key value if not specified
-        $meta_key_value = $meta_key_value ?? $alias;
-
-        // Initialize hasMeta array if not exists
-        if (!isset($this->rules[$local_key]['hasMeta'])) {
-            $this->rules[$local_key]['hasMeta'] = [];
-        }
-
-        // Store hasMeta configuration
-        $this->rules[$local_key]['hasMeta'][] = [
-            'alias' => $alias,
-            'local_key' => $local_key,
-            'foreign_key' => $foreign_key,
-            'related_model' => $related_model,
-            'meta_key_column' => $meta_key_column,
-            'meta_value_column' => $meta_value_column,
-            'meta_key_value' => $meta_key_value,
-        ];
-
-        // Add the alias as a virtual field in rules so it can be accessed like a normal field
-        $this->rules[$alias] = [
-            'type' => 'string',  // Meta values are typically stored as text
-            'virtual' => true,
-            'hasMeta' => true,
-            'sql' => false,      // Not a real database field in main table
-            'nullable' => true,
-            'label' => $this->createLabel($alias),
-            'list' => true,
-            'edit' => true,
-            'view' => true,
-            // Reference back to the meta configuration
-            '_meta_config' => [
-                'local_key' => $local_key,
-                'index' => count($this->rules[$local_key]['hasMeta']) - 1,
-            ],
-        ];
-
-        // Activate relationship for potential where() call
-        $index = count($this->rules[$local_key]['hasMeta']) - 1;
-        $this->active_relationship = [
-            'type' => 'hasMeta',
-            'field' => $local_key,
-            'index' => $index,
-        ];
-
-        return $this;
-    }
-
-    /**
-     * Add a WHERE condition to the active relationship
-     *
-     * This method can only be called immediately after a relationship method
-     * (withCount, hasMany, hasOne, belongsTo, hasMeta). It allows filtering the related
-     * records in the relationship query.
-     *
-     * @example
-     * ```php
-     * // Filter withCount to only count available lessons
-     * $rule_builder
-     *     ->ChangeCurrentField($rule_builder->getPrimaryKey())
-     *     ->withCount('lezioni_disponibili', LezioniModel::class, 'MATR_CRS')
-     *         ->where('DISPONIBILE = ?', ['D']);
-     *
-     * // Multiple conditions with AND
-     * $rule_builder
-     *     ->ChangeCurrentField($rule_builder->getPrimaryKey())
-     *     ->withCount('lezioni_attive', LezioniModel::class, 'MATR_CRS')
-     *         ->where('DISPONIBILE = ? AND BLOCCO != ?', ['D', 'S']);
-     * ```
-     *
-     * @param string $condition SQL WHERE condition with ? placeholders
-     * @param array $params Parameters to bind to the placeholders
-     * @return self
-     * @throws \LogicException if called without an active relationship
-     */
-    public function where(string $condition, array $params = []): self
-    {
-        if ($this->active_relationship === null) {
-            throw new \LogicException(
-                "where() can only be called immediately after a relationship method " .
-                "(withCount, hasMany, hasOne, belongsTo, hasMeta). " .
-                "Example: ->withCount('lezioni', LezioniModel::class, 'MATR_CRS')->where('DISPONIBILE = ?', ['D'])"
-            );
-        }
-
-        $type = $this->active_relationship['type'];
-        $field = $this->active_relationship['field'];
-
-        if ($type === 'withCount') {
-            $index = $this->active_relationship['index'];
-
-            // Store the where condition in the withCount config
-            $this->rules[$field]['withCount'][$index]['where'] = [
-                'condition' => $condition,
-                'params' => $params,
-            ];
-        } elseif ($type === 'hasMeta') {
-            $index = $this->active_relationship['index'];
-
-            // Store the where condition in the hasMeta config
-            $this->rules[$field]['hasMeta'][$index]['where'] = [
-                'condition' => $condition,
-                'params' => $params,
-            ];
-        } elseif (in_array($type, ['hasMany', 'hasOne', 'belongsTo'])) {
-            // Store the where condition in the relationship config
-            $this->rules[$field]['relationship']['where'] = [
-                'condition' => $condition,
-                'params' => $params,
-            ];
-        }
-
-        return $this;
-    }
-
-    /**
-     * Deactivate the current relationship context
-     * This is called automatically when defining a new field to ensure
-     * that where() can only be used immediately after relationship methods
-     *
-     * @return void
-     */
-    protected function deactivateRelationship(): void
-    {
-        $this->active_relationship = null;
-    }
-
-    /**
-     * Set a custom property
-     *
-     * @param string $key Property key
-     * @param mixed $value Property value
-     * @return self
-     */
-    public function property(string $key, $value): self
-    {
-        $this->rules[$this->current_field][$key] = $value;
-        return $this;
-    }
-
-    /**
-     * Set multiple properties at once
-     *
-     * @param array $properties Properties array
-     * @return self
-     */
-    public function properties(array $properties): self
-    {
-        $this->rules[$this->current_field] = array_merge($this->rules[$this->current_field], $properties);
-        return $this;
-    }
-
-    /**
-     * Customize options with a callback
-     *
-     * @param callable $callback Callback function
-     * @return self
-     */
-    public function customize(callable $callback): self
-    {
-        $this->rules[$this->current_field] = $callback($this->rules[$this->current_field]);
+        $this->extensions = $extensions;
         return $this;
     }
 
@@ -1618,30 +247,13 @@ class RuleBuilder
     }
 
     // ========================================
-    // Helper methods
+    // Getters
     // ========================================
-
-    /**
-     * Create a human-readable label from field name
-     *
-     * @param string $fieldName Field name
-     * @return string Label
-     */
-    protected function createLabel(string $fieldName): string
-    {
-        // Convert snake_case and camelCase to words
-        $label = preg_replace(['/([a-z])([A-Z])/', '/_+/', '/[-\s]+/'], ['\\1 \\2', ' ', ' '], $fieldName);
-
-        // Remove multiple spaces
-        $label = preg_replace('/\s+/', ' ', trim($label));
-
-        return ucfirst($label);
-    }
 
     /**
      * Get table name
      *
-     * @return string Table name
+     * @return string|null Table name
      */
     public function getTable(): ?string
     {
@@ -1651,7 +263,7 @@ class RuleBuilder
     /**
      * Get primary key name
      *
-     * @return string Primary key name
+     * @return string|null Primary key name
      */
     public function getPrimaryKey(): ?string
     {
@@ -1661,23 +273,11 @@ class RuleBuilder
     /**
      * Get database type (db or db2)
      *
-     * @return string Database type
+     * @return string|null Database type
      */
     public function getDbType(): ?string
     {
         return $this->db_type;
-    }
-
-    /**
-     * Set extensions to load
-     *
-     * @param array $extensions Array of extension names
-     * @return self
-     */
-    public function extensions(array $extensions): self
-    {
-        $this->extensions = $extensions;
-        return $this;
     }
 
     /**
@@ -1692,13 +292,12 @@ class RuleBuilder
 
     /**
      * Remove primary key flags from all fields
-     * Useful when creating audit tables where the primary key will be different
      *
      * @return self
      */
     public function removePrimaryKeys(): self
     {
-       foreach ($this->rules as $field_name => &$field_rule) {
+        foreach ($this->rules as $field_name => &$field_rule) {
             if ($field_rule['primary']) {
                 unset($this->rules[$field_name]);
                 break;
@@ -1724,5 +323,22 @@ class RuleBuilder
             }
         }
         return $all_meta;
+    }
+
+    // ========================================
+    // Helper methods
+    // ========================================
+
+    /**
+     * Create a human-readable label from field name
+     *
+     * @param string $fieldName Field name
+     * @return string Label
+     */
+    protected function createLabel(string $fieldName): string
+    {
+        $label = preg_replace(['/([a-z])([A-Z])/', '/_+/', '/[-\s]+/'], ['\\1 \\2', ' ', ' '], $fieldName);
+        $label = preg_replace('/\s+/', ' ', trim($label));
+        return ucfirst($label);
     }
 }

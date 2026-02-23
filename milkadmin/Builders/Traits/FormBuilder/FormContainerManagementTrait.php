@@ -41,30 +41,37 @@ trait FormContainerManagementTrait {
      * @example
      * // Mix fields and inline HTML inside the container
      * ->addContainer(['name', '<div class="small text-muted">Note</div>', 'email'], 3)
+     *
+     * @example
+     * // Stack multiple fields in the same column using nested arrays
+     * ->addContainer('contact', [['phone', 'email'], 'notes'], 2)
      */
     public function addContainer(string $id, array $fields, $cols, string $position_before = '', string $title = '', array $attributes = []): self {
         $normalized_fields = [];
+        $normalized_column_groups = [];
         $inline_html_fields = [];
         $existing_names = array_fill_keys(array_keys($this->fields), true);
 
-        foreach ($fields as $field_name) {
-            if ($this->isInlineHtmlSnippet($field_name)) {
-                $inline_name = $this->generateInlineHtmlFieldName($existing_names);
-                $existing_names[$inline_name] = true;
-                $inline_html_fields[$inline_name] = $field_name;
-                $normalized_fields[] = $inline_name;
+        foreach ($fields as $field_entry) {
+            if (is_array($field_entry)) {
+                $column_group = [];
+                foreach ($field_entry as $group_entry) {
+                    if (is_array($group_entry)) {
+                        throw new \InvalidArgumentException('Nested container field arrays are supported only one level deep');
+                    }
+                    $normalized_name = $this->normalizeContainerFieldEntry($group_entry, $existing_names, $inline_html_fields);
+                    $column_group[] = $normalized_name;
+                    $normalized_fields[] = $normalized_name;
+                }
+                if (!empty($column_group)) {
+                    $normalized_column_groups[] = $column_group;
+                }
                 continue;
             }
 
-            if (!isset($this->fields[$field_name]) && isset($this->fields_copy[$field_name])) {
-                if (isset($this->removed_fields[$field_name])) {
-                    unset($this->removed_fields[$field_name]);
-                }
-                $this->fields[$field_name] = $this->fields_copy[$field_name];
-            } else if (!isset($this->fields[$field_name]) && !isset($this->fields_copy[$field_name])) {
-                throw new \InvalidArgumentException("Field '{$field_name}' does not exist in the form");
-            }
-            $normalized_fields[] = $field_name;
+            $normalized_name = $this->normalizeContainerFieldEntry($field_entry, $existing_names, $inline_html_fields);
+            $normalized_fields[] = $normalized_name;
+            $normalized_column_groups[] = [$normalized_name];
         }
 
         foreach ($inline_html_fields as $inline_name => $html) {
@@ -76,28 +83,55 @@ trait FormContainerManagementTrait {
             ];
         }
 
-        $fields = $normalized_fields;
-
         // Calculate column distribution
-        $column_distribution = $this->calculateColumnDistribution($fields, $cols);
+        $column_distribution = $this->calculateColumnDistribution($normalized_column_groups, $cols);
 
         // Generate container HTML with fields
-        $this->insertContainerIntoFields($id, $fields, $column_distribution, $position_before, $title, $attributes);
+        $this->insertContainerIntoFields($id, $normalized_fields, $column_distribution, $position_before, $title, $attributes);
 
         return $this;
+    }
+
+    private function normalizeContainerFieldEntry($field_entry, array &$existing_names, array &$inline_html_fields): string {
+        if ($this->isInlineHtmlSnippet($field_entry)) {
+            $inline_name = $this->generateInlineHtmlFieldName($existing_names);
+            $existing_names[$inline_name] = true;
+            $inline_html_fields[$inline_name] = $field_entry;
+            return $inline_name;
+        }
+
+        if (!is_string($field_entry) && !is_numeric($field_entry)) {
+            throw new \InvalidArgumentException('Container field entries must be field names, inline HTML, or one-level arrays');
+        }
+
+        $field_name = (string) $field_entry;
+        if ($field_name === '') {
+            throw new \InvalidArgumentException('Container field name cannot be empty');
+        }
+
+        if (!isset($this->fields[$field_name]) && isset($this->fields_copy[$field_name])) {
+            if (isset($this->removed_fields[$field_name])) {
+                unset($this->removed_fields[$field_name]);
+            }
+            $this->fields[$field_name] = $this->fields_copy[$field_name];
+        } else if (!isset($this->fields[$field_name]) && !isset($this->fields_copy[$field_name])) {
+            throw new \InvalidArgumentException("Field '{$field_name}' does not exist in the form");
+        }
+
+        return $field_name;
     }
 
     /**
      * Calculate column distribution for fields
      *
-     * @param array $fields Array of field names
+     * @param array $column_groups Array of column groups, each containing one or more field names
      * @param int|array $cols Number of columns or array of column sizes
      * @return array Array of rows, each containing columns with field names and sizes
      */
-    private function calculateColumnDistribution(array $fields, $cols): array {
+    private function calculateColumnDistribution(array $column_groups, $cols): array {
         $rows = [];
         $field_index = 0;
-        $total_fields = count($fields);
+        $total_fields = count($column_groups);
 
         // Determine if $cols is an integer or array
         if (is_int($cols)) {
@@ -109,7 +143,7 @@ trait FormContainerManagementTrait {
                 $row = [];
                 for ($i = 0; $i < $cols_per_row && $field_index < $total_fields; $i++) {
                     $row[] = [
-                        'field' => $fields[$field_index],
+                        'fields' => $column_groups[$field_index],
                         'size' => $col_size
                     ];
                     $field_index++;
@@ -125,7 +159,7 @@ trait FormContainerManagementTrait {
                         break;
                     }
                     $row[] = [
-                        'field' => $fields[$field_index],
+                        'fields' => $column_groups[$field_index],
                         'size' => $col_size
                     ];
                     $field_index++;
@@ -265,7 +299,12 @@ trait FormContainerManagementTrait {
 
             // Process each column in the row
             foreach ($row as $column) {
-                $field_name = $column['field'];
+                $column_fields = [];
+                if (isset($column['fields']) && is_array($column['fields'])) {
+                    $column_fields = $column['fields'];
+                } else if (isset($column['field'])) {
+                    $column_fields = [$column['field']];
+                }
                 $col_size = $column['size'];
 
                 // Open column
@@ -278,15 +317,46 @@ trait FormContainerManagementTrait {
                 ];
                 $html_counter++;
 
-                // Add the actual field
-                if (isset($original_fields[$field_name])) {
-                    // Mark field as being in a container to prevent extra wrappers
-                    $field_data = $original_fields[$field_name];
-                    if (!isset($field_data['form-params'])) {
-                        $field_data['form-params'] = [];
+                // Add the actual field(s)
+                $total_column_fields = count($column_fields);
+                $use_vertical_wrappers = $total_column_fields >= 2;
+                foreach ($column_fields as $field_index => $field_name) {
+                    if ($use_vertical_wrappers) {
+                        $wrapper_class = 'milk-col-stack-item';
+                        if ($field_index < $total_column_fields - 1) {
+                            $wrapper_class .= ' mb-3';
+                        }
+
+                        $html_fields[$this->generateHtmlFieldName($html_counter)] = [
+                            'type' => 'html',
+                            'value' => '',
+                            'html' => "<div class=\"{$wrapper_class}\">",
+                            'name' => $this->generateHtmlFieldName($html_counter),
+                            'form-params' => ['in-container' => true]
+                        ];
+                        $html_counter++;
                     }
-                    $field_data['form-params']['in-container'] = true;
-                    $html_fields[$field_name] = $field_data;
+
+                    if (isset($original_fields[$field_name])) {
+                        // Mark field as being in a container to prevent extra wrappers
+                        $field_data = $original_fields[$field_name];
+                        if (!isset($field_data['form-params'])) {
+                            $field_data['form-params'] = [];
+                        }
+                        $field_data['form-params']['in-container'] = true;
+                        $html_fields[$field_name] = $field_data;
+                    }
+
+                    if ($use_vertical_wrappers) {
+                        $html_fields[$this->generateHtmlFieldName($html_counter)] = [
+                            'type' => 'html',
+                            'value' => '',
+                            'html' => '</div>',
+                            'name' => $this->generateHtmlFieldName($html_counter),
+                            'form-params' => ['in-container' => true]
+                        ];
+                        $html_counter++;
+                    }
                 }
 
                 // Close column

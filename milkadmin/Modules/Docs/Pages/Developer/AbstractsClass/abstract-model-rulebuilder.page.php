@@ -11,7 +11,7 @@ use App\Route;
 ?>
 <div class="bg-white p-4">
     <h1>RuleBuilder - Schema Configuration</h1>
-    <p class="text-muted">Revision: 2025/10/31</p>
+    <p class="text-muted">Revision: 2026/02/22</p>
     <p class="lead">The <code>RuleBuilder</code> class provides a fluent interface for defining model schemas in the <code>configure()</code> method. It allows you to configure table structure, field types, validation rules, form behaviors, and relationships.</p>
 
     <div class="alert alert-info">
@@ -27,7 +27,10 @@ use App\Route;
         ->decimal('price', 10, 2)->default(0) // DECIMAL(10,2) DEFAULT 0
         ->text('description')->nullable()     // TEXT NULL
         ->boolean('in_stock')->default(true)  // TINYINT(1) DEFAULT 1
-        ->created_at();                       // DATETIME with auto-preservation
+        ->created_at()                        // Set only on first insert
+        ->updated_at()                        // Updated at every save
+        ->created_by()                        // Active user on first insert
+        ->updated_by();                       // Active user at every save
 }</code></pre>
 
     <h2 class="mt-4">Configuration Methods</h2>
@@ -172,6 +175,41 @@ use App\Route;
                     <td>DATETIME</td>
                     <td>Auto-preserved creation timestamp (hidden from edit)</td>
                     <td><code>$rule->created_at()</code></td>
+                </tr>
+                <tr>
+                    <td><code>updated_at(string $name = 'updated_at')</code></td>
+                    <td>DATETIME</td>
+                    <td>Auto-updated timestamp on every save (hidden from edit)</td>
+                    <td><code>$rule->updated_at()</code></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h3>Audit Types</h3>
+
+    <div class="table-responsive">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Method</th>
+                    <th>SQL Type</th>
+                    <th>Description</th>
+                    <th>Example</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>created_by(string $name = 'created_by')</code></td>
+                    <td>INT</td>
+                    <td>Auto-preserved creator user id on first insert (hidden from edit)</td>
+                    <td><code>$rule->created_by()</code></td>
+                </tr>
+                <tr>
+                    <td><code>updated_by(string $name = 'updated_by')</code></td>
+                    <td>INT</td>
+                    <td>Auto-updated editor user id on every save (hidden from edit)</td>
+                    <td><code>$rule->updated_by()</code></td>
                 </tr>
             </tbody>
         </table>
@@ -692,7 +730,7 @@ class ProductsModel extends AbstractModel
                 ->required()
                 ->index()
 
-            ->int('created_by')
+            ->created_by()
                 ->belongsTo('author', UsersModel::class)
                 ->hideFromEdit()
 
@@ -735,9 +773,11 @@ class ProductsModel extends AbstractModel
             // Metadata
             ->array('meta_data')->nullable()->excludeFromDatabase()
 
-            // Timestamps
+            // Audit fields
             ->created_at()
-            ->datetime('updated_at')->nullable()->hideFromEdit();
+            ->updated_at()
+            ->updated_by()
+                ->belongsTo('editor', UsersModel::class);
     }
 }</code></pre>
 
@@ -768,6 +808,9 @@ class ProductsModel extends AbstractModel
     'api_url' => null,            // API endpoint for options
     'save_value' => null,         // Value to always save
     '_auto_created_at' => false,  // Auto-preserve on update
+    '_auto_updated_at' => false,  // Auto-update on every save
+    '_auto_created_by' => false,  // Auto-preserve creator user id
+    '_auto_updated_by' => false,  // Auto-update editor user id
     '_is_title_field' => false,   // Used in belongsTo display
     '_get' => callable,           // Custom getter
     '_set' => callable,           // Custom setter

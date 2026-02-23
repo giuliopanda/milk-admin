@@ -231,6 +231,11 @@ class InstallService
         if (!move_uploaded_file($uploaded_file, $update_file)) {
             return ['success' => false, 'redirect' => ['page' => 'install'], 'message' => _r('Error during update file upload.')];
         }
+
+        // Save core_only preference flag
+        $core_only = isset($post['core_only']) && $post['core_only'] == '1';
+        file_put_contents($temp_dir . '/update-core-only.flag', $core_only ? '1' : '0');
+
         return ['success' => true, 'redirect' => ['page' => 'install', 'action' => 'update-step3']];
     }
     
@@ -372,12 +377,13 @@ class InstallService
 
     /**
      * Process the system update
-     * 
+     *
      * @param string $update_file Path to the ZIP update file
      * @param string $update_dir Temporary directory for extraction
+     * @param bool $core_only If true, only update the milkadmin folder (skip milkadmin_local, vendor, public_html)
      * @return bool|string True on success, error message string on failure
      */
-    public static function processUpdate($update_file, $update_dir) {
+    public static function processUpdate($update_file, $update_dir, $core_only = true) {
 
         // Clean any previous leftovers
         if (is_dir($update_dir)) {
@@ -426,17 +432,24 @@ class InstallService
         }
         
         try {
-            // Copy the files excluding config.php and storage
+            // Copy the core files excluding config.php and storage
             Install::copyUpdateFiles($update_dir.'/milkadmin', MILK_DIR);
 
-            // Copy milkadmin_local files if directory exists in update package
-            if (is_dir($update_dir.'/milkadmin_local')) {
-                Install::copyUpdateFiles($update_dir.'/milkadmin_local', MILK_DIR.'/../milkadmin_local');
-            }
-            
-             // Copy public_html files if directory exists in update package
-            if (is_dir($update_dir.'/public_html')) {
-                Install::copyUpdateFiles($update_dir.'/public_html', MILK_DIR.'/../public_html');
+            if (!$core_only) {
+                // Copy milkadmin_local files if directory exists in update package
+                if (is_dir($update_dir.'/milkadmin_local')) {
+                    Install::copyUpdateFiles($update_dir.'/milkadmin_local', MILK_DIR.'/../milkadmin_local');
+                }
+
+                // Copy vendor files if directory exists in update package
+                if (is_dir($update_dir.'/vendor')) {
+                    Install::copyUpdateFiles($update_dir.'/vendor', MILK_DIR.'/../vendor');
+                }
+
+                // Copy public_html files if directory exists in update package
+                if (is_dir($update_dir.'/public_html')) {
+                    Install::copyUpdateFiles($update_dir.'/public_html', MILK_DIR.'/../public_html');
+                }
             }
 
             // Clear PHP opcache to ensure new files are loaded

@@ -41,7 +41,11 @@ $btns = Hooks::run('plugin_title.btns', $btns, $title_txt);
         <?php endif; ?>
     </div>
     <?php if (isset($description)): ?>
-    <?php $description = Hooks::run('plugin_title.description', $description, $title_txt); ?>
-    <div class="text-body-secondary mb-3"><?php _pt($description); ?></div>
+        <?php $description = Hooks::run('plugin_title.description', $description, $title_txt); ?>
+        <div class="text-body-secondary mb-3"><?php _pt($description); ?></div>
+    <?php endif; ?>
+    <?php if (isset($bottom_content)): ?>
+        <?php $search_line = Hooks::run('plugin_title.search_line', $bottom_content, $title_txt); ?>
+        <div class="text-body-secondary mb-3"><?php _pt($bottom_content); ?></div>
     <?php endif; ?>
 </div>

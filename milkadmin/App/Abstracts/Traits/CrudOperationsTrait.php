@@ -174,6 +174,12 @@ trait CrudOperationsTrait
             $query->where("$display_field LIKE ?", '%' . $search . '%');
         }
 
+        // Apply custom where condition if defined in relationship
+        $where_config = $relationship['where'] ?? null;
+        if ($where_config !== null) {
+            $query->where($where_config['condition'], $where_config['params']);
+        }
+
         $results = $query->limit(0, 20)->getResults();
         $options = [];
 
@@ -255,9 +261,25 @@ trait CrudOperationsTrait
             $model->setRules($rules);
         }
 
+       $model->rebuildActions();
+
         return $model;
     }
 
+
+    private function rebuildActions() {
+        $primary_key = $this->getPrimaryKey();
+        if ($primary_key != "" && is_array($this->records_objects)) {
+            foreach ($this->records_objects as $index => $record) {
+                if (!is_array($record)) {
+                    continue;
+                }
+                $pk_value = $record[$primary_key] ?? null;
+                $has_primary_key = !($pk_value === null || $pk_value === '' || $pk_value === 0 || $pk_value === '0');
+                $this->records_objects[$index]['___action'] = $has_primary_key ? 'edit' : 'insert';
+            }
+        }
+    }
 
    
         
@@ -521,6 +543,20 @@ trait CrudOperationsTrait
                 // Prepara i dati
                
                 $data = $this->prepareData($data);
+
+                // Safety rule: without primary key an edit must become an insert.
+                $pk_value_for_action = $record[$this->primary_key] ?? ($data[$this->primary_key] ?? null);
+                $has_primary_key_for_action = !(
+                    $pk_value_for_action === null
+                    || $pk_value_for_action === ''
+                    || $pk_value_for_action === 0
+                    || $pk_value_for_action === '0'
+                );
+                if (($record['___action'] ?? null) === 'edit' && !$has_primary_key_for_action) {
+                    $record['___action'] = 'insert';
+                    $this->records_objects[$index]['___action'] = 'insert';
+                }
+                
                 if ($record['___action'] === 'insert') {
                     // INSERT
                     // Se c'è una primary key e non è auto-increment, mantienila
@@ -581,8 +617,8 @@ trait CrudOperationsTrait
                 } elseif ($record['___action'] === 'edit') {
                     // UPDATE
                     $pk_value = $record[$this->primary_key] ?? null;
-
-                    if ($pk_value === null) {
+                     
+                    if ($pk_value === null || $pk_value === '' || $pk_value === 0 || $pk_value === '0') {
                         $this->error = true;
                         $this->last_error = "Cannot update record at index {$index}: missing primary key";
                         $this->save_results[] = [

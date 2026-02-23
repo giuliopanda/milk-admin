@@ -94,6 +94,7 @@ IF [type] == "company" THEN "Y" ELSE "N" ENDIF</code></pre>
         <li><code>DATEONLY(datetime)</code></li>
         <li><code>TIMEADD(time, minutes)</code></li>
         <li><code>ADDMINUTES(time, minutes)</code></li>
+        <li><code>USERID()</code> — returns the logged-in user ID, or <code>0</code> if not authenticated</li>
         <li><code>COUNT(array)</code>, <code>COUNT(array, "field")</code></li>
         <li><code>SUM(array, "field")</code></li>
         <li><code>MIN(array, "field")</code></li>

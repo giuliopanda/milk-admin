@@ -1448,195 +1448,337 @@ class ItoTableSorterPaginator {
   
 
 class ItoSortableList {
-    constructor(container, options = {}) {
-      this.container = container;
-      this.handleSelector = options.handleSelector || null;
-      this.onUpdate = options.onUpdate;
-      
-      this.draggedItem = null;
-      this.draggingClone = null;
-      this.placeholder = null;
-      this.offsetY = 0;
-      this.isDragging = false;
-      this.mouseDownPosition = null;
-      this.onMouseMovebound = this.onGlobalMouseMove.bind(this);
-      this.onMouseUpbound = this.onGlobalMouseUp.bind(this);
-      
-      this.init();
+  // Static registry of groups: { groupName: [instance1, instance2, ...] }
+  static groups = {};
+
+  constructor(container, options = {}) {
+    this.container = container;
+    this.handleSelector = options.handleSelector || null;
+    this.onUpdate = options.onUpdate;
+    this.groupName = null;
+
+    this.draggedItem = null;
+    this.draggingClone = null;
+    this.placeholder = null;
+    this.offsetY = 0;
+    this.isDragging = false;
+    this.mouseDownPosition = null;
+    this.sourceContainer = null; // source container during drag
+    this.targetInstance = null;  // current target instance during drag
+
+    this.onMouseMovebound = this.onGlobalMouseMove.bind(this);
+    this.onMouseUpbound = this.onGlobalMouseUp.bind(this);
+
+    this.init();
+
+    // If a group was passed in options, register immediately
+    if (options.group) {
+      this.joinGroup(options.group);
     }
-  
-    init() {
-      [...this.container.children].forEach(item => {
-        this.makeDraggable(item);
-      });
+  }
+
+  // ─── Group Management ─────────────────────────────────────
+
+  /**
+   * Adds this instance to a shared drag group.
+   * If it was already in another group, it is removed from that one first.
+   * @param {string} groupName - Group name
+   */
+  joinGroup(groupName) {
+    if (this.groupName === groupName) return;
+    if (this.groupName) {
+      this.leaveGroup();
     }
-  
-    makeDraggable(item) {
-      const handle = this.handleSelector ? 
-        item.querySelector(this.handleSelector) : 
-        item;
-  
-      if (!handle) return;
-  
-      // Rimuovi draggable attribute e dragstart
-      item.removeAttribute('draggable');
-  
-      // Sostituisci gli eventi drag con eventi mouse
-      handle.addEventListener('mousedown', e => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        this.isDragging = true;
-        this.draggedItem = item;
-        
-        // Calcola l'offset e crea il clone
-        const rect = item.getBoundingClientRect();
-        this.offsetY = e.clientY - rect.top;
-        this.mouseDownPosition = {x: e.clientX, y: e.clientY};
-        
-        // Crea e inserisci il placeholder
-        this.placeholder = document.createElement('div');
-        this.placeholder.className = item.className + ' drag-placeholder';
-        this.placeholder.style.height = rect.height + 'px';
-        
-        // Nascondiamo completamente l'item originale e inseriamo il placeholder
-        item.remove();
-        this.container.insertBefore(this.placeholder, null);
-        // Crea il clone visivo
-        this.draggingClone = item.cloneNode(true);
-        this.draggingClone.classList.add('dragging-clone');
-        this.draggingClone.style.width = rect.width + 'px';
-        this.draggingClone.style.position = 'fixed';
-        this.draggingClone.style.top = e.clientY - this.offsetY + 'px';
-        // trovo la posizione assoluta dell'elemento che sto per trascinare
-        //this.lastValidPosition = this.container.children.indexOf(item);
-        this.draggingClone.style.left = (rect.left + 40) + 'px';
-        document.body.appendChild(this.draggingClone);
-        // Aggiungi i listener globali
-        document.addEventListener('mousemove', this.onMouseMovebound);
-        document.addEventListener('mouseup', this.onMouseUpbound);
-        // 
-        const afterElement = this.getDragAfterElement(e.clientY - 20);
-        if (afterElement) {
-          this.container.insertBefore(this.placeholder, afterElement);
-        } else {
-          this.container.appendChild(this.placeholder);
-        }
-        
-      });
+    this.groupName = groupName;
+    if (!ItoSortableList.groups[groupName]) {
+      ItoSortableList.groups[groupName] = [];
     }
-  
-    onGlobalMouseMove(e) {
-      if (this.isDragging && this.draggingClone) {
-        e.preventDefault();
-        
-        this.draggingClone.style.top = (e.clientY - this.offsetY) + 'px';
-        // this.draggingClone.style.left = e.clientX - (this.draggingClone.offsetWidth / 2) + 'px';
-  
-        // Aggiorna la posizione del placeholder
-        const afterElement = this.getDragAfterElement(e.clientY);
-        if (afterElement) {
-          this.container.insertBefore(this.placeholder, afterElement);
-        } else {
-          this.container.appendChild(this.placeholder);
-        }
+    ItoSortableList.groups[groupName].push(this);
+  }
+
+  /**
+   * Removes this instance from the current group.
+   */
+  leaveGroup() {
+    if (!this.groupName) return;
+    const group = ItoSortableList.groups[this.groupName];
+    if (group) {
+      const idx = group.indexOf(this);
+      if (idx !== -1) group.splice(idx, 1);
+      if (group.length === 0) {
+        delete ItoSortableList.groups[this.groupName];
       }
     }
-  
-    onGlobalMouseUp(e) {
-      if (this.isDragging) {
-        e.preventDefault();
-        
-        // Rimuovi i listener globali
-        document.removeEventListener('mousemove', this.onMouseMovebound);
-        document.removeEventListener('mouseup', this.onMouseUpbound);
-  
-        if (this.draggedItem) {
-          if (this.placeholder && this.placeholder.parentNode) {
-            this.container.insertBefore(this.draggedItem, this.placeholder.nextSibling);
-          } else {
-            this.container.appendChild(this.draggedItem);
-          }
-  
-          this.draggedItem.style.display = '';
+    this.groupName = null;
+  }
+
+  /**
+   * Returns all instances in the same group (excluding this one).
+   */
+  getGroupSiblings() {
+    if (!this.groupName) return [];
+    return (ItoSortableList.groups[this.groupName] || []).filter(i => i !== this);
+  }
+
+  // ─── Initialization ───────────────────────────────────────
+
+  init() {
+    [...this.container.children].forEach(item => {
+      this.makeDraggable(item);
+    });
+  }
+
+  makeDraggable(item) {
+    const handle = this.handleSelector
+      ? item.querySelector(this.handleSelector)
+      : item;
+
+    if (!handle) return;
+
+    item.removeAttribute('draggable');
+
+    // Remove any previous handler (cross-list rebind)
+    if (item._ito_mousedown_handler && item._ito_handle) {
+      item._ito_handle.removeEventListener('mousedown', item._ito_mousedown_handler);
+    }
+
+    const self = this;
+    const handler = function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      self.isDragging = true;
+      self.draggedItem = item;
+      self.sourceContainer = self.container;
+      self.targetInstance = self;
+
+      // Prevent text selection during drag
+      document.body.style.userSelect = 'none';
+      document.body.style.webkitUserSelect = 'none';
+
+      const rect = item.getBoundingClientRect();
+      self.offsetY = e.clientY - rect.top;
+      self.offsetX = e.clientX - rect.left;
+      self.mouseDownPosition = { x: e.clientX, y: e.clientY };
+
+      // Calculate the correct placeholder position BEFORE removing the item
+      const nextSibling = item.nextElementSibling;
+
+      // Placeholder
+      self.placeholder = document.createElement('div');
+      self.placeholder.className = item.className + ' drag-placeholder';
+      self.placeholder.style.height = rect.height + 'px';
+
+      // Insert the placeholder at the exact position of the item
+      if (nextSibling) {
+        self.container.insertBefore(self.placeholder, nextSibling);
+      } else {
+        self.container.appendChild(self.placeholder);
+      }
+      item.remove();
+
+      // Visual clone
+      self.draggingClone = item.cloneNode(true);
+      self.draggingClone.classList.add('dragging-clone');
+      self.draggingClone.style.width = rect.width + 'px';
+      self.draggingClone.style.position = 'fixed';
+      self.draggingClone.style.top = (e.clientY - self.offsetY) + 'px';
+      self.draggingClone.style.left = (e.clientX - self.offsetX) + 'px';
+      self.draggingClone.style.zIndex = '99999';
+      self.draggingClone.style.pointerEvents = 'none';
+      document.body.appendChild(self.draggingClone);
+
+      document.addEventListener('mousemove', self.onMouseMovebound);
+      document.addEventListener('mouseup', self.onMouseUpbound);
+    };
+
+    item._ito_mousedown_handler = handler;
+    item._ito_handle = handle;
+    handle.addEventListener('mousedown', handler);
+  }
+
+  // ─── Mouse Move ────────────────────────────────────────────
+
+  onGlobalMouseMove(e) {
+    if (!this.isDragging || !this.draggingClone) return;
+    e.preventDefault();
+
+    this.draggingClone.style.top = (e.clientY - this.offsetY) + 'px';
+    this.draggingClone.style.left = (e.clientX - this.offsetX) + 'px';
+    const targetInstance = this.findTargetInstance(e.clientX, e.clientY);
+
+    if (targetInstance) {
+      // If the target has changed, move the placeholder to the new container
+      if (this.targetInstance !== targetInstance) {
+        if (this.placeholder && this.placeholder.parentNode) {
+          this.placeholder.remove();
         }
-        
-        this.cleanupDrag();
-        if (this.onUpdate) {
-            this.onUpdate(this.getCurrentOrder());
-        }
+        this.targetInstance = targetInstance;
+      }
+
+      const afterElement = this.getDragAfterElement(targetInstance.container, e.clientY);
+      if (afterElement) {
+        targetInstance.container.insertBefore(this.placeholder, afterElement);
+      } else {
+        targetInstance.container.appendChild(this.placeholder);
       }
     }
-  
-    cleanupDrag() {
+  }
+
+  // ─── Mouse Up ──────────────────────────────────────────────
+
+  onGlobalMouseUp(e) {
+    if (!this.isDragging) return;
+    e.preventDefault();
+
+    document.removeEventListener('mousemove', this.onMouseMovebound);
+    document.removeEventListener('mouseup', this.onMouseUpbound);
+
+    if (this.draggedItem) {
+      const destinationContainer = this.targetInstance
+        ? this.targetInstance.container
+        : this.sourceContainer;
+
       if (this.placeholder && this.placeholder.parentNode) {
+        this.placeholder.parentNode.insertBefore(this.draggedItem, this.placeholder);
         this.placeholder.remove();
+        this.placeholder = null;
+      } else {
+        destinationContainer.appendChild(this.draggedItem);
       }
-      if (this.draggingClone && this.draggingClone.parentNode) {
-        this.draggingClone.remove();
+
+      this.draggedItem.style.display = '';
+
+      // If the element was moved to another container,
+      // make it draggable in the new instance as well
+      if (this.targetInstance && this.targetInstance !== this) {
+        this.targetInstance.makeDraggable(this.draggedItem);
       }
-      if (this.draggedItem) {
-        this.draggedItem.style.opacity = '1';
-      }
-      this.draggedItem = null;
-      this.draggingClone = null;
-      this.placeholder = null;
-      this.lastValidPosition = null;
-      this.isDragging = false;
     }
-  
-    getDragAfterElement(y) {
-      const draggableElements = [...this.container.children].filter(
-        child => child !== this.draggedItem && child !== this.placeholder
-      );
-  
-      let result = draggableElements.reduce((closest, child) => {
+
+    const movedToAnotherList = this.targetInstance && this.targetInstance !== this;
+    const sourceInstance = this;
+    const destInstance = this.targetInstance || this;
+
+    this.cleanupDrag();
+
+    // Callback with extended information
+    if (sourceInstance.onUpdate) {
+      sourceInstance.onUpdate(sourceInstance.getCurrentOrder(), {
+        type: movedToAnotherList ? 'cross-list' : 'reorder',
+        sourceContainer: sourceInstance.container,
+        destinationContainer: destInstance.container,
+      });
+    }
+    // Notify the destination list as well if different
+    if (movedToAnotherList && destInstance.onUpdate) {
+      destInstance.onUpdate(destInstance.getCurrentOrder(), {
+        type: 'cross-list-receive',
+        sourceContainer: sourceInstance.container,
+        destinationContainer: destInstance.container,
+      });
+    }
+  }
+
+  // ─── Target Search ─────────────────────────────────────────
+
+  /**
+   * Finds which instance (own or from the group) is under the cursor.
+   */
+  findTargetInstance(x, y) {
+    // Check own container first
+    if (this.isPointInsideContainer(this.container, x, y)) {
+      return this;
+    }
+    // Then check group siblings
+    for (const sibling of this.getGroupSiblings()) {
+      if (this.isPointInsideContainer(sibling.container, x, y)) {
+        return sibling;
+      }
+    }
+    // If the cursor is not over any container, keep the current target
+    return this.targetInstance;
+  }
+
+  isPointInsideContainer(container, x, y) {
+    const rect = container.getBoundingClientRect();
+    return (
+      x >= rect.left &&
+      x <= rect.right &&
+      y >= rect.top &&
+      y <= rect.bottom
+    );
+  }
+
+  // ─── Cleanup ───────────────────────────────────────────────
+
+  cleanupDrag() {
+    if (this.placeholder && this.placeholder.parentNode) {
+      this.placeholder.remove();
+    }
+    if (this.draggingClone && this.draggingClone.parentNode) {
+      this.draggingClone.remove();
+    }
+    if (this.draggedItem) {
+      this.draggedItem.style.opacity = '1';
+    }
+    // Restore text selection
+    document.body.style.userSelect = '';
+    this.draggedItem = null;
+    this.draggingClone = null;
+    this.placeholder = null;
+    this.sourceContainer = null;
+    this.targetInstance = null;
+    this.isDragging = false;
+  }
+
+  getDragAfterElement(container, y) {
+    const draggableElements = [...container.children].filter(
+      child => child !== this.draggedItem && child !== this.placeholder
+    );
+
+    let result = draggableElements.reduce(
+      (closest, child) => {
         const box = child.getBoundingClientRect();
         const offset = y - box.top - box.height / 2;
         if (offset < 0 && offset > closest.offset) {
           return { offset, element: child };
-        } else {
-          return closest;
         }
-      }, { offset: Number.NEGATIVE_INFINITY });
-  
-      // Se non troviamo un elemento dopo cui inserire, restituiamo null
-      // per indicare che deve essere inserito alla fine
-      return result.element;
-    }
-  
-    getCurrentOrder() {
-      return [...this.container.children];
-    }
-    /**
-   * Metodo per distruggere l'istanza e pulire tutti i riferimenti e listener
-   */
+        return closest;
+      },
+      { offset: Number.NEGATIVE_INFINITY }
+    );
+
+    return result.element;
+  }
+
+  getCurrentOrder() {
+    return [...this.container.children].filter(
+      child => !child.classList.contains('drag-placeholder')
+    );
+  }
+
+  // ─── Destroy ───────────────────────────────────────────────
+
   destroy() {
-    // 1. Rimuovi i listener globali
     document.removeEventListener('mousemove', this.onMouseMovebound);
     document.removeEventListener('mouseup', this.onMouseUpbound);
-    
-    // 2. Pulisci eventuali elementi di drag in corso
+
     this.cleanupDrag();
-    
-    // 3. Rimuovi i listener di mousedown da tutti gli handle nel container
+
+    // Leave the group
+    this.leaveGroup();
+
     if (this.container) {
       [...this.container.children].forEach(item => {
-        const handle = this.handleSelector ? 
-          item.querySelector(this.handleSelector) : 
-          item;
-          
-        if (handle) {
-          // La modalità più sicura per rimuovere tutti i listener è clonare e sostituire
-          const newHandle = handle.cloneNode(true);
-          if (handle.parentNode) {
-            handle.parentNode.replaceChild(newHandle, handle);
-          }
+        if (item._ito_mousedown_handler && item._ito_handle) {
+          item._ito_handle.removeEventListener('mousedown', item._ito_mousedown_handler);
+          delete item._ito_mousedown_handler;
+          delete item._ito_handle;
         }
       });
     }
-    
-    // 4. Pulisci i riferimenti interni
+
     this.container = null;
     this.draggedItem = null;
     this.draggingClone = null;

@@ -13,6 +13,8 @@ class FileUploader {
     max_size = 0
     max_files = 0
     input_file = null
+    sortable_enabled = false
+    sortable_instance = null
     constructor(el) {
         this.el_container = el
         this.upload_url = milk_url+"?page=upload-file-xhr"
@@ -53,6 +55,119 @@ class FileUploader {
         // Get max files from hidden field
         const maxFilesEl = this.el_container.querySelector('.js-max-files');
         this.max_files = maxFilesEl ? parseInt(maxFilesEl.value) || 0 : 0;
+
+        // Start from the highest existing index to avoid collisions on edit forms
+        this.countI = this.getMaxExistingIndex();
+
+        const sortableEnabledEl = this.el_container.querySelector('.js-sortable-enabled');
+        this.sortable_enabled = sortableEnabledEl
+            ? ['1', 'true', 'yes', 'on'].includes(String(sortableEnabledEl.value || '').toLowerCase())
+            : false;
+
+        if (this.sortable_enabled) {
+            this.setupSortable();
+            this.reindexInputs();
+        } else {
+            this.refreshSortableHandles();
+        }
+    }
+
+    /**
+     * Get highest numeric index already used by hidden file inputs.
+     * Supports names like data[field_files][3][url].
+     * @returns {number}
+     */
+    getMaxExistingIndex() {
+        let maxIndex = 0;
+        this.el_container.querySelectorAll('.js-file-name').forEach((input) => {
+            const inputName = input.getAttribute('name') || '';
+            const match = inputName.match(/\[(\d+)\]\[(url|name|existing)\]$/);
+            if (!match) {
+                return;
+            }
+            const idx = parseInt(match[1], 10);
+            if (!Number.isNaN(idx) && idx > maxIndex) {
+                maxIndex = idx;
+            }
+        });
+        return maxIndex;
+    }
+
+    /**
+     * Enable sortable mode with ItoSortableList if configured.
+     */
+    setupSortable() {
+        const list = this.el_container.querySelector('.js-file-uploader__list');
+        if (!list) {
+            return;
+        }
+        if (typeof ItoSortableList === 'undefined') {
+            console.warn('ItoSortableList is not available, sortable upload disabled.');
+            return;
+        }
+        this.sortable_instance = new ItoSortableList(list, {
+            handleSelector: '.js-upload-sort-handle',
+            onUpdate: () => this.reindexInputs()
+        });
+        this.refreshSortableHandles();
+    }
+
+    /**
+     * Show/hide drag handles based on sortable setting.
+     */
+    refreshSortableHandles() {
+        this.el_container.querySelectorAll('.js-upload-sort-handle').forEach((handle) => {
+            if (this.sortable_enabled) {
+                handle.classList.remove('d-none');
+                handle.style.cursor = 'grab';
+            } else {
+                handle.classList.add('d-none');
+            }
+        });
+    }
+
+    /**
+     * Reindex hidden inputs based on current visual order.
+     */
+    reindexInputs() {
+        const list = this.el_container.querySelector('.js-file-uploader__list');
+        if (!list) {
+            return;
+        }
+
+        let index = 1;
+        list.querySelectorAll('li').forEach((item) => {
+            const urlInput = item.querySelector('input[name$="[url]"]');
+            const nameInput = item.querySelector('input[name$="[name]"]');
+            const existingInput = item.querySelector('input[name$="[existing]"]');
+
+            if (!urlInput || !nameInput) {
+                return;
+            }
+
+            this.renameIndexedInput(urlInput, index, 'url');
+            this.renameIndexedInput(nameInput, index, 'name');
+            if (existingInput) {
+                this.renameIndexedInput(existingInput, index, 'existing');
+            }
+            index++;
+        });
+
+        this.countI = Math.max(this.countI, index - 1);
+        if (this.input_file && typeof this.input_file.is_compiled === 'function') {
+            this.input_file.is_compiled();
+        }
+    }
+
+    /**
+     * Rename input array index preserving field suffix.
+     */
+    renameIndexedInput(input, index, fieldKey) {
+        const currentName = input.getAttribute('name') || '';
+        const updatedName = currentName.replace(/\[\d+\]\[(url|name|existing)\]$/, `[${index}][${fieldKey}]`);
+        if (updatedName !== currentName) {
+            input.setAttribute('name', updatedName);
+        }
     }
 
     
@@ -86,6 +201,8 @@ class FileUploader {
         for (let i = 0; i < files.length; i++) {
             this.countI++
             let li = eI('<li class="list-group-item d-flex justify-content-between align-items-start js-groupitem'+this.countI+'"></li>')
+            let dragHandle = eI('<div class="my-2 me-2 text-body-secondary js-upload-sort-handle d-none" title="Drag to reorder" style="cursor: grab; user-select: none;"><i class="bi bi-grip-vertical"></i></div>')
+            li.appendChild(dragHandle)
             let input;
             let liContainer1 = eI('<div class="me-2 w-100"></div>')
             li.appendChild(liContainer1)
@@ -98,7 +215,7 @@ class FileUploader {
 
             // Create inputs for new indexed structure
             if (name.includes('[')) {
-                new_name = name.replace(']', '')
+                let new_name = name.replace(']', '')
                 input = eI('<input type="hidden" class="js-file-name js-filename'+this.countI+'" name="'+new_name+'_files]['+this.countI+'][url]" value="'+files[i].name+'">')
                 liContainer1.appendChild(input)
                 input = eI('<input type="hidden" class="js-fileoriginalname'+this.countI+'" name="'+new_name+'_files]['+this.countI+'][name]" value="'+files[i].name+'">')
@@ -123,17 +240,23 @@ class FileUploader {
                 group.classList.add('opacity-fadeout');
                 setTimeout(() => { 
                     group.remove(); 
-                    this.input_file.is_compiled()
-                    //
+                    this.reindexInputs();
                  }, 500)
                 // stop upload
                 if (this.xhr[group_i]) this.xhr[group_i].abort()
             })
             liContainer2.appendChild(btn)
             ul.appendChild(li)
+
+            if (this.sortable_enabled && this.sortable_instance && typeof this.sortable_instance.makeDraggable === 'function') {
+                this.sortable_instance.makeDraggable(li);
+            }
        
             this.uploadSingleFile(files[i], this.countI)
         }
+
+        this.refreshSortableHandles();
+        this.reindexInputs();
 
         // svuoto il campo file
         this.el_container.querySelector('input[type="file"]').value = '';
@@ -161,7 +284,10 @@ class FileUploader {
                 if (groupItem) {
                     groupItem.classList.add('opacity-fadeout');
                     setTimeout(() => { 
-                        if (groupItem) groupItem.remove();
+                        if (groupItem) {
+                            groupItem.remove();
+                            this.reindexInputs();
+                        }
                     }, 500);
                 }
             }, 5000)
@@ -234,21 +360,45 @@ class FileUploader {
  * Escludo gli image uploader che hanno js-uploader-type=image
  */
 document.addEventListener('DOMContentLoaded', function() {
+    startFileUploader();
+});
+
+document.addEventListener('updateContainer', function() {
+    startFileUploader();
+});
+
+function startFileUploader() {
     document.querySelectorAll('.js-file-uploader').forEach(function(el) {
         // Skip if this is an image uploader (will be handled by ImageUploader)
         const uploaderType = el.querySelector('.js-uploader-type');
         if (uploaderType && uploaderType.value === 'image') {
             return; // Skip image uploaders
         }
-        new FileUploader(el);
+        if (el.__fileUploaderInitialized) {
+            return;
+        }
+        el.__fileUploaderInitialized = true;
+        el.__fileUploaderInstance = new FileUploader(el);
     });
     // il bottone per rimuovere il campo file nel caso sia già presente un valore
-    document.querySelectorAll('.js-upload-file-remove-exist-value').forEach(function(el) {
+    document.querySelectorAll('.js-file-uploader:not(.js-image-uploader) .js-upload-file-remove-exist-value').forEach(function(el) {
+        if (el.__fileRemoveHandlerBound) {
+            return;
+        }
+        el.__fileRemoveHandlerBound = true;
         el.addEventListener('click', (ev) => {
             let el = ev.currentTarget;
             let group = el.closest('.js-group-item');
+            if (!group) {
+                return;
+            }
+            const container = group ? group.closest('.js-file-uploader') : null;
             group.remove();
+            const uploader = container ? container.__fileUploaderInstance : null;
+            if (uploader && typeof uploader.reindexInputs === 'function') {
+                uploader.reindexInputs();
+            }
         
         });
     });
-});
+}

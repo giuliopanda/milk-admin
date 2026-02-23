@@ -25,11 +25,7 @@ class CSRFProtection {
      * @return void
      */
     public static function validate(): void {
-        // Skip if user is guest (no CSRF token expected)
-        if (Permissions::check('_user.is_guest')) {
-            return;
-        }
-        
+       
         // Skip if not a POST request
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             return;
@@ -39,10 +35,9 @@ class CSRFProtection {
         if (self::isExemptRoute()) {
             return;
         }
-        
+      
         // Get CSRF token from various sources
         $token = self::extractToken();
-        
         // Validate token
         if (!Token::checkValue($token, session_id())) {
             self::handleInvalidToken();
@@ -173,9 +168,24 @@ class CSRFProtection {
      * @return void
      */
     private static function handleFormSubmission(): void {
+
         // Preserve original POST data for debugging/logging
         $original_post = $_POST;
         $has_files = !empty($_FILES);
+        // Preserve minimal route context so the current page can be rendered again.
+        $route_context = [];
+        foreach (['page', 'action', 'id', 'page-output'] as $key) {
+            if (isset($_REQUEST[$key]) && $_REQUEST[$key] !== '') {
+                $route_context[$key] = $_REQUEST[$key];
+            }
+        }
+        if (!isset($route_context['id']) && isset($_REQUEST['data']['id'])) {
+            $id_from_data = _absint($_REQUEST['data']['id']);
+            if ($id_from_data > 0) {
+                $route_context['id'] = $id_from_data;
+            }
+        }
+
         // Clear POST data to prevent further processing
         $_POST = [];
         
@@ -196,19 +206,20 @@ class CSRFProtection {
             $_FILES = [];
         }
         
-        // Add appropriate error message
-        if ($has_files) {
-            MessagesHandler::addError('Security token expired during file upload. Please refresh the page and try uploading again.');
-        } else {
-            MessagesHandler::addError('Security token expired. Please refresh the page and try again.');
-        }
+        // Build user-facing message
+        $error_message = $has_files
+            ? 'Security token expired during file upload. Please refresh the page and try uploading again.'
+            : 'Security token expired. Please try again. If the problem persists, please contact support.';
+        MessagesHandler::addError($error_message);
         
         // Log the CSRF attempt for security monitoring
        
         $context = $has_files ? 'file upload' : 'form submission';
         $post_keys = implode(', ', array_keys($original_post));
         Logs::set('SECURITY', "CSRF token mismatch on {$context} from IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown') . " (POST keys: {$post_keys})",  'WARNING');
-        
+        // Invalidate submission as if it were a normal validation failure:
+        // keep only routing keys and drop submitted payload/action flags.
+        $_REQUEST = array_merge($_GET, $route_context);
     }
     
     /**

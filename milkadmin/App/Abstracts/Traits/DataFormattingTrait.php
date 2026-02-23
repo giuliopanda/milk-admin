@@ -187,6 +187,36 @@ trait DataFormattingTrait
             return date('Y-m-d H:i:s');
         }
 
+        // Handle updated_at fields with auto-update on every save
+        if (isset($rule['_auto_updated_at']) && $rule['_auto_updated_at'] === true) {
+            return date('Y-m-d H:i:s');
+        }
+
+        // Handle created_by fields with auto-preservation on updates
+        if (isset($rule['_auto_created_by']) && $rule['_auto_created_by'] === true) {
+            $id_field = $this->getPrimaryKey();
+            $current_record = $this->getRawData('object', false);
+
+            // If updating an existing record (has ID > 0), keep original created_by.
+            if (isset($current_record->$id_field) && $current_record->$id_field > 0) {
+                $old_record = $this->getById($current_record->$id_field);
+                if ($old_record && isset($old_record->$field_name)) {
+                    $old_value = $old_record->$field_name;
+                    if (!is_null($old_value) && $old_value !== '') {
+                        return $old_value;
+                    }
+                }
+            }
+
+            // For new records or empty legacy values, use current user id.
+            return $this->resolveCurrentUserId();
+        }
+
+        // Handle updated_by fields with auto-update on every save
+        if (isset($rule['_auto_updated_by']) && $rule['_auto_updated_by'] === true) {
+            return $this->resolveCurrentUserId();
+        }
+
         // Check for save_value (static values)
         if (isset($rule['save_value'])) {
 
@@ -260,6 +290,15 @@ trait DataFormattingTrait
         }
 
         return $value;
+    }
+
+    /**
+     * Resolve current authenticated/guest user id.
+     */
+    private function resolveCurrentUserId(): int
+    {
+        $user = Get::user();
+        return (int) ($user->id ?? 0);
     }
 
     /**
@@ -597,9 +636,9 @@ trait DataFormattingTrait
             $this->records_objects[$this->current_index]['___action'] = 'edit';
         }
         // Segna il record come modificato (solo se era 'original')
-        if ($this->records_objects[$this->current_index]['___action'] === null) {
-            $this->records_objects[$this->current_index]['___action'] = 'edit';
-        }
+        //if ($this->records_objects[$this->current_index]['___action'] === null) {
+        //    $this->records_objects[$this->current_index]['___action'] = 'edit';
+        //}
 
     }
 

@@ -19,9 +19,9 @@ use PHPMailer\PHPMailer\PHPMailer;
 
 class Mail
 {
-    var $mail = null;
-    var $last_error = '';
-    var $new_email = false;
+    private ?PHPMailer $mail = null;
+    public string  $last_error = '';
+    private bool  $new_email = false;
 
     /**
      * Configures the mailer with SMTP settings or PHP's mail() function
@@ -34,7 +34,7 @@ class Mail
      * @param string $smtpSecure Encryption type (default: PHPMailer::ENCRYPTION_SMTPS)
      * @return void
      */
-    function config($is_smtp, $username = '', $password = '', $host = '',  $port = 465, $smtpSecure = PHPMailer::ENCRYPTION_SMTPS)
+    public function config(bool $is_smtp, string $username = '', string $password = '', string $host = '', int $port = 465, string $smtpSecure = PHPMailer::ENCRYPTION_SMTPS): void
     {
         $this->last_error = '';
         $this->mail = new PHPMailer(true);
@@ -56,14 +56,15 @@ class Mail
         $this->mail->Subject = "MilkAdmin email";
     }
 
-    public function charset($charset = 'UTF-8') {
+    public function charset(string $charset = 'UTF-8'): self {
         $this->mail->CharSet = $charset;
+        return $this;
     }
    
     /**
      * To accepts multiple email addresses and names separated by commas
      */
-    public function to(string $address, string $name = '') {
+    public function to(string $address, string $name = ''): self {
         $this->isNewEamil();
         $address = str_replace(';', ',', $address);
         $name = str_replace(';', ',', $name);
@@ -96,7 +97,7 @@ class Mail
      * @param string $name Optional name(s) corresponding to the email address(es)
      * @return $this Returns self for method chaining
      */
-    public function cc(string $address, string $name = '') {
+    public function cc(string $address, string $name = ''): self {
         $this->isNewEamil();
         $address = str_replace(';', ',', $address);
         $name = str_replace(';', ',', $name);
@@ -129,7 +130,7 @@ class Mail
      * @param string $name Optional name(s) corresponding to the email address(es)
      * @return $this Returns self for method chaining
      */
-    public function bcc(string $address, string $name = '') {
+    public function bcc(string $address, string $name = ''): self {
         $this->isNewEamil();
         $address = str_replace(';', ',', $address);
         $name = str_replace(';', ',', $name);
@@ -162,7 +163,7 @@ class Mail
      * @param string $from_name Optional sender's name
      * @return $this Returns self for method chaining
      */
-    public function from($from, $from_name = '') {
+    public function from(string $from, string $from_name = ''): self {
         $this->isNewEamil();
         try {
             $this->mail->setFrom($from, $from_name);
@@ -179,7 +180,7 @@ class Mail
      * @param string $reply_to_name Optional reply-to name
      * @return $this Returns self for method chaining
      */
-    public function replyTo($reply_to, $reply_to_name = '') {
+    public function replyTo(string $reply_to, string $reply_to_name = ''): self {
         $this->isNewEamil();
         try {
             $this->mail->addReplyTo($reply_to, $reply_to_name);
@@ -195,7 +196,7 @@ class Mail
      * @param string $subject The email subject line
      * @return $this Returns self for method chaining
      */
-    public function subject($subject) {
+    public function subject(string $subject): self {
         $this->isNewEamil();
         try {
             $this->mail->Subject = $subject;
@@ -208,16 +209,17 @@ class Mail
     /**
      * Finds and loads the email template
      */
-    public function loadTemplate($path, $args_data = []) {
+    public function loadTemplate(string $path, array $args_data = []): self {
         $this->isNewEamil();
-        extract($args_data);
+        $path = Get::dirPath($path);
+        extract($args_data, EXTR_SKIP);
         $page = Get::dirPath($path);
         ob_start();
         if (is_file ( $page )) {
             require $page;
         } else {
             Logs::set('MAIL',  'Template not found: '.$page, 'ERROR');
-            die ("Template not found: ". $path);
+            $this->last_error = 'Email template not found';
         }
         ob_end_clean();
         return $this;
@@ -229,7 +231,7 @@ class Mail
      * @param string $message The email message body (HTML or plain text)
      * @return $this Returns self for method chaining
      */
-    public function message($message) {
+    public function message(string $message): self {
         $this->isNewEamil();
         try {
             $this->mail->Body    = $message;
@@ -246,7 +248,7 @@ class Mail
      * @param bool $is_html Whether the email is in HTML format (default: false)
      * @return $this Returns self for method chaining
      */
-    public function isHTML($is_html = false) {
+    public function isHTML(bool $is_html = false): self {
         $this->mail->isHTML($is_html);                                  //Set email format to HTML
         return $this;
     }
@@ -258,8 +260,9 @@ class Mail
      * @param string $name Optional custom filename for the attachment
      * @return $this Returns self for method chaining
      */
-    public function addAttachment($path, $name = '')
+    public function addAttachment(string $path, string $name = ''): self
     {
+        $path = Get::dirPath($path);
         $this->isNewEamil();
         try {
             if ($name == '') {
@@ -274,9 +277,45 @@ class Mail
 
     /**
      * Sends the email
+     *
+     * Runs the 'mail_before_send' hook before sending.
+     * Hook receives the PHPMailer instance and can:
+     * - modify it and return it to proceed
+     * - return false to cancel the send
+     *
+     * @example
+     * ```php
+     * Hooks::set('mail_before_send', function(PHPMailer $mail) {
+     *     $mail->addBCC('archive@example.com'); // always BCC archive
+     *     return $mail;
+     * });
+     *
+     * Hooks::set('mail_before_send', function(PHPMailer $mail) {
+     *     if (str_contains($mail->Subject, 'BLOCKED')) {
+     *         return false; // cancel send
+     *     }
+     *     return $mail;
+     * });
+     * ```
      */
-    public function send() {
+    public function send(): bool {
         $this->new_email = false;
+        // Hook: mail_before_send — allows modification or cancellation
+        $hookResult = Hooks::run('mail_before_send', $this->mail, $this->last_error);
+
+
+        if ($hookResult === false) {
+            $this->last_error = 'Send cancelled by hook';
+            Hooks::run('mail_after_send', $this->mail, false, $this->last_error);
+            $this->clear();
+            return false;
+        }
+
+        if ($this->last_error != '') {
+            Hooks::run('mail_after_send', $this->mail, false, $this->last_error);
+            return false;
+        }
+
         $this->last_error = '';
         try {
             $result = $this->mail->send();
@@ -287,6 +326,8 @@ class Mail
             $this->last_error = $this->mail->ErrorInfo;
             $result = false;
         }
+       
+        Hooks::run('mail_after_send', $this->mail, $result, $this->last_error);
         $this->clear();
         return $result;
     }
@@ -296,7 +337,7 @@ class Mail
      * 
      * @return bool True if there was an error, false otherwise
      */
-    public function hasError() {
+    public function hasError(): bool {
         return $this->last_error != '';
     }
 
@@ -305,11 +346,11 @@ class Mail
      * 
      * @return string The last error message, or an empty string if no error occurred
      */
-    public function getError() {
+    public function getError(): string {
         return $this->last_error;
     }
 
-    public function getLastError() {
+    public function getLastError(): string {
         return $this->last_error;
     }
 
@@ -318,7 +359,7 @@ class Mail
      * 
      * @return void
      */
-    private function clear() {
+    private function clear(): void {
         if ( $this->mail ) {
             $this->mail->clearAddresses();
             $this->mail->clearAllRecipients();
@@ -336,7 +377,7 @@ class Mail
      * 
      * @return void
      */
-    private function isNewEamil() {
+    private function isNewEamil(): void {
         if (!$this->new_email) {
             $this->clear();
             $this->last_error = '';

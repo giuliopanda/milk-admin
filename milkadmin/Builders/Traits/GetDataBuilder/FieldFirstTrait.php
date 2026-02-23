@@ -246,13 +246,75 @@ trait FieldFirstTrait
 
             $class = $options['class'] ?? 'js-file-download';
             $target = $options['target'] ?? '_blank';
-            $output = '';
+            $displayMode = strtolower((string) ($options['display_mode'] ?? 'link'));
+            $maxFiles = isset($options['max_files']) ? (int) $options['max_files'] : null;
+            $stripExtension = !empty($options['strip_extension']);
+            $maxNameLength = isset($options['max_name_length']) ? max(0, (int) $options['max_name_length']) : 28;
+            $textSize = trim((string) ($options['text_size'] ?? '0.78rem'));
+            $textLineHeight = trim((string) ($options['text_line_height'] ?? '1.2'));
+            $showMoreIndicator = !array_key_exists('show_more_indicator', $options)
+                ? false
+                : (bool) $options['show_more_indicator'];
+            $validFiles = [];
 
             foreach ($files as $file) {
                 $url = $this->extractFileProperty($file, 'url');
                 $name = $this->extractFileProperty($file, 'name');
 
-                if ($url && $name) {
+                if ($name === null || $name === '') {
+                    if (is_string($url) && $url !== '') {
+                        $name = basename($url);
+                    }
+                }
+
+                if (!is_string($name) || trim($name) === '') {
+                    continue;
+                }
+
+                $displayName = trim($name);
+                if ($stripExtension) {
+                    $displayName = pathinfo($displayName, PATHINFO_FILENAME);
+                }
+
+                $validFiles[] = [
+                    'url' => $url,
+                    'name' => $displayName,
+                ];
+            }
+
+            if (empty($validFiles)) {
+                return '';
+            }
+
+            $totalFiles = count($validFiles);
+            if ($maxFiles !== null && $maxFiles > 0) {
+                $validFiles = array_slice($validFiles, 0, $maxFiles);
+            }
+
+            $output = '';
+
+            foreach ($validFiles as $fileData) {
+                $url = $fileData['url'];
+                $name = $fileData['name'];
+                if ($displayMode === 'text') {
+                    $fullName = $name;
+                    if ($maxNameLength > 0) {
+                        if (function_exists('mb_strlen') && function_exists('mb_substr')) {
+                            if (mb_strlen($name, 'UTF-8') > $maxNameLength) {
+                                $name = mb_substr($name, 0, $maxNameLength, 'UTF-8') . '...';
+                            }
+                        } elseif (strlen($name) > $maxNameLength) {
+                            $name = substr($name, 0, $maxNameLength) . '...';
+                        }
+                    }
+                    $output .= sprintf(
+                        '<div title="%s" style="max-width: 100%%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: %s; line-height: %s;">%s</div>',
+                        _rh($fullName),
+                        _r($textSize),
+                        _r($textLineHeight),
+                        _rh($name)
+                    );
+                } elseif ($url && $name) {
                     $output .= sprintf(
                         '<a href="%s" target="%s" class="%s">%s</a><br>',
                         _r($url),
@@ -261,6 +323,15 @@ trait FieldFirstTrait
                         _rh($name)
                     );
                 }
+            }
+
+            if (
+                $showMoreIndicator
+                && $maxFiles !== null
+                && $maxFiles > 0
+                && $totalFiles > $maxFiles
+            ) {
+                $output .= '...';
             }
 
             return $output;
@@ -281,8 +352,16 @@ trait FieldFirstTrait
             $class = $options['class'] ?? '';
             $lightbox = $options['lightbox'] ?? false;
             $maxImages = $options['max_images'] ?? null;
+            $overlap = max(0, (int) ($options['overlap'] ?? 0));
+            $showMoreIndicator = !array_key_exists('show_more_indicator', $options)
+                ? true
+                : (bool) $options['show_more_indicator'];
 
-            $output = '<div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">';
+            if ($overlap > 0) {
+                $output = '<div style="display: flex; align-items: center;">';
+            } else {
+                $output = '<div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">';
+            }
             $count = 0;
 
             foreach ($files as $file) {
@@ -294,13 +373,32 @@ trait FieldFirstTrait
                 }
 
                 if ($maxImages !== null && $count >= $maxImages) {
-                    $remaining = count($files) - $count;
-                    $output .= $this->createMoreIndicator($size, $remaining);
+                    if ($showMoreIndicator) {
+                        $remaining = count($files) - $count;
+                        $output .= $this->createMoreIndicator($size, $remaining);
+                    }
                     break;
                 }
 
-                $imgHtml = $this->createImageTag($url, $name, $size, $class);
-                $output .= $lightbox ? $this->wrapInLightbox($imgHtml, $url, $key) : $imgHtml;
+                $imageInlineStyle = '';
+                if ($overlap > 0 && $count === 0) {
+                    $imageInlineStyle = ' box-shadow: 5px 0px 5px rgba(0, 0, 0, .3);';
+                }
+
+                $imgHtml = $this->createImageTag($url, $name, $size, $class, $imageInlineStyle);
+                if ($lightbox) {
+                    $imgHtml = $this->wrapInLightbox($imgHtml, $url, $key);
+                }
+
+                if ($overlap > 0) {
+                    $wrapperStyle = 'display: inline-flex; position: relative; z-index: ' . (1000 - $count) . ';';
+                    if ($count > 0) {
+                        $wrapperStyle .= ' margin-left: -' . $overlap . 'px;';
+                    }
+                    $imgHtml = '<span style="' . $wrapperStyle . '">' . $imgHtml . '</span>';
+                }
+
+                $output .= $imgHtml;
                 $count++;
             }
 
@@ -391,14 +489,15 @@ trait FieldFirstTrait
         return null;
     }
 
-    private function createImageTag(string $url, string $name, int $size, string $class): string
+    private function createImageTag(string $url, string $name, int $size, string $class, string $extraStyle = ''): string
     {
         return sprintf(
-            '<img src="%s" alt="%s" style="width: %dpx; height: %dpx; object-fit: cover; border-radius: 4px;" class="%s">',
+            '<img src="%s" alt="%s" style="width: %dpx; height: %dpx; object-fit: cover; border-radius: 4px;%s" class="%s">',
             _r($url),
             _r($name),
             $size,
             $size,
+            _r($extraStyle),
             _r($class)
         );
     }

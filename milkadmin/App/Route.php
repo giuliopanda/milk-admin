@@ -351,7 +351,6 @@ class Route
         if (headers_sent()) {
             Logs::set('ROUTE',  'Cannot redirect, headers already sent', 'ERROR');
             die('Cannot redirect, headers already sent');
-            return;
         }
         if (is_array($url)) {
             $url = "?".http_build_query($url);

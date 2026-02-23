@@ -122,22 +122,22 @@ window.getCSRFToken = function() {
  * Aggiunge automaticamente il token CSRF ai form POST al momento del submit
  */
 (function() {
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-    const csrfTokenName = document.querySelector('meta[name="csrf-token-name"]')?.getAttribute('content');
-
-    if (!csrfToken || !csrfTokenName) return;
-
     document.addEventListener('submit', function(event) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const csrfTokenName = document.querySelector('meta[name="csrf-token-name"]')?.getAttribute('content');
+        if (!csrfToken || !csrfTokenName) return;
+
         const form = event.target;
         const method = (form.getAttribute('method') || form.method || 'get').toLowerCase();
-        if (form.matches('form') && 
-            method === 'post' && 
-            !form.querySelector(`input[name="${csrfTokenName}"]`)) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = csrfTokenName;
+        if (form.matches('form') && method === 'post') {
+            let input = form.querySelector(`input[name="${csrfTokenName}"]`);
+            if (!input) {
+                input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = csrfTokenName;
+                form.insertBefore(input, form.firstChild);
+            }
             input.value = csrfToken;
-            form.insertBefore(input, form.firstChild);
         }
     }, true);
 })();

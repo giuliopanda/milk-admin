@@ -66,14 +66,29 @@ $auto_reload_seconds = isset($auto_reload_seconds) ? (int)$auto_reload_seconds :
                 </div>
                 
                 <div class="form-check mb-3">
-                    <input class="form-check-input" 
-                           type="checkbox" 
-                           value="1" 
-                           id="confirm_backup" 
+                    <input class="form-check-input"
+                           type="checkbox"
+                           value="1"
+                           id="confirm_backup"
                            name="confirm_backup"
                            required>
                     <label class="form-check-label" for="confirm_backup">
                         <?php _pt('I confirm I have performed a complete system backup'); ?>
+                    </label>
+                </div>
+
+                <div class="form-check mb-3">
+                    <input class="form-check-input"
+                           type="checkbox"
+                           value="1"
+                           id="core_only"
+                           name="core_only"
+                           checked>
+                    <label class="form-check-label" for="core_only">
+                        <?php _pt('Update core only'); ?>
+                        <small class="text-body-secondary d-block">
+                            <?php _pt('Only the milkadmin folder will be updated. Uncheck to also update milkadmin_local, vendor and public_html.'); ?>
+                        </small>
                     </label>
                 </div>
                 

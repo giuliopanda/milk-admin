@@ -143,13 +143,20 @@ class Token {
 
     /**
      * Generates a CSRF token for authenticating browser calls.
-     * The token is formed by encrypting a JSON array containing [timestamp, formname].
+     * The token is formed by encrypting a JSON array containing:
+     * [timestamp, token_key, user_id, session_id].
      * 
      * @param string $name Form name used to generate the token
      * @return string Encrypted token
      */
     public static function get($name) {
-        return self::encrypt(json_encode([time(), self::getTokenKey($name)]));
+        $payload = [
+            time(),
+            self::getTokenKey($name),
+            self::getCurrentUserId(),
+            self::getCurrentSessionId()
+        ];
+        return self::encrypt(json_encode($payload));
     }
 
     /**
@@ -214,20 +221,76 @@ class Token {
             return false;
         }
         $token_array = self::decrypt($token);
+    
         if (is_array($token_array) && count($token_array) > 0) {
-            if (self::getTokenKey($name) !== $token_array[1]) {
+            if (!array_key_exists(1, $token_array) || self::getTokenKey($name) !== $token_array[1]) {
                 self::$last_error = 'invalid_token';
                 return false;
             }
-            $time = $token_array[0];
+            $time = $token_array[0] ?? null;
+            if (!is_numeric($time)) {
+                self::$last_error = 'invalid_token';
+                return false;
+            }
             if ($time + $time_to_expire < time()) {
                 self::$last_error = 'expired_token';
+                return false;
+            }
+
+            // Enforce context binding to current user and current session.
+            if (!array_key_exists(2, $token_array) || !array_key_exists(3, $token_array)) {
+                self::$last_error = 'invalid_token_context';
+                return false;
+            }
+
+            $token_user_id = is_numeric($token_array[2]) ? (int) $token_array[2] : null;
+            $token_session_id = (string) $token_array[3];
+
+            if ($token_user_id === null || $token_session_id === '') {
+                self::$last_error = 'invalid_token_context';
+                return false;
+            }
+
+            $current_user_id = self::getCurrentUserId();
+            $current_session_id = self::getCurrentSessionId();
+
+            if ($token_user_id !== $current_user_id) {
+                self::$last_error = 'invalid_user_context';
+                return false;
+            }
+
+            if ($current_session_id === '' || !hash_equals($token_session_id, $current_session_id)) {
+                self::$last_error = 'invalid_session_context';
                 return false;
             }
             return true;
         }
         self::$last_error = 'invalid_token';
         return false;
+    }
+
+    /**
+     * Get current user id for token context binding.
+     * Returns 0 for guest users or when user resolution is unavailable.
+     */
+    private static function getCurrentUserId(): int {
+        try {
+            $user = Get::user();
+            if (is_object($user) && isset($user->id) && is_numeric($user->id)) {
+                return (int) $user->id;
+            }
+        } catch (\Throwable) {
+            // Fallback to guest user context.
+        }
+
+        return 0;
+    }
+
+    /**
+     * Get current PHP session id for token context binding.
+     */
+    private static function getCurrentSessionId(): string {
+        return (string) session_id();
     }
 
     /**

@@ -29,7 +29,7 @@ class InstallModule extends AbstractModule
              ->isCoreModule()
              ->addHeaderLink('Install', '?page=install', 'bi bi-gear-fill')
              ->addHeaderLink('Update modules', '?page=install&action=update-modules', 'bi bi-gear-fill')
-             ->version('0.9.2');
+             ->version(251100);
     }
 
     /**
@@ -505,6 +505,11 @@ class InstallModule extends AbstractModule
         File::putContents($version_dir.'/milkadmin_local/storage/index.php', '<?php // Silence is golden');
         File::putContents($version_dir.'/milkadmin_local/media/index.php', '<?php // Silence is golden');
 
+        // copy milkadmin_local/storage/.htaccess
+        if (is_file(MILK_DIR.'/../milkadmin_local/storage/.htaccess')) {
+            copy(MILK_DIR.'/../milkadmin_local/storage/.htaccess', $version_dir.'/milkadmin_local/storage/.htaccess');
+        }
+
         // copy milkadmin_local/Modules folder if exists
         if (is_dir(MILK_DIR.'/../milkadmin_local/Modules')) {
             mkdir($version_dir.'/milkadmin_local/Modules');
@@ -926,8 +931,17 @@ class InstallModule extends AbstractModule
 
         // First, check if there is an update to process
         if (file_exists($update_file) && ($_REQUEST['action'] ?? '') != 'upload-update') {
+            // Read core_only preference
+            $core_only_flag_file = $temp_dir . '/update-core-only.flag';
+            $core_only = file_exists($core_only_flag_file) ? trim(file_get_contents($core_only_flag_file)) === '1' : true;
+
             // Process the update
-            $update_result = InstallService::processUpdate($update_file, $update_dir);
+            $update_result = InstallService::processUpdate($update_file, $update_dir, $core_only);
+
+            // Clean up the core_only flag file
+            if (file_exists($core_only_flag_file)) {
+                unlink($core_only_flag_file);
+            }
 
             if ($update_result === true) {
                 // Update completed successfully

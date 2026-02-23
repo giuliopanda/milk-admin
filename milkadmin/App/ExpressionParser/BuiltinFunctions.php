@@ -11,6 +11,7 @@ class BuiltinFunctions
         'NOW', 'AGE', 'ROUND', 'ABS', 'IFNULL',
         'UPPER', 'LOWER', 'CONCAT', 'TRIM', 'ISEMPTY',
         'PRECISION', 'DATEONLY', 'TIMEADD', 'ADDMINUTES',
+        'USERID',
         'COUNT', 'SUM', 'MIN', 'MAX',
         'FIND', 'CONTAINS', 'FIRST', 'LAST'
     ];
@@ -308,6 +309,32 @@ class BuiltinFunctions
     protected function func_ADDMINUTES(array $args): string
     {
         return $this->func_TIMEADD($args);
+    }
+
+    /**
+     * USERID() - Restituisce l'id dell'utente loggato o 0
+     */
+    protected function func_USERID(array $args): int
+    {
+        if (!empty($args)) {
+            throw new \Exception("USERID() non accetta argomenti");
+        }
+
+        try {
+            $auth = \App\Get::make('Auth');
+            if (!is_object($auth) || !method_exists($auth, 'getUser')) {
+                return 0;
+            }
+
+            $user = $auth->getUser();
+            if (!is_object($user)) {
+                return 0;
+            }
+
+            return (int)($user->id ?? 0);
+        } catch (\Throwable) {
+            return 0;
+        }
     }
 
     // ==================== HELPER INTERNI PER TIME ====================

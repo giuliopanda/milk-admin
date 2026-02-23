@@ -14,7 +14,7 @@
  * - Funzioni: NOW(), AGE(date), ROUND(n, decimals), ABS(n), IFNULL(val, default),
  *             UPPER(str), LOWER(str), CONCAT(str1, str2, ...), TRIM(str),
  *             ISEMPTY(val), PRECISION(n, decimals), DATEONLY(datetime),
- *             TIMEADD(time, minutes), ADDMINUTES(time, minutes)
+ *             TIMEADD(time, minutes), ADDMINUTES(time, minutes), USERID()
  */
 
 class ExpressionParser {
@@ -77,7 +77,7 @@ class ExpressionParser {
         this._builtinFunctions = [
             'NOW', 'AGE', 'ROUND', 'ABS', 'IFNULL',
             'UPPER', 'LOWER', 'CONCAT', 'TRIM', 'ISEMPTY',
-            'PRECISION', 'DATEONLY', 'TIMEADD', 'ADDMINUTES',
+            'PRECISION', 'DATEONLY', 'TIMEADD', 'ADDMINUTES', 'USERID',
             'COUNT', 'SUM', 'MIN', 'MAX',
             'FIND', 'CONTAINS', 'FIRST', 'LAST'
         ];
@@ -539,6 +539,37 @@ class ExpressionParser {
      */
     _func_ADDMINUTES(args) {
         return this._func_TIMEADD(args);
+    }
+
+    /**
+     * USERID() - Restituisce l'id utente dal contesto globale o 0
+     */
+    _func_USERID(args) {
+        if (args.length !== 0) {
+            throw new Error('USERID() non accetta argomenti');
+        }
+        return this._getContextUserId();
+    }
+
+    _getContextUserId() {
+        try {
+            if (typeof window === 'undefined') return 0;
+
+            const directId = window.MilkAdmin && window.MilkAdmin.user_id;
+            if (directId !== undefined && directId !== null) {
+                const parsed = parseInt(directId, 10);
+                return Number.isFinite(parsed) ? parsed : 0;
+            }
+
+            // Fallback retrocompatibile
+            const user = window.MilkAdmin &&
+                window.MilkAdmin.ctx &&
+                window.MilkAdmin.ctx.user;
+            const id = user ? parseInt(user.id, 10) : 0;
+            return Number.isFinite(id) ? id : 0;
+        } catch (e) {
+            return 0;
+        }
     }
 
     // ==================== ARRAY FUNCTIONS ====================
