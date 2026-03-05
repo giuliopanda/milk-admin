@@ -131,6 +131,14 @@ class InstallModule extends AbstractModule
     public function actionSaveConfig() {  
         if (Permissions::check('_user.is_admin') || Config::get('version') === null) {
             Hooks::run('install.init');
+
+            // If CSRF middleware invalidated the POST, show install page with global error.
+            if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_POST) && MessagesHandler::hasErrors()) {
+                $html = $this->model->getHtmlModules();
+                Response::themePage('empty', __DIR__."/Views/install_page.php", ['html' => $html]);
+                return;
+            }
+
             if ($this->model->checkData($_REQUEST)) {
                 $_SESSION['installation_admin'] = [
                     'admin-username' => trim((string)($_REQUEST['admin-username'] ?? '')),

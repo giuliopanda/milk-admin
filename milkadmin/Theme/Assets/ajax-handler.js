@@ -1,71 +1,165 @@
 /**
- * AJAX response handler for Reports module
+ * AJAX response handler for Reports module Version 2
  * Centralizes handling of permission denied responses and other common response patterns
  */
 
 // customizations the native fetch to add permission denied handling
 const originalFetch = window.fetch;
+const originalNativeFormSubmit = HTMLFormElement.prototype.submit;
+const CSRF_AUTO_ATTR = 'data-csrf-auto-injected';
 
-window.fetch = function (...args) {
-    let [url, options = {}] = args;
-    const method = (options.method || 'GET').toUpperCase();
+function getCSRFMeta() {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    const csrfTokenName = document.querySelector('meta[name="csrf-token-name"]')?.getAttribute('content') || '';
+    return {
+        token: csrfToken,
+        tokenName: csrfTokenName
+    };
+}
 
-    // Inizializza headers se non esiste
+function isPostLikeMethod(method) {
+    const normalized = String(method || 'GET').toUpperCase();
+    return ['POST', 'PUT', 'PATCH', 'DELETE'].includes(normalized);
+}
+
+function ensureCSRFInputInForm(form) {
+    if (!(form instanceof HTMLFormElement)) return;
+
+    const method = String(form.getAttribute('method') || form.method || 'get').toUpperCase();
+    if (!isPostLikeMethod(method)) return;
+
+    const { token, tokenName } = getCSRFMeta();
+    if (!token || !tokenName) return;
+
+    let input = form.querySelector(`input[name="${tokenName}"]`);
+    if (!input) {
+        input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = tokenName;
+        input.setAttribute(CSRF_AUTO_ATTR, '1');
+        form.insertBefore(input, form.firstChild);
+    }
+    input.value = token;
+}
+
+function ensureCSRFInputsInScope(scope) {
+    if (!scope || !scope.querySelectorAll) return;
+    scope.querySelectorAll('form').forEach(ensureCSRFInputInForm);
+}
+
+function ensureFetchHeaders(options) {
     if (!options.headers) {
         options.headers = {};
     }
+    return options.headers;
+}
 
-    if (options.headers instanceof Headers) {
-        if (!options.headers.has('Accept')) {
-            options.headers.set('Accept', 'application/json');
+function ensureFetchAcceptHeader(options) {
+    const headers = ensureFetchHeaders(options);
+    if (headers instanceof Headers) {
+        if (!headers.has('Accept')) {
+            headers.set('Accept', 'application/json');
         }
-    } else {
-        if (!options.headers['Accept']) {
-            options.headers['Accept'] = 'application/json';
+    } else if (!headers['Accept']) {
+        headers['Accept'] = 'application/json';
+    }
+}
+
+function ensureFetchCSRF(options) {
+    const method = String(options.method || 'GET').toUpperCase();
+    if (!isPostLikeMethod(method)) return;
+
+    const { token, tokenName } = getCSRFMeta();
+    if (!token || !tokenName) return;
+
+    const headers = ensureFetchHeaders(options);
+    if (headers instanceof Headers) {
+        if (!headers.has('X-CSRF-Token')) {
+            headers.set('X-CSRF-Token', token);
         }
+    } else if (!headers['X-CSRF-Token'] && !headers['x-csrf-token']) {
+        headers['X-CSRF-Token'] = token;
     }
 
-    if (method === 'POST') {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        const csrfTokenName = document.querySelector('meta[name="csrf-token-name"]')?.getAttribute('content') || 'csrf_token';
+    if (!options.body) return;
 
-        if (csrfToken) {
-            if (options.body instanceof FormData) {
-                try {
-                    if (!options.body.has(csrfTokenName)) {
-                        options.body.append(csrfTokenName, csrfToken);
-                    }
-                } catch (err) {
-                    console.error("Errore nell'aggiungere il token al FormData:", err);
-                }
-                // NON forzare un oggetto headers se già è Headers API
-                if (!options.headers) {
-                    options.headers = new Headers();
-                }
-                if (options.headers instanceof Headers) {
-                    if (!options.headers.has('X-CSRF-Token')) {
-                        options.headers.set('X-CSRF-Token', csrfToken);
-                    }
-                } else if (!options.headers['X-CSRF-Token'] && !options.headers['x-csrf-token']) {
-                    options.headers['X-CSRF-Token'] = csrfToken;
-                }
-            } else {
-                if (!options.headers) {
-                    options.headers = {};
-                }
-                if (options.headers instanceof Headers) {
-                    if (!options.headers.has('X-CSRF-Token')) {
-                        options.headers.set('X-CSRF-Token', csrfToken);
-                    }
-                } else if (!options.headers['X-CSRF-Token'] && !options.headers['x-csrf-token']) {
-                    options.headers['X-CSRF-Token'] = csrfToken;
-                }
+    if (options.body instanceof FormData) {
+        if (!options.body.has(tokenName)) {
+            options.body.append(tokenName, token);
+        }
+        return;
+    }
+
+    if (options.body instanceof URLSearchParams) {
+        if (!options.body.has(tokenName)) {
+            options.body.set(tokenName, token);
+        }
+        return;
+    }
+
+    if (typeof options.body === 'string') {
+        let contentType = '';
+        if (headers instanceof Headers) {
+            contentType = headers.get('Content-Type') || '';
+        } else {
+            contentType = headers['Content-Type'] || headers['content-type'] || '';
+        }
+        if (String(contentType).toLowerCase().includes('application/x-www-form-urlencoded')) {
+            const params = new URLSearchParams(options.body);
+            if (!params.has(tokenName)) {
+                params.set(tokenName, token);
+                options.body = params.toString();
             }
         }
     }
+}
+
+function initCSRFForForms() {
+    ensureCSRFInputsInScope(document);
+
+    if (!window.__milkCsrfObserverStarted && typeof MutationObserver === 'function') {
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (!node || node.nodeType !== 1) return;
+                    if (node.matches && node.matches('form')) {
+                        ensureCSRFInputInForm(node);
+                    }
+                    if (node.querySelectorAll) {
+                        ensureCSRFInputsInScope(node);
+                    }
+                });
+            });
+        });
+        observer.observe(document.documentElement || document.body, { childList: true, subtree: true });
+        window.__milkCsrfObserverStarted = true;
+    }
+}
+
+if (!window.__milkCsrfSubmitPatched) {
+    HTMLFormElement.prototype.submit = function () {
+        ensureCSRFInputInForm(this);
+        return originalNativeFormSubmit.call(this);
+    };
+    window.__milkCsrfSubmitPatched = true;
+}
+
+document.addEventListener('submit', function(event) {
+    ensureCSRFInputInForm(event.target);
+}, true);
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCSRFForForms);
+} else {
+    initCSRFForForms();
+}
+
+window.fetch = function (...args) {
+    let [url, options = {}] = args;
+    ensureFetchAcceptHeader(options);
+    ensureFetchCSRF(options);
 
     try {
-
         return originalFetch.apply(this, [url, options])
             .then(response => {
                 const clone = response.clone();
@@ -111,37 +205,8 @@ window.handleAjaxResponse = function(response) {
 
 // Utility function to manually get CSRF token (for edge cases)
 window.getCSRFToken = function() {
-    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-    return csrfMeta ? csrfMeta.getAttribute('content') : null;
+    return getCSRFMeta().token || null;
 };
-
-// Add csfr in submit post
-
-/**
- * CSRF Form Submit Handler
- * Aggiunge automaticamente il token CSRF ai form POST al momento del submit
- */
-(function() {
-    document.addEventListener('submit', function(event) {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        const csrfTokenName = document.querySelector('meta[name="csrf-token-name"]')?.getAttribute('content');
-        if (!csrfToken || !csrfTokenName) return;
-
-        const form = event.target;
-        const method = (form.getAttribute('method') || form.method || 'get').toLowerCase();
-        if (form.matches('form') && method === 'post') {
-            let input = form.querySelector(`input[name="${csrfTokenName}"]`);
-            if (!input) {
-                input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = csrfTokenName;
-                form.insertBefore(input, form.firstChild);
-            }
-            input.value = csrfToken;
-        }
-    }, true);
-})();
-
 
 /**
  * MilkActions - JSON Action Response System

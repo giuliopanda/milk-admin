@@ -1,6 +1,7 @@
 <?php
 namespace Modules\Install\Views;
 
+use App\MessagesHandler;
 use Theme\Template;
 
 if (!defined('MILK_DIR')) die();
@@ -288,6 +289,8 @@ Built with a Bootstrap template and a lightweight, easy-to-learn framework for c
     </div>
     <?php endif; ?>
     
+    <?php MessagesHandler::displayMessages(true); ?>
+
     <form class="js-needs-validation" id="installForm" novalidate method="post" <?php echo !$allRequirementsMet ? 'style="opacity: 0.5; pointer-events: none;"' : ''; ?>>
         <?php 
         // eventuali script vanno caricati esternamente e questo dovrebbe essere sanitizzato

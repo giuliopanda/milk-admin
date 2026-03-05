@@ -14,7 +14,7 @@ class ProjectsModule extends AbstractModule
     {
         $rule->page('projects')
             ->title('Projects')
-            ->menu('Projects', '', 'bi bi-folder2-open', 9095)
+            ->menu('Projects', '', 'bi bi-folder2-open', 900)
             ->setCss('/Assets/projects-build-forms.css')
             ->setCss('/Assets/projects-build-form-fields-modal.css')
             ->setJs('/Assets/projects-build-forms.js')

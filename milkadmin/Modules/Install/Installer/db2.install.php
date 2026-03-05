@@ -19,7 +19,7 @@ Hooks::set('install.get_html_modules', function($html, $errors) {
     ['db2_active' => 'Use Second Database'], 
     $db2_selected, 
     false, 
-    [ 'form-check-class'=>'form-switch'], ['onchange' => "toggleEl(document.getElementById('db2Config'))"]
+    [ 'form-check-class'=>'form-switch'], ['onchange' => "syncDb2Fields()"]
 );
 ?>
 <div id="db2Config" style="display: none;">
@@ -49,10 +49,9 @@ Hooks::set('install.get_html_modules', function($html, $errors) {
                 
                 if (!empty($dbTypes)) {
                     Form::select('connectType2', 'connect_type2', $dbTypes, $_REQUEST['connectType2'] ?? $defaultDb, 
-                        ['onchange' => "toggleEl(document.getElementById('db2Fields'))"]);
+                        ['onchange' => "syncDb2Fields()"]);
                     
-                    echo '<div id="db2Fields" class="mt-3">';
-                    echo '<div data-togglevalue="mysql" data-togglefield="connectType2">';
+                    echo '<div id="db2Fields" class="mt-3" style="display: none;">';
 
                     ?>      <p class="alert alert-warning">Before installation make sure you have created mysql (or MariaDb) database and a user with Grant permissions to associate with it.</p>
                     <?php
@@ -61,15 +60,8 @@ Hooks::set('install.get_html_modules', function($html, $errors) {
                     Form::input('password', 'connect_pass2', 'Password', $_REQUEST['connect_pass2'] ?? '', $options);
                     Form::input('text', 'connect_dbname2', 'Database Name', $_REQUEST['connect_dbname2'] ?? '', $options);
                     echo '</div>';
-                    echo '</div>';
                     
                     ?>
-                    <script>
-                      window.addEventListener('load', function() {
-                        manageRequiredFields(document.getElementById('db2Fields'), false);
-                    });
-
-                    </script>
                     <?php
                   
                 } else {
@@ -82,12 +74,55 @@ Hooks::set('install.get_html_modules', function($html, $errors) {
     </div>
 </div>
 <script>
-    window.addEventListener('load', function() {
-        var db2Toggle = document.querySelector('input[name="db2_active[]"]');
-        if (db2Toggle) {
-            toggleEl(document.getElementById('db2Config'), db2Toggle, db2Toggle.value);
+    function setRequiredState(el, isVisible) {
+        if (!el) {
+            return;
         }
-    });
+
+        if (typeof manageRequiredFields === 'function') {
+            manageRequiredFields(el, isVisible);
+            return;
+        }
+
+        var formElements = el.querySelectorAll('input, select, textarea');
+        formElements.forEach(function(field) {
+            if (isVisible) {
+                if (field.hasAttribute('data-was-required')) {
+                    field.setAttribute('required', '');
+                    field.removeAttribute('data-was-required');
+                }
+            } else {
+                if (field.hasAttribute('required')) {
+                    field.setAttribute('data-was-required', 'true');
+                    field.removeAttribute('required');
+                }
+            }
+        });
+    }
+
+    function syncDb2Fields() {
+        var db2Config = document.getElementById('db2Config');
+        var db2Fields = document.getElementById('db2Fields');
+        var db2Toggle = document.querySelector('input[name="db2_active[]"]');
+        var connectType2 = document.querySelector('select[name="connectType2"]');
+
+        var db2Enabled = !!(db2Toggle && db2Toggle.checked);
+        var showMysqlFields = db2Enabled && !!(connectType2 && connectType2.value === 'mysql');
+
+        if (db2Config) {
+            db2Config.style.display = db2Enabled ? 'block' : 'none';
+            setRequiredState(db2Config, db2Enabled);
+        }
+
+        if (db2Fields) {
+            db2Fields.style.display = showMysqlFields ? 'block' : 'none';
+            setRequiredState(db2Fields, showMysqlFields);
+        }
+    }
+
+    syncDb2Fields();
+    document.addEventListener('DOMContentLoaded', syncDb2Fields);
+    window.addEventListener('load', syncDb2Fields);
 </script>
     <?php
     $html .= ob_get_clean();
