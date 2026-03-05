@@ -66,6 +66,7 @@ class PostsController extends AbstractController {
         <ul class="mb-0">
             <li><strong>addBulkAction($key, $action_data):</strong> Adds a single bulk action without modifying existing ones</li>
             <li><strong>setBulkActions($actions):</strong> Replaces all bulk actions with the provided set (uses addBulkAction() internally)</li>
+            <li><strong>setBulkAllowAllRecords(bool):</strong> Enables/disables the <code>all records</code> scope in the bulk toolbar</li>
         </ul>
     </div>
 
@@ -104,6 +105,68 @@ class PostsController extends AbstractController {
 // Get all configured bulk actions
 $bulkActions = $tableBuilder->getBulkActions();
 // Returns: ['delete' => ['label' => 'Delete', 'action' => ...], 'export' => [...]]</code></pre>
+
+    <h3>setBulkAllowAllRecords() - Full Example</h3>
+    <p>
+        When enabled, the bulk toolbar allows users to choose between selected rows and
+        <code>all records</code> (filtered dataset). The framework sends
+        <code>table_scope</code> and <code>table_all_records</code> in request payload.
+    </p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">&lt;?php
+namespace Modules\Posts;
+
+use App\Abstracts\AbstractController;
+use App\Attributes\RequestAction;
+use App\Response;
+use Builders\TableBuilder;
+
+class PostsController extends AbstractController
+{
+    #[RequestAction('home')]
+    public function postsList()
+    {
+        $tableBuilder = TableBuilder::create($this->model, 'idTablePosts')
+            ->setBulkAllowAllRecords(true)
+            ->setBulkActions([
+                'archive' => [
+                    'label' => 'Archive',
+                    'action' => [$this, 'actionBulkArchive'],
+                    'mode' => 'batch',
+                ],
+            ]);
+
+        $response = array_merge($this->getCommonData(), $tableBuilder->getResponse());
+        Response::render(MILK_DIR . '/Theme/SharedViews/list_page.php', $response);
+    }
+
+    public function actionBulkArchive($records, $request)
+    {
+        // Scope comes from bulk UI: "selected" or "all_records"
+        $scope = strtolower(trim((string)($request['table_scope'] ?? 'selected')));
+        $isAllRecords = ($scope === 'all_records')
+            || in_array(strtolower(trim((string)($request['table_all_records'] ?? '0'))), ['1', 'true', 'yes', 'on'], true);
+
+        $count = 0;
+        foreach ($records as $record) {
+            $record->status = 'archived';
+            if ($record->save()) {
+                $count++;
+            }
+        }
+
+        return [
+            'success' => true,
+            'msg' => $isAllRecords
+                ? "Archived {$count} filtered records (all records scope)."
+                : "Archived {$count} selected records.",
+        ];
+    }
+}</code></pre>
+
+    <div class="alert alert-secondary">
+        <strong>UI behavior:</strong> with <code>setBulkAllowAllRecords(true)</code> users can switch scope;
+        with <code>false</code> (default) only selected rows are available.
+    </div>
 
     <h2>Configuration Options</h2>
 

@@ -277,6 +277,39 @@ echo Get::themePlugin('UploadFiles', [
     </div>
     <pre class="pre-scrollable border p-2" class="text-bg-gray"><code class="language-php">Form::checkboxes('myCheckboxes', ['1' => 'One', '2' => 'Two', '3' => 'Three'], '2', true, ['label'=>'Select fields']);</code></pre>
 
+    <h4>Checkboxes Required (at least one)</h4>
+    <div class="bg-light p-2"> 
+        <div class="form-group col-xl-6">
+            <?php Form::checkboxes(
+                'requiredCheckboxesDemo',
+                ['php' => 'PHP', 'js' => 'JavaScript', 'css' => 'CSS'],
+                [],
+                false,
+                [
+                    'label' => 'Skills',
+                    'invalid-feedback' => 'Please select at least one skill'
+                ],
+                [
+                    'required' => true
+                ]
+            ); ?>
+        </div>
+    </div>
+    <pre class="pre-scrollable border p-2" class="text-bg-gray"><code class="language-php">Form::checkboxes(
+    'requiredCheckboxesDemo',
+    ['php' => 'PHP', 'js' => 'JavaScript', 'css' => 'CSS'],
+    [],
+    false,
+    [
+        'label' => 'Skills',
+        'invalid-feedback' => 'Please select at least one skill'
+    ],
+    [
+        'required' => true
+    ]
+);</code></pre>
+    <p><small>For checkbox groups, <code>required</code> means at least one option must be selected.</small></p>
+
     <h4>Switch</h4>
     
     <div class="bg-light p-2"> 
@@ -315,6 +348,39 @@ echo Get::themePlugin('UploadFiles', [
         </div>
     </div>
     <pre class="pre-scrollable border p-2" class="text-bg-gray"><code class="language-php">Form::radios('myRadios', ['1' => 'One', '2' => 'Two', '3' => 'Three'], '2');</code></pre>
+
+    <h4>Radios Required</h4>
+    <div class="bg-light p-2"> 
+        <div class="form-group col-xl-6">
+            <?php Form::radios(
+                'requiredRadiosDemo',
+                ['draft' => 'Draft', 'published' => 'Published', 'archived' => 'Archived'],
+                '',
+                false,
+                [
+                    'label' => 'Status',
+                    'invalid-feedback' => 'Please select a status'
+                ],
+                [
+                    'required' => true
+                ]
+            ); ?>
+        </div>
+    </div>
+    <pre class="pre-scrollable border p-2" class="text-bg-gray"><code class="language-php">Form::radios(
+    'requiredRadiosDemo',
+    ['draft' => 'Draft', 'published' => 'Published', 'archived' => 'Archived'],
+    '',
+    false,
+    [
+        'label' => 'Status',
+        'invalid-feedback' => 'Please select a status'
+    ],
+    [
+        'required' => true
+    ]
+);</code></pre>
+    <p><small>You can set <code>required</code> in <code>$options_field</code> (recommended) or in <code>$options_group</code>.</small></p>
 
     <br>
     <h2>Select</h2>

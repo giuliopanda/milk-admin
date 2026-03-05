@@ -28,6 +28,7 @@ $class = $class ?? '';
 $floating = $floating ?? false;
 $api_url = $api_url ?? null;
 $display_value = $display_value ?? null;
+$readonly = $readonly ?? false;
 
 // Validate options (only if api_url is not provided)
 if (!$api_url && (!is_array($options) || count($options) === 0)) {
@@ -138,6 +139,7 @@ echo json_encode($config, JSON_UNESCAPED_UNICODE | JSON_HEX_QUOT | JSON_HEX_TAG)
     <?php endif; ?>
     <?php echo $requiredAttr; ?>
     <?php echo $classAttr; ?>
+   <?php echo $readonly ? ' data-readonly="1"' : ''; ?>
     data-select-type="<?php echo htmlspecialchars($type, ENT_QUOTES, 'UTF-8'); ?>"
     data-placeholder="<?php echo htmlspecialchars($placeholder, ENT_QUOTES, 'UTF-8'); ?>"
     data-floating="<?php echo $floating ? '1' : '0'; ?>"

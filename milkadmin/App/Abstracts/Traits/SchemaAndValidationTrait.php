@@ -138,6 +138,10 @@ trait SchemaAndValidationTrait
                         }
                         $schema->int($name, $rule['nullable'], $rule['default'], null, (bool) ($rule['unsigned'] ?? false));
                     } else {
+                        $configuredLength = isset($rule['length']) ? (int) $rule['length'] : 0;
+                        if ($configuredLength > 0) {
+                            $max = max($max, $configuredLength);
+                        }
                         $schema->string($name, $max ?? 255, $rule['nullable'], $rule['default']);
                     }
                     break;
@@ -153,6 +157,10 @@ trait SchemaAndValidationTrait
                     if ($is_int) {
                         $schema->int($name, $rule['nullable'], $rule['default'], null, (bool) ($rule['unsigned'] ?? false));
                     } else {
+                        $configuredLength = isset($rule['length']) ? (int) $rule['length'] : 0;
+                        if ($configuredLength > 0) {
+                            $max = max($max, $configuredLength);
+                        }
                         $schema->string($name, ($max ?? 255), $rule['nullable'], $rule['default']);
                     }
                     break;
@@ -262,7 +270,6 @@ trait SchemaAndValidationTrait
             }
         }
         
-        return false;
     }
 
     /**
@@ -457,7 +464,7 @@ trait SchemaAndValidationTrait
      * @param string $class The class name to initialize
      * @return string The fully qualified class name
      */
-    protected function inizialeClass(string $class): string {
+    protected function initializeClass(string $class): string {
         $name_space = $this->getChildNameSpace();
         $class_name = $name_space."\\".$class;
         if (class_exists($class_name)) {

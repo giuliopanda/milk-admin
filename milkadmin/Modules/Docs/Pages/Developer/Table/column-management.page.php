@@ -219,16 +219,16 @@ namespace Modules\Docs\Pages;
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$table = TableBuilder::create($model, 'courses_table')
     // First: Configure all your fields
-    ->field('ATTIVO_CRS')
+    ->field('IS_ACTIVE')
         ->label('Active')
         ->type('select')
         ->options(['0' => 'No', '1' => 'Yes'])
 
-    ->field('CORSO')
+    ->field('COURSE_NAME')
         ->label('Course Name')
 
     // Last: Define the exact column order
-    ->reorderColumns(['ATTIVO_CRS', 'CORSO', 'DESCRIZIONE', 'DATA_INIZIO', 'DATA_FINE'])
+    ->reorderColumns(['IS_ACTIVE', 'COURSE_NAME', 'DESCRIPTION', 'START_DATE', 'END_DATE'])
 
     ->getTable();
 

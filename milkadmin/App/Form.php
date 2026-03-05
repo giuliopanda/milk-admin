@@ -290,6 +290,11 @@ class Form
      * @return string|void Returns HTML if $return is true, otherwise echoes it
      */
     public static function checkbox($name, $label, $value, $is_checked = false, $options = [], $return = false) {
+        if (!array_key_exists('readonly', $options) && array_key_exists('readOnly', $options)) {
+            $options['readonly'] = $options['readOnly'];
+        }
+        unset($options['readOnly']);
+
         $normalized_name = $name;
         if (preg_match('/^data\[(.+)\]$/', $name, $matches)) {
             $normalized_name = $matches[1];
@@ -389,7 +394,19 @@ class Form
         $base_id = self::id($options_field, $name);
         $count = 0;
         $columns = isset($options_group['columns']) ? max(2, min(4, (int)$options_group['columns'])) : 0;
+        $group_required = self::normalizeBool($options_field['required'] ?? ($options_group['required'] ?? false));
         self::applyInvalidClass($options_group, $name);
+
+        if (!array_key_exists('readonly', $options_field) && array_key_exists('readonly', $options_group)) {
+            $options_field['readonly'] = $options_group['readonly'];
+        } elseif (!array_key_exists('readonly', $options_field) && array_key_exists('readOnly', $options_group)) {
+            $options_field['readonly'] = $options_group['readOnly'];
+        }
+        unset($options_field['readOnly']);
+
+        // For checkbox groups "required" means at least one checked.
+        // Native HTML required on every checkbox would enforce all checked.
+        unset($options_field['required']);
 
         foreach ($list_of_radio as $value => $label) {
             $temp_field = '<div class="form-check';
@@ -429,13 +446,20 @@ class Form
         if ($label_left) {
             $classes_field .= ' d-flex align-items-start';
         }
-        $field = '<div class="js-form-checkboxes-group form-group'.$classes_field.'">';
+        $field = '<div class="js-form-checkboxes-group form-group'.$classes_field.'"';
+        if ($group_required) {
+            $field .= ' data-required-group="checkboxes" aria-required="true"';
+            if (array_key_exists('invalid-feedback', $options_group) && trim((string) $options_group['invalid-feedback']) !== '') {
+                $field .= ' data-required-message="' . _r($options_group['invalid-feedback']) . '"';
+            }
+        }
+        $field .= '>';
 
         // items wrapper class (used when label-position=left, or when columns is set)
         if ($inline && $label_left) {
             $items_wrap_class = 'd-flex flex-wrap gap-1';
         } elseif ($columns > 0 && !$inline) {
-            $items_wrap_class = 'row row-cols-'.$columns.' gy-1';
+            $items_wrap_class = 'row row-cols-'.$columns.' gy-1 gx-0';
         } else {
             $items_wrap_class = '';
         }
@@ -445,9 +469,9 @@ class Form
             if ($options_group['label'] != '') {
                 if ($label_left) {
                     $label_width = _r($options_group['label-width'] ?? '8rem');
-                    $field .= '<label class="label-checkboxes flex-shrink-0 pt-1 me-3" style="min-width:'.$label_width.'">'._rt($options_group['label']).'</label>';
+                    $field .= '<label class="label-checkboxes flex-shrink-0 pt-1 me-3 fw-bold" style="min-width:'.$label_width.'">'._rt($options_group['label']).'</label>';
                 } else {
-                    $field .= '<label class="label-checkboxes me-4">'._rt($options_group['label']).'</label>';
+                    $field .= '<label class="label-checkboxes me-4 fw-bold">'._rt($options_group['label']).'</label>';
                 }
             }
         }
@@ -491,6 +515,11 @@ class Form
      * @return string|void Returns HTML if $return is true, otherwise echoes it
      */
     public static function radio($name, $label, $value, $selected_value = '',  $options = [], $return = false) {
+        if (!array_key_exists('readonly', $options) && array_key_exists('readOnly', $options)) {
+            $options['readonly'] = $options['readOnly'];
+        }
+        unset($options['readOnly']);
+
         $options['class'] = (array_key_exists('class', $options)) ? $options['class']." ".'form-control' : 'form-control';
         self::applyInvalidClass($options, $name);
         $field = '<div class="d-flex align-items-center w-100 h-100 no-form-check-mt">';
@@ -560,6 +589,18 @@ class Form
         $count = 0;
         $columns = isset($options_group['columns']) ? max(2, min(4, (int)$options_group['columns'])) : 0;
         self::applyInvalidClass($options_group, $name);
+
+        if (!array_key_exists('required', $options_field) && array_key_exists('required', $options_group)) {
+            $options_field['required'] = self::normalizeBool($options_group['required']);
+        }
+
+        if (!array_key_exists('readonly', $options_field) && array_key_exists('readonly', $options_group)) {
+            $options_field['readonly'] = $options_group['readonly'];
+        } elseif (!array_key_exists('readonly', $options_field) && array_key_exists('readOnly', $options_group)) {
+            $options_field['readonly'] = $options_group['readOnly'];
+        }
+        unset($options_field['readOnly']);
+
         foreach ($list_of_radio as $value => $label) {
             $temp_field = '<div class="form-check';
             if ($inline) {
@@ -688,10 +729,22 @@ class Form
         $options['class'] = (array_key_exists('class', $options)) ? $options['class']." ".'form-select' : 'form-select';
         self::applyInvalidClass($options, $name);
 
-        // HTML select does not support readonly. Convert it to disabled behavior.
-        $isReadonly = array_key_exists('readonly', $options) && $options['readonly'] !== false;
-        if ($isReadonly && (!array_key_exists('disabled', $options) || $options['disabled'] !== true)) {
-            $options['disabled'] = true;
+        // Normalize readonly aliases and keep readonly distinct from disabled.
+        if (!array_key_exists('readonly', $options) && array_key_exists('readOnly', $options)) {
+            $options['readonly'] = $options['readOnly'];
+        }
+        unset($options['readOnly']);
+
+        $isReadonly = self::normalizeBool($options['readonly'] ?? false);
+        $isDisabled = self::normalizeBool($options['disabled'] ?? false);
+
+        if ($isReadonly) {
+            $options['readonly'] = true;
+            $existingClass = trim((string) ($options['class'] ?? ''));
+            if (!in_array('js-readonly-select', preg_split('/\s+/', $existingClass) ?: [], true)) {
+                $options['class'] = trim($existingClass . ' js-readonly-select');
+            }
+            $options['data-readonly-select'] = '1';
         }
        
         if ((array_key_exists('floating', $options) && $options['floating'] == false) ) {
@@ -703,6 +756,27 @@ class Form
         $id = self::id($options, $name);
         $label_dom = ($label != '') ? '<label for="'.$id.'">'._rt($label).'</label>' : '';
         $field = ($floating) ? '<div class="form-floating">' : $label_dom;
+
+        // Disabled controls are not submitted; mirror their value with hidden input(s).
+        if ($isDisabled) {
+            $isMultiple = self::normalizeBool($options['multiple'] ?? false);
+            $hiddenValues = self::resolveDisabledSelectHiddenValues(
+                is_array($select_options) ? $select_options : [],
+                $selected,
+                $isMultiple
+            );
+
+            if ($isMultiple) {
+                $hiddenName = str_ends_with((string) $name, '[]') ? (string) $name : ((string) $name . '[]');
+                foreach (is_array($hiddenValues) ? $hiddenValues : [] as $selectedValue) {
+                    $field .= '<input type="hidden" name="' . _r($hiddenName) . '" value="' . _r((string) $selectedValue) . '">';
+                }
+            } else {
+                $hiddenValue = is_array($hiddenValues) ? (string) (reset($hiddenValues) ?: '') : (string) $hiddenValues;
+                $field .= '<input type="hidden" name="' . _r($name) . '" value="' . _r($hiddenValue) . '">';
+            }
+        }
+
         $field .= '<select name="'._r($name).'"';
         $field .= ' id="'._r($id).'"';
 
@@ -713,13 +787,23 @@ class Form
 
         $field .= self::attr($options);
         $field .= '>';
+        $selectedLookup = null;
+        if (is_array($selected)) {
+            $selectedLookup = [];
+            foreach ($selected as $selectedItem) {
+                if ($selectedItem === null) {
+                    continue;
+                }
+                $selectedLookup[(string) $selectedItem] = true;
+            }
+        }
         // select_options is an associative array that accepts option groups
         foreach ($select_options as $key => $value) {
             if (is_array($value)) {
                 $field .= '<optgroup label="'._r($key).'">';
                 foreach ($value as $k => $v) {
                     $field .= '<option value="'._r($k).'"';
-                    if ($selected == $k) {
+                    if (($selectedLookup !== null && isset($selectedLookup[(string) $k])) || ($selectedLookup === null && (string) $selected === (string) $k)) {
                         $field .= ' selected';
                     }
                     $field .= '>'._rt($v).'</option>';
@@ -727,7 +811,7 @@ class Form
                 $field .= '</optgroup>';
             } else {
                 $field .= '<option value="'._r($key).'"';
-                if ($selected == $key) {
+                if (($selectedLookup !== null && isset($selectedLookup[(string) $key])) || ($selectedLookup === null && (string) $selected === (string) $key)) {
                     $field .= ' selected';
                 }
                 $field .= '>'._rt($value).'</option>';
@@ -735,21 +819,6 @@ class Form
         }
 
         $field .= '</select>';
-
-        // Disabled controls are not submitted, so preserve readonly select value(s).
-        if ($isReadonly) {
-            $isMultiple = array_key_exists('multiple', $options) && $options['multiple'] !== false;
-            if ($isMultiple) {
-                $hiddenName = str_ends_with((string) $name, '[]') ? (string) $name : ((string) $name . '[]');
-                $selectedValues = is_array($selected) ? $selected : (($selected === '' || $selected === null) ? [] : [$selected]);
-                foreach ($selectedValues as $selectedValue) {
-                    $field .= '<input type="hidden" name="' . _r($hiddenName) . '" value="' . _r((string) $selectedValue) . '">';
-                }
-            } else {
-                $hiddenValue = is_array($selected) ? (string) (reset($selected) ?: '') : (string) $selected;
-                $field .= '<input type="hidden" name="' . _r($name) . '" value="' . _r($hiddenValue) . '">';
-            }
-        }
 
         $field .= ($floating) ? $label_dom : '';
         if (array_key_exists('invalid-feedback', $options)) {
@@ -768,6 +837,69 @@ class Form
         } else {
             echo $field;
         }
+    }
+
+    /**
+     * Returns select option keys in render order (supports optgroups).
+     *
+     * @param array<mixed,mixed> $select_options
+     * @return array<int,string>
+     */
+    private static function flattenSelectOptionKeys(array $select_options): array
+    {
+        $keys = [];
+        foreach ($select_options as $key => $value) {
+            if (is_array($value)) {
+                foreach ($value as $groupKey => $groupValue) {
+                    if (is_array($groupValue)) {
+                        continue;
+                    }
+                    $keys[] = (string) $groupKey;
+                }
+                continue;
+            }
+            $keys[] = (string) $key;
+        }
+
+        return $keys;
+    }
+
+    /**
+     * Resolve hidden fallback values for disabled select controls.
+     *
+     * @param array<mixed,mixed> $select_options
+     * @return array<int,string>|string
+     */
+    private static function resolveDisabledSelectHiddenValues(array $select_options, mixed $selected, bool $isMultiple): array|string
+    {
+        if ($isMultiple) {
+            $selectedValues = [];
+            if (is_array($selected)) {
+                foreach ($selected as $selectedValue) {
+                    if ($selectedValue === '' || $selectedValue === null) {
+                        continue;
+                    }
+                    $selectedValues[] = (string) $selectedValue;
+                }
+            } elseif ($selected !== '' && $selected !== null) {
+                $selectedValues[] = (string) $selected;
+            }
+            return $selectedValues;
+        }
+
+        if (is_array($selected)) {
+            foreach ($selected as $selectedValue) {
+                if ($selectedValue === '' || $selectedValue === null) {
+                    continue;
+                }
+                return (string) $selectedValue;
+            }
+        } elseif ($selected !== '' && $selected !== null) {
+            return (string) $selected;
+        }
+
+        $flatKeys = self::flattenSelectOptionKeys($select_options);
+        return $flatKeys[0] ?? '';
     }
 
     /**
@@ -1078,6 +1210,14 @@ class Form
             $plugin_options['display_value'] = $options['display_value'];
             unset($options['display_value']);
         }
+        if (array_key_exists('readonly', $options)) {
+            $plugin_options['readonly'] = self::normalizeBool($options['readonly']);
+            unset($options['readonly']);
+        } elseif (array_key_exists('readOnly', $options)) {
+            // Alias support for camelCase form params
+            $plugin_options['readonly'] = self::normalizeBool($options['readOnly']);
+            unset($options['readOnly']);
+        }
 
         // Render the plugin
         $field .= Get::themePlugin('MilkSelect', $plugin_options);
@@ -1100,6 +1240,19 @@ class Form
         } else {
             echo $field;
         }
+    }
+
+    private static function normalizeBool(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+        if (is_int($value) || is_float($value)) {
+            return (int) $value === 1;
+        }
+
+        $normalized = strtolower(trim((string) $value));
+        return in_array($normalized, ['1', 'true', 'yes', 'on'], true);
     }
 
     /**

@@ -30,8 +30,8 @@ namespace Modules\Docs\Pages;
     <strong>Use Cases:</strong>
 </p>
 <ul>
-    <li>Settings modules (Aule, Causali, Strumenti, etc.)</li>
-    <li>Educational modules (Corsi, Lezioni, Frequenze, Eventi)</li>
+    <li>Settings modules (Rooms, Reasons, Tools, etc.)</li>
+    <li>Educational modules (Courses, Lessons, Attendance, Events)</li>
     <li>Any group of related administrative modules</li>
 </ul>
 

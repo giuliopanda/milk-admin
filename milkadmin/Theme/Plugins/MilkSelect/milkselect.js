@@ -16,7 +16,7 @@ class MilkSelect {
     this.fetchTimeout = null;
     this.isLoading = false;
     this.isEditing = false; // Track if user has modified the input text
-
+    this.isReadonly = element.dataset.readonly === '1';
     this.init();
   }
 
@@ -129,6 +129,9 @@ class MilkSelect {
     if (this.hiddenInput.classList.contains('is-invalid')) {
       this.wrapper.classList.add('is-invalid');
     }
+    if (this.isReadonly) {
+      this.wrapper.classList.add('cs-autocomplete-readonly');
+    }
 
     // Store if field is required
     this.isRequired = this.hiddenInput.hasAttribute('required');
@@ -220,14 +223,18 @@ class MilkSelect {
       input.setAttribute('required', '');
       this.hiddenInput.removeAttribute('required');
     }
-
-    input.addEventListener("input", e => this.handleSingleInput(e));
-    input.addEventListener("focus", e => this.handleSingleFocus(e));
+    if (!this.isReadonly) {
+      input.addEventListener("input", e => this.handleSingleInput(e));
+      input.addEventListener("focus", e => this.handleSingleFocus(e));
+      input.addEventListener("blur", e => this.validateSingleInput(e));
+    }
     input.addEventListener("keydown", e => this.handleKeydown(e));
-    input.addEventListener("blur", e => this.validateSingleInput(e));
-
+    if (this.isReadonly) {
+      input.setAttribute('readonly', '');
+      input.setAttribute('tabindex', '-1');
+    }
     this.wrapper.appendChild(input);
-    if (this.selectedValues.length) this.addClearButton();
+    if (this.selectedValues.length && !this.isReadonly) this.addClearButton();
     this.currentInput = input;
   }
 
@@ -286,8 +293,16 @@ class MilkSelect {
       this.createValidationInput();
     }
 
-    input.addEventListener("input", e => this.handleInput(e));
-    input.addEventListener("focus", () => this.handleMultipleFocus());
+  
+    if (!this.isReadonly) {
+      input.addEventListener("input", e => this.handleInput(e));
+      input.addEventListener("focus", () => this.handleMultipleFocus());
+      input.setAttribute('placeholder', this.isFloating ? " " : this.placeholder);
+    } else {
+      input.setAttribute('readonly', '');
+      input.setAttribute('tabindex', '-1');
+      input.style.display = 'none'; // Nasconde l'input di ricerca in readonly
+    }
     input.addEventListener("keydown", e => this.handleKeydown(e));
     this.wrapper.appendChild(input);
     this.currentInput = input;
@@ -613,10 +628,14 @@ class MilkSelect {
     const item = document.createElement("div");
     item.className = "cs-autocomplete-selected-item";
     item.dataset.value = value;
-    item.innerHTML = `${value}<button type="button" class="cs-autocomplete-remove-btn">×</button>`;
-    item.querySelector("button").addEventListener("click", () =>
-      this.removeMultipleItem(value, item)
-    );
+    if (this.isReadonly) {
+      item.innerHTML = `${value}`;
+    } else {
+      item.innerHTML = `${value}<button type="button" class="cs-autocomplete-remove-btn">×</button>`;
+      item.querySelector("button").addEventListener("click", () =>
+        this.removeMultipleItem(value, item)
+      );
+    }
     this.wrapper.insertBefore(item, this.currentInput);
   }
 
@@ -642,6 +661,7 @@ class MilkSelect {
   }
 
   handleKeydown(e) {
+    if (this.isReadonly) return;
     const items = this.dropdown.querySelectorAll(".cs-autocomplete-item");
     const isDropdownOpen = this.dropdown.classList.contains("show");
 
@@ -739,12 +759,13 @@ class MilkSelect {
 
 
   addEventListeners() {
+  
     document.addEventListener("click", e => {
       if (!this.container.contains(e.target)) this.hideDropdown();
     });
 
     this.wrapper.addEventListener("click", () => {
-      this.currentInput?.focus();
+       if (!this.isReadonly) this.currentInput?.focus();
     });
 
     // Remove is-invalid class on focus

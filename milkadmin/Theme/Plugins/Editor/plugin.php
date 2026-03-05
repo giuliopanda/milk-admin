@@ -20,6 +20,8 @@ $label = $label ?? '';
 $height = $height ?? '200px';
 $name = $name ?? '';
 $enableToggle = $enableToggle ?? true;
+$required = isset($required) ? (bool) $required : false;
+$invalidFeedback = $invalidFeedback ?? '';
 
 // Sanitizza il valore per evitare problemi con le virgolette
 $value = htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
@@ -36,6 +38,8 @@ $config = [
     'height' => $height,
     'enableToggle' => $enableToggle,
     'name' => $name,
+    'required' => $required,
+    'invalidFeedback' => is_scalar($invalidFeedback) ? (string) $invalidFeedback : '',
     'onChange' => $onChange !== 'null' ? $onChange : null,
     'onBlur' => $onBlur !== 'null' ? $onBlur : null,
     'onFocus' => $onFocus !== 'null' ? $onFocus : null,

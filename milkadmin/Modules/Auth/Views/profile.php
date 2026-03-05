@@ -45,7 +45,7 @@ $user = Get::make('Auth')->getUser();
                                 <div class="mb-3">
                                     <label for="new_password" class="form-label"><?php _pt('New Password'); ?></label>
                                     <input type="password" class="form-control" id="new_password" name="new_password">
-                                    <div class="form-text"><?php _pt('Minimum 6 characters recommended.'); ?></div>
+                                    <div class="form-text"><?php _pt('Minimum 8 characters recommended.'); ?></div>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -128,8 +128,8 @@ function updateProfile() {
             return;
         }
         
-        if (newPassword.length < 6) {
-            alert('<?php _pt('New password must be at least 6 characters long.'); ?>');
+        if (newPassword.length < 8) {
+            alert('<?php _pt('New password must be at least 8 characters long.'); ?>');
             document.getElementById('new_password').focus();
             return;
         }

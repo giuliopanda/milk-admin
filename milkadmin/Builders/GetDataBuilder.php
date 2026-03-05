@@ -439,23 +439,80 @@ class GetDataBuilder
         }
 
         $error = $this->dataProcessor->getError();
-        $isDebug = Config::get('debug', false);
+        $showDetailedError = $this->shouldShowDetailedError();
 
-        if ($isDebug) {
-            // In debug mode, show full error details with filtered stack trace
+        if ($showDetailedError) {
+            // Show full error details in debug mode
             $message = $error->getMessage() . "\n\n";
-            $message .= "File: " . $error->getFile() . "\n";
-            $message .= "Line: " . $error->getLine() . "\n\n";
-            $message .= "Module Stack trace:\n" . $this->getFilteredStackTrace($error);
+            $message .= "Recent stack files:\n" . $this->formatRecentStackFiles($error, 20) . "\n\n";
+            $message .= "Module stack trace:\n" . $this->getFilteredStackTrace($error);
             return $message;
         }
 
-        // In production mode, show generic or custom message
-        return $customMessage ?? 'Si è verificato un errore durante il caricamento dei dati. Contattare l\'amministratore di sistema.';
+        // In production mode, return generic or custom message
+        return $customMessage ?? 'An error occurred while loading data. Please contact the system administrator.';
     }
 
     /**
-     * Filter stack trace to show only Modules files
+     * Show detailed DB errors in debug mode.
+     */
+    private function shouldShowDetailedError(): bool
+    {
+        return Config::get('debug', false);
+    }
+
+    /**
+     * Build a short list of the latest stack file/line entries.
+     *
+     * @param \Throwable $error
+     * @param int $maxFiles
+     * @return string
+     */
+    private function formatRecentStackFiles(\Throwable $error, int $maxFiles = 3): string
+    {
+        $frames = [];
+        $seen = [];
+
+        $mainLocation = $error->getFile() . ':' . (string) $error->getLine();
+        $frames[] = ['file' => $error->getFile(), 'line' => (int) $error->getLine()];
+        $seen[$mainLocation] = true;
+
+        foreach ($error->getTrace() as $item) {
+            $file = $item['file'] ?? null;
+            $line = isset($item['line']) ? (int) $item['line'] : 0;
+
+            if (!is_string($file) || $file === '') {
+                continue;
+            }
+
+            $location = $file . ':' . $line;
+            if (isset($seen[$location])) {
+                continue;
+            }
+
+            $frames[] = ['file' => $file, 'line' => $line];
+            $seen[$location] = true;
+
+            if (count($frames) >= $maxFiles) {
+                break;
+            }
+        }
+
+        if (empty($frames)) {
+            return 'No stack file information available.';
+        }
+
+        $lines = [];
+        foreach ($frames as $index => $frame) {
+            $lines[] = ($index + 1) . '. File: ' . $frame['file'];
+            $lines[] = '   Line: ' . $frame['line'];
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * Filter stack trace to show only Modules and Extensions files.
      *
      * @param \Throwable $error
      * @return string Filtered stack trace
@@ -469,8 +526,8 @@ class GetDataBuilder
         foreach ($trace as $item) {
             $file = $item['file'] ?? '';
 
-            // Only include files from Modules directories
-            if (strpos($file, '/Modules/') !== false) {
+            // Only include files from Modules or Extensions directories
+            if (strpos($file, '/Modules/') !== false || strpos($file, '/Extensions/') !== false) {
                 $function = $item['function'] ?? '';
                 $class = $item['class'] ?? '';
                 $type = $item['type'] ?? '';
@@ -482,7 +539,7 @@ class GetDataBuilder
             }
         }
 
-        return !empty($filteredLines) ? implode("\n", $filteredLines) : "No module files in stack trace";
+        return !empty($filteredLines) ? implode("\n", $filteredLines) : "No module or extension files in stack trace";
     }
 
     /**
@@ -498,19 +555,19 @@ class GetDataBuilder
         }
 
         $message = $this->getErrorMessage($customMessage);
-        $isDebug = Config::get('debug', false);
-        $alertType = $isDebug ? 'danger' : 'warning';
+        $showDetailedError = $this->shouldShowDetailedError();
+        $alertType = $showDetailedError ? 'danger' : 'warning';
 
         $html = '<div class="alert alert-' . $alertType . '" role="alert">';
-        $html .= '<strong>' . ($isDebug ? 'Database Error:' : 'Errore:') . '</strong><br>';
+        $html .= '<strong>' . ($showDetailedError ? 'Database Error:' : 'Error:') . '</strong><br>';
 
-        if ($isDebug) {
-            // In debug mode, use <pre> for better formatting of stack trace
+        if ($showDetailedError) {
+            // Detailed mode: use <pre> for better stack formatting
             $html .= '<pre style="white-space: pre-wrap; font-size: 0.85em; margin-top: 10px;">';
             $html .= _rh($message);
             $html .= '</pre>';
         } else {
-            // In production mode, simple text
+            // Generic mode: simple text
             $html .= _rh($message);
         }
 

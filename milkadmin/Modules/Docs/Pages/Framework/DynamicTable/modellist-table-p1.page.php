@@ -419,80 +419,80 @@ $pageInfo->setAjax(true);
     </code></pre>
 
     <h4>setPagination($enabled)</h4>
-    <p>Abilita/disabilita la paginazione. Questo metodo supporta il method chaining.</p>
+    <p>Enables/disables pagination. This method supports method chaining.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
 $pageInfo->setPagination(true);
     </code></pre>
 
     <h4>setBulkActions($actions)</h4>
-    <p>Imposta le azioni bulk. Questo metodo supporta il method chaining.</p>
+    <p>Sets bulk actions. This method supports method chaining.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
 $pageInfo->setBulkActions([
-    'delete' => 'Elimina selezionati',
-    'activate' => 'Attiva selezionati',
-    'deactivate' => 'Disattiva selezionati'
+    'delete' => 'Delete selected',
+    'activate' => 'Activate selected',
+    'deactivate' => 'Deactivate selected'
 ]);
     </code></pre>
 
     <h4>addBulkAction($key, $label)</h4>
-    <p>Aggiunge un'azione bulk. Questo metodo supporta il method chaining.</p>
+    <p>Adds a bulk action. This method supports method chaining.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
-$pageInfo->addBulkAction('export', 'Esporta selezionati');
+$pageInfo->addBulkAction('export', 'Export selected');
     </code></pre>
 
     <h4>setAutoScroll($enabled)</h4>
-    <p>Abilita/disabilita lo scrolling automatico. Questo metodo supporta il method chaining.</p>
+    <p>Enables/disables automatic scrolling. This method supports method chaining.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
 $pageInfo->setAutoScroll(false);
     </code></pre>
 
     <h4>setPagTotalShow($enabled)</h4>
-    <p>Abilita/disabilita la visualizzazione del totale nella paginazione. Questo metodo supporta il method chaining.</p>
+    <p>Enables/disables total count visibility in pagination. This method supports method chaining.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
 $pageInfo->setPagTotalShow(true);
     </code></pre>
 
     <h4>setPagNumberShow($enabled)</h4>
-    <p>Abilita/disabilita la visualizzazione dei numeri di pagina nella paginazione. Questo metodo supporta il method chaining.</p>
+    <p>Enables/disables page number visibility in pagination. This method supports method chaining.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
 $pageInfo->setPagNumberShow(true);
     </code></pre>
 
     <h4>setPagGotoShow($enabled)</h4>
-    <p>Abilita/disabilita la visualizzazione del selettore "vai alla pagina" nella paginazione. Questo metodo supporta il method chaining.</p>
+    <p>Enables/disables the "go to page" selector in pagination. This method supports method chaining.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
 $pageInfo->setPagGotoShow(true);
     </code></pre>
 
     <h4>setPagElPerPageShow($enabled)</h4>
-    <p>Abilita/disabilita la visualizzazione del selettore "elementi per pagina" nella paginazione. Questo metodo supporta il method chaining.</p>
+    <p>Enables/disables the "items per page" selector in pagination. This method supports method chaining.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
 $pageInfo->setPagElPerPageShow(true);
     </code></pre>
 
     <h4>setPaginationLimit($limit)</h4>
-    <p>Imposta il limite di pagine da mostrare nella paginazione. Questo metodo supporta il method chaining.</p>
+    <p>Sets the page limit shown in pagination. This method supports method chaining.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
 $pageInfo->setPaginationLimit(10);
     </code></pre>
 
     <h4>setInputHidden($html)</h4>
-    <p>Imposta il codice html da aggiungere alla fine dei campi hidden della form. Questo metodo supporta il method chaining.</p>
+    <p>Sets the HTML code to append at the end of hidden form fields. This method supports method chaining.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
 $pageInfo->setInputHidden('<input type="hidden" name="table" value="' . _r($table_name) . '"><input type="hidden" name="primary_key" value="' . _r($primary_key) . '">');
     </code></pre>
 
     <h4>setTableAttrs($key, $attrs)</h4>
-    <p>Imposta gli attributi di una tabella. Questo metodo supporta il method chaining.</p>
+    <p>Sets table attributes. This method supports method chaining.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
 $pageInfo->setTableAttrs('table', ['class' => 'table table-hover js-table']);
     </code></pre>
 
     <h4>toArray()</h4>
-    <p>Converte le informazioni di pagina in un array.</p>
+    <p>Converts page info to an array.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
 $array = $pageInfo->toArray();
-// $array contiene tutte le informazioni di paginazione come array
+// $array contains all pagination information as an array
     </code></pre>
 
     <h2>Complete examples</h2>
@@ -571,7 +571,7 @@ $model->addFilter('search', function($query, $search) use ($model) {
     } else if ($search == 'active') {
         $query->where('`status` = 1');
     } else {
-        // Cerca in tutte le colonne ad eccezione di status
+        // Search in all columns except status
         $list_structure = $model->getTableStructure();
         foreach ($list_structure as $field => $_) {
             if ($field == 'status') continue;
@@ -591,21 +591,21 @@ $rows = array_map(function($row) {
 // Customizing the table structure
 $row_info = $model->getListStructure();
 $row_info->setColumn(
-    'status',                               // Nome campo
-    'Status',                               // Etichetta
-    'select',                               // Tipo
-    false,                                  // Non ordinabile
-    false,                                  // Non è chiave primaria
-    ['0' => 'Draft', '1' => 'Active'],      // Opzioni per select
-    ['class' => 'bg-success', 'data-customfilter' => 'status'], // Attributi intestazione
-    ['class' => 'bg-danger']                // Attributi dati
+    'status',                               // Field name
+    'Status',                               // Label
+    'select',                               // Type
+    false,                                  // Not sortable
+    false,                                  // Not a primary key
+    ['0' => 'Draft', '1' => 'Active'],      // Select options
+    ['class' => 'bg-success', 'data-customfilter' => 'status'], // Header attributes
+    ['class' => 'bg-danger']                // Data attributes
 )->setColumn(
-    'action',                               // Nome campo
-    'Action',                               // Etichetta
-    'action',                               // Tipo
-    false,                                  // Non ordinabile
-    false,                                  // Non è chiave primaria
-    ['view' => 'View']                      // Definizione azioni
+    'action',                               // Field name
+    'Action',                               // Label
+    'action',                               // Type
+    false,                                  // Not sortable
+    false,                                  // Not a primary key
+    ['view' => 'View']                      // Actions definition
 );
 
 // Change all labels to uppercase

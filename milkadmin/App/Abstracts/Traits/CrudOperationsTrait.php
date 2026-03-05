@@ -518,8 +518,8 @@ trait CrudOperationsTrait
                     if ($record === null) {
                         // Error occurred during cascade save
                         $this->save_results[] = [
-                            'id' => $record[$this->primary_key] ?? null,
-                            'action' => $record['___action'],
+                            'id' =>  null,
+                            'action' => '',
                             'result' => false,
                             'last_error' => $this->last_error
                         ];
@@ -774,6 +774,23 @@ trait CrudOperationsTrait
         if ($this->last_stored_record_id !== null) {
             return (int)$this->last_stored_record_id;
         }
+
+        // Prefer IDs captured during save() operations.
+        // This is more reliable than db->insertId() when additional INSERTs
+        // (meta/relations/extensions) happen after the main record save.
+        if (!empty($this->save_results)) {
+            for ($i = count($this->save_results) - 1; $i >= 0; $i--) {
+                $result = $this->save_results[$i] ?? null;
+                if (!is_array($result)) {
+                    continue;
+                }
+                $id = (int) ($result['id'] ?? 0);
+                if ($id > 0) {
+                    return $id;
+                }
+            }
+        }
+
         return (int)$this->db->insertId();
     }
 

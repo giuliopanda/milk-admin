@@ -152,7 +152,7 @@ class InstallModule extends AbstractModule
                 Response::themePage('empty', __DIR__."/Views/install_page.php", ['html' => $html]);
             }
         } else {
-            die('Access denied???');     
+            die("Access denied");
         }
     }
 
@@ -218,29 +218,29 @@ class InstallModule extends AbstractModule
                 ]);
             }
         } catch (\Exception $e) {
-            Response::json([
-                'status' => 'error',
-                'data' => [
-                    'success' => false,
-                    'message' => sprintf(_r('Error during module update process: %s'), $e->getMessage()),
-                    'error_type' => get_class($e),
-                    'error_file' => $e->getFile(),
-                    'error_line' => $e->getLine(),
-                    'error_trace' => $e->getTraceAsString()
-                ]
-            ]);
+            $data = [
+                'success' => false,
+                'message' => sprintf(_r('Error during module update process: %s'), $e->getMessage()),
+            ];
+            if (Permissions::check('_user.is_admin')) {
+                $data['error_type'] = get_class($e);
+                $data['error_file'] = $e->getFile();
+                $data['error_line'] = $e->getLine();
+                $data['error_trace'] = $e->getTraceAsString();
+            }
+            Response::json(['status' => 'error', 'data' => $data]);
         } catch (\Throwable $e) {
-            Response::json([
-                'status' => 'error',
-                'data' => [
-                    'success' => false,
-                    'message' => sprintf(_r('Critical error during module update: %s'), $e->getMessage()),
-                    'error_type' => get_class($e),
-                    'error_file' => $e->getFile(),
-                    'error_line' => $e->getLine(),
-                    'error_trace' => $e->getTraceAsString()
-                ]
-            ]);
+            $data = [
+                'success' => false,
+                'message' => sprintf(_r('Critical error during module update: %s'), $e->getMessage()),
+            ];
+            if (Permissions::check('_user.is_admin')) {
+                $data['error_type'] = get_class($e);
+                $data['error_file'] = $e->getFile();
+                $data['error_line'] = $e->getLine();
+                $data['error_trace'] = $e->getTraceAsString();
+            }
+            Response::json(['status' => 'error', 'data' => $data]);
         }
     }
 
@@ -516,10 +516,44 @@ class InstallModule extends AbstractModule
             Install::copyFiles(MILK_DIR.'/../milkadmin_local/Modules', $version_dir.'/milkadmin_local/Modules');
         }
 
+        try {
+            $secret_key = bin2hex(random_bytes(32));
+            $token_key = 't' . bin2hex(random_bytes(4));
+        } catch (\Exception $e) {
+            Cli::error('Failed to generate config keys: ' . $e->getMessage());
+            return;
+        }
+
         // config
         $config_file = __DIR__.'/Assets/InstallFiles/installation_config_example.php';
         if (file_exists($config_file)) {
             $new_config = file_get_contents($config_file);
+            $secret_line = '$conf[\'secret_key\'] = \''.$secret_key.'\';';
+            $token_line = '$conf[\'token_key\'] = \''.$token_key.'\';';
+
+            // Replace existing keys if present
+            $secret_pattern = '/\$conf\[\'secret_key\'\]\s*=\s*\'[^\']*\';/';
+            $token_pattern = '/\$conf\[\'token_key\'\]\s*=\s*\'[^\']*\';/';
+            $new_config = preg_replace($secret_pattern, $secret_line, $new_config, -1, $secret_replaced);
+            $new_config = preg_replace($token_pattern, $token_line, $new_config, -1, $token_replaced);
+
+            // Insert missing keys before final setAll call
+            $missing_lines = [];
+            if (($secret_replaced ?? 0) === 0 && strpos($new_config, '$conf[\'secret_key\']') === false) {
+                $missing_lines[] = $secret_line;
+            }
+            if (($token_replaced ?? 0) === 0 && strpos($new_config, '$conf[\'token_key\']') === false) {
+                $missing_lines[] = $token_line;
+            }
+            if (!empty($missing_lines)) {
+                $keys_block = implode("\n", $missing_lines) . "\n\n";
+                $set_all_line = '\App\Config::setAll($conf);';
+                if (strpos($new_config, $set_all_line) !== false) {
+                    $new_config = str_replace($set_all_line, $keys_block . $set_all_line, $new_config);
+                } else {
+                    $new_config = rtrim($new_config) . "\n\n" . $keys_block;
+                }
+            }
             try {
                 File::putContents($version_dir.'/milkadmin_local/config.php', $new_config);
             } catch (\App\Exceptions\FileException $e) {
@@ -790,17 +824,18 @@ class InstallModule extends AbstractModule
         $content = file_get_contents($milkadmin_php);
         $original_content = $content;
 
-        // Update MILK_DIR path
+        // Update MILK_DIR and LOCAL_DIR paths.
+        // Supports both relative declarations (realpath(__DIR__ . '/../...'))
+        // and absolute paths (realpath('/var/www/...')).
         $content = preg_replace(
-            '/define\(\'MILK_DIR\',\s*realpath\(__DIR__\s*\.\s*"\/\.\.\/[^"]+"\)\);/',
-            'define(\'MILK_DIR\', realpath(__DIR__."/../milkadmin"));',
+            '/define\(\s*[\'"]MILK_DIR[\'"]\s*,\s*realpath\((?:[^()]++|(?R))*\)\s*\)\s*;/',
+            'define(\'MILK_DIR\', realpath(__DIR__ . \'/../milkadmin\'));',
             $content
         );
 
-        // Update LOCAL_DIR path
         $content = preg_replace(
-            '/define\(\'LOCAL_DIR\',\s*realpath\(__DIR__\s*\.\s*"\/\.\.\/[^"]+"\)\);/',
-            'define(\'LOCAL_DIR\', realpath(__DIR__."/../milkadmin_local"));',
+            '/define\(\s*[\'"]LOCAL_DIR[\'"]\s*,\s*realpath\((?:[^()]++|(?R))*\)\s*\)\s*;/',
+            'define(\'LOCAL_DIR\', realpath(__DIR__ . \'/../milkadmin_local\'));',
             $content
         );
 
@@ -859,7 +894,7 @@ class InstallModule extends AbstractModule
             $original_milkadmin = $milkadmin_content;
 
             $milkadmin_content = preg_replace(
-                '/define\(\'BASE_URL\',\s*\'[^\']*\'\);/',
+                '/define\(\s*[\'"]BASE_URL[\'"]\s*,\s*[\'"][^\'"]*[\'"]\s*\)\s*;/',
                 "define('BASE_URL', '" . addslashes($new_url) . "');",
                 $milkadmin_content
             );

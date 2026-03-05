@@ -321,13 +321,36 @@ trait RouteControllerTrait {
                 return $result;
 
             case 'authorized':
-                $permission_name = $this->module->getPermissionName();
-              
-                $result = Permissions::check($this->page.".".$permission_name, $hook);
+                $permission_name = 'access';
+                if (
+                    property_exists($this, 'module')
+                    && is_object($this->module)
+                    && method_exists($this->module, 'getPermissionName')
+                ) {
+                    $permission_name = $this->module->getPermissionName();
+                } elseif (method_exists($this, 'getPermissionName')) {
+                    $permission_name = $this->getPermissionName();
+                }
+
+                $permission_group = $this->page ?? null;
+                if (
+                    ($permission_group === null || $permission_group === '')
+                    && property_exists($this, 'module')
+                    && is_object($this->module)
+                    && method_exists($this->module, 'getPage')
+                ) {
+                    $permission_group = $this->module->getPage();
+                }
+
+                if ($permission_group === null || $permission_group === '') {
+                    return false;
+                }
+
+                $result = Permissions::check($permission_group . "." . $permission_name, $hook);
                 if ($result) {
                     $permission2 = $accessLevel->getPermission();
                     if ($permission2) {
-                        return  Permissions::check($this->page.".".$permission2, $hook);
+                        return Permissions::check($permission_group . "." . $permission2, $hook);
                     }
                 }
                return $result;

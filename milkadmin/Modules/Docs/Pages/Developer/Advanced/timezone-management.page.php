@@ -209,9 +209,9 @@ return [
 <pre><code class="language-php">// milkadmin_local/Lang/it_IT.php
 &lt;?php
 return [
-    'welcome_message' => 'Benvenuto in MilkAdmin',
-    'save_button' => 'Salva',
-    'cancel_button' => 'Annulla',
+    'welcome_message' => 'Welcome to MilkAdmin',
+    'save_button' => 'Save',
+    'cancel_button' => 'Cancel',
 ];
 </code></pre>
 
@@ -222,10 +222,10 @@ return [
 </p>
 
 <pre><code class="language-php">// Print translated text
-_pt('welcome_message');  // Echoes: "Benvenuto in MilkAdmin" (if locale is it_IT)
+_pt('welcome_message');  // Echoes: "Welcome to MilkAdmin" (if locale is it_IT)
 
 // Return translated text
-$message = _rt('save_button');  // Returns: "Salva"
+$message = _rt('save_button');  // Returns: "Save"
 
 // In HTML
 &lt;button&gt;&lt;?php _pt('save_button'); ?&gt;&lt;/button&gt;

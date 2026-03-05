@@ -1,22 +1,13 @@
 <?php
 namespace Theme\TemplateParts;
 
-use App\{Config, Route, Token, Permissions, Theme};
+use App\{Config, Route, Token, Get, Theme};
 use Theme\Template;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
 
 $version = Config::get('version');
-$current_user_id = 0;
-try {
-    $auth = \App\Get::make('Auth');
-    if (is_object($auth) && method_exists($auth, 'getUser')) {
-        $user = $auth->getUser();
-        $current_user_id = (int)($user->id ?? 0);
-    }
-} catch (\Throwable) {
-    $current_user_id = 0;
-}
+$user = Get::user();
 ?>
 <!doctype html>
 <html lang="<?php echo Theme::get('header.lang','en'); ?>">
@@ -35,7 +26,7 @@ try {
     <script>
       var milk_url = "<?php _p(Route::url()); ?>";
       var max_file_size_mb = <?php echo Template::getMaxUploadSizeMB(); ?>;
-      window.MilkAdmin=window.MilkAdmin||{};window.MilkAdmin.user_id=<?php echo $current_user_id; ?>;
+      window.MilkAdmin=window.MilkAdmin||{};window.MilkAdmin.user_id=<?php echo (int)($user->id ?? 0); ?>;
     </script>
     <?php echo Theme::get('header.custom'); ?>
   </head>

@@ -192,8 +192,9 @@ trait DataFormattingTrait
             return date('Y-m-d H:i:s');
         }
 
-        // Handle created_by fields with auto-preservation on updates
-        if (isset($rule['_auto_created_by']) && $rule['_auto_created_by'] === true) {
+        // Handle created_by fields with auto-preservation on updates.
+        // Fallback by field name is required for JSON schemas using method "int".
+        if ($this->shouldAutoManageCreatedByField($field_name, $rule)) {
             $id_field = $this->getPrimaryKey();
             $current_record = $this->getRawData('object', false);
 
@@ -212,8 +213,9 @@ trait DataFormattingTrait
             return $this->resolveCurrentUserId();
         }
 
-        // Handle updated_by fields with auto-update on every save
-        if (isset($rule['_auto_updated_by']) && $rule['_auto_updated_by'] === true) {
+        // Handle updated_by fields with auto-update on every save.
+        // Fallback by field name is required for JSON schemas using method "int".
+        if ($this->shouldAutoManageUpdatedByField($field_name, $rule)) {
             return $this->resolveCurrentUserId();
         }
 
@@ -299,6 +301,32 @@ trait DataFormattingTrait
     {
         $user = Get::user();
         return (int) ($user->id ?? 0);
+    }
+
+    /**
+     * created_by is auto-managed when explicit auto flag is present
+     * or when the field is conventionally named "created_by".
+     */
+    private function shouldAutoManageCreatedByField(string $field_name, array $rule): bool
+    {
+        if (isset($rule['_auto_created_by']) && $rule['_auto_created_by'] === true) {
+            return true;
+        }
+
+        return strtolower(trim($field_name)) === 'created_by';
+    }
+
+    /**
+     * updated_by is auto-managed when explicit auto flag is present
+     * or when the field is conventionally named "updated_by".
+     */
+    private function shouldAutoManageUpdatedByField(string $field_name, array $rule): bool
+    {
+        if (isset($rule['_auto_updated_by']) && $rule['_auto_updated_by'] === true) {
+            return true;
+        }
+
+        return strtolower(trim($field_name)) === 'updated_by';
     }
 
     /**
@@ -650,33 +678,8 @@ trait DataFormattingTrait
      */
     public function __get(string $name)
     {
-        static $call_count = 0;
-        static $call_stack = [];
-        $call_count++;
-
-        $class = get_class($this);
-        $call_info = "$class::$name";
-        $call_stack[] = $call_info;
-
-        $rules = $this->rule_builder->getRules();
-      
-       
-        //foreach ($rules as $field_name => $rule) {
-        //    if (isset($rule['relationship']) ) {
-        //        print "<p>". $field_name . " => " . json_encode($rule['relationship'])."</p>";
-        //        if($this->hasRelationship($name)) {
-        //            print "<h1>TOP</h1>";
-        //        }
-        //         die ("OK!");
-        //    }
-        //}
-       
-
         // Check if this is a relationship alias
         if ( $this->hasRelationship($name)) {
-           
-            // DEBUG
-            $class = get_class($this);
 
             // NEW: Check if we have the relationship as Model in records_objects
             if (isset($this->records_objects[$this->current_index][$name])) {

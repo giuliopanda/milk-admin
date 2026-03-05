@@ -589,7 +589,7 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
         $timezone_obj = new \DateTimeZone($user_timezone);
         $rules = $this->getRules();
 
-        foreach ($this->records_objects as $index => &$record) {
+        foreach ($this->records_objects as &$record) {
             foreach ($record as $field_name => $field_value) {
                 // Skip ___action field
                 if ($field_name === '___action') {
@@ -609,7 +609,7 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
 
                 $rule = $rules[$field_name];
 
-                // Only datetime/date/time fields with timezone_conversion
+                // Only datetime/date fields with timezone_conversion
                 if (!in_array($rule['type'], ['datetime', 'date'])) {
                     continue;
                 }
@@ -838,10 +838,11 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
                 if (is_array($this->records_objects)) {
                     foreach ($this->records_objects as $key => $value) {
                         if ($value[$this->primary_key] == $data[$this->primary_key]) {
+                            $this->current_index = $key;
                             $this->records_objects[$this->current_index]['___action'] = 'edit';
                             // Merge existing data with new data (new data takes precedence)
                             // This ensures that fields not provided in $data retain their existing values
-                            $this->current_index = $key;
+                            
                             foreach ($data as $key => $value) {
                                 // Skip model instances - cannot set models in fill
                                 if ($value instanceof AbstractModel) {
@@ -864,7 +865,7 @@ abstract class AbstractModel implements \ArrayAccess, \Iterator, \Countable
                     foreach ($row as $key => $value) {
                         $this->setValueWithConversion($key, $value);
                     }
-                      $this->records_objects[$this->current_index]['___action'] = 'edit';
+                    $this->records_objects[$this->current_index]['___action'] = 'edit';
                     // Merge existing data with new data (new data takes precedence)
                     // This ensures that fields not provided in $data retain their existing values
                     $this->dates_in_user_timezone = true;

@@ -14,6 +14,36 @@ use App\{Form, Hooks, Token};
 // Get upload options from field configuration
 $upload_options = $options ?? [];
 
+// Normalize truthy/falsy values coming from JSON/form params.
+$normalize_bool = static function ($value): bool {
+    if (is_bool($value)) {
+        return $value;
+    }
+    if (is_int($value) || is_float($value)) {
+        return (int) $value === 1;
+    }
+
+    return in_array(strtolower(trim((string) $value)), ['1', 'true', 'yes', 'on'], true);
+};
+
+// Readonly mode for upload widgets:
+// - disable file input
+// - hide remove buttons
+// - disable sortable interactions
+$is_readonly = false;
+if (array_key_exists('readonly', $upload_options)) {
+    $is_readonly = $normalize_bool($upload_options['readonly']);
+} elseif (array_key_exists('readOnly', $upload_options)) {
+    $is_readonly = $normalize_bool($upload_options['readOnly']);
+}
+if (array_key_exists('disabled', $upload_options) && $normalize_bool($upload_options['disabled'])) {
+    $is_readonly = true;
+}
+unset($upload_options['readonly'], $upload_options['readOnly']);
+if ($is_readonly) {
+    $upload_options['disabled'] = true;
+}
+
 // Multiple files option
 if (array_key_exists('multiple', $upload_options)) {
     $upload_options['multiple'] = 'multiple';
@@ -57,6 +87,9 @@ if (array_key_exists('sortable', $upload_options)) {
     $sortable_enabled = ($sortable_enabled === null) ? false : $sortable_enabled;
     unset($upload_options['sortable']);
 }
+if ($is_readonly) {
+    $sortable_enabled = false;
+}
 
 // Download button disabled by default, enable with options['download-link'] = true.
 // The plugin only renders links provided in value items as [download_url].
@@ -70,7 +103,7 @@ if (array_key_exists('download-link', $upload_options)) {
 
 ?>
 
-<div class="js-file-uploader">
+<div class="js-file-uploader<?php echo $is_readonly ? ' js-file-uploader-readonly' : ''; ?>" data-readonly="<?php echo $is_readonly ? '1' : '0'; ?>">
     <label><?php _p($label); ?></label>
     <div class=" mb-2">
         <ul class="list-group js-file-uploader__list">
@@ -110,7 +143,9 @@ if (array_key_exists('download-link', $upload_options)) {
                                     <i class="bi bi-download"></i>
                                 </a>
                             <?php } ?>
-                            <button type="button" class="btn-close js-upload-file-remove-exist-value" aria-label="Close"></button>
+                            <?php if (!$is_readonly) { ?>
+                                <button type="button" class="btn-close js-upload-file-remove-exist-value" aria-label="Close"></button>
+                            <?php } ?>
                         </div>
                     </li>
                     <?php
@@ -121,6 +156,7 @@ if (array_key_exists('download-link', $upload_options)) {
         </ul>
     </div>
     <?php Form::input('file', $name, '', '', $upload_options); ?>
+    <input type="hidden" class="js-uploader-readonly" value="<?php echo $is_readonly ? '1' : '0'; ?>">
     <?php 
     if (!isset($upload_name)) {
         // il nome è importante per poter controllare i permessi, il max file size, e il tipo di file accettato

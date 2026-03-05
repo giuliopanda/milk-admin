@@ -1,0 +1,501 @@
+#fieldBuilderModal {
+    --pfb-primary: #4f46e5;
+    --pfb-primary-light: #e0e7ff;
+    --pfb-secondary: #64748b;
+    --pfb-danger: #ef4444;
+    --pfb-border: #e2e8f0;
+    --pfb-text: #0f172a;
+    --pfb-text-secondary: #475569;
+    --pfb-text-muted: #94a3b8;
+}
+
+#fieldBuilderModal .modal-content {
+    border: none;
+    border-radius: 12px;
+}
+
+#fieldBuilderModal .modal-header {
+    border-bottom: 2px solid var(--pfb-border);
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(135deg, var(--pfb-primary-light) 0%, #ffffff 100%);
+}
+
+#fieldBuilderModal .modal-title {
+    font-weight: 700;
+    color: var(--pfb-primary);
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+#fieldBuilderModal .modal-body {
+    padding: 0;
+}
+
+#fieldBuilderModal .main-tabs {
+    display: flex;
+    border-bottom: 2px solid var(--pfb-border);
+    background: #fafbfc;
+    padding: 0 1.5rem;
+}
+
+#fieldBuilderModal .main-tab {
+    padding: 1rem 1.5rem;
+    border: none;
+    background: transparent;
+    color: var(--pfb-text-secondary);
+    font-weight: 600;
+    font-size: .9rem;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: all .2s ease;
+}
+
+#fieldBuilderModal .main-tab.active {
+    color: var(--pfb-primary);
+    border-bottom-color: var(--pfb-primary);
+    background: #fff;
+}
+
+#fieldBuilderModal .main-tab-content {
+    display: none;
+    padding: 1.5rem;
+}
+
+#fieldBuilderModal .main-tab-content.active {
+    display: block;
+}
+
+#fieldBuilderModal .form-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px dashed var(--pfb-border);
+}
+
+#fieldBuilderModal .form-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+#fieldBuilderModal .section-title {
+    font-size: .95rem;
+    font-weight: 600;
+    color: var(--pfb-text);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+#fieldBuilderModal .section-title i {
+    color: var(--pfb-primary);
+}
+
+#fieldBuilderModal .section-title-with-action {
+    justify-content: space-between;
+}
+
+#fieldBuilderModal .section-title-label {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+#fieldBuilderModal .db-exclude-toggle {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    font-size: .78rem;
+}
+
+#fieldBuilderModal .db-exclude-toggle .form-check-input {
+    float: none;
+    margin: 0;
+    transform: scale(.88);
+}
+
+#fieldBuilderModal .db-exclude-toggle .form-check-label {
+    font-size: .75rem;
+    font-weight: 500;
+}
+
+#fieldBuilderModal .form-label {
+    font-weight: 500;
+    color: var(--pfb-text);
+    font-size: .875rem;
+    margin-bottom: .4rem;
+}
+
+#fieldBuilderModal .form-label .required {
+    color: var(--pfb-danger);
+}
+
+#fieldBuilderModal .form-label small {
+    color: var(--pfb-text-muted);
+    font-weight: 400;
+}
+
+#fieldBuilderModal .form-control,
+#fieldBuilderModal .form-select {
+    border: 1.5px solid var(--pfb-border);
+    border-radius: 6px;
+    padding: .6rem .85rem;
+    font-size: .875rem;
+    transition: all .2s ease;
+}
+
+#fieldBuilderModal .form-control:focus,
+#fieldBuilderModal .form-select:focus {
+    border-color: var(--pfb-primary);
+    box-shadow: 0 0 0 3px var(--pfb-primary-light);
+}
+
+#fieldBuilderModal .form-control.is-invalid,
+#fieldBuilderModal .form-select.is-invalid,
+#fieldBuilderModal .was-validated .form-control:invalid,
+#fieldBuilderModal .was-validated .form-select:invalid {
+    border-color: var(--pfb-danger);
+}
+
+#fieldBuilderModal .form-control.is-invalid:focus,
+#fieldBuilderModal .form-select.is-invalid:focus,
+#fieldBuilderModal .was-validated .form-control:invalid:focus,
+#fieldBuilderModal .was-validated .form-select:invalid:focus {
+    border-color: var(--pfb-danger);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, .18);
+}
+
+#fieldBuilderModal .invalid-feedback {
+    font-size: .75rem;
+}
+
+#fieldBuilderModal .form-control.is-invalid ~ .invalid-feedback,
+#fieldBuilderModal .form-select.is-invalid ~ .invalid-feedback,
+#fieldBuilderModal .was-validated .form-control:invalid ~ .invalid-feedback,
+#fieldBuilderModal .was-validated .form-select:invalid ~ .invalid-feedback {
+    display: block;
+}
+
+#fieldBuilderModal .code-input {
+    font-family: Consolas, Monaco, monospace;
+    font-size: .8rem;
+    background: #f8fafc;
+}
+
+#fieldBuilderModal .field-type-selector,
+#fieldBuilderModal .db-type-selector {
+    position: relative;
+}
+
+#fieldBuilderModal .type-trigger,
+#fieldBuilderModal .db-type-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .75rem 1rem;
+    border: 2px solid var(--pfb-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all .2s ease;
+    background: #fff;
+}
+
+#fieldBuilderModal .type-current {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+}
+
+#fieldBuilderModal .type-current i {
+    font-size: 1.5rem;
+    color: var(--pfb-primary);
+}
+
+#fieldBuilderModal .type-current-title {
+    font-weight: 600;
+}
+
+#fieldBuilderModal .type-current-description {
+    color: var(--pfb-text-muted);
+}
+
+#fieldBuilderModal .type-grid-wrapper,
+#fieldBuilderModal .db-type-editor-wrapper {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: .5rem;
+    background: #fff;
+    border: 2px solid var(--pfb-primary);
+    border-radius: 10px;
+    padding: 1rem;
+    box-shadow: 0 10px 25px rgba(0,0,0,.15);
+    z-index: 1000;
+    display: none;
+}
+
+#fieldBuilderModal .type-grid-wrapper.show,
+#fieldBuilderModal .db-type-editor-wrapper.show {
+    display: block;
+}
+
+#fieldBuilderModal .field-type-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: .5rem;
+}
+
+#fieldBuilderModal .field-type-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .4rem;
+    padding: .75rem .5rem;
+    border: 1.5px solid var(--pfb-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all .15s ease;
+    background: #fff;
+}
+
+#fieldBuilderModal .field-type-option.selected {
+    border-color: var(--pfb-primary);
+    background: var(--pfb-primary);
+    color: #fff;
+}
+
+#fieldBuilderModal .field-type-option i {
+    font-size: 1.4rem;
+    color: var(--pfb-text-secondary);
+}
+
+#fieldBuilderModal .field-type-option.selected i {
+    color: #fff;
+}
+
+#fieldBuilderModal .options-tabs,
+.projects-options-editor .options-tabs {
+    display: flex;
+    gap: .5rem;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid var(--pfb-border);
+}
+
+#fieldBuilderModal .options-tab,
+.projects-options-editor .options-tab {
+    padding: .5rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--pfb-text-secondary);
+    font-weight: 500;
+    font-size: .85rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+}
+
+#fieldBuilderModal .options-tab.active,
+.projects-options-editor .options-tab.active {
+    color: var(--pfb-primary);
+    border-bottom-color: var(--pfb-primary);
+}
+
+#fieldBuilderModal .options-panel,
+.projects-options-editor .options-panel {
+    display: none;
+}
+
+#fieldBuilderModal .options-panel.active,
+.projects-options-editor .options-panel.active {
+    display: block;
+}
+
+#fieldBuilderModal .option-item,
+.projects-options-editor .option-item, .add-field-sortable-option-item {
+    display: flex;
+    gap: .5rem;
+    align-items: center;
+    background: #fff;
+    border: 1.5px solid var(--pfb-border);
+    border-radius: 6px;
+    padding: .5rem;
+    margin-bottom: .5rem;
+}
+
+#fieldBuilderModal .option-handle,
+.projects-options-editor .option-handle {
+    cursor: grab;
+    color: var(--pfb-text-muted);
+}
+
+#fieldBuilderModal .option-inputs,
+.projects-options-editor .option-inputs, .add-field-sortable-option-item .option-inputs {
+    display: flex;
+    gap: .5rem;
+    flex: 1;
+}
+
+#fieldBuilderModal .btn-remove-option,
+.projects-options-editor .btn-remove-option {
+    padding: .4rem;
+    border: none;
+    background: transparent;
+    color: var(--pfb-danger);
+}
+
+#fieldBuilderModal .btn-add-option,
+.projects-options-editor .btn-add-option {
+    width: 100%;
+    padding: .6rem;
+    border: 1px dashed var(--pfb-border);
+    background: transparent;
+    color: var(--pfb-text-secondary);
+    border-radius: 6px;
+}
+
+#fieldBuilderModal .table-source-group {
+    display: flex;
+    gap: .5rem;
+    align-items: end;
+}
+
+#fieldBuilderModal .table-source-group > div {
+    flex: 1;
+}
+
+#fieldBuilderModal .table-source-group .table-source-col-wide {
+    flex: 2;
+}
+
+#fieldBuilderModal .visibility-toggles {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+#fieldBuilderModal .advanced-collapse-trigger {
+    background: transparent;
+    border: none;
+    color: var(--pfb-primary);
+    font-size: .85rem;
+    font-weight: 500;
+    cursor: pointer;
+    padding: .5rem 0;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+#fieldBuilderModal .list-options-section {
+    border: 1.5px solid var(--pfb-border);
+    border-radius: 8px;
+    padding: .75rem;
+    background: var(--bs-light, #f8f9fa);
+}
+
+#fieldBuilderModal .list-options-title {
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--pfb-primary);
+    margin-bottom: .75rem;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+}
+
+#fieldBuilderModal .list-option-group {
+    padding: .5rem 0;
+    border-top: 1px solid var(--pfb-border);
+}
+
+#fieldBuilderModal .list-option-group:first-of-type {
+    border-top: none;
+    padding-top: 0;
+}
+
+#fieldBuilderModal .list-option-group-label {
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--pfb-text-secondary);
+    margin-bottom: .5rem;
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+}
+
+#fieldBuilderModal .list-option-group .form-check-label {
+    font-size: .82rem;
+}
+
+#fieldBuilderModal .list-truncate-inline {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+}
+
+#fieldBuilderModal .list-truncate-inline .form-label {
+    font-size: .78rem;
+    white-space: nowrap;
+    margin-bottom: 0;
+    color: var(--pfb-text-muted);
+}
+
+#fieldBuilderModal .list-truncate-inline .form-control {
+    width: 70px;
+    padding: .25rem .4rem;
+}
+
+#fieldBuilderModal #listChangeValuesEditor {
+    margin-top: .25rem;
+}
+
+#fieldBuilderModal #listChangeValuesEditor .option-inputs input[data-field="value"] {
+    flex: 0 0 35%;
+}
+
+#fieldBuilderModal .relation-list-fields-selected {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+
+#fieldBuilderModal .relation-list-field-row {
+    display: grid;
+    grid-template-columns: minmax(140px, 1fr) minmax(180px, 1.3fr) auto;
+    align-items: center;
+    gap: .5rem;
+    border: 1px solid var(--pfb-border);
+    border-radius: 8px;
+    padding: .4rem .5rem;
+    background: #fff;
+}
+
+#fieldBuilderModal .relation-list-field-name {
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--pfb-text-secondary);
+    word-break: break-all;
+}
+
+#fieldBuilderModal .relation-list-field-label {
+    font-size: .78rem;
+}
+
+#fieldBuilderModal .relation-list-fields-empty {
+    font-size: .78rem;
+    color: var(--pfb-text-muted);
+}
+
+@media (max-width: 576px) {
+    #fieldBuilderModal .relation-list-field-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+#fieldBuilderModal .modal-footer {
+    border-top: 2px solid var(--pfb-border);
+    padding: 1rem 1.5rem;
+}

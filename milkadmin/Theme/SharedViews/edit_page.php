@@ -11,26 +11,35 @@ use Builders\TitleBuilder;
  * $form - string
  */
 ?>
-<div class="card">
-    <?php if (isset($title) || isset($title_btns)) : ?>
-    <div class="card-header">
-        <?php 
-            $title_builder = TitleBuilder::create($title );
-            if (isset($title_btns) && is_array($title_btns)) {
-                foreach ($title_btns as $btn) {
-                    $title_builder->addButton($btn['label'], $btn['link'], $btn['color'] ?? 'primary');
-                }
-            }
-            echo $title_builder;
-        ?>
-    </div>
+<div class="row">
+    <?php if (isset($sidebar)) : ?>
+        <div class="col-md-3">
+            <?php _ph($sidebar); ?>
+        </div>
     <?php endif; ?>
-    <div class="card-body">
-        <?php if (isset($description)) { ?>
-            <p class="text-body-secondary mb-3"><?php _pt($description); ?></p>
-        <?php } ?>
-        <div class="form-group col-xl-8 col-lg-12">
-            <?php echo $form; ?>
-        </div>  
+    <div class="<?php _p((isset($sidebar)) ? 'col-md-9' : 'col-md-12'); ?>">
+        <div class="card">
+            <?php if (isset($title) || isset($title_btns)) : ?>
+            <div class="card-header">
+                <?php 
+                    $title_builder = TitleBuilder::create($title );
+                    if (isset($title_btns) && is_array($title_btns)) {
+                        foreach ($title_btns as $btn) {
+                            $title_builder->addButton($btn['label'], $btn['link'], $btn['color'] ?? 'primary');
+                        }
+                    }
+                    echo $title_builder;
+                ?>
+            </div>
+            <?php endif; ?>
+            <div class="card-body">
+                <?php if (isset($description)) { ?>
+                    <p class="text-body-secondary mb-3"><?php _pt($description); ?></p>
+                <?php } ?>
+                <div class="form-group col-xl-8 col-lg-12">
+                    <?php echo $form; ?>
+                </div>
+            </div>
+        </div>
     </div>
 </div>

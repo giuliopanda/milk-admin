@@ -209,7 +209,7 @@ class ActionManager
     private function executeRowActionIfRequested(array $actionFunctions): void
     {
         $request = $this->context->getRequest();
-        $tableAction = $request['table_action'] ?? null;
+        $tableAction = $this->resolveRequestedAction($request);
 
         if (!$tableAction || !isset($actionFunctions[$tableAction]) || $this->executed) {
             return;
@@ -225,9 +225,14 @@ class ActionManager
     private function executeBulkActionIfRequested(): void
     {
         $request = $this->context->getRequest();
-        $tableAction = $request['table_action'] ?? null;
+        $tableAction = $this->resolveRequestedAction($request);
+        $allRecordsScope = $this->isAllRecordsScope($request);
 
-        if (!$tableAction || !isset($request['table_ids']) || $this->executed) {
+        if (!$tableAction || $this->executed) {
+            return;
+        }
+
+        if (!$allRecordsScope && !isset($request['table_ids']) && !isset($request['list_ids'])) {
             return;
         }
 
@@ -240,28 +245,67 @@ class ActionManager
                 $this->update_table = false;
             }
 
-            $ids = explode(',', $request['table_ids']);
+            $ids = $this->parseIds($request);
             $mode = $config['mode'] ?? 'single';
 
-            $this->executeBulkAction($config['action'], $ids, $mode, $request);
+            $this->executeBulkAction($config['action'], $ids, $mode, $request, $allRecordsScope);
             $this->executed = true;
 
             break;
         }
     }
 
-    private function executeBulkAction(mixed $action, array $ids, string $mode, array $request): void
+    private function executeBulkAction(
+        mixed $action,
+        array $ids,
+        string $mode,
+        array $request,
+        bool $allRecordsScope = false
+    ): void
     {
         $model = $this->context->getModel();
 
         if ($mode === 'batch') {
-            $records = $model->getByIds($ids);
+            $records = $allRecordsScope
+                ? $this->getAllRecordsForBulkAction($model)
+                : $model->getByIds($ids);
+
+            if ($records === null || $records === false) {
+                return;
+            }
+
             $result = call_user_func($action, $records, $request);
 
             if (is_array($result)) {
                 $this->action_response = array_merge($this->action_response, $result);
             }
 
+            return;
+        }
+
+        if ($allRecordsScope) {
+            $records = $this->getAllRecordsForBulkAction($model);
+            if ($records === null || $records === false) {
+                return;
+            }
+
+            $primaryKey = (string) $model->getPrimaryKey();
+            foreach ($records as $recordEntry) {
+                $recordId = $primaryKey !== '' ? ($recordEntry->{$primaryKey} ?? null) : null;
+                if ($recordId === null || $recordId === '') {
+                    continue;
+                }
+
+                $record = $model->getById($recordId);
+                if ($record === null) {
+                    continue;
+                }
+
+                $result = call_user_func($action, $record, $request);
+                if (is_array($result)) {
+                    $this->action_response = array_merge($this->action_response, $result);
+                }
+            }
             return;
         }
 
@@ -302,10 +346,17 @@ class ActionManager
 
     private function parseIds(array $request): array
     {
-        $tableIds = $request['table_ids'] ?? [];
+        $tableIds = $request['table_ids'] ?? ($request['list_ids'] ?? []);
 
-        if (is_string($tableIds) && str_contains($tableIds, ',')) {
-            return explode(',', $tableIds);
+        if (is_string($tableIds)) {
+            $tableIds = trim($tableIds);
+            if ($tableIds === '') {
+                return [];
+            }
+            if (str_contains($tableIds, ',')) {
+                return array_values(array_filter(array_map('trim', explode(',', $tableIds)), static fn($id) => $id !== ''));
+            }
+            return [$tableIds];
         }
 
         if (is_array($tableIds)) {
@@ -313,6 +364,47 @@ class ActionManager
         }
 
         return [$tableIds];
+    }
+
+    private function isAllRecordsScope(array $request): bool
+    {
+        $scopeRaw = $request['table_scope'] ?? ($request['list_scope'] ?? 'selected');
+        $scope = strtolower(trim((string) $scopeRaw));
+        if ($scope === 'all_records') {
+            return true;
+        }
+
+        $legacyRaw = $request['table_all_records'] ?? ($request['list_all_records'] ?? '0');
+        $legacyFlag = strtolower(trim((string) $legacyRaw));
+        return in_array($legacyFlag, ['1', 'true', 'yes', 'on'], true);
+    }
+
+    private function resolveRequestedAction(array $request): ?string
+    {
+        $tableAction = trim((string) ($request['table_action'] ?? ''));
+        if ($tableAction !== '') {
+            return $tableAction;
+        }
+
+        $listAction = trim((string) ($request['list_action'] ?? ''));
+        if ($listAction !== '') {
+            return $listAction;
+        }
+
+        return null;
+    }
+
+    private function getAllRecordsForBulkAction($model)
+    {
+        $query = clone $this->context->getQuery();
+        $request = $_REQUEST[$this->context->getTableId()] ?? $this->context->getRequest();
+        if (!is_array($request)) {
+            $request = [];
+        }
+
+        $this->context->getModelList()->applyFilters($query, $request);
+        $query->clean('limit');
+        return $model->get($query);
     }
 
     private function generateKeyFromLabel(string $label): string

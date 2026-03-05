@@ -282,3 +282,20 @@
 @keyframes milkselect-spin {
   to { transform: rotate(360deg); }
 }
+
+.cs-autocomplete-readonly {
+  cursor: default;
+  background-color:  #fcfcfc;
+  border: none;
+  opacity: 1;
+}
+
+.cs-autocomplete-readonly .cs-autocomplete-input-single {
+  background-color: transparent;
+  cursor: default;
+  pointer-events: none;
+}
+
+.cs-autocomplete-readonly .cs-autocomplete-selected-item {
+  background-color: var(--bs-secondary-bg, #dee2e6);
+}

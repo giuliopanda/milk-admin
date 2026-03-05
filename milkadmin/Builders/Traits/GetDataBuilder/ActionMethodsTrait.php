@@ -57,6 +57,15 @@ trait ActionMethodsTrait
     }
 
     /**
+     * Enable/disable "all records" scope for bulk actions.
+     */
+    public function setBulkAllowAllRecords(bool $enabled = true): static
+    {
+        $this->context->setBulkAllowAllRecords($enabled);
+        return $this;
+    }
+
+    /**
      * Default delete action handler
      */
     public function actionDeleteRow($records, $request): bool

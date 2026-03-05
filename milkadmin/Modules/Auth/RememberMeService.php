@@ -30,6 +30,46 @@ class RememberMeService
     }
 
     /**
+     * Remember-me is available only when configured and served over HTTPS.
+     */
+    public static function isAvailable(): bool
+    {
+        if (!Config::get('auth_remember_me_duration')) {
+            return false;
+        }
+
+        return self::isHttpsRequest();
+    }
+
+    private static function isHttpsRequest(): bool
+    {
+        $https = strtolower((string) ($_SERVER['HTTPS'] ?? ''));
+        if ($https !== '' && $https !== 'off' && $https !== '0') {
+            return true;
+        }
+
+        $requestScheme = strtolower((string) ($_SERVER['REQUEST_SCHEME'] ?? ''));
+        if ($requestScheme === 'https') {
+            return true;
+        }
+
+        if ((int) ($_SERVER['SERVER_PORT'] ?? 0) === 443) {
+            return true;
+        }
+
+        $forwardedProto = strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
+        if ($forwardedProto !== '') {
+            $first = trim(explode(',', $forwardedProto)[0]);
+            if ($first === 'https') {
+                return true;
+            }
+        }
+
+        $baseUrlScheme = strtolower((string) parse_url((string) Config::get('base_url', ''), PHP_URL_SCHEME));
+        return $baseUrlScheme === 'https';
+    }
+
+    /**
      * Generate a new remember me token
      *
      * @return array ['selector' => string, 'validator' => string]
@@ -52,10 +92,10 @@ class RememberMeService
      */
     public function storeToken(int $user_id, string $selector, string $validator): bool
     {
-        $duration = Config::get('auth_remember_me_duration');
-        if (!$duration) {
+        if (!self::isAvailable()) {
             return false;
         }
+        $duration = Config::get('auth_remember_me_duration');
 
         // Enforce max devices limit
         $this->enforceMaxDevices($user_id);
@@ -142,17 +182,18 @@ class RememberMeService
      */
     public function setCookie(string $selector, string $validator): void
     {
-        $duration = Config::get('auth_remember_me_duration');
-        if (!$duration) {
+        if (!self::isAvailable()) {
             return;
         }
+        $duration = Config::get('auth_remember_me_duration');
 
         $cookieValue = $selector . ':' . $validator;
         $expires = time() + ($duration * 86400);
+        $cookieName = $this->getCookieName();
 
-        setcookie(self::COOKIE_NAME, $cookieValue, [
+        setcookie($cookieName, $cookieValue, [
             'expires' => $expires,
-            'path' => '/',
+            'path' => $this->getCookiePath(),
             'httponly' => true,
             'secure' => true,
             'samesite' => 'Strict'
@@ -166,11 +207,12 @@ class RememberMeService
      */
     public function getCookie()
     {
-        if (!isset($_COOKIE[self::COOKIE_NAME])) {
+        $cookieName = $this->getCookieName();
+        if (!isset($_COOKIE[$cookieName])) {
             return false;
         }
 
-        $parts = explode(':', $_COOKIE[self::COOKIE_NAME], 2);
+        $parts = explode(':', $_COOKIE[$cookieName], 2);
 
         if (count($parts) !== 2) {
             return false;
@@ -187,13 +229,40 @@ class RememberMeService
      */
     public function deleteCookie(): void
     {
-        setcookie(self::COOKIE_NAME, '', [
+        $cookieName = $this->getCookieName();
+        setcookie($cookieName, '', [
             'expires' => time() - 3600,
-            'path' => '/',
+            'path' => $this->getCookiePath(),
             'httponly' => true,
             'secure' => true,
             'samesite' => 'Strict'
         ]);
+    }
+
+    private function getCookieName(): string
+    {
+        $baseUrl = (string) Config::get('base_url', '');
+        $defaultName = self::COOKIE_NAME . '_' . substr(hash('sha256', ($baseUrl !== '' ? $baseUrl : __DIR__)), 0, 8);
+        $configured = (string) Config::get('auth_remember_me_cookie_name', $defaultName);
+        $cookieName = preg_replace('/[^A-Za-z0-9_]/', '', $configured);
+        return $cookieName !== '' ? $cookieName : $defaultName;
+    }
+
+    private function getCookiePath(): string
+    {
+        $baseUrl = (string) Config::get('base_url', '');
+        $defaultPath = (string) parse_url($baseUrl, PHP_URL_PATH);
+        if ($defaultPath === '') {
+            $defaultPath = '/';
+        }
+
+        $cookiePath = (string) Config::get('auth_cookie_path', $defaultPath);
+        $cookiePath = '/' . ltrim(trim($cookiePath), '/');
+        if ($cookiePath !== '/') {
+            $cookiePath = rtrim($cookiePath, '/') . '/';
+        }
+
+        return $cookiePath;
     }
 
     /**

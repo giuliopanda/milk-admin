@@ -45,6 +45,7 @@ class Table {
         action_url: '',
         table_action: '',
         table_ids: '',
+        table_scope: 'selected',
         current_page: 1,
         limit: 10,
         order_field: '',
@@ -116,6 +117,7 @@ class Table {
         // Reset action fields
         this.state.table_action = '';
         this.state.table_ids = '';
+        this.state.table_scope = 'selected';
     }
 
     /**
@@ -123,7 +125,7 @@ class Table {
      * Maintains the same POST structure as the original form-based version
      * @returns {FormData}
      */
-    buildFormData() {
+    buildFormData(include_action_payload = false) {
         const formData = new FormData();
         const table_id = this.state.table_id;
         
@@ -137,9 +139,13 @@ class Table {
         // Token
         formData.append('token', this.state.token);
         
-        // Table-specific parameters (namespaced under table_id)
-        formData.append(`${table_id}[table_action]`, this.state.table_action);
-        formData.append(`${table_id}[table_ids]`, this.state.table_ids);
+        // Action payload is included only for explicit table actions.
+        if (include_action_payload) {
+            formData.append(`${table_id}[table_action]`, this.state.table_action);
+            formData.append(`${table_id}[table_ids]`, this.state.table_ids);
+            formData.append(`${table_id}[table_scope]`, this.state.table_scope);
+            formData.append(`${table_id}[table_all_records]`, this.state.table_scope === 'all_records' ? '1' : '0');
+        }
         formData.append(`${table_id}[page]`, this.state.current_page);
         formData.append(`${table_id}[limit]`, this.state.limit);
         formData.append(`${table_id}[order_field]`, this.state.order_field);
@@ -174,6 +180,7 @@ class Table {
         this.initialize_single_actions();
         this.initialize_link_confirms();
         this.initialize_pagination();
+        this.recalculating(false);
         this.execute_custom_initialization();
         this.trigger_initialization_hook();
     }
@@ -319,6 +326,15 @@ class Table {
                 this.tableBulkAction(element);
             });
         });
+
+        const bulk_scope_select = this.el_container.querySelector('.js-bulk-scope-select');
+        if (bulk_scope_select) {
+            bulk_scope_select.addEventListener('change', () => {
+                const scope = this.getBulkSelectionScope();
+                this.state.table_scope = scope;
+                this.updateBulkActionRowVisibility();
+            });
+        }
     }
 
     /**
@@ -452,6 +468,8 @@ class Table {
      * @param {Object} filter - Filter object to add
      */
     filter_add(filter) {
+        this.resetSearchTransientState();
+
         let json_val = [];
         if (this.state.filters !== '') {
             try {
@@ -470,6 +488,7 @@ class Table {
      * Clear all filters
      */
     filter_clear() {
+        this.resetSearchTransientState();
         this.state.filters = '';
     }
 
@@ -478,6 +497,8 @@ class Table {
      * @param {Object} filter - Filter object to remove
      */
     filter_remove(filter) {
+        this.resetSearchTransientState();
+
         let json_val = [];
         if (this.state.filters !== '') {
             try {
@@ -500,6 +521,8 @@ class Table {
      * @param {string} filter - Prefix to match for removal
      */
     filter_remove_start(filter) {
+        this.resetSearchTransientState();
+
         let json_val = [];
         if (this.state.filters !== '') {
             try {
@@ -590,6 +613,8 @@ class Table {
             return;
         }
 
+        const scope = this.getBulkSelectionScope();
+
         // Collect selected checkbox values
         const checkboxes = this.el_container.querySelectorAll('.js-col-checkbox:checked');
         const ids = [];
@@ -597,15 +622,29 @@ class Table {
             ids.push(checkbox.value);
         });
 
+        if (scope !== 'all_records' && ids.length === 0) {
+            console.warn('No selected rows for bulk action');
+            return;
+        }
+
+        if (scope === 'all_records') {
+            const action_label = (el.textContent || '').trim() || action_val;
+            const confirm_message = `Stai per applicare l'azione "${action_label}" a tutti i record filtrati. Continuare?`;
+            if (!confirm(confirm_message)) {
+                return;
+            }
+        }
+
         let should_proceed = true;
         if (typeof callHook === 'function') {
             // Pass Table instance instead of form
-            should_proceed = callHook(`table-action-${action_val}`, ids, el, this, true);
+            should_proceed = callHook(`table-action-${action_val}`, ids, el, this, true, scope);
         }
 
         if (should_proceed) {
             this.state.table_action = action_val;
-            this.state.table_ids = ids.join(',');
+            this.state.table_scope = scope;
+            this.state.table_ids = scope === 'all_records' ? '' : ids.join(',');
             this.sendForm();
         }
     }
@@ -641,6 +680,7 @@ class Table {
         if (should_proceed) {
             this.state.table_action = action_val;
             this.state.table_ids = id_val;
+            this.state.table_scope = 'selected';
             this.sendForm();
         }
     }
@@ -670,25 +710,20 @@ class Table {
     /**
      * Ricaclola il numero di righe selezionate per la riga bulk
      */
-    recalculating() {
+    recalculating(force_selected_scope = true) {
         const selected_checkboxes = this.el_container.querySelectorAll('.js-col-checkbox:checked');
-        
-        // Update selected count display
-        const sel = this.el_container.querySelector('.js-count-selected');
-        if (sel) sel.innerHTML = selected_checkboxes.length;
+        const selected_count = selected_checkboxes.length;
 
-        // Show/hide bulk actions row
-        const row = this.el_container.querySelector('.js-row-bulk-actions');
-        if (row) {
-            if (selected_checkboxes.length > 0) {
-                row.classList.remove('invisible');
-                row.classList.add('visible');
-            } else {
-                row.classList.remove('visible');
-                row.classList.add('invisible');
-            }
+        if (force_selected_scope) {
+            this.setBulkSelectionScope('selected');
+            this.state.table_scope = 'selected';
+        } else {
+            this.state.table_scope = this.getBulkSelectionScope();
         }
 
+        this.updateSelectedRowsScopeLabel(selected_count);
+        this.updateBulkActionRowVisibility(selected_count);
+        
         // Trigger selection change hook
         let idname = this.el_container.getAttribute('id');
         if (idname && typeof callHook === 'function') {
@@ -698,6 +733,71 @@ class Table {
             });
             callHook(`${idname}-checkbox-change`, ids, this);
         }
+    }
+
+    getBulkScopeSelect() {
+        return this.el_container.querySelector('.js-bulk-scope-select');
+    }
+
+    getBulkSelectionScope() {
+        const select = this.getBulkScopeSelect();
+        if (!select) {
+            return 'selected';
+        }
+        return select.value === 'all_records' ? 'all_records' : 'selected';
+    }
+
+    setBulkSelectionScope(scope) {
+        const select = this.getBulkScopeSelect();
+        if (!select) {
+            return;
+        }
+
+        const normalized_scope = scope === 'all_records' ? 'all_records' : 'selected';
+        const option_exists = !!select.querySelector(`option[value="${normalized_scope}"]`);
+        select.value = option_exists ? normalized_scope : 'selected';
+    }
+
+    updateSelectedRowsScopeLabel(selected_count) {
+        const select = this.getBulkScopeSelect();
+        if (select) {
+            const selected_option = select.querySelector('option[value="selected"]');
+            if (!selected_option) {
+                return;
+            }
+
+            const label = select.getAttribute('data-selected-label') || 'rows selected';
+            selected_option.textContent = `${selected_count} ${label}`;
+            return;
+        }
+
+        const count_text = this.el_container.querySelector('.js-count-selected');
+        if (count_text) {
+            count_text.textContent = String(selected_count);
+        }
+    }
+
+    updateBulkActionRowVisibility(selected_count = null) {
+        const row = this.el_container.querySelector('.js-row-bulk-actions');
+        if (!row) {
+            return;
+        }
+
+        const allow_all_records = row.getAttribute('data-allow-all-records') === '1';
+        const resolved_selected_count = selected_count === null
+            ? this.el_container.querySelectorAll('.js-col-checkbox:checked').length
+            : selected_count;
+
+        const should_show = allow_all_records || resolved_selected_count > 0;
+
+        if (should_show) {
+            row.classList.remove('invisible');
+            row.classList.add('visible');
+            return;
+        }
+
+        row.classList.remove('visible');
+        row.classList.add('invisible');
     }
 
     /**
@@ -761,6 +861,7 @@ class Table {
     clearActionFields() {
         this.state.table_action = '';
         this.state.table_ids = '';
+        this.state.table_scope = this.getBulkSelectionScope();
     }
 
     /**
@@ -768,6 +869,40 @@ class Table {
      */
     setActionFields(action) {
         this.state.table_action = action;
+    }
+
+    /**
+     * Check whether a table action payload should be sent.
+     * @returns {boolean}
+     */
+    hasPendingAction() {
+        return typeof this.state.table_action === 'string' && this.state.table_action.trim() !== '';
+    }
+
+    /**
+     * Clear selected checkboxes and bulk-action transient state for search operations.
+     */
+    resetSearchTransientState() {
+        const checkboxes = this.el_container.querySelectorAll('.js-col-checkbox');
+        checkboxes.forEach((checkbox) => {
+            checkbox.checked = false;
+            const row = checkbox.closest('.js-table-tr');
+            if (row) {
+                row.classList.remove('js-selected');
+            }
+        });
+
+        const header_checkbox = this.el_container.querySelector('.js-click-all-checkbox');
+        if (header_checkbox) {
+            header_checkbox.checked = false;
+            header_checkbox.indeterminate = false;
+        }
+
+        this.setBulkSelectionScope('selected');
+        this.state.table_action = '';
+        this.state.table_ids = '';
+        this.state.table_scope = 'selected';
+        this.recalculating(false);
     }
 
     /**
@@ -789,7 +924,7 @@ class Table {
      * @returns {FormData}
      */
     getFormData() {
-        return this.buildFormData();
+        return this.buildFormData(this.hasPendingAction());
     }
 
     /**
@@ -840,7 +975,11 @@ class Table {
         }
 
         try {
-            const form_data = this.buildFormData();
+            const include_action_payload = this.hasPendingAction();
+            const form_data = this.buildFormData(include_action_payload);
+            if (include_action_payload) {
+                this.clearActionFields();
+            }
             const response = await fetch(this.state.action_url, {
                 method: 'POST',
                 credentials: 'same-origin',

@@ -6,7 +6,7 @@ use App\Route;
  * @title Introduction to ModelList
  * @guide framework
  * @order 5
- * @tags html table, ModelList, dynamic-table, introduction, basic-table, AbstractController, tabelle-dinamiche, gestione-flusso, base-tutorial
+ * @tags html table, ModelList, dynamic-table, introduction, basic-table, AbstractController, dynamic-tables, flow-management, basic-tutorial
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

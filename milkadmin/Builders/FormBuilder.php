@@ -147,10 +147,32 @@ class FormBuilder {
      * @return self For method chaining
      *
      * @example ->urlSuccess('?page=users&action=list')
+     * @deprecated Use setUrlSuccess() instead.
      */
     public function urlSuccess(string $url): self {
+        return $this->setUrlSuccess($url);
+    }
+
+    /**
+     * Set success redirect URL
+     *
+     * @param string $url URL to redirect to on successful submission
+     * @return self For method chaining
+     *
+     * @example ->setUrlSuccess('?page=users&action=list')
+     */
+    public function setUrlSuccess(string $url): self {
         $this->url_success = $url;
         return $this;
+    }
+
+    /**
+     * Get configured success redirect URL.
+     *
+     * @return string|null
+     */
+    public function getUrlSuccess(): ?string {
+        return $this->url_success;
     }
 
     /**
@@ -160,10 +182,32 @@ class FormBuilder {
      * @return self For method chaining
      *
      * @example ->urlError('?page=users&action=edit&error=1')
+     * @deprecated Use setUrlError() instead.
      */
     public function urlError(string $url): self {
+        return $this->setUrlError($url);
+    }
+
+    /**
+     * Set error redirect URL
+     *
+     * @param string $url URL to redirect to on error
+     * @return self For method chaining
+     *
+     * @example ->setUrlError('?page=users&action=edit&error=1')
+     */
+    public function setUrlError(string $url): self {
         $this->url_error = $url;
         return $this;
+    }
+
+    /**
+     * Get configured error redirect URL.
+     *
+     * @return string|null
+     */
+    public function getUrlError(): ?string {
+        return $this->url_error;
     }
 
     /**
@@ -279,6 +323,7 @@ class FormBuilder {
                     return ['success' => true, 'message' => $success_message];
                 } else {
                     $redirect_success = Route::replaceUrlPlaceholders($redirect_success, [...$request, 'id' =>  $form_builder->last_insert_id, $form_builder->model->getPrimaryKey() =>  $form_builder->last_insert_id]);
+
                     if ($redirect_success != '') {
                         Route::redirectSuccess($redirect_success, $success_message);
                     }
@@ -474,7 +519,9 @@ class FormBuilder {
     }
 
     /**
-     * set Url
+     * Set both success and error redirect URLs.
+     *
+     * @deprecated Use setUrlSuccess() and setUrlError() instead.
      */
     public function url($url_success_or_json = null, $url_error = null) {
         $this->url_success =  $url_success_or_json;

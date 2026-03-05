@@ -76,6 +76,8 @@ class TrixEditorManager {
             autofocus: config.autofocus === true,
             height: config.height || '200px',
             enableToggle: config.enableToggle !== false,
+            required: config.required === true,
+            invalidFeedback: String(config.invalidFeedback || ''),
             ...callbacks
         });
 
@@ -144,7 +146,9 @@ class TrixEditorManager {
         toolbar = true,
         autofocus = false,
         height = '200px',
-        enableToggle = true
+        enableToggle = true,
+        required = false,
+        invalidFeedback = ''
     }) {
         this.counter++;
         const editorContainerId = `trix-container-${this.counter}`;
@@ -169,6 +173,11 @@ class TrixEditorManager {
         hiddenInput.id = inputId;
         hiddenInput.name = name;
         hiddenInput.value = value;
+        hiddenInput.required = required === true;
+        if (invalidFeedback && invalidFeedback.trim() !== '') {
+            hiddenInput.dataset.errorMessage = invalidFeedback.trim();
+        }
+        hiddenInput.dataset.editorRequired = required === true ? '1' : '0';
 
         // Create trix-editor element
         const trixEditor = document.createElement('trix-editor');
@@ -219,6 +228,8 @@ class TrixEditorManager {
                 placeholder: placeholder,
                 enableToggle: enableToggle,
                 isTextarea: false,
+                required: required === true,
+                invalidFeedback: String(invalidFeedback || ''),
                 callbacks: {
                     onChange,
                     onBlur,
@@ -226,8 +237,14 @@ class TrixEditorManager {
                     onFileAccept,
                     onAttachmentAdd,
                     onAttachmentRemove
-                }
+                },
+                validateRequired: null
             });
+
+            const currentInstance = this.instances.get(containerId);
+            if (currentInstance) {
+                currentInstance.validateRequired = () => this.validateEditorRequired(containerId);
+            }
 
             // Set initial value if provided
             if (value) {
@@ -241,11 +258,25 @@ class TrixEditorManager {
                 });
             }
 
+            trixEditor.addEventListener('trix-change', () => {
+                this.validateEditorRequired(containerId);
+            });
+
             if (onBlur) {
                 trixEditor.addEventListener('trix-blur', (event) => {
                     onBlur(hiddenInput.value, event);
                 });
             }
+
+            hiddenInput.addEventListener('input', () => {
+                this.validateEditorRequired(containerId);
+            });
+            hiddenInput.addEventListener('change', () => {
+                this.validateEditorRequired(containerId);
+            });
+            hiddenInput.addEventListener('fieldValidation', () => {
+                this.validateEditorRequired(containerId);
+            });
 
             if (onFocus) {
                 trixEditor.addEventListener('trix-focus', (event) => {
@@ -301,6 +332,8 @@ class TrixEditorManager {
                     });
                 }
             });
+
+            this.validateEditorRequired(containerId);
         });
 
         return containerId;
@@ -449,6 +482,10 @@ class TrixEditorManager {
             toggleButton.title = 'Torna all\'editor';
             toggleButton.classList.add('trix-active');
         }
+
+        if (typeof instance.validateRequired === 'function') {
+            instance.validateRequired();
+        }
     }
 
     // Metodo per convertire HTML formattato dalla textarea a HTML valido per l'editor
@@ -469,6 +506,80 @@ class TrixEditorManager {
                 return '<div><br></div>';
             })
             .join('');
+    }
+
+    isEditorContentEmpty(content, isTextarea = false) {
+        const rawContent = String(content ?? '');
+
+        if (isTextarea) {
+            // In source mode the field is a plain textarea: treat only real text as content.
+            return rawContent.trim() === '';
+        }
+
+        if (rawContent.trim() === '') {
+            return true;
+        }
+
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = rawContent;
+
+        // Attachments/media count as non-empty content.
+        const hasMedia = !!wrapper.querySelector(
+            'img, video, audio, iframe, figure, [data-trix-attachment], attachment, object, embed'
+        );
+        if (hasMedia) {
+            return false;
+        }
+
+        const text = (wrapper.textContent || '')
+            .replace(/\u200B/g, '')
+            .replace(/\u00A0/g, ' ')
+            .trim();
+
+        return text === '';
+    }
+
+    setEditorValidityUi(instance, isValid) {
+        if (!instance) return;
+
+        const form = instance.hiddenInput ? instance.hiddenInput.form : null;
+        const showValidationUi = !!(form && form.classList.contains('was-validated'));
+
+        if (!showValidationUi) {
+            instance.trixElement.classList.remove('is-invalid');
+            return;
+        }
+
+        if (isValid) {
+            instance.trixElement.classList.remove('is-invalid');
+        } else {
+            instance.trixElement.classList.add('is-invalid');
+        }
+    }
+
+    validateEditorRequired(containerId) {
+        const instance = this.instances.get(containerId);
+        if (!instance || !instance.hiddenInput) return true;
+
+        if (!instance.required || instance.hiddenInput.disabled) {
+            instance.hiddenInput.setCustomValidity('');
+            this.setEditorValidityUi(instance, true);
+            return true;
+        }
+
+        const currentValue = instance.hiddenInput.value || '';
+        const isEmpty = this.isEditorContentEmpty(currentValue, instance.isTextarea);
+        const message = (instance.invalidFeedback || '').trim() || 'This field is required.';
+
+        if (isEmpty) {
+            instance.hiddenInput.setCustomValidity(message);
+            this.setEditorValidityUi(instance, false);
+            return false;
+        }
+
+        instance.hiddenInput.setCustomValidity('');
+        this.setEditorValidityUi(instance, true);
+        return true;
     }
 
     switchToEditor(containerId) {
@@ -503,6 +614,10 @@ class TrixEditorManager {
         if (toggleButton) {
             toggleButton.title = 'Mostra codice sorgente';
             toggleButton.classList.remove('trix-active');
+        }
+
+        if (typeof instance.validateRequired === 'function') {
+            instance.validateRequired();
         }
     }
 
@@ -609,6 +724,10 @@ class TrixEditorManager {
         } else {
             instance.editor.loadHTML(value);
         }
+
+        if (typeof instance.validateRequired === 'function') {
+            instance.validateRequired();
+        }
     }
 
     insertText(containerId, text) {
@@ -673,6 +792,10 @@ class TrixEditorManager {
         } else {
             instance.editor.loadHTML('');
         }
+
+        if (typeof instance.validateRequired === 'function') {
+            instance.validateRequired();
+        }
     }
 
     setEnabled(containerId, enabled) {
@@ -689,6 +812,10 @@ class TrixEditorManager {
                 instance.trixElement.setAttribute('contenteditable', 'false');
                 instance.trixElement.setAttribute('disabled', 'disabled');
             }
+        }
+
+        if (typeof instance.validateRequired === 'function') {
+            instance.validateRequired();
         }
     }
 

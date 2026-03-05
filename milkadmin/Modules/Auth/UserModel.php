@@ -34,7 +34,11 @@ class UserModel extends AbstractModel {
 
     #[ToDatabaseValue('password')]
     public function sqlPassword($current_record_obj) {
-        return password_hash($current_record_obj->password, PASSWORD_DEFAULT);
+        $password = trim((string)($current_record_obj->password ?? ''));
+        if (strlen($password) < AuthContract::PASSWORD_MIN_LENGTH) {
+            throw new \InvalidArgumentException('Password must be at least ' . AuthContract::PASSWORD_MIN_LENGTH . ' characters long');
+        }
+        return password_hash($password, PASSWORD_DEFAULT);
     }
 
     #[ToDatabaseValue('permissions')]

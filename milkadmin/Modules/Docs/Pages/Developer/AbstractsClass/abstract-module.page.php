@@ -10,7 +10,7 @@ namespace Modules\Docs\Pages;
 ?>
 <div class="bg-white p-4">
     <h1>Abstract Module Class</h1>
-    <p class="text-muted">Revision: 2026/01/28</p>
+    <p class="text-muted">Revision: 2026/02/26</p>
 
     <p>When creating a new module, the first step is to create a folder inside <code>/Modules/module-name</code>.
         <br>Once the folder is created, you need to create a file <code>{module-name}Module.php</code><br />
@@ -54,7 +54,19 @@ class PostsModule extends AbstractModule
 
 </code></pre>
 
-    <h4 class="mt-3">Available Configuration Methods</h4>
+    <h4 class="mt-3">Available Configuration Methods (ModuleRuleBuilder)</h4>
+    <p>
+        The methods listed below are <strong>not</strong> methods of <code>AbstractModule</code> itself.
+        They are fluent methods available on the <code>$rule</code> parameter passed to
+        <code>configure($rule)</code>, where <code>$rule</code> is an instance of
+        <code>App\Abstracts\ModuleRuleBuilder</code>.
+    </p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">use App\Abstracts\ModuleRuleBuilder;
+
+protected function configure(ModuleRuleBuilder $rule): void
+{
+    $rule->page('posts')->title('Posts');
+}</code></pre>
     <table class="table table-bordered">
         <thead>
             <tr>
@@ -181,6 +193,94 @@ class PostsModule extends AbstractModule
             </tr>
         </tbody>
     </table>
+
+    <h4 class="mt-4">Public Methods Reference (AbstractModule + Traits)</h4>
+    <p>This table lists all public methods available on a module class extending <code>AbstractModule</code> in the current codebase.</p>
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>Method</th>
+                <th>Source</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td><code>__construct()</code></td><td>AbstractModule</td><td>Framework constructor; initializes rule builder, hooks, access rules, and extension loading.</td></tr>
+            <tr><td><code>hookInit()</code></td><td>AbstractModule</td><td>Optional hook extension point for generic init phase.</td></tr>
+            <tr><td><code>_cli_init()</code></td><td>AbstractModule</td><td>Internal CLI entry point called by framework hooks.</td></tr>
+            <tr><td><code>_test_init()</code></td><td>AbstractModule</td><td>Internal test-context entry point.</td></tr>
+            <tr><td><code>_api_init()</code></td><td>AbstractModule</td><td>Internal API-context entry point.</td></tr>
+            <tr><td><code>_jobs_init()</code></td><td>AbstractModule</td><td>Internal jobs/cron init entry point.</td></tr>
+            <tr><td><code>_jobs_start()</code></td><td>AbstractModule</td><td>Internal jobs start entry point.</td></tr>
+            <tr><td><code>_hook_init()</code></td><td>AbstractModule</td><td>Internal web-hook init entry point.</td></tr>
+            <tr><td><code>apiInit()</code></td><td>AbstractModule</td><td>Override for custom API initialization logic.</td></tr>
+            <tr><td><code>cliInit()</code></td><td>AbstractModule</td><td>Override for custom CLI initialization logic.</td></tr>
+            <tr><td><code>testInit()</code></td><td>AbstractModule</td><td>Override for custom test initialization logic.</td></tr>
+            <tr><td><code>_bootstrap()</code></td><td>AbstractModule</td><td>Internal bootstrap orchestrator (called once per request context).</td></tr>
+            <tr><td><code>setupAttributeShell()</code></td><td>AbstractModule</td><td>Registers attribute-based shell handlers.</td></tr>
+            <tr><td><code>setupAttributeApi()</code></td><td>AbstractModule</td><td>Registers attribute-based API handlers.</td></tr>
+            <tr><td><code>bootstrap()</code></td><td>AbstractModule</td><td>Main override point for one-time module bootstrap logic.</td></tr>
+            <tr><td><code>jobsInit()</code></td><td>AbstractModule</td><td>Override for jobs initialization logic.</td></tr>
+            <tr><td><code>jobsStart()</code></td><td>AbstractModule</td><td>Override for jobs start logic.</td></tr>
+            <tr><td><code>init()</code></td><td>AbstractModule</td><td>Main override point for page-request module initialization.</td></tr>
+            <tr><td><code>setStylesAndScripts()</code></td><td>AbstractModule</td><td>Override to register CSS/JS assets at runtime.</td></tr>
+            <tr><td><code>setHeader()</code></td><td>AbstractModule</td><td>Sets runtime header data from configured rule values.</td></tr>
+            <tr><td><code>afterInit()</code></td><td>AbstractModule</td><td>Optional hook called after <code>init()</code>.</td></tr>
+            <tr><td><code>getTitle()</code></td><td>AbstractModule</td><td>Returns module title.</td></tr>
+            <tr><td><code>getPage()</code></td><td>AbstractModule</td><td>Returns module page slug.</td></tr>
+            <tr><td><code>getDisableCli()</code></td><td>AbstractModule</td><td>Returns whether CLI install/update commands are disabled.</td></tr>
+            <tr><td><code>isCoreModule()</code></td><td>AbstractModule</td><td>Returns whether module is marked as core.</td></tr>
+            <tr><td><code>getModel()</code></td><td>AbstractModule</td><td>Returns the main model instance for the module.</td></tr>
+            <tr><td><code>getAllInstances()</code></td><td>AbstractModule</td><td>Returns all loaded module instances (static registry).</td></tr>
+            <tr><td><code>getInstance(string $page)</code></td><td>AbstractModule</td><td>Returns a specific module instance by page slug.</td></tr>
+            <tr><td><code>getAllModels()</code></td><td>AbstractModule</td><td>Returns map of all primary models loaded by modules.</td></tr>
+            <tr><td><code>getInstall()</code></td><td>AbstractModule</td><td>Returns install component instance, creating it if needed.</td></tr>
+            <tr><td><code>setupInstallClass()</code></td><td>AbstractModule</td><td>Initializes install class and related extension install components.</td></tr>
+            <tr><td><code>getModuleName()</code></td><td>AbstractModule</td><td>Returns conventional module base name from class.</td></tr>
+            <tr><td><code>getChildClassPath()</code></td><td>AbstractModule</td><td>Returns filesystem path of the concrete module class.</td></tr>
+            <tr><td><code>access()</code></td><td>AbstractModule</td><td>Checks whether current user/session can access module.</td></tr>
+            <tr><td><code>getPermissionName()</code></td><td>AbstractModule</td><td>Returns permission namespace name for module checks.</td></tr>
+            <tr><td><code>getVersion()</code></td><td>AbstractModule</td><td>Returns normalized module version string.</td></tr>
+            <tr><td><code>getCommonData()</code></td><td>AbstractModule</td><td>Returns common metadata array (<code>page</code>, <code>title</code>).</td></tr>
+            <tr><td><code>getLoadedExtensions()</code></td><td>AbstractModule</td><td>Returns already-loaded module-level extensions for current module page.</td></tr>
+            <tr><td><code>getLoadedControllerExtensions()</code></td><td>AbstractModule</td><td>Returns already-loaded controller extension instances.</td></tr>
+
+            <tr><td><code>setupInstallationHooks()</code></td><td>InstallationTrait</td><td>Registers installation-related hooks.</td></tr>
+            <tr><td><code>setupInstallationCliHooks()</code></td><td>InstallationTrait</td><td>Registers installation CLI shell commands.</td></tr>
+            <tr><td><code>shellInstallModule()</code></td><td>InstallationTrait</td><td>CLI handler for module installation.</td></tr>
+            <tr><td><code>shellUninstallModule()</code></td><td>InstallationTrait</td><td>CLI handler for module uninstall command.</td></tr>
+            <tr><td><code>shellUpdateModule()</code></td><td>InstallationTrait</td><td>CLI handler for module update command.</td></tr>
+            <tr><td><code>_installDone($html)</code></td><td>InstallationTrait</td><td>Internal finalization for install UI flow.</td></tr>
+            <tr><td><code>_installGetHtmlModules(string $html, ?array $errors = [])</code></td><td>InstallationTrait</td><td>Internal builder for module install form HTML.</td></tr>
+            <tr><td><code>installGetHtmlModules(string $html, $errors = [])</code></td><td>InstallationTrait</td><td>Override for custom install form rendering.</td></tr>
+            <tr><td><code>installExecuteConfig($data = [])</code></td><td>InstallationTrait</td><td>Stores configuration before install execution.</td></tr>
+            <tr><td><code>installExecute($data = [])</code></td><td>InstallationTrait</td><td>Main install execution method (override for custom logic).</td></tr>
+            <tr><td><code>installCheckData($errors, $data = [])</code></td><td>InstallationTrait</td><td>Override for validating custom install form data.</td></tr>
+            <tr><td><code>installDone($html)</code></td><td>InstallationTrait</td><td>Override for install completion HTML content.</td></tr>
+            <tr><td><code>installUpdate($html)</code></td><td>InstallationTrait</td><td>Override for update completion HTML content.</td></tr>
+            <tr><td><code>uninstallExecute()</code></td><td>InstallationTrait</td><td>Override for custom uninstall flow.</td></tr>
+            <tr><td><code>getAdditionalModels($model_name = '')</code></td><td>InstallationTrait</td><td>Gets all or one additional model configured via <code>addModels()</code>.</td></tr>
+
+            <tr><td><code>registerRequestAction(string $action, array|string $handler, ?string $accessLevel = null)</code></td><td>RouteControllerTrait</td><td>Registers a runtime request action handler.</td></tr>
+            <tr><td><code>handleRoutes()</code></td><td>RouteControllerTrait</td><td>Main action routing entry point for module requests.</td></tr>
+            <tr><td><code>relatedSearchField()</code></td><td>RouteControllerTrait</td><td>Helper endpoint for relation search/autocomplete requests.</td></tr>
+
+            <tr><td><code>setupAttributeShellTraitCliHooks()</code></td><td>AttributeShellTrait</td><td>Registers CLI commands from <code>#[Shell]</code> attributes.</td></tr>
+
+            <tr><td><code>setupAttributeApiTraitHooks()</code></td><td>AttributeApiTrait</td><td>Registers hooks for attribute-based API handling.</td></tr>
+            <tr><td><code>registerApiEndpoints()</code></td><td>AttributeApiTrait</td><td>Registers HTTP API endpoints declared with attributes.</td></tr>
+            <tr><td><code>getEndpointDocumentation(string $url)</code></td><td>AttributeApiTrait</td><td>Returns API endpoint documentation for a specific URL.</td></tr>
+            <tr><td><code>getAllEndpointsDocumentation()</code></td><td>AttributeApiTrait</td><td>Returns documentation for all registered endpoints.</td></tr>
+
+            <tr><td><code>registerHooks()</code></td><td>AttributeHookTrait</td><td>Registers hooks declared via attributes.</td></tr>
+            <tr><td><code>getRegisteredHooks()</code></td><td>AttributeHookTrait</td><td>Returns list/map of hooks registered by the module.</td></tr>
+        </tbody>
+    </table>
+    <p class="mb-0">
+        Methods prefixed with <code>_</code> are framework/internal entry points. In normal modules, prefer overriding
+        non-underscore methods such as <code>configure()</code>, <code>bootstrap()</code>, <code>init()</code>,
+        <code>installExecute()</code>, <code>installUpdate()</code>, and <code>uninstallExecute()</code>.
+    </p>
 
 <p>If your module file and class names follow the convention, you don't have to manually append the module class to the end of the file.</p>
 

@@ -20,7 +20,7 @@ class AuthInstall extends AbstractInstall {
         $this->installAuth();
         $username = trim($data['admin-username'] ?? '');
         $email = trim($data['admin-email'] ?? '');
-        $password = $data['admin-password'] ?? '';
+        $password = trim((string)($data['admin-password'] ?? ''));
 
         if ($username === '' || $email === '' || $password === '') {
             $message = 'Install Auth: admin username, email, and password are required.';
@@ -32,19 +32,35 @@ class AuthInstall extends AbstractInstall {
             return;
         }
 
-        $result = $this->model->store([
-            'username' => $username,
-            'email' => $email,
-            'password' => $password,
-            'status' => 1,
-            'is_admin' => 1,
-            'permissions' => []
-        ]);
-        if (!$result) {
+        $auth = Get::make('Auth');
+        if (!$auth) {
+            $message = 'Install Auth: Auth service not available.';
             if (Cli::isCli()) {
-                Cli::error("Install Auth: SAVE USER ERROR: ". $this->model->getLastError());
+                Cli::error($message);
             } else {
-                MessagesHandler::addError("Install Auth: SAVE USER ERROR: ". $this->model->getLastError());
+                MessagesHandler::addError($message);
+            }
+            return;
+        }
+
+        $result = $auth->saveUser(
+            0,
+            $username,
+            $email,
+            $password,
+            1,
+            1,
+            [],
+            'UTC',
+            '',
+            true
+        );
+        if (!$result) {
+            $last_error = $auth->getLastError();
+            if (Cli::isCli()) {
+                Cli::error("Install Auth: SAVE USER ERROR: ". $last_error);
+            } else {
+                MessagesHandler::addError("Install Auth: SAVE USER ERROR: ". $last_error);
             }
         }
     }

@@ -2,6 +2,7 @@
 namespace Modules\Auth\Views;
 
 use App\{Token, Route, Config};
+use Modules\Auth\RememberMeService;
 use Theme\Template;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
@@ -55,7 +56,7 @@ use Theme\Template;
                         <label for="floatingPassword"><?php _pt('Password'); ?></label>
                     </div>
                 </div>
-                <?php if (Config::get('auth_remember_me_duration')): ?>
+                <?php if (RememberMeService::isAvailable()): ?>
                 <div class="form-check mb-3">
                     <input type="checkbox" name="remember_me" id="remember_me" class="form-check-input" value="1">
                     <label for="remember_me" class="form-check-label">

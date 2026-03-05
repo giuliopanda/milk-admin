@@ -421,19 +421,17 @@ class ObjectToForm
                     $form_params['api_url'] = $rule['api_url'];
                 }
 
-                // If using apiUrl with belongsTo, get display value from relationship
+                // If using apiUrl with belongsTo, resolve display label from relationship/model
                 $display_value = null;
-                if (isset($rule['api_url']) && isset($rule['relationship']) && $rule['relationship']['type'] === 'belongsTo') {
-                    $relationship_alias = $rule['relationship']['alias'];
-                    // Use explicit api_display_field or fallback to auto-detected title field
-                    $display_field = $rule['api_display_field'] ?? $rule['_auto_display_field'] ?? null;
-                    if ($display_field && isset($rule['record_object'])) {
-                        $related_object = $rule['record_object']->$relationship_alias;
-                        // Check if record_object has the relationship loaded (lazy loading)
-                        if (is_object($related_object) && isset($related_object->$display_field) ) {
-                             $display_value = $related_object->$display_field;
-                        }
-                    }
+                if (
+                    isset($rule['api_url']) &&
+                    isset($rule['relationship']) &&
+                    is_array($rule['relationship']) &&
+                    ($rule['relationship']['type'] ?? null) === 'belongsTo'
+                ) {
+                    // Use explicit api_display_field or fallback to belongsTo auto_display_field
+                    $display_field = $rule['api_display_field'] ?? $rule['relationship']['auto_display_field'] ?? $rule['_auto_display_field'] ?? null;
+                    $display_value = self::resolveBelongsToDisplayValue($rule, $value, $display_field);
                 }
 
                 // Pass display value if found
@@ -483,7 +481,8 @@ class ObjectToForm
                     }
                 }
 
-                $checkbox_html .= Form::checkbox($rule['name'], $rule['label'],  $rule['value'], ($value === $rule['value'] || $value === true), $form_params, true);
+                $is_checked = self::isCheckboxChecked($value, $rule['value']);
+                $checkbox_html .= Form::checkbox($rule['name'], $rule['label'],  $rule['value'], $is_checked, $form_params, true);
 
                 return $checkbox_html;
                 break;
@@ -510,7 +509,35 @@ class ObjectToForm
                 return Get::themePlugin('BeautySelect', ['id' => $rule['name'], 'label' => $rule['label'], 'value' => $value, 'options' => $rule['options'] ?? [], 'isMultiple' => $rule['isMultiple'] ?? false, 'floating'=> $rule['isMultiple'] ?? true ]);
                 break;
             case 'editor':
-                return Get::themePlugin('editor', ['id' => $rule['name'], 'name' => $rule['name'], 'label' => $rule['label'], 'value' => $value, 'height' => '200px']);
+                $is_readonly = self::normalizeBool($form_params['readonly'] ?? false);
+                $is_disabled = self::normalizeBool($form_params['disabled'] ?? false);
+
+                // Editor plugin is interactive; for readonly/disabled render a plain disabled textarea.
+                if ($is_readonly || $is_disabled) {
+                    $form_params['disabled'] = true;
+                    unset($form_params['readonly']);
+                    $rows = isset($form_params['rows']) ? (int) $form_params['rows'] : 7;
+                    unset($form_params['rows']);
+                    return Form::textarea($rule['name'], $rule['label'], $value, $rows, $form_params, true);
+                }
+
+                $editor_required = self::normalizeBool($form_params['required'] ?? false);
+                $editor_invalid_feedback = '';
+                if (isset($form_params['invalid-feedback']) && is_scalar($form_params['invalid-feedback'])) {
+                    $editor_invalid_feedback = (string) $form_params['invalid-feedback'];
+                } elseif (isset($form_params['invalid_feedback']) && is_scalar($form_params['invalid_feedback'])) {
+                    $editor_invalid_feedback = (string) $form_params['invalid_feedback'];
+                }
+
+                return Get::themePlugin('editor', [
+                    'id' => $rule['name'],
+                    'name' => $rule['name'],
+                    'label' => $rule['label'],
+                    'value' => $value,
+                    'height' => '200px',
+                    'required' => $editor_required,
+                    'invalidFeedback' => $editor_invalid_feedback
+                ]);
                 break;
             default:
                 // custom input
@@ -549,6 +576,27 @@ class ObjectToForm
         return in_array($normalized, ['1', 'true', 'yes', 'on'], true);
     }
 
+    private static function isCheckboxChecked(mixed $currentValue, mixed $checkedValue): bool
+    {
+        if ($currentValue === true) {
+            return true;
+        }
+
+        // Strict match first to preserve native behavior.
+        if ($currentValue === $checkedValue) {
+            return true;
+        }
+
+        // Normalize scalar values to avoid false negatives like "1" vs 1.
+        if (is_scalar($currentValue) || $currentValue === null) {
+            if ((string) $currentValue === (string) $checkedValue) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     
     /**
      * Build attributes string from array
@@ -567,5 +615,61 @@ class ObjectToForm
         }
 
         return $attrs_string;
+    }
+
+    /**
+     * Resolve display label for belongsTo + apiUrl fields.
+     * First tries loaded relationship object, then falls back to querying related model by key.
+     */
+    private static function resolveBelongsToDisplayValue(array $rule, mixed $value, mixed $displayField): mixed
+    {
+        $display_field = trim((string) $displayField);
+        if ($display_field === '') {
+            return null;
+        }
+
+        // 1) Try from loaded relationship (edit mode)
+        $relationship = is_array($rule['relationship'] ?? null) ? $rule['relationship'] : [];
+        $relationship_alias = trim((string) ($relationship['alias'] ?? ''));
+        if ($relationship_alias !== '' && isset($rule['record_object'])) {
+            $related_object = $rule['record_object']->$relationship_alias;
+            if (is_object($related_object) && isset($related_object->$display_field)) {
+                return $related_object->$display_field;
+            }
+        }
+
+        // 2) Fallback for default/new-record value: query related model by selected key
+        if ($value === null || $value === '' || is_array($value) || is_object($value)) {
+            return null;
+        }
+
+        $related_model_class = trim((string) ($relationship['related_model'] ?? ''));
+        $related_key = trim((string) ($relationship['related_key'] ?? 'id'));
+        if ($related_model_class === '' || $related_key === '' || !class_exists($related_model_class)) {
+            return null;
+        }
+
+        try {
+            $relatedModel = new $related_model_class();
+            $query = $relatedModel->query()->where("$related_key = ?", [$value]);
+
+            $where_config = is_array($relationship['where'] ?? null) ? $relationship['where'] : null;
+            if ($where_config !== null) {
+                $where_condition = trim((string) ($where_config['condition'] ?? ''));
+                $where_params = is_array($where_config['params'] ?? null) ? $where_config['params'] : [];
+                if ($where_condition !== '') {
+                    $query->where($where_condition, $where_params);
+                }
+            }
+
+            $related_object = $query->limit(0, 1)->getRow();
+            if (is_object($related_object) && isset($related_object->$display_field)) {
+                return $related_object->$display_field;
+            }
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return null;
     }
 }

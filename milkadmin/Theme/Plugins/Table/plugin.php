@@ -163,11 +163,25 @@ if (($info instanceof App\Modellist\ListStructure || is_array($info))  && ($page
     <div class="alert alert-danger js-table-alert" style="display: none;"></div>
     
     <?php if (count($page_info['bulk_actions'] ?? []) > 0) { ?>
-        <div class="my-1 js-row-bulk-actions invisible">
-            <span class="me-2"><span class="js-count-selected"></span> <?php  _pt('rows selected'); ?> </span> 
-            <?php foreach ($page_info['bulk_actions'] as $key => $val) { ?>
-                <span class="link-action js-table-bulk-action" data-table-action="<?php _p($key); ?>"><?php _ph($val); ?></span>
-            <?php } ?>
+        <?php $bulk_allow_all_records = !empty($page_info['bulk_allow_all_records']); ?>
+        <div class="my-1 js-row-bulk-actions <?php _p($bulk_allow_all_records ? 'visible' : 'invisible'); ?>" data-allow-all-records="<?php _p($bulk_allow_all_records ? '1' : '0'); ?>">
+            <div class="d-flex align-items-center flex-wrap gap-2">
+                <div class="w-auto">
+                    <?php if ($bulk_allow_all_records) { ?>
+                        <select class="form-select form-select-sm js-bulk-scope-select" data-selected-label="<?php _p(_r('rows selected')); ?>">
+                            <option value="selected" selected>0 <?php _pt('rows selected'); ?></option>
+                            <option value="all_records"><?php _pt('all records'); ?></option>
+                        </select>
+                    <?php } else { ?>
+                        <span class="me-2">
+                            <span class="js-count-selected">0</span> <?php _pt('rows selected'); ?>
+                        </span>
+                    <?php } ?>
+                </div>
+                <?php foreach ($page_info['bulk_actions'] as $key => $val) { ?>
+                    <span class="link-action js-table-bulk-action" data-table-action="<?php _p($key); ?>"><?php _ph($val); ?></span>
+                <?php } ?>
+            </div>
         </div>
     <?php } ?>
     
@@ -323,10 +337,14 @@ if (($info instanceof App\Modellist\ListStructure || is_array($info))  && ($page
                                 }
                                  
                             } elseif ($header['type'] == 'select') {
-                                if (is_null($value) || !is_array($header['options'])) {
+                                if (!is_array($header['options'])) {
                                     _ph($value);
                                 } else {
-                                    _ph(array_key_exists($value, $header['options']) ? $header['options'][$value] : $value); 
+                                    if ($value === null && array_key_exists('', $header['options'])) {
+                                        _ph($header['options']['']);
+                                    } else {
+                                        _ph(array_key_exists($value, $header['options']) ? $header['options'][$value] : $value);
+                                    }
                                 }
                             } else {
                                 if (is_a($value, \DateTime::class)) {

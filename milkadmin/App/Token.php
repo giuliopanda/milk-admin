@@ -301,7 +301,8 @@ class Token {
      */
     private static function encrypt($string) {
         if (!self::$secret_key) {
-            self::$secret_key = 'DFca324';
+            Logs::set('SECURITY', 'Token::encrypt() called without secret_key configured. Call Token::config() first.', 'ERROR');
+            throw new \RuntimeException('Token secret_key not configured. Call Token::config() before using CSRF tokens.');
         }
         $ivlen = openssl_cipher_iv_length($cipher = "AES-128-CBC");
         $iv = openssl_random_pseudo_bytes($ivlen);

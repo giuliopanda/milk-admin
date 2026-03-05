@@ -311,8 +311,6 @@ Use it freely for personal or commercial projects.
 ## Resources
 
 * Website: [https://www.milkadmin.org/](https://www.milkadmin.org/)
-* Documentation: [https://milkadmin.org/milk-admin-v251100/](https://milkadmin.org/milk-admin-v251100/)
+* Documentation: [https://milkadmin.org/milk-admin/?page=docs](https://milkadmin.org/milk-admin/?page=docs&action=Developer/GettingStarted/introduction)
 
-
-riga aggiunta da Roberto
 ```

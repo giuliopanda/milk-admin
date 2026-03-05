@@ -111,11 +111,16 @@ trait InstallationTrait {
     public function shellInstallModule() {
         if (Cli::isCli() || Permissions::check('_user.is_admin')) {
             $this->installExecute();
+            $this->runModuleExtensionInstallUpdateHooks('shellInstallModule');
             $this->installExtensionExecute();
         }
     }
 
     public function shellUninstallModule() {
+        $handledByExtension = $this->runModuleExtensionUninstallHooks();
+        if ($handledByExtension) {
+            return;
+        }
         $this->_shellUninstallModule();
        // $this->shellUninstallExtensionModule();
     }
@@ -137,7 +142,7 @@ trait InstallationTrait {
      * php milkadmin/cli.php posts:uninstall
      * ```
      */
-    public function _shellUninstallModule() {
+    protected function _shellUninstallModule() {
         if (Cli::isCli() || Permissions::check('_user.is_admin')) {
 
             // Uninstall additional models first
@@ -186,6 +191,54 @@ trait InstallationTrait {
     }
 
     /**
+     * Execute uninstall hooks exposed by loaded Module extensions.
+     * This is used by web uninstall flow (?page=install&action=update-modules)
+     * where extension instances may not be preloaded for the target module page.
+     */
+    protected function runModuleExtensionUninstallHooks(): bool
+    {
+        if (!is_array($this->extensions ?? null) || $this->extensions === []) {
+            return false;
+        }
+
+        if (!is_array($this->loaded_extensions ?? null) || $this->loaded_extensions === []) {
+            try {
+                $this->loaded_extensions = \App\Abstracts\Services\AbstractModule\ModuleComponentLoaderService::loadExtensions(
+                    $this->extensions,
+                    'Module',
+                    $this
+                );
+            } catch (\Throwable $e) {
+                return false;
+            }
+        }
+
+        $handledByExtension = false;
+        foreach ($this->loaded_extensions as $extension) {
+            if (!is_object($extension) || !method_exists($extension, 'shellUninstallModule')) {
+                continue;
+            }
+
+            try {
+                $method = new \ReflectionMethod($extension, 'shellUninstallModule');
+                if ($method->getNumberOfParameters() > 0) {
+                    $result = $extension->shellUninstallModule((string) $this->page);
+                } else {
+                    $result = $extension->shellUninstallModule();
+                }
+            } catch (\Throwable $e) {
+                continue;
+            }
+
+            if ($result === true) {
+                $handledByExtension = true;
+            }
+        }
+
+        return $handledByExtension;
+    }
+
+    /**
      * Update the module
      *
      * This shell command updates the module by calling the install_update method.
@@ -199,7 +252,49 @@ trait InstallationTrait {
     public function shellUpdateModule() {
        if (Cli::isCli() || Permissions::check('_user.is_admin')) {
             $this->installUpdate('');
+            $this->runModuleExtensionInstallUpdateHooks('shellUpdateModule');
             $this->installExtensionUpdate('');
+        }
+    }
+
+    /**
+     * Execute install/update hooks exposed by loaded Module extensions.
+     * This is used by CLI install/update flows where extension instances may
+     * not be preloaded for the target module page.
+     */
+    protected function runModuleExtensionInstallUpdateHooks(string $methodName): void
+    {
+        if (!is_array($this->extensions ?? null) || $this->extensions === []) {
+            return;
+        }
+
+        if (!is_array($this->loaded_extensions ?? null) || $this->loaded_extensions === []) {
+            try {
+                $this->loaded_extensions = \App\Abstracts\Services\AbstractModule\ModuleComponentLoaderService::loadExtensions(
+                    $this->extensions,
+                    'Module',
+                    $this
+                );
+            } catch (\Throwable $e) {
+                return;
+            }
+        }
+
+        foreach ($this->loaded_extensions as $extension) {
+            if (!is_object($extension) || !method_exists($extension, $methodName)) {
+                continue;
+            }
+
+            try {
+                $method = new \ReflectionMethod($extension, $methodName);
+                if ($method->getNumberOfParameters() > 0) {
+                    $extension->{$methodName}((string) $this->page);
+                } else {
+                    $extension->{$methodName}();
+                }
+            } catch (\Throwable $e) {
+                continue;
+            }
         }
     }
 
@@ -273,7 +368,7 @@ trait InstallationTrait {
         return $data;
     }
 
-    public function installExtensionExecute($data = []) {
+    protected function installExtensionExecute($data = []) {
         $data = $this->executeMethodExtension('install', 'installExecute', $data);
         return $data;
     }
@@ -287,7 +382,7 @@ trait InstallationTrait {
      *
      * @return bool
      */
-    public function _installExecute(string $action = 'install') {
+    protected function _installExecute(string $action = 'install') {
         $success = true;
         $errors = [];
         $table_changes = [];
@@ -490,7 +585,7 @@ trait InstallationTrait {
         return $html;
     }
 
-    public function _installUninstall() {
+    protected function _installUninstall() {
         $this->uninstallExecute();
         $this->executeMethodExtension('install', 'uninstall'); 
     }
@@ -500,7 +595,7 @@ trait InstallationTrait {
        
     }
 
-    public function installExtensionUpdate($html) {
+    protected function installExtensionUpdate($html) {
         $html = $this->executeMethodExtension('install', 'installUpdate', $html); 
         return $html;
     }
@@ -592,7 +687,7 @@ trait InstallationTrait {
      * @param $args The arguments to pass to the method
      * @return mixed
      */
-    public function executeMethodExtension($type, $method, ...$args):  mixed {
+    protected function executeMethodExtension($type, $method, ...$args):  mixed {
         if ($args == []) {
             return null;
         }

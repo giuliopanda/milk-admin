@@ -124,6 +124,8 @@ class AuthService {
         } else if (isset($_POST['password'])) {
             if (\App\Token::check('new_password') === false) {
                 $msg_error = 'Invalid token';
+            } else if (strlen(trim((string)$_POST['password'])) < AuthContract::PASSWORD_MIN_LENGTH) {
+                $msg_error = _r('Password must be at least 8 characters long');
             } else {
                 if (!Get::make('Auth')->checkExpiresActivationKey($key, 60*24)) {
                     $msg_error = 'The link you entered has expired. Select the entire link from the email you received and try again.';
@@ -229,6 +231,12 @@ class AuthService {
         $status = _absint($_REQUEST['status'] ?? 1);
         $msg = '';
         $success = false;
+
+        if ($password !== '' && strlen($password) < AuthContract::PASSWORD_MIN_LENGTH) {
+            echo json_encode(['msg' => _r('Password must be at least 8 characters long'), 'success' => false]);
+            return;
+        }
+
         // verifico che la username non sia già presente
         $find_user = Get::db()->getRow('SELECT * FROM `#__users` WHERE username = ? AND id != ?', [$username, $id]);
         if ($find_user) {
@@ -247,7 +255,13 @@ class AuthService {
                     echo json_encode(['msg' => _r('Permission denied: You cannot edit an admin user'), 'success' => false]);
                     return;
                 }
-                Get::make('Auth')->saveUser($id, $username, $email, $password, $status, $is_admin, $permissions, $timezone, $locale);
+                $save_result = Get::make('Auth')->saveUser($id, $username, $email, $password, $status, $is_admin, $permissions, $timezone, $locale);
+                if ($save_result === false) {
+                    $msg = Get::make('Auth')->getLastError() ?: 'Error saving user';
+                    $success = false;
+                    echo json_encode(['msg' => _r($msg), 'success' => false]);
+                    return;
+                }
 
                 $user = Get::make('Auth')->getUser($id);
                 $activation_key = Get::make('Auth')->createActivationKey($id);
@@ -257,7 +271,12 @@ class AuthService {
                 $success = true;
             }
         } else {
-            Get::make('Auth')->saveUser($id, $username, $email, $password, $status, $is_admin, $permissions, $timezone, $locale);
+            $save_result = Get::make('Auth')->saveUser($id, $username, $email, $password, $status, $is_admin, $permissions, $timezone, $locale);
+            if ($save_result === false) {
+                $msg = Get::make('Auth')->getLastError() ?: 'Error saving user';
+                echo json_encode(['msg' => _r($msg), 'success' => false]);
+                return;
+            }
             $id = Get::make('Auth')->getLastInsertId();
 
             $user = Get::make('Auth')->getUser($id);
@@ -562,8 +581,8 @@ class AuthService {
         if (!empty($new_password)) {
           
             // Validate new password
-            if (strlen($new_password) < 6) {
-                echo json_encode(['msg' => _r('New password must be at least 6 characters long'), 'success' => false]);
+            if (strlen($new_password) < AuthContract::PASSWORD_MIN_LENGTH) {
+                echo json_encode(['msg' => _r('New password must be at least 8 characters long'), 'success' => false]);
                 return;
             }
 

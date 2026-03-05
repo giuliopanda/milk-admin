@@ -109,13 +109,16 @@ trait FormFieldManagementTrait {
     public function addFieldsFromObject(object $object, string $context = 'edit', array $values = []): self {
         if (method_exists($object, 'getRules')) {
             foreach ($object->getRules($context, true) as $key => $rule) {
-                 if (isset($rule["form-type"])) {
+                if (isset($rule["form-type"])) {
                     if ($rule["form-type"] === "checkbox") {
-                        if ($rule["type"] === "bool") {
+                        // Checkbox value attribute must follow checkbox_checked when configured.
+                        // Fallback remains 1 for bool fields and default/'1' for other types.
+                        if (array_key_exists('checkbox_checked', $rule) && $rule['checkbox_checked'] !== null) {
+                            $values[$key] = $rule['checkbox_checked'];
+                        } elseif ($rule["type"] === "bool") {
                             $values[$key] = 1;
                         } else {
-                            // Use checkbox_checked if defined, otherwise fallback to default or '1'
-                            $values[$key] = $rule["checkbox_checked"] ?? $rule["default"] ?? '1';
+                            $values[$key] = $rule["default"] ?? '1';
                         }
                     }
                 }

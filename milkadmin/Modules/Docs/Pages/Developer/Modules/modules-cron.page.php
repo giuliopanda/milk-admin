@@ -53,8 +53,8 @@ $jobs_contract::register(
    </code></pre>
 
    <h3>Output</h3>
-    <p>L'output del cron job (i print, echo, ecc) viene salvato nella tabella jobs_executions dentro output.</p>
-    <p>Se il job fallisce, viene salvato anche l'errore, se il jobs ritorna false viene registrato come failed.</p>
+    <p>The cron job output (print, echo, etc.) is saved in the <code>jobs_executions</code> table inside the <code>output</code> field.</p>
+    <p>If the job fails, the error is also saved. If the job returns <code>false</code>, it is registered as failed.</p>
 
    <h3>Register Method Parameters</h3>
    <p>The register method accepts the following parameters:</p>

@@ -22,7 +22,7 @@ Get::mail()->loadTemplate(MILK_DIR.'/Modules/my_module/mails/email_template.php'
     'name' => 'John Doe',
     'user' => $user_object,
     'url' => 'https://example.com/reset-password'
-])->to('destinatario@example.com')->send();
+])->to('recipient@example.com')->send();
 
 // Error handling
 if (Get::mail()->getLastError()) {
@@ -32,7 +32,7 @@ if (Get::mail()->getLastError()) {
     <h2 class="mt-4">Template Structure</h2>
     <p>Email templates must be built following this structure:</p>
     
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php"><?php echo htmlentities("<?php\n!defined('MILK_DIR') && die(); // Avoid direct access\nob_start();\n// Email content\n?>\n<h1>Benvenuto <?php echo \$name; ?>!</h1>\n<p>Questo è un esempio di template email.</p>\n<p>Puoi utilizzare variabili PHP: <?php echo \$custom_var; ?></p>\n<?php\n\n\$this->mail->Body    = ob_get_clean();\n\$this->mail->AltBody = strip_tags(\$this->mail->Body);\n\$this->mail->Subject = 'Oggetto Email';"); ?>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php"><?php echo htmlentities("<?php\n!defined('MILK_DIR') && die(); // Avoid direct access\nob_start();\n// Email content\n?>\n<h1>Welcome <?php echo \$name; ?>!</h1>\n<p>This is an example email template.</p>\n<p>You can use PHP variables: <?php echo \$custom_var; ?></p>\n<?php\n\n\$this->mail->Body    = ob_get_clean();\n\$this->mail->AltBody = strip_tags(\$this->mail->Body);\n\$this->mail->Subject = 'Email Subject';"); ?>
 
 <?php echo htmlentities("// Additional PHPMailer parameters (optional)\n\$this->mail->Priority = 1; // 1 = High, 3 = Normal, 5 = Low\n\$this->mail->CharSet = 'UTF-8';"); ?>
 </code></pre>
@@ -46,7 +46,7 @@ if (Get::mail()->getLastError()) {
         <li><code>$vars</code>: associative array of variables to pass to the template</li>
     </ul>
     
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php"><?php echo htmlentities("Get::mail()->loadTemplate('modules/user/mails/welcome.php', [\n    'username' => 'Mario Rossi',\n    'activation_link' => 'https://example.com/activate?token=123'\n]);"); ?></code></pre>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php"><?php echo htmlentities("Get::mail()->loadTemplate('modules/user/mails/welcome.php', [\n    'username' => 'John Smith',\n    'activation_link' => 'https://example.com/activate?token=123'\n]);"); ?></code></pre>
 
     <h3 class="mt-4">config($is_smtp, $username, $password, $host, $port, $smtpSecure)</h3>
     <p>Configures SMTP or mail() settings.</p>
@@ -62,7 +62,7 @@ if (Get::mail()->getLastError()) {
     <h3 class="mt-4">to(string $address, string $name = '')</h3>
     <p>Sets the email recipient. Supports multiple addresses separated by comma or semicolon.</p>
     
-    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php"><?php echo htmlentities("Get::mail()->to('utente@example.com');\nGet::mail()->to('utente@example.com', 'Nome Utente');\nGet::mail()->to('utente1@example.com, utente2@example.com');"); ?></code></pre>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php"><?php echo htmlentities("Get::mail()->to('user@example.com');\nGet::mail()->to('user@example.com', 'User Name');\nGet::mail()->to('user1@example.com, user2@example.com');"); ?></code></pre>
 
     <h3 class="mt-4">cc(string $address, string $name = '')</h3>
     <p>Adds carbon copy (CC) recipients.</p>

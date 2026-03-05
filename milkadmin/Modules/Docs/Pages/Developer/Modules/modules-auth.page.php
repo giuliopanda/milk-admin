@@ -63,7 +63,7 @@ $user = $auth->getUser(1);
         <p>Outside the module you can access the Auth class as follows:</p>
         <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
 // ...
-$user = Get::make('Auth')->getUser();
+$user = Get:user();
 $user->is_guest;
 $user->is_admin;
 </code></pre> 
@@ -103,10 +103,10 @@ Hooks::set('modules_loaded', function() {
 
 <h3>Print current user:</h3>
 <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
-$user = Get::make('Auth')->getUser();
+$user = Get::user();
 echo "&lt;pre&gt;"; print_r($user); echo "&lt;/pre&gt;";
 // Output:
-<?php echo "<pre>"; print_r(Get::make('Auth')->getUser()); echo "</pre>"; ?>
+<?php echo "<pre>"; print_r(Get::user()); echo "</pre>"; ?>
 
 </code></pre>
 

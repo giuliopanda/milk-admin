@@ -167,6 +167,14 @@ class ModuleRuleBuilder
     protected ?string $selected_menu = null;
 
     /**
+     * Optional submenu metadata for modules using selectMenu().
+     * Shape: ['name' => string, 'url' => string, 'icon' => string, 'order' => int]
+     *
+     * @var array<string,mixed>|null
+     */
+    protected ?array $selected_menu_entry = null;
+
+    /**
      * Set the page name
      *
      * @param string $page Page name
@@ -492,15 +500,42 @@ class ModuleRuleBuilder
     }
 
     /**
-     * Set the selected menu item in the sidebar
-     * Only applies when the current page matches this module's page
+     * Set the selected menu item in the sidebar.
+     * Optionally defines submenu metadata to be rendered under that selected menu.
      *
-     * @param string $menu Menu name to select (e.g., 'Settings')
+     * Examples:
+     * - ->selectMenu('Tests')
+     * - ->selectMenu('Tests', 'Posts', '', 'bi bi-file-earmark-post-fill', 10)
+     *
+     * @param string $menu Selected menu name (container)
+     * @param string $name Optional submenu display name
+     * @param string $url Optional submenu URL (relative to module page)
+     * @param string $icon Optional submenu icon
+     * @param int $order Optional submenu order
      * @return self
      */
-    public function selectMenu(string $menu): self
-    {
+    public function selectMenu(
+        string $menu,
+        string $name = '',
+        string $url = '',
+        string $icon = '',
+        int $order = 10
+    ): self {
         $this->selected_menu = $menu;
+
+        $name = trim($name);
+        if ($name === '') {
+            $this->selected_menu_entry = null;
+            return $this;
+        }
+
+        $this->selected_menu_entry = [
+            'name' => $name,
+            'url' => $url,
+            'icon' => $icon,
+            'order' => $order,
+        ];
+
         return $this;
     }
 
@@ -626,5 +661,15 @@ class ModuleRuleBuilder
     public function getSelectedMenu(): ?string
     {
         return $this->selected_menu;
+    }
+
+    /**
+     * Returns optional submenu metadata set via selectMenu().
+     *
+     * @return array{name:string,url:string,icon:string,order:int}|null
+     */
+    public function getSelectedMenuEntry(): ?array
+    {
+        return $this->selected_menu_entry;
     }
 }

@@ -1,5 +1,16 @@
 ## Changelog
 
+### v0.9.5 - 26/03/05
+- New: Added a new visual management layer for milkadmin/Extensions/Projects, making the Projects extension easier to configure and control from the UI.
+- Updated: Documentation pages across Developer/Framework/User sections (Projects guides, DynamicTable, hooks/lang/mail, links, cron, timezone/sidebar notes)
+- Improved: Install module update workflow refinements in `InstallService`
+
+### v0.9.4 - 26/03/02
+- Improved: Core form pipeline (`Form.php`, `ObjectToForm`, `FormFieldManagementTrait`, `SchemaAndValidationTrait`) and editor/theme JS integration
+- Improved: Theme plugins (MilkSelect, Table, List, UploadFiles, UploadImages, Editor) and related CSS/JS behavior
+- Improved: `InstallationTrait`, `GetDataBuilder` action processing, and list/table response builders
+- Fix: Query/data formatting edge cases (`Query.php`, `DataFormattingTrait`) and project model parsing compatibility
+
 ### v0.9.3 - 26/02/23
 - New: Audit field types `updated_at()`, `created_by()`, `updated_by()` in RuleBuilder with automatic population; new `USERID()` expression function (PHP + JS)
 - New: Module instance registry (`AbstractModule::getInstance()`, `getAllInstances()`, `getAllModels()`)

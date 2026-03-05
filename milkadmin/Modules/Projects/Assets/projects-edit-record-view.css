@@ -1,0 +1,234 @@
+.projects-view-layout-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    flex-wrap: wrap;
+}
+
+.projects-view-hint {
+    font-size: .82rem;
+    color: #5b6774;
+}
+
+.projects-view-layout-board {
+    display: grid;
+    gap: .85rem;
+}
+
+.projects-view-card {
+    border: 1px solid #dce5ef;
+    border-radius: .6rem;
+    background: #fff;
+    box-shadow: 0 .125rem .35rem rgba(15, 23, 42, .04);
+}
+
+.projects-view-card-header {
+    padding: .7rem .85rem;
+    border-bottom: 1px solid #e7edf3;
+    background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .75rem;
+    flex-wrap: wrap;
+}
+
+.projects-view-card-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    min-width: 0;
+}
+
+.projects-view-card-handle {
+    border: 1px dashed #90a4bc;
+    background: #f6f9fc;
+    color: #516173;
+    border-radius: .35rem;
+    width: 2rem;
+    height: 2rem;
+    line-height: 1.95rem;
+    text-align: center;
+    cursor: grab;
+    flex-shrink: 0;
+}
+
+.projects-view-card-handle:active {
+    cursor: grabbing;
+}
+
+.projects-view-card-id {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.projects-view-card-description {
+    font-size: .8rem;
+    color: #64748b;
+    margin-top: .2rem;
+}
+
+.projects-view-card-actions {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    flex-wrap: wrap;
+}
+
+.projects-view-card-body {
+    padding: .8rem;
+}
+
+.projects-view-row-list {
+    margin: .65rem 0;
+    display: grid;
+    gap: .55rem;
+    min-height: 3.25rem;
+    padding: .3rem;
+    border: 1px dashed transparent;
+    border-radius: .45rem;
+    transition: border-color .15s ease, background .15s ease;
+}
+
+.projects-view-row-list:empty {
+    border-color: #c6d4e2;
+    background: #fcfdff;
+}
+
+.projects-view-row {
+    border: 1px solid #d9e3ee;
+    border-radius: .5rem;
+    background: #ffffff;
+    padding: .6rem .7rem;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .65rem;
+    flex-wrap: wrap;
+}
+
+.projects-view-row-display-fields {
+    border-left: 4px solid #0d6efd;
+}
+
+.projects-view-row-display-icon {
+    border-left: 4px solid #198754;
+}
+
+.projects-view-row-display-table {
+    border-left: 4px solid #fd7e14;
+}
+
+.projects-view-row-hidden {
+    opacity: .75;
+    background: #f8fafc;
+    border-style: dashed;
+}
+
+.projects-view-row-main {
+    min-width: 280px;
+    flex: 1 1 280px;
+}
+
+.projects-view-row-title {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-weight: 600;
+    color: #1f2d3d;
+}
+
+.projects-view-row-handle {
+    color: #4f5d6b;
+    cursor: grab;
+    font-size: 1rem;
+}
+
+.projects-view-row-handle:active {
+    cursor: grabbing;
+}
+
+.projects-view-row-meta {
+    margin-top: .3rem;
+    font-size: .78rem;
+    color: #6b7c8f;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    flex-wrap: wrap;
+}
+
+.projects-view-row-visibility {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    padding: .08rem .35rem;
+    border-radius: .35rem;
+    border: 1px solid #d7e3ef;
+    background: #fff;
+    font-size: .75rem;
+    line-height: 1.1;
+}
+
+.projects-view-row-visibility-visible {
+    color: #198754;
+    border-color: #b8e0c8;
+    background: #f1fbf5;
+}
+
+.projects-view-row-visibility-hidden {
+    color: #6c757d;
+    border-color: #d9dee3;
+    background: #f7f8fa;
+}
+
+.projects-view-row-settings {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    flex-wrap: wrap;
+    margin-left: auto;
+}
+
+.projects-view-card-footer {
+    margin-top: .6rem;
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    flex-wrap: wrap;
+}
+
+.projects-view-json-preview {
+    max-height: 360px;
+    overflow: auto;
+    border-radius: .5rem;
+    border: 1px solid #d8e3ee;
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: .8rem;
+    font-size: .79rem;
+    line-height: 1.45;
+}
+
+.drag-placeholder {
+    border: 2px dashed #b6c7da !important;
+    background: #f8fbff !important;
+    border-radius: .5rem;
+}
+
+.drag-placeholder * {
+    visibility: hidden;
+}
+
+.dragging-clone {
+    opacity: .95;
+}
+
+@media (max-width: 991.98px) {
+    .projects-view-row-main {
+        min-width: 0;
+        width: 100%;
+        flex-basis: 100%;
+    }
+}

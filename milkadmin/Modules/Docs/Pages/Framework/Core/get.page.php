@@ -4,7 +4,7 @@ namespace Modules\Docs\Pages;
  * @title Get
  * @guide framework
  * @order 
- * @tags Get, db, db2, dbConnection, arrayDb, mail, schema, theme, dependency injection, container, facade, load_modules, theme_plugin, dir_path, uri_path, temp_dir, date_time_zone, format_date, user_timezone, set_user_timezone, user_locale, set_user_locale, timezone, bind, make, has, client_ip, close_connections
+ * @tags Get, db, db2, dbConnection, arrayDb, mail, schema, theme, dependency injection, container, facade, load_modules, theme_plugin, dir_path, uri_path, temp_dir, date_time_zone, format_date, user, user_timezone, set_user_timezone, user_locale, set_user_locale, timezone, bind, make, has, client_ip, close_connections
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access
@@ -105,6 +105,12 @@ namespace Modules\Docs\Pages;
                     <td>date, format, timezone</td>
                     <td>string</td>
                     <td>Formats dates with locale-aware patterns.</td>
+                </tr>
+                <tr>
+                    <td><code>user($id = 0)</code></td>
+                    <td>user id (optional)</td>
+                    <td>object|null</td>
+                    <td>Returns current authenticated user or a specific user by ID.</td>
                 </tr>
                 <tr>
                     <td><code>userTimezone()</code></td>
@@ -280,6 +286,19 @@ $now = new DateTime('now', new DateTimeZone(Get::userTimezone()));</code></pre>
     <h4 class="mt-4">setUserLocale($locale)</h4>
     <p>Explicitly sets the locale for the current request. This is used by <code>formatDate()</code> and other locale-aware helpers.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">Get::setUserLocale('en_US');</code></pre>
+
+    <h2 class="mt-4">User Management</h2>
+
+    <h4 class="mt-4">user($id = 0)</h4>
+    <p>Returns the current authenticated user when <code>$id</code> is <code>0</code>. If a user ID is provided, it fetches that user from the users table and applies normalized permission flags. Returns <code>null</code> when the user does not exist.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">// Current authenticated user
+$currentUser = Get::user();
+
+// Specific user by ID
+$user = Get::user(12);
+if ($user === null) {
+    // User not found
+}</code></pre>
 
     <h2 class="mt-4">Dependency Container</h2>
     

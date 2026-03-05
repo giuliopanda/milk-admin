@@ -1391,7 +1391,7 @@ class ItoTableSorterPaginator {
             // Per molte pagine, mostra un select
             paginationHTML += `
                 <li class="page-item">
-                    <select class="form-select mx-2" style="width: auto;" aria-label="Seleziona pagina">
+                    <select class="form-select mx-2" style="width: auto;" aria-label="Select Page">
             `;
             
             for (let page = 1; page <= totalPages; page++) {

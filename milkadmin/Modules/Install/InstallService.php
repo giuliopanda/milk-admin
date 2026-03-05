@@ -483,15 +483,19 @@ class InstallService
     {
         $updated_modules = [];
         Hooks::run('cli-init');
+        $registered_commands = array_flip(Cli::getAllFn());
         foreach ($modules_to_update as $module => $versions) {
           
             $success = false;
             try {
                 if (Version::isEmpty($versions['previous'])) {
-                Cli::callFunction($module.":install");
+                    Cli::callFunction($module.":install");
                     $action = 'installed';
                 } else {
-                    Cli::callFunction($module.":update");
+                    $update_command = $module . ":update";
+                    if (isset($registered_commands[$update_command])) {
+                        Cli::callFunction($update_command);
+                    }
                     $action = 'updated';
                 }
                 $success = true;
@@ -880,7 +884,7 @@ class InstallService
         $module_key = strtolower($module);
 
         // Get current user ID
-        $user = Get::make('Auth')->getUser();
+        $user = Get::user();
         $user_id = $user->id ?? 0;
 
         // Get existing module actions or create empty array

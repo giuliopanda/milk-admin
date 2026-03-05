@@ -21,12 +21,50 @@ namespace App;
  */
 
  // I don't allow access to the cookie from js
-if (substr(Config::get('base_url'), 0, 5) == 'https') {
-    ini_set('session.cookie_secure', true);
+$base_url = (string) Config::get('base_url', '');
+$base_path = (string) parse_url($base_url, PHP_URL_PATH);
+if ($base_path === '') {
+    $base_path = '/';
+}
+$base_path = '/' . ltrim(trim($base_path), '/');
+if ($base_path !== '/') {
+    $base_path = rtrim($base_path, '/') . '/';
+}
+
+$default_session_name = 'MKSESSID_' . substr(hash('sha256', ($base_url !== '' ? $base_url : MILK_DIR)), 0, 12);
+$session_cookie_name = (string) Config::get('session_cookie_name', $default_session_name);
+$session_cookie_name = preg_replace('/[^A-Za-z0-9]/', '', $session_cookie_name);
+if ($session_cookie_name === '') {
+    $session_cookie_name = $default_session_name;
+}
+
+$session_cookie_path = (string) Config::get('session_cookie_path', $base_path);
+$session_cookie_path = '/' . ltrim(trim($session_cookie_path), '/');
+if ($session_cookie_path !== '/') {
+    $session_cookie_path = rtrim($session_cookie_path, '/') . '/';
+}
+
+$is_https_base_url = (strtolower((string) parse_url($base_url, PHP_URL_SCHEME)) === 'https');
+if ($is_https_base_url) {
+    ini_set('session.cookie_secure', '1');
 }
 
 if (!session_id() && !\App\Cli::isCli()) {
-    ini_set('session.cookie_httponly', true);
+    session_name($session_cookie_name);
+    if (PHP_VERSION_ID >= 70300) {
+        session_set_cookie_params([
+            'lifetime' => 0,
+            'path' => $session_cookie_path,
+            'secure' => $is_https_base_url,
+            'httponly' => true,
+            'samesite' => 'Strict',
+        ]);
+    } else {
+        session_set_cookie_params(0, $session_cookie_path, '', $is_https_base_url, true);
+    }
+
+    ini_set('session.cookie_path', $session_cookie_path);
+    ini_set('session.cookie_httponly', '1');
     ini_set('session.cookie_samesite', 'Strict');
     session_start();
 }
@@ -74,7 +112,7 @@ define('STORAGE_DIR', realpath(LOCAL_DIR.'/'.Config::get('storage_dir', 'storage
  *
  * @global string NEW_VERSION
  */
-define('NEW_VERSION', '0.9.3');
+define('NEW_VERSION', '0.9.5');
 
 $current_version = Config::get('version');
 $normalized_version = Version::normalize($current_version);

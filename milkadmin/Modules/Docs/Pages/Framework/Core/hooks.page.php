@@ -69,16 +69,16 @@ namespace Modules\Docs\Pages;
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">return Hooks::run('theme_get_'.$path, $return, 'string' | 'array');</code></pre>
     <p>In <code>theme.class.php</code></p>
-    <p>Viene chiamato prima di restituire i dati per il tema</p>
+    <p>Called before returning data for the theme</p>
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$file = Hooks::run('load_ini_file', $file);</code></pre>
     <p>In <code>lang.class.php</code></p>
-    <p>Viene chiamato prima di caricare un file di lingua</p>
+    <p>Called before loading a language file</p>
     
     <h3 class="mt-4">Plugin Table</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">Hooks::run('table_actions_row', $header['options'], $row, $table_id);</code></pre>
     <p>In <code>table.class.php</code></p>
-    <p>Viene chiamato prima di renderizzare le azioni di una riga di una tabella</p>
+    <p>Called before rendering row actions in a table row</p>
 
     <h3 class="mt-4">Plugin Title</h3>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$title_txt = Hooks::run('plugin_title.title_txt', $title_txt);</code></pre>

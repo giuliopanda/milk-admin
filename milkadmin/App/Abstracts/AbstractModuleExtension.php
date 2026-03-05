@@ -1,7 +1,6 @@
 <?php
 namespace App\Abstracts;
 
-use App\Interfaces\ModuleExtensionInterface;
 use ReflectionClass;
 
 !defined('MILK_DIR') && die();

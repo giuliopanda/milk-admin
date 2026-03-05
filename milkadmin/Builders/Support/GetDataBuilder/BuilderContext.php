@@ -25,6 +25,7 @@ class BuilderContext
     private array $filter_defaults = [];
     private array $sort_mappings = [];
     private array $custom_data = [];
+    private bool $bulk_allow_all_records = false;
 
     public function __construct(AbstractModel $model, string $table_id, ?array $request = null)
     {
@@ -106,6 +107,11 @@ class BuilderContext
         return $this->custom_data;
     }
 
+    public function isBulkAllRecordsAllowed(): bool
+    {
+        return $this->bulk_allow_all_records;
+    }
+
     // ========================================================================
     // SETTERS
     // ========================================================================
@@ -155,6 +161,11 @@ class BuilderContext
         } else {
             $this->custom_data[$key] = $value;
         }
+    }
+
+    public function setBulkAllowAllRecords(bool $enabled): void
+    {
+        $this->bulk_allow_all_records = $enabled;
     }
 
     public function setModel(AbstractModel $model) {

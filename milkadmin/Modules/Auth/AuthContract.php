@@ -13,6 +13,8 @@ use App\{AuthContractInterface, Cli, Config, Get, MessagesHandler, Permissions, 
  */
 class AuthContract implements AuthContractInterface
 {
+    public const PASSWORD_MIN_LENGTH = 8;
+
     /**
      * Current authenticated user object
      * 
@@ -601,7 +603,7 @@ class AuthContract implements AuthContractInterface
                     }
 
                     // Handle "Remember Me" if enabled and checkbox selected
-                    if (!empty($_POST['remember_me']) && Config::get('auth_remember_me_duration')) {
+                    if (!empty($_POST['remember_me']) && RememberMeService::isAvailable()) {
                         $this->createRememberMeToken($this->current_user->id);
                     }
                 } else {
@@ -772,13 +774,19 @@ class AuthContract implements AuthContractInterface
      * @param array $permissions User permissions array
      * @param string $timezone User timezone (default: UTC)
      * @param string $locale User locale (default: en_US)
+     * @param bool $allow_weak_password Allow short passwords (used only in controlled flows like first install)
      * @return int|bool User ID on success, false on failure
      */
-    public function saveUser($id, $username, $email, $password = '', $status = 1, $is_admin = 0, $permissions = [], $timezone = 'UTC', $locale = '') {
+    public function saveUser($id, $username, $email, $password = '', $status = 1, $is_admin = 0, $permissions = [], $timezone = 'UTC', $locale = '', $allow_weak_password = false) {
         $this->last_error = '';
         $this->last_insert_id = 0;
         $save_permissions = [];
         $password = trim($password);
+
+        if (!$allow_weak_password && $password !== '' && strlen($password) < self::PASSWORD_MIN_LENGTH) {
+            $this->last_error = 'Password must be at least ' . self::PASSWORD_MIN_LENGTH . ' characters long';
+            return false;
+        }
 
         $permissions_groups = Permissions::getGroups();
         foreach ($permissions_groups as $group => $_) {
@@ -992,7 +1000,7 @@ class AuthContract implements AuthContractInterface
     private function attemptRememberMeLogin(): bool
     {
         // Check if remember me is enabled
-        if (!Config::get('auth_remember_me_duration')) {
+        if (!RememberMeService::isAvailable()) {
             return false;
         }
 

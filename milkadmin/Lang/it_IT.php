@@ -1,5 +1,6 @@
 <?php
 // Translation file for Italian (it_IT)
+/*
 return [
     "day" => "giorno",
     "days" => "giorni",
@@ -21,3 +22,4 @@ return [
     "Save changes" => "Salva le modifiche",
     "Edit item" => "Modifica elemento",
 ];
+*/

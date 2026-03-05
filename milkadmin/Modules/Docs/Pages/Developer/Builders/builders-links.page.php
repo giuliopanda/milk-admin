@@ -223,10 +223,10 @@ Theme::set('header.top-right', $navbar);  // Right side</code></pre>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">$pills = LinksBuilder::create()
     ->add('Dashboard', '#dashboard')
         ->active()
-    ->add('Utenti', '#users')
-    ->add('Ordini', '#orders')
+    ->add('Users', '#users')
+    ->add('Orders', '#orders')
     ->add('Report', '#reports')
-    ->add('Impostazioni', '#settings')
+    ->add('Settings', '#settings')
         ->disable()
     ->render('pills');</code></pre>
 
@@ -236,10 +236,10 @@ Theme::set('header.top-right', $navbar);  // Right side</code></pre>
         $pillsExample = LinksBuilder::create()
             ->add('Dashboard', '#dashboard')
                 ->active()
-            ->add('Utenti', '#users')
-            ->add('Ordini', '#orders')
+            ->add('Users', '#users')
+            ->add('Orders', '#orders')
             ->add('Report', '#reports')
-            ->add('Impostazioni', '#settings')
+            ->add('Settings', '#settings')
                 ->disable()
             ->render('pills');
         echo $pillsExample;

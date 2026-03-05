@@ -409,6 +409,9 @@ class Query
     public function orderHas(string $relationAlias, string $orderField, string $direction = 'ASC'): self
     {
         $relationship = $this->getRelationshipConfig($relationAlias);
+        if (!$this->isRelationshipOrderJoinCompatible($relationship)) {
+            return $this;
+        }
         $relatedTable = $this->getRelatedTable($relationship);
        
         $this->join_alias_counter++;
@@ -419,6 +422,43 @@ class Query
         $this->order($alias . '.' . $orderField, $direction);
 
         return $this;
+    }
+
+    /**
+     * Check whether orderHas can build a SQL JOIN for this relationship.
+     *
+     * orderHas uses the current query connection; when the related model uses
+     * a different db type (e.g. db2 vs db), SQL JOIN would fail.
+     *
+     * @param array<string,mixed> $relationship
+     */
+    private function isRelationshipOrderJoinCompatible(array $relationship): bool
+    {
+        if ($this->static_model === null) {
+            return false;
+        }
+
+        $relatedClass = trim((string) ($relationship['related_model'] ?? ''));
+        if ($relatedClass === '' || !class_exists($relatedClass)) {
+            return false;
+        }
+
+        try {
+            $relatedModel = new $relatedClass();
+        } catch (\Throwable) {
+            return false;
+        }
+
+        $mainDbType = strtolower(trim((string) $this->static_model->getDbType()));
+        $relatedDbType = method_exists($relatedModel, 'getDbType')
+            ? strtolower(trim((string) $relatedModel->getDbType()))
+            : '';
+
+        if ($mainDbType === '' || $relatedDbType === '') {
+            return true;
+        }
+
+        return $mainDbType === $relatedDbType;
     }
 
     /**

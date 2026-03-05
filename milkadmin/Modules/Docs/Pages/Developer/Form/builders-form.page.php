@@ -36,7 +36,7 @@ namespace Modules\Docs\Pages;
         </thead>
         <tbody>
             <tr>
-                <td rowspan="8">Form Setup</td>
+                <td rowspan="10">Form Setup</td>
                 <td><code>create($model, $page = '', $url_success = null, $url_error = null)</code></td>
                 <td>Factory method to create FormBuilder instance (static)</td>
             </tr>
@@ -57,12 +57,20 @@ namespace Modules\Docs\Pages;
                 <td>Set form ID attribute</td>
             </tr>
             <tr>
-                <td><code>urlSuccess(string $url)</code></td>
+                <td><code>setUrlSuccess(string $url)</code></td>
                 <td>Set success redirect URL</td>
             </tr>
             <tr>
-                <td><code>urlError(string $url)</code></td>
+                <td><code>setUrlError(string $url)</code></td>
                 <td>Set error redirect URL</td>
+            </tr>
+            <tr>
+                <td><code>getUrlSuccess()</code></td>
+                <td>Get configured success redirect URL</td>
+            </tr>
+            <tr>
+                <td><code>getUrlError()</code></td>
+                <td>Get configured error redirect URL</td>
             </tr>
             <tr>
                 <td><code>customData(string $key, $value)</code></td>

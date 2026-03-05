@@ -38,7 +38,7 @@ use App\Form;
     <div class="bg-light p-2"> 
         <div class="form-group col-xl-6">
             <div class="form-check">
-                <?php Form::checkbox('toggleCheckbox', 'Etichetta', '1'); ?>
+                <?php Form::checkbox('toggleCheckbox', 'Label', '1'); ?>
                 <div class="my-2" id="test1NotChecked">Checkbox not selected</div>
                 <div class="my-2" id="test1Checked">Checkbox selected</div>
             </div>
@@ -57,7 +57,7 @@ use App\Form;
     </script>
     <pre class="pre-scrollable border p-2" class="text-bg-gray"><code class="language-php">&lt;div class=&quot;form-group col-xl-6&quot;&gt;
         &lt;div class=&quot;form-check&quot;&gt;
-            &lt;?php Form::checkbox('toggleCheckbox', 'Etichetta', '1'); ?&gt;
+            &lt;?php Form::checkbox('toggleCheckbox', 'Label', '1'); ?&gt;
             &lt;div class=&quot;my-2&quot; id=&quot;test1NotChecked&quot;&gt;Checkbox not selected&lt;/div&gt;
             &lt;div class=&quot;my-2&quot; id=&quot;test1Checked&quot;&gt;Checkbox selected&lt;/div&gt;
         &lt;/div&gt;
@@ -80,14 +80,14 @@ use App\Form;
 
     <div class="bg-light p-2"> 
         <div class="form-group col-xl-6">
-            <?php Form::select('toggleSelect', 'Etichetta', ['1' => 'Uno', '2' => 'Due', '3' => 'Tre'], '2'); ?>
+            <?php Form::select('toggleSelect', 'Label', ['1' => 'One', '2' => 'Two', '3' => 'Three'], '2'); ?>
             <div class="my-2" data-togglevalue="1" data-togglefield="toggleSelect">Select One</div>
             <div class="my-2" data-togglevalue="2" data-togglefield="toggleSelect">Select Two</div>
         </div>
     </div>
 
     <pre class="pre-scrollable border p-2" class="text-bg-gray"><code class="language-php">&lt;div class=&quot;form-group col-xl-6&quot;&gt;
-        &lt;?php Form::select('toggleSelect', 'Etichetta', ['1' =&gt; 'Uno', '2' =&gt; 'Due', '3' =&gt; 'Tre'], '2'); ?&gt;
+        &lt;?php Form::select('toggleSelect', 'Label', ['1' =&gt; 'One', '2' =&gt; 'Two', '3' =&gt; 'Three'], '2'); ?&gt;
         &lt;div class=&quot;my-2&quot; data-togglevalue=&quot;1&quot; data-togglefield=&quot;toggleSelect&quot;&gt;Select One&lt;/div&gt;
         &lt;div class=&quot;my-2&quot; data-togglevalue=&quot;2&quot; data-togglefield=&quot;toggleSelect&quot;&gt;Select Two&lt;/div&gt;
     &lt;/div&gt;</code></pre>

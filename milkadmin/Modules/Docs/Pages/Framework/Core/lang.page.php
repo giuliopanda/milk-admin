@@ -50,9 +50,9 @@ echo $translation; // Output: hello</code></pre>
 <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">&lt;?php
 // translations.php
 return [
-    "Hello World" => "Ciao Mondo",
-    "Save" => "Salva",
-    "Cancel" => "Annulla",
+    "Hello World" => "Hello World",
+    "Save" => "Save",
+    "Cancel" => "Cancel",
 ];</code></pre>
 
 <h2 class="mt-4">Javascript translation</h2>

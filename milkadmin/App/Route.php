@@ -90,7 +90,7 @@ class Route
      * @param string|null $permission The permission required to access this route (format: 'group.permission_name')
      * @return void
      */
-    public static function set($name, $function, $permission = null) {
+    public static function set(?string $name, callable $function, ?string $permission = null): void {
         $name = $name ?? ''; // Converti null in stringa vuota
         self::$functions[$name] = $function;
         if ($permission !== null) {
@@ -122,7 +122,7 @@ class Route
      * @param string $name The route name to execute (managed in index.php)
      * @return bool True if the route was found and executed, false otherwise
      */
-    public static function run($name) {
+    public static function run(string $name): bool {
         if (array_key_exists($name, self::$functions) && is_callable(self::$functions[$name])) {
             // Check permissions if a permission is set for this route
             if (isset(self::$permissions[$name])) {
@@ -154,9 +154,9 @@ class Route
      * 
      * @param string $route_name The name of the route that was denied
      * @param string $required_permission The permission that was required
-     * @return void
+     * @return never
      */
-    private static function redirectToDeny($route_name, $required_permission) {
+    private static function redirectToDeny(string $route_name, string $required_permission): void {
         $error_message = "Access denied to route {$route_name}. Required permission: {$required_permission}";
         // Try to redirect to 'deny' route, if it exists
         if (array_key_exists('deny', self::$functions)) {
@@ -176,7 +176,7 @@ class Route
      * @param string $name The route name
      * @return string|null The required permission or null if no permission is set
      */
-    public static function getRoutePermission($name) {
+    public static function getRoutePermission(string $name): ?string {
         return self::$permissions[$name] ?? null;
     }
 
@@ -186,7 +186,7 @@ class Route
      * @param string $name The route name
      * @return bool True if the route has a permission requirement, false otherwise
      */
-    public static function hasPermissionRequirement($name) {
+    public static function hasPermissionRequirement(string $name): bool {
         return isset(self::$permissions[$name]);
     }
 
@@ -195,7 +195,7 @@ class Route
      * 
      * @return array Array of routes with their permissions
      */
-    public static function getRoutesWithPermissions() {
+    public static function getRoutesWithPermissions(): array {
         $routes = [];
         foreach (self::$functions as $route_name => $function) {
             $routes[$route_name] = [
@@ -230,7 +230,7 @@ class Route
      * @param mixed $query Query parameters as array or string (default: '')
      * @return string The complete URL
      */
-    public static function url($query = ''): string {
+    public static function url(array|string $query = ''): string {
         
         $query_string = self::buildQuery($query);
         if ($query_string != '') { 
@@ -268,7 +268,7 @@ class Route
      *
      * @return string The current URL with query parameters
      */
-    public static function currentUrl() {
+    public static function currentUrl(): string {
         $query = $_SERVER['QUERY_STRING'] ?? '';
 
         $query = ($query != '') ? '?'.$query : '';
@@ -289,9 +289,9 @@ class Route
      * @param string|array $url URL of destination or query parameters array
      * @param string $message Success message to display
      * @param array $data Additional data to pass with the redirect
-     * @return void
+     * @return never
      */
-    public static function redirectSuccess($url, $message = '', $data = []) {
+    public static function redirectSuccess(array|string $url, string $message = '', array $data = []): void {
         $data['alert-success'] = $message;
         self::redirect($url, $data);
     }
@@ -305,9 +305,9 @@ class Route
      * @param string|array $url URL of destination or query parameters array
      * @param string $message Error message to display
      * @param array $data Additional data to pass with the redirect
-     * @return void
+     * @return never
      */
-    public static function redirectError($url, $message = '', $data = []) {
+    public static function redirectError(array|string $url, string $message = '', array $data = []): void {
         $data['alert-error'] = $message;
         self::redirect($url, $data);
     }
@@ -319,9 +319,9 @@ class Route
      * 
      * @param string|array $url URL of destination or query parameters array
      * @param array $data Additional data to pass with the redirect
-     * @return void
+     * @return never
      */
-    public static function redirectHandlerErrors($url, $data = []) {
+    public static function redirectHandlerErrors(array|string $url, array $data = []): void {
         $data['message-handler'] = MessagesHandler::getErrors();
         self::redirect($url, $data);
     }
@@ -345,9 +345,9 @@ class Route
      * 
      * @param string|array $url Destination URL or query parameters array
      * @param array $data Data to pass in the header/session
-     * @return void
+     * @return never
      */
-    public static function redirect($url, $data = []) {
+    public static function redirect(array|string $url, array $data = []): void {
         if (headers_sent()) {
             Logs::set('ROUTE',  'Cannot redirect, headers already sent', 'ERROR');
             die('Cannot redirect, headers already sent');
@@ -393,7 +393,7 @@ class Route
      * 
      * @return array The session data or empty array if no data found
      */
-    public static function getSessionData($add_post = true) {
+    public static function getSessionData(bool $add_post = true): array {
         if (self::$sessions !== null) {
             return self::$sessions;
         }
@@ -426,7 +426,7 @@ class Route
      * 
      * @return array Retrieved data from headers/cookies
      */
-    public static function getHeaderData() {
+    public static function getHeaderData(): array {
        
         // If we have already read and stored the data, return it
         if (self::$cached_data !== null) {
@@ -469,7 +469,7 @@ class Route
      * @param mixed $query Query parameters as ['page' => 'home'] or '?page=home'
      * @return string Query string starting with '?' or empty string
      */
-    static private function buildQuery($query = ''): string {
+    static private function buildQuery(array|string $query = ''): string {
         $query_string = '';
         if (is_string($query)) {
             $query = trim($query);
@@ -500,7 +500,7 @@ class Route
      * @param string|array $query2 Second query to compare (default: current query)
      * @return bool True if query1 parameters are all present in query2
      */
-    public static function compareQueryUrl($query1, $query2 = []) {
+    public static function compareQueryUrl(array|string $query1, array|string $query2 = []): bool {
         if (is_string($query1)) {
             $query1 = self::parseQueryString($query1);
         }
@@ -538,7 +538,7 @@ class Route
      * @param bool $strict_check If true, all parameters of query1 must exist in query2 and be equal
      * @return bool True if both queries have the same 'page' parameter
      */
-    public static function comparePageUrl($query1, $query2 = [], $strict_check = false):bool {
+    public static function comparePageUrl(array|string $query1, array|string $query2 = [], bool $strict_check = false): bool {
         if (is_string($query1)) {
             $query1 = self::parseQueryString($query1);
         }
@@ -592,7 +592,7 @@ class Route
      * @param string $query_string The query string to parse
      * @return array Associative array of query parameters
      */
-    public static function parseQueryString($query_string) {
+    public static function parseQueryString(string $query_string): array {
         $query = [];
         if ($query_string != '') {
             $query_string = explode('?', $query_string);
@@ -614,7 +614,7 @@ class Route
      * 
      * @return string The current query string starting with '?'
      */
-    public static function getQueryString() {
+    public static function getQueryString(): string {
         $query_string = $_SERVER['QUERY_STRING'] ?? '';
         if (substr($query_string, 0, 1) != '?') {
             $query_string = '?'.$query_string;
@@ -629,7 +629,7 @@ class Route
      * 
      * @return string The current URL including the query string
      */
-    public static function getCurrentUrl() {
+    public static function getCurrentUrl(): string {
         $host = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? 'localhost';
         $requestUri = $_SERVER['REQUEST_URI'] ?? ($_SERVER['SCRIPT_NAME'] . '?' . $_SERVER['QUERY_STRING']);
         
@@ -680,11 +680,12 @@ class Route
     /**
      * Replace placeholders in URL query parameters with actual values
      * 
-     * This function processes a URL containing placeholders in the format %placeholder_name%
+     * This function processes a URL containing placeholders in the format
+     * %placeholder_name% or [placeholder_name]
      * and replaces them with corresponding values from the provided array.
      * Parameters with unmatched placeholders are removed from the query string.
      * 
-     * @param string $url The URL containing placeholders (e.g., "?page=view&id=%id%")
+     * @param string $url The URL containing placeholders (e.g., "?page=view&id=%id%" or "?page=view&id=[id]")
      * @param array $values Associative array of placeholder names and their replacement values
      *                      (e.g., ['id' => 12, 'page_type' => 'dashboard'])
      * 
@@ -705,7 +706,7 @@ class Route
      * replaceUrlPlaceholders("https://example.com/?page=%type%&id=%id%", ['id' => 42]);
      * // Returns: "https://example.com/?id=42"
      */
-    public static function replaceUrlPlaceholders($url, $values = []) {
+    public static function replaceUrlPlaceholders(string $url, array $values = []): string {
         // Parse the URL into its components (scheme, host, path, query, etc.)
         $parsed_url = parse_url($url);
         
@@ -722,9 +723,9 @@ class Route
         
         // Iterate through each query parameter
         foreach ($query_params as $key => $value) {
-            // Check if the value is a placeholder (format: %placeholder_name%)
-            if (preg_match('/^%(.+)%$/', $value, $matches)) {
-                $placeholder_name = $matches[1];
+            // Check if the value is a placeholder (format: %placeholder_name% or [placeholder_name]).
+            if (preg_match('/^(?:%([^%]+)%|\[([^\[\]]+)\])$/', (string) $value, $matches)) {
+                $placeholder_name = (string) ($matches[1] !== '' ? $matches[1] : ($matches[2] ?? ''));
                 
                 // If a corresponding value exists in the array, replace the placeholder
                 if (isset($values[$placeholder_name])) {
@@ -828,7 +829,7 @@ class Route
      * 
      * @return string|false Bearer token or false if not found
      */
-    public static function getBearerToken() {
+    public static function getBearerToken(): string|false {
         $headers = null;
         
         if (isset($_SERVER['Authorization'])) {
@@ -880,7 +881,7 @@ class Route
      * @param string $password_key Optional custom key for password field (default: 'password')
      * @return array Associative array with 'username' and 'password', or empty values if not found
      */
-    public static function extractCredentials($username_key = 'username', $password_key = 'password')
+    public static function extractCredentials(string $username_key = 'username', string $password_key = 'password'): array
     {
         $credentials = [
             'username' => '',

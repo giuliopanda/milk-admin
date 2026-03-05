@@ -402,6 +402,7 @@ class DataProcessor
                 }
             }
             $pageInfo->setBulkActions($labels);
+            $pageInfo['bulk_allow_all_records'] = $this->context->isBulkAllRecordsAllowed();
         }
 
         // Apply filter defaults to page_info for frontend sync
