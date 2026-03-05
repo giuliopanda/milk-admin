@@ -1,7 +1,4 @@
 <?php
-if (!session_id()) {
-    session_start();
-}
 $milk_dir = __DIR__."/../milkadmin";
 $local_dir = __DIR__."/../milkadmin_local";
 

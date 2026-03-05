@@ -40,7 +40,7 @@ class CSRFProtection {
         $token = self::extractToken();
         // Validate token
         if (!Token::checkValue($token, session_id())) {
-            self::handleInvalidToken();
+            self::handleInvalidToken(Token::$last_error, $token);
         }
     }
     
@@ -131,13 +131,13 @@ class CSRFProtection {
      * 
      * @return void
      */
-    private static function handleInvalidToken(): void {
+    private static function handleInvalidToken(string $reason = '', ?string $token = null): void {
         if (self::isAjaxRequest()) {
             // AJAX/fetch request - respond with JSON
-            self::respondWithJson();
+            self::respondWithJson($reason);
         } else {
             // Traditional form submission - clear POST and set error
-            self::handleFormSubmission();
+            self::handleFormSubmission($reason, $token);
         }
     }
     
@@ -146,7 +146,7 @@ class CSRFProtection {
      * 
      * @return void
      */
-    private static function respondWithJson(): void {
+    private static function respondWithJson(string $reason = ''): void {
         http_response_code(422);
         header('Content-Type: application/json');
         
@@ -156,6 +156,9 @@ class CSRFProtection {
             'message' => 'Security token expired. Please refresh the page.',
             'csrf_error' => true
         ];
+        if (Config::get('debug', false) && $reason !== '') {
+            $response['csrf_reason'] = $reason;
+        }
         
         echo json_encode($response);
 
@@ -167,7 +170,7 @@ class CSRFProtection {
      * 
      * @return void
      */
-    private static function handleFormSubmission(): void {
+    private static function handleFormSubmission(string $reason = '', ?string $token = null): void {
 
         // Preserve original POST data for debugging/logging
         $original_post = $_POST;
@@ -210,13 +213,26 @@ class CSRFProtection {
         $error_message = $has_files
             ? 'Security token expired during file upload. Please refresh the page and try uploading again.'
             : 'Security token expired. Please try again. If the problem persists, please contact support.';
+        if (Config::get('debug', false) && $reason !== '') {
+            $error_message .= ' [csrf_reason=' . $reason . ']';
+        }
         MessagesHandler::addError($error_message);
         
         // Log the CSRF attempt for security monitoring
        
         $context = $has_files ? 'file upload' : 'form submission';
         $post_keys = implode(', ', array_keys($original_post));
-        Logs::set('SECURITY', "CSRF token mismatch on {$context} from IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown') . " (POST keys: {$post_keys})",  'WARNING');
+        $sessionCookieName = session_name();
+        $sessionCookieValue = $_COOKIE[$sessionCookieName] ?? '';
+        $tokenNameExpected = Token::getTokenName(session_id());
+        $tokenState = $token === null ? 'missing' : 'present';
+        Logs::set(
+            'SECURITY',
+            "CSRF token mismatch on {$context} from IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown')
+                . " (reason: {$reason}; token: {$tokenState}; expected_post_key: {$tokenNameExpected}; session_id: "
+                . session_id() . "; cookie_session_id: {$sessionCookieValue}; POST keys: {$post_keys})",
+            'WARNING'
+        );
         // Invalidate submission as if it were a normal validation failure:
         // keep only routing keys and drop submitted payload/action flags.
         $_REQUEST = array_merge($_GET, $route_context);
