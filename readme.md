@@ -6,7 +6,7 @@
 [![PHP Version](https://img.shields.io/badge/PHP-8%2B-purple.svg)](https://www.php.net/)
 [![MySQL](https://img.shields.io/badge/MySQL-supported-blue.svg)](https://www.mysql.com/)
 [![SQLite](https://img.shields.io/badge/SQLite-supported-blue.svg)](https://www.sqlite.org/)
-[![Status](https://img.shields.io/badge/Status-Alpha-orange.svg)](https://github.com/giuliopanda/milk-admin)
+[![Status](https://img.shields.io/badge/Status-Beta-orange.svg)](https://github.com/giuliopanda/milk-admin)
 [![Documentation](https://img.shields.io/badge/Docs-Online-green.svg)](https://milkadmin.org/milk-admin/?page=docs&action=Developer/GettingStarted/introduction)
 
 ---
