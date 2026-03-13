@@ -127,17 +127,27 @@ You can focus on backend logic without worrying about UI scaffolding.
 1. **Clone the repository**
 ```bash
 git clone https://github.com/giuliopanda/milk-admin
-````
+```
 
-2. **Open your browser**
+2. **Install dependencies**
+
+```bash
+composer install
+```
+Or for production:
+```bash
+composer install --no-dev
+```
+
+3. **Open your browser**
 
 ```
 http://localhost/milk-admin/public_html/
 ```
 
-3. **Follow the installation wizard** (2 minutes)
+4. **Follow the installation wizard** (2 minutes)
 
-4. **Start building your first module**
+5. **Start building your first module**
 
 ---
 

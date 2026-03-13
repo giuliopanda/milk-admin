@@ -1,5 +1,8 @@
 ## Changelog
 
+### v0.9.6 - 26/03/13
+- Removed: Vendor directory.
+
 ### v0.9.5 - 26/03/05
 - New: Added a new visual management layer for milkadmin/Extensions/Projects, making the Projects extension easier to configure and control from the UI.
 - Updated: Documentation pages across Developer/Framework/User sections (Projects guides, DynamicTable, hooks/lang/mail, links, cron, timezone/sidebar notes)
