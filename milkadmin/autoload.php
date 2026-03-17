@@ -26,10 +26,20 @@ namespace App;
  */
 
  require __DIR__ . '/App/functions.php';
+ require __DIR__ . '/App/NamespacedFunctionAliases.php';
 // composer autoloader
 require __DIR__ . '/../vendor/autoload.php';
 
-require LOCAL_DIR . '/config.php';
+$config_file = LOCAL_DIR . '/config.php';
+if (!is_file($config_file)) {
+    $fallback_config = MILK_DIR . '/../milkadmin_local/config.php';
+    if (is_file($fallback_config)) {
+        $config_file = $fallback_config;
+    } else {
+        throw new \RuntimeException('Missing config file: ' . $config_file);
+    }
+}
+require $config_file;
 require __DIR__ . '/setup.php';
 /**
  * Sets default user permissions

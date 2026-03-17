@@ -36,15 +36,15 @@ class ColumnManager
 
         $this->ensureDefaultLabel($key);
 
-        // Salva il vecchio current_order_field in old_current_order_field
+        // Save the old current_order_field in old_current_order_field
         $this->old_current_order_field = $this->current_order_field;
 
-        // Se c'è un current_order_field, posiziona il nuovo campo dopo di esso
+        // If there's a current_order_field, position the new field after it
         if ($this->current_order_field !== null) {
             $this->moveAfter($key, $this->current_order_field);
         }
 
-        // Imposta il nuovo campo come current_field e current_order_field
+        // Set the new field as current_field and current_order_field
         $this->current_field = $key;
         $this->current_order_field = $key;
     }

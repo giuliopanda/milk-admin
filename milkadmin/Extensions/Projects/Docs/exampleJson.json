@@ -1,0 +1,53 @@
+{
+    "_version": "1.0",
+    "_name": "Assenze Schema",
+    "_description": "Schema per la gestione delle assenze",
+
+    "model": {
+        "table": "assenze",
+        "db": "db2",
+        "fields": [
+            {
+                "name": "ID_ASSENZA",
+                "method": "id",
+                "withCount": {
+                    "alias": "avvisi_count",
+                    "related_model": "UtentiAvvisatiModel",
+                    "foreign_key": "ID_ASSENZA"
+                }
+            },
+            {
+                "name": "MATR_INS",
+                "method": "int",
+                "label": "Insegnante",
+                "required": true,
+                "belongsTo": {
+                    "alias": "insegnante",
+                    "related_model": "SociModel",
+                    "related_key": "MATRIC"
+                }
+            },
+            {
+                "name": "DATA_ASSENZA",
+                "method": "date",
+                "label": "Data Assenza",
+                "required": true
+            },
+            {
+                "name": "NOTE",
+                "method": "string",
+                "length": 200,
+                "label": "Note",
+                "formType": "textarea"
+            }
+        ]
+    },
+
+    "controller": {
+        "// TODO": "Da implementare - vedi ControllerSchemaSection"
+    },
+
+    "view": {
+        "// TODO": "Da implementare - vedi ViewSchemaSection"
+    }
+}

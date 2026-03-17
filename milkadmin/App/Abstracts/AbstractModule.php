@@ -232,7 +232,7 @@ abstract class AbstractModule implements ProjectModuleInterface
         $ownerLinks = ModuleMenuRegistryService::getConfiguredMenuLinksByModule($selectedMenu);
         $firstOwnerLink = is_array($ownerLinks[0] ?? null) ? $ownerLinks[0] : null;
         if (is_array($firstOwnerLink)) {
-            $ownerUrl = trim((string) ($firstOwnerLink['url'] ?? ''));
+            $ownerUrl = trim((string) $firstOwnerLink['url']);
             if ($ownerUrl !== '') {
                 return $ownerUrl;
             }
@@ -436,7 +436,7 @@ abstract class AbstractModule implements ProjectModuleInterface
             if (method_exists($this->controller, 'hookInit')) {
                 $this->controller->hookInit();
             }
-        } elseif ($this->controller === null && method_exists($this, 'handleRoutes')) {
+        } elseif ($this->controller === null) {
             $this->controller = $this;
             Route::set($this->page, [$this, 'handleRoutes']);
         }
@@ -916,24 +916,20 @@ abstract class AbstractModule implements ProjectModuleInterface
     {
         $this->routeMapBuilt = true;
 
-        if (method_exists($this, 'scanAttributesFromClass')) {
-            $this->scanAttributesFromClass($this);
-        }
+        $this->scanAttributesFromClass($this);
 
-        if (!empty($this->loaded_extensions) && method_exists($this, 'scanAttributesFromClass')) {
+        if (!empty($this->loaded_extensions)) {
             foreach ($this->loaded_extensions as $extension) {
                 $this->scanAttributesFromClass($extension);
             }
         }
 
-        if (!empty($this->loaded_controller_extensions) && method_exists($this, 'scanAttributesFromClass')) {
+        if (!empty($this->loaded_controller_extensions)) {
             foreach ($this->loaded_controller_extensions as $extension) {
                 $this->scanAttributesFromClass($extension);
             }
         }
 
-        if (method_exists($this, 'applyProgrammaticRequestActions')) {
-            $this->applyProgrammaticRequestActions();
-        }
+        $this->applyProgrammaticRequestActions();
     }
 }

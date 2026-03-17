@@ -767,7 +767,7 @@ class ModelJsonParser
         } catch (\Throwable) {
             return [];
         }
-        if (!is_object($db) || !method_exists($db, 'qn') || !method_exists($db, 'getResults')) {
+        if (!is_object($db)) {
             return [];
         }
 
@@ -888,7 +888,7 @@ class ModelJsonParser
             }
         }
 
-        if (!is_object($model) || !method_exists($model, 'getTable')) {
+        if (!method_exists($model, 'getTable')) {
             return [];
         }
 

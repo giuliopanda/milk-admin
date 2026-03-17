@@ -31,11 +31,11 @@ final class DeleteQuery
     /**
      * @var array{
      *      name:string,
-     *      subquery:SubqueryExpression,
-     *      join_type:JoinType::*,
-     *      join_operator:'ON'|'USING',
-     *      alias:string,
-     *      join_expression:null|Expression
+     *      subquery?:SubqueryExpression,
+     *      join_type:string,
+     *      join_operator?:'ON'|'USING',
+     *      alias?:string,
+     *      join_expression?:null|Expression
      * }|null
      */
     public $fromClause = null;

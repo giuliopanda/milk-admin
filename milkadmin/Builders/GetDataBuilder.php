@@ -32,6 +32,7 @@ use Builders\Exceptions\BuilderException;
  * for easier table creation with method chaining.
  *
  * @package Builders
+ * @phpstan-consistent-constructor
  */
 class GetDataBuilder
 {
@@ -110,21 +111,16 @@ class GetDataBuilder
             return $model;
         }
 
-        if (is_string($model)) {
-            if (!class_exists($model)) {
-                throw new BuilderException("Model class '{$model}' not found.");
-            }
-
-            $instance = new $model();
-            if (!$instance instanceof AbstractModel) {
-                throw new BuilderException("Model '{$model}' must extend App\\Abstracts\\AbstractModel.");
-            }
-
-            return $instance;
+        if (!class_exists($model)) {
+            throw new BuilderException("Model class '{$model}' not found.");
         }
 
-        $type = is_object($model) ? get_class($model) : gettype($model);
-        throw new BuilderException("Model must be an instance of AbstractModel or a class name string; received {$type}.");
+        $instance = new $model();
+        if (!$instance instanceof AbstractModel) {
+            throw new BuilderException("Model '{$model}' must extend App\\Abstracts\\AbstractModel.");
+        }
+
+        return $instance;
     }
 
     /**
@@ -326,7 +322,7 @@ class GetDataBuilder
      * @return string Complete HTML calendar ready for display
      */
     public function __toString(): string {
-        return $this->render()  ?? '';
+        return $this->render();
     }
 
 
@@ -496,10 +492,6 @@ class GetDataBuilder
             if (count($frames) >= $maxFiles) {
                 break;
             }
-        }
-
-        if (empty($frames)) {
-            return 'No stack file information available.';
         }
 
         $lines = [];

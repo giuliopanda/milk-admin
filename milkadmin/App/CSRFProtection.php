@@ -39,7 +39,7 @@ class CSRFProtection {
         // Get CSRF token from various sources
         $token = self::extractToken();
         // Validate token
-        if (!Token::checkValue($token, session_id())) {
+        if (!Token::checkValue($token)) {
             self::handleInvalidToken(Token::$last_error, $token);
         }
     }
@@ -58,7 +58,7 @@ class CSRFProtection {
             return $token;
         }
         // Check POST data (for traditional forms)
-        $token_name = Token::getTokenName(session_id());
+        $token_name = Token::getTokenName();
         $token = $_POST[$token_name] ?? null;
         return $token;
     }
@@ -183,7 +183,7 @@ class CSRFProtection {
             }
         }
         if (!isset($route_context['id']) && isset($_REQUEST['data']['id'])) {
-            $id_from_data = _absint($_REQUEST['data']['id']);
+            $id_from_data = abs((int) ($_REQUEST['data']['id'] ?? 0));
             if ($id_from_data > 0) {
                 $route_context['id'] = $id_from_data;
             }
@@ -224,7 +224,7 @@ class CSRFProtection {
         $post_keys = implode(', ', array_keys($original_post));
         $sessionCookieName = session_name();
         $sessionCookieValue = $_COOKIE[$sessionCookieName] ?? '';
-        $tokenNameExpected = Token::getTokenName(session_id());
+        $tokenNameExpected = Token::getTokenName();
         $tokenState = $token === null ? 'missing' : 'present';
         Logs::set(
             'SECURITY',

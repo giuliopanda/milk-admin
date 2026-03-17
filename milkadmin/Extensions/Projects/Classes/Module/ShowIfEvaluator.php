@@ -86,7 +86,7 @@ class ShowIfEvaluator
         $params = $this->buildParametersFromRecord($record);
 
         try {
-            $parser = new ExpressionParser();
+            $parser = (new ExpressionParser())->useUntrustedMode();
             $result = $parser
                 ->resetAll()
                 ->setParameters($params)

@@ -82,7 +82,7 @@ trait ValueHelper
             if ($trimmed === '1' || $trimmed === 'true' || $trimmed === 'on' || $trimmed === 'yes') {
                 return true;
             }
-            return $trimmed !== '';
+            return true;
         }
 
         return (bool)$value;

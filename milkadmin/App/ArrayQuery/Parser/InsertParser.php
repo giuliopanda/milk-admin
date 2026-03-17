@@ -126,7 +126,7 @@ final class InsertParser
                                 }
                                 $query->values[] = $values;
                                 $this->pointer = $close;
-                            } while (($this->tokens[$this->pointer + 1]->value ?? null) === ','
+                            } while ((($this->tokens[$this->pointer + 1] ?? null)?->value) === ','
                                 && $this->pointer++
                             );
 
@@ -174,7 +174,7 @@ final class InsertParser
                     } else {
                         if ($this->currentClause === 'COLUMN_LIST' && $needs_comma && $token->value === ')') {
                             $needs_comma = false;
-                            if (($this->tokens[$this->pointer + 1]->value ?? null) !== 'VALUES') {
+                            if ((($this->tokens[$this->pointer + 1] ?? null)?->value) !== 'VALUES') {
                                 throw new ParserException("Expected VALUES after insert column list");
                             }
                             break;

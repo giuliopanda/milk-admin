@@ -18,7 +18,7 @@ use App\ArrayQuery\Query\{
 final class SQLParser
 {
     /**
-     * @var array<string, string>
+     * @var array<string, bool>
      */
     const CLAUSES = [
         'SELECT' => true,
@@ -40,7 +40,7 @@ final class SQLParser
     ];
 
     /**
-     * @var array<string, string>
+     * @var array<string, bool>
      */
     const SEPARATORS = [
         ')' => true,
@@ -49,7 +49,7 @@ final class SQLParser
     ];
 
     /**
-     * @var array<string, string>
+     * @var array<string, bool>
      */
     const OPERATORS = [
         'INTERVAL' => true,
@@ -97,7 +97,7 @@ final class SQLParser
     ];
 
     /**
-     * @var array<string, string>
+     * @var array<string, bool>
      */
     const RESERVED_WORDS = [
         'ASC' => true,

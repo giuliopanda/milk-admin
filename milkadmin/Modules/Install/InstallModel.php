@@ -18,7 +18,11 @@ class InstallModel
      */
     public  function getHtmlModules() {
         $html = '';
-        return Hooks::run('install.get_html_modules', $html, $this->errors);
+        try {
+            return Hooks::run('install.get_html_modules', $html, $this->errors);
+        } catch (\Exception $e) {
+            return $html;
+        }
        
     }
     /**

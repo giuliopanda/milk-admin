@@ -106,7 +106,6 @@ class AutoListRenderer
         $redirect = (string) ($result['redirect'] ?? '');
         if ($redirect !== '') {
             Route::redirect($redirect);
-            return;
         }
 
         $response = is_array($result['response'] ?? null) ? $result['response'] : [];

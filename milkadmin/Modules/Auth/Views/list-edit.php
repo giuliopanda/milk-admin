@@ -4,6 +4,9 @@ namespace Modules\Auth\Views;
 use App\{Get, MessagesHandler};
 
 !defined('MILK_DIR') && die(); // Avoid direct access
+$info = $info ?? [];
+$rows = $rows ?? [];
+$page_info = $page_info ?? [];
 
 echo Get::themePlugin('title', ['title_txt' => _rt("User"), 'btns' => [ ['title'=>_rt('Add new'), 'color'=>'primary', 'click'=>'create_new_user()']]]);  
 

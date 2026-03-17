@@ -10,6 +10,9 @@ use Builders\TitleBuilder;
  * $description - string
  * $form - string
  */
+$title = is_string($title ?? null) ? $title : '';
+$form = is_string($form ?? null) ? $form : '';
+$title_btns = (isset($title_btns) && is_array($title_btns)) ? $title_btns : [];
 ?>
 <div class="row">
     <?php if (isset($sidebar)) : ?>
@@ -19,14 +22,12 @@ use Builders\TitleBuilder;
     <?php endif; ?>
     <div class="<?php _p((isset($sidebar)) ? 'col-md-9' : 'col-md-12'); ?>">
         <div class="card">
-            <?php if (isset($title) || isset($title_btns)) : ?>
+            <?php if ($title !== '' || $title_btns !== []) : ?>
             <div class="card-header">
                 <?php 
                     $title_builder = TitleBuilder::create($title );
-                    if (isset($title_btns) && is_array($title_btns)) {
-                        foreach ($title_btns as $btn) {
-                            $title_builder->addButton($btn['label'], $btn['link'], $btn['color'] ?? 'primary');
-                        }
+                    foreach ($title_btns as $btn) {
+                        $title_builder->addButton($btn['label'], $btn['link'], $btn['color'] ?? 'primary');
                     }
                     echo $title_builder;
                 ?>

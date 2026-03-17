@@ -1,5 +1,6 @@
 <?php
 namespace Modules\Deny;
+use App\Route;
 !defined('MILK_DIR') && die(); // Avoid direct access
 
 ?>

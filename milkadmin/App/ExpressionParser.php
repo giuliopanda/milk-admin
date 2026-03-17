@@ -11,22 +11,22 @@ use App\ExpressionParser\BuiltinFunctions;
 use App\ExpressionParser\ValueHelper;
 
 /**
- * ExpressionParser - Parser per mini linguaggio di programmazione
- * PHP version - Comportamento identico alla versione JavaScript
+ * ExpressionParser - Parser for mini programming language
+ * PHP version - Identical behavior to JavaScript version
  *
- * Facade class che mantiene la retrocompatibilità al 100%.
- * Internamente delega a: Lexer, Parser, Evaluator, BuiltinFunctions.
+ * Facade class that maintains 100% backward compatibility.
+ * Internally delegates to: Lexer, Parser, Evaluator, BuiltinFunctions.
  *
- * Supporta:
- * - Operazioni matematiche: +, -, *, /, %, ^ (potenza)
- * - Operatori di confronto: ==, <>, !=, <, >, <=, >=
- * - Operatori logici: AND, OR, NOT (o &&, ||, !)
- * - Parentesi: ()
- * - Variabili e assegnazioni: a = 5
- * - Parametri: [salary] prende valore dai parametri impostati
- * - IF statements: IF condizione THEN ... ELSE ... ENDIF
- * - Date: 2025-01-29 o 29/01/2025
- * - Funzioni: NOW(), AGE(date), ROUND(n, decimals), ABS(n), IFNULL(val, default),
+ * Supports:
+ * - Mathematical operations: +, -, *, /, %, ^ (power)
+ * - Comparison operators: ==, <>, !=, <, >, <=, >=
+ * - Logical operators: AND, OR, NOT (or &&, ||, !)
+ * - Parentheses: ()
+ * - Variables and assignments: a = 5
+ * - Parameters: [salary] takes value from set parameters
+ * - IF statements: IF condition THEN ... ELSE ... ENDIF
+ * - Dates: 2025-01-29 or 29/01/2025
+ * - Functions: NOW(), AGE(date), ROUND(n, decimals), ABS(n), IFNULL(val, default),
  *             UPPER(str), LOWER(str), CONCAT(str1, str2, ...), TRIM(str),
  *             ISEMPTY(val), PRECISION(n, decimals), DATEONLY(datetime),
  *             TIMEADD(time, minutes), ADDMINUTES(time, minutes), USERID()
@@ -35,7 +35,7 @@ class ExpressionParser
 {
     use ValueHelper;
 
-    // ==================== COSTANTI TOKEN (retrocompatibilità) ====================
+    // ==================== TOKEN CONSTANTS (backward compatibility) ====================
     const TOKEN_NUMBER = TokenType::TOKEN_NUMBER;
     const TOKEN_STRING = TokenType::TOKEN_STRING;
     const TOKEN_DATE = TokenType::TOKEN_DATE;
@@ -67,7 +67,7 @@ class ExpressionParser
     const TOKEN_NEWLINE = TokenType::TOKEN_NEWLINE;
     const TOKEN_EOF = TokenType::TOKEN_EOF;
 
-    // ==================== COSTANTI NODO AST (retrocompatibilità) ====================
+    // ==================== AST NODE CONSTANTS (backward compatibility) ====================
     const NODE_NUMBER = TokenType::NODE_NUMBER;
     const NODE_STRING = TokenType::NODE_STRING;
     const NODE_DATE = TokenType::NODE_DATE;
@@ -80,10 +80,16 @@ class ExpressionParser
     const NODE_FUNCTION_CALL = TokenType::NODE_FUNCTION_CALL;
     const NODE_PROGRAM = TokenType::NODE_PROGRAM;
 
-    // ==================== COMPONENTI INTERNI ====================
+    // ==================== INTERNAL COMPONENTS ====================
     private Lexer $lexer;
     private Parser $parser;
     private Evaluator $evaluator;
+    private int $maxSourceLength = 0;
+    private int $maxAstNodes = 0;
+    private int $maxAstDepth = 0;
+    private bool $allowAssignments = true;
+    /** @var array<string, bool>|null */
+    private ?array $allowedFunctions = null;
 
     public function __construct()
     {
@@ -92,10 +98,10 @@ class ExpressionParser
         $this->evaluator = new Evaluator();
     }
 
-    // ==================== ACCESSO AI COMPONENTI (per estensibilità) ====================
+    // ==================== COMPONENT ACCESS (for extensibility) ====================
 
     /**
-     * Restituisce il Lexer interno
+     * Returns the internal Lexer
      */
     public function getLexer(): Lexer
     {
@@ -103,7 +109,7 @@ class ExpressionParser
     }
 
     /**
-     * Restituisce il Parser interno
+     * Returns the internal Parser
      */
     public function getParser(): Parser
     {
@@ -111,18 +117,87 @@ class ExpressionParser
     }
 
     /**
-     * Restituisce l'Evaluator interno
+     * Returns the internal Evaluator
      */
     public function getEvaluator(): Evaluator
     {
         return $this->evaluator;
     }
 
-    // ==================== GESTIONE PARAMETRI ====================
+    /**
+     * Configure security policy applied to parse/execute.
+     *
+     * Supported options:
+     * - max_source_length: int (0 = no limit)
+     * - max_ast_nodes: int (0 = no limit)
+     * - max_ast_depth: int (0 = no limit)
+     * - allow_assignments: bool
+     * - allowed_functions: string[]|null (null = all builtins)
+     * - max_execution_steps: int (propagated to Evaluator)
+     * - max_parameter_path_segments: int (propagated to Evaluator)
+     * - allow_object_array_access: bool (propagated to Evaluator)
+     * - allow_object_getter_methods: bool (propagated to Evaluator)
+     * - allow_object_magic_access: bool (propagated to Evaluator)
+     */
+    public function setSecurityPolicy(array $policy): self
+    {
+        if (array_key_exists('max_source_length', $policy)) {
+            $this->maxSourceLength = max(0, (int)$policy['max_source_length']);
+        }
+        if (array_key_exists('max_ast_nodes', $policy)) {
+            $this->maxAstNodes = max(0, (int)$policy['max_ast_nodes']);
+        }
+        if (array_key_exists('max_ast_depth', $policy)) {
+            $this->maxAstDepth = max(0, (int)$policy['max_ast_depth']);
+        }
+        if (array_key_exists('allow_assignments', $policy)) {
+            $this->allowAssignments = (bool)$policy['allow_assignments'];
+        }
+        if (array_key_exists('allowed_functions', $policy)) {
+            $allowed = $policy['allowed_functions'];
+            if ($allowed === null) {
+                $this->allowedFunctions = null;
+            } elseif (is_array($allowed)) {
+                $map = [];
+                foreach ($allowed as $fn) {
+                    if (!is_string($fn) || trim($fn) === '') {
+                        continue;
+                    }
+                    $map[strtoupper(trim($fn))] = true;
+                }
+                $this->allowedFunctions = $map;
+            }
+        }
+
+        $this->evaluator->configureSecurityPolicy($policy);
+
+        return $this;
+    }
 
     /**
-     * Imposta i parametri da un array associativo
-     * @param array $params Array associativo [nome => valore]
+     * Predefined hardening for expressions from runtime configurations.
+     */
+    public function useUntrustedMode(): self
+    {
+        return $this->setSecurityPolicy([
+            'max_source_length' => 2000,
+            'max_ast_nodes' => 500,
+            'max_ast_depth' => 64,
+            'max_execution_steps' => 2000,
+            'max_parameter_path_segments' => 12,
+            'allow_object_array_access' => false,
+            'allow_object_getter_methods' => false,
+            'allow_object_magic_access' => false,
+            'allow_assignments' => true,
+            'allowed_functions' => null
+        ]);
+    }
+
+    // ==================== PARAMETER HANDLING ====================
+
+    /**
+     * Set parameters from an associative array
+     * @param array $params Associative array [name => value]
      * @return self
      */
     public function setParameters(array $params): self
@@ -136,9 +211,9 @@ class ExpressionParser
     }
 
     /**
-     * Imposta un singolo parametro
-     * @param string $name Nome del parametro
-     * @param mixed $value Valore del parametro
+     * Set a single parameter
+     * @param string $name Parameter name
+     * @param mixed $value Parameter value
      * @return self
      */
     public function setParameter(string $name, mixed $value): self
@@ -149,24 +224,30 @@ class ExpressionParser
         return $this;
     }
 
-    // ==================== METODI PUBBLICI ====================
+    // ==================== PUBLIC METHODS ====================
 
     /**
-     * Parsa il codice sorgente e restituisce l'AST
-     * @param string $source Codice sorgente
+     * Parse the source code and return the AST
+     * @param string $source Source code
      * @return array AST
      */
     public function parse(string $source): array
     {
+        if ($this->maxSourceLength > 0 && strlen($source) > $this->maxSourceLength) {
+            throw new \Exception("Expression too long: maximum {$this->maxSourceLength} characters");
+        }
+
         $this->parser->resetNodeId();
         $tokens = $this->lexer->tokenize($source);
-        return $this->parser->parseTokens($tokens);
+        $ast = $this->parser->parseTokens($tokens);
+        $this->validateAstSecurity($ast);
+        return $ast;
     }
 
     /**
-     * Restituisce l'elenco delle operazioni nell'ordine di esecuzione
-     * @param array|string $ast Albero AST o stringa da parsare
-     * @return array Lista operazioni in ordine
+     * Returns the list of operations in execution order
+     * @param array|string $ast AST tree or string to parse
+     * @return array List of operations in order
      */
     public function getOperationOrder(array|string $ast): array
     {
@@ -264,7 +345,7 @@ class ExpressionParser
                     'operation' => 'IF',
                     'nodeId' => $node['id'],
                     'depth' => $depth,
-                    'description' => 'IF (valuta condizione)'
+                    'description' => 'IF (evaluate condition)'
                 ];
                 $traverse($node['condition'], $depth + 1);
                 foreach ($node['thenBranch'] ?? [] as $stmt) {
@@ -281,11 +362,11 @@ class ExpressionParser
     }
 
     /**
-     * Visualizza l'albero AST come stringa formattata
-     * @param array|string $ast Albero AST o stringa da parsare
-     * @param string $indent Indentazione corrente
-     * @param bool $isLast Se è l'ultimo figlio
-     * @return string Rappresentazione testuale dell'albero
+     * Display the AST tree as formatted string
+     * @param array|string $ast AST tree or string to parse
+     * @param string $indent Current indentation
+     * @param bool $isLast If it is the last child
+     * @return string Text representation of the tree
      */
     public function visualizeTree(array|string $ast, string $indent = '', bool $isLast = true): string
     {
@@ -369,23 +450,25 @@ class ExpressionParser
     }
 
     /**
-     * Esegue l'AST e restituisce il risultato
-     * @param array|string $ast Albero AST o stringa da parsare
-     * @return mixed Risultato dell'esecuzione
+     * Execute the AST and return the result
+     * @param array|string $ast AST tree or string to parse
+     * @return mixed Execution result
      */
     public function execute(array|string $ast): mixed
     {
         if (is_string($ast)) {
             $ast = $this->parse($ast);
+        } else {
+            $this->validateAstSecurity($ast);
         }
 
         return $this->evaluator->execute($ast);
     }
 
     /**
-     * Metodo completo: parsa, analizza e opzionalmente esegue
-     * @param string $source Codice sorgente
-     * @param bool $executeCode Se true, esegue il codice
+     * Complete method: parse, analyze and optionally execute
+     * @param string $source Source code
+     * @param bool $executeCode If true, execute the code
      * @return array ['ast', 'operations', 'tree', 'result'?, 'error'?]
      */
     public function analyze(string $source, bool $executeCode = true): array
@@ -413,7 +496,7 @@ class ExpressionParser
     }
 
     /**
-     * Reset delle variabili
+     * Reset variables
      * @return self
      */
     public function reset(): self
@@ -423,7 +506,7 @@ class ExpressionParser
     }
 
     /**
-     * Reset completo (variabili e parametri)
+     * Complete reset (variables and parameters)
      * @return self
      */
     public function resetAll(): self
@@ -433,7 +516,7 @@ class ExpressionParser
     }
 
     /**
-     * Restituisce le variabili correnti
+     * Returns current variables
      * @return array
      */
     public function getVariables(): array
@@ -442,7 +525,7 @@ class ExpressionParser
     }
 
     /**
-     * Restituisce i parametri correnti
+     * Returns current parameters
      * @return array
      */
     public function getParameters(): array
@@ -451,11 +534,90 @@ class ExpressionParser
     }
 
     /**
-     * Restituisce la lista delle funzioni builtin disponibili
+     * Returns the list of available builtin functions
      * @return array
      */
     public function getBuiltinFunctions(): array
     {
         return $this->evaluator->getBuiltinFunctions()->getRegistry();
+    }
+
+    private function validateAstSecurity(array $ast): void
+    {
+        $stack = [[$ast, 1]];
+        $nodeCount = 0;
+
+        while (!empty($stack)) {
+            [$node, $depth] = array_pop($stack);
+            if (!is_array($node) || empty($node)) {
+                continue;
+            }
+
+            $nodeCount++;
+            if ($this->maxAstNodes > 0 && $nodeCount > $this->maxAstNodes) {
+                throw new \Exception("Expression too complex: exceeded AST nodes limit ({$this->maxAstNodes})");
+            }
+            if ($this->maxAstDepth > 0 && $depth > $this->maxAstDepth) {
+                throw new \Exception("Expression too nested: maximum depth {$this->maxAstDepth}");
+            }
+
+            $type = (string)($node['type'] ?? '');
+            if (!$this->allowAssignments && $type === TokenType::NODE_ASSIGNMENT) {
+                throw new \Exception('Assignments are not allowed in this mode');
+            }
+
+            if ($this->allowedFunctions !== null && $type === TokenType::NODE_FUNCTION_CALL) {
+                $fn = strtoupper((string)($node['value'] ?? ''));
+                if (!isset($this->allowedFunctions[$fn])) {
+                    throw new \Exception("Function not allowed in this mode: {$fn}");
+                }
+            }
+
+            switch ($type) {
+                case TokenType::NODE_PROGRAM:
+                    foreach (($node['statements'] ?? []) as $child) {
+                        if (is_array($child)) {
+                            $stack[] = [$child, $depth + 1];
+                        }
+                    }
+                    break;
+                case TokenType::NODE_BINARY_OP:
+                    if (is_array($node['left'] ?? null)) {
+                        $stack[] = [$node['left'], $depth + 1];
+                    }
+                    if (is_array($node['right'] ?? null)) {
+                        $stack[] = [$node['right'], $depth + 1];
+                    }
+                    break;
+                case TokenType::NODE_UNARY_OP:
+                case TokenType::NODE_ASSIGNMENT:
+                    if (is_array($node['right'] ?? null)) {
+                        $stack[] = [$node['right'], $depth + 1];
+                    }
+                    break;
+                case TokenType::NODE_IF_STATEMENT:
+                    if (is_array($node['condition'] ?? null)) {
+                        $stack[] = [$node['condition'], $depth + 1];
+                    }
+                    foreach (($node['thenBranch'] ?? []) as $child) {
+                        if (is_array($child)) {
+                            $stack[] = [$child, $depth + 1];
+                        }
+                    }
+                    foreach (($node['elseBranch'] ?? []) as $child) {
+                        if (is_array($child)) {
+                            $stack[] = [$child, $depth + 1];
+                        }
+                    }
+                    break;
+                case TokenType::NODE_FUNCTION_CALL:
+                    foreach (($node['arguments'] ?? []) as $arg) {
+                        if (is_array($arg)) {
+                            $stack[] = [$arg, $depth + 1];
+                        }
+                    }
+                    break;
+            }
+        }
     }
 }

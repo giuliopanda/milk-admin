@@ -35,11 +35,88 @@ use App\{Get, Form};
     <h3>Single Selection</h3>
     <div class="bg-light p-3 mb-3">
         <?php
-        Form::milkSelect('country', 'Country', ['IT' => 'Italy', 'FR' => 'France', 'DE' => 'Germany'], 'IT');
+        $countryOptions = [
+            'AF' => 'Afghanistan',
+            'AL' => 'Albania',
+            'DZ' => 'Algeria',
+            'AR' => 'Argentina',
+            'AU' => 'Australia',
+            'AT' => 'Austria',
+            'BE' => 'Belgium',
+            'BR' => 'Brazil',
+            'BG' => 'Bulgaria',
+            'CA' => 'Canada',
+            'CL' => 'Chile',
+            'CN' => 'China',
+            'CO' => 'Colombia',
+            'HR' => 'Croatia',
+            'CZ' => 'Czech Republic',
+            'DK' => 'Denmark',
+            'EG' => 'Egypt',
+            'EE' => 'Estonia',
+            'FI' => 'Finland',
+            'FR' => 'France',
+            'DE' => 'Germany',
+            'GR' => 'Greece',
+            'HU' => 'Hungary',
+            'IS' => 'Iceland',
+            'IN' => 'India',
+            'ID' => 'Indonesia',
+            'IE' => 'Ireland',
+            'IL' => 'Israel',
+            'IT' => 'Italy',
+            'JP' => 'Japan',
+            'KE' => 'Kenya',
+            'LV' => 'Latvia',
+            'LT' => 'Lithuania',
+            'LU' => 'Luxembourg',
+            'MY' => 'Malaysia',
+            'MX' => 'Mexico',
+            'MA' => 'Morocco',
+            'NL' => 'Netherlands',
+            'NZ' => 'New Zealand',
+            'NG' => 'Nigeria',
+            'NO' => 'Norway',
+            'PK' => 'Pakistan',
+            'PE' => 'Peru',
+            'PH' => 'Philippines',
+            'PL' => 'Poland',
+            'PT' => 'Portugal',
+            'RO' => 'Romania',
+            'SA' => 'Saudi Arabia',
+            'RS' => 'Serbia',
+            'SG' => 'Singapore',
+            'SK' => 'Slovakia',
+            'SI' => 'Slovenia',
+            'ZA' => 'South Africa',
+            'KR' => 'South Korea',
+            'ES' => 'Spain',
+            'SE' => 'Sweden',
+            'CH' => 'Switzerland',
+            'TH' => 'Thailand',
+            'TR' => 'Turkey',
+            'UA' => 'Ukraine',
+            'AE' => 'United Arab Emirates',
+            'GB' => 'United Kingdom',
+            'US' => 'United States',
+            'UY' => 'Uruguay',
+            'VN' => 'Vietnam'
+        ];
+
+        Form::milkSelect('country', 'Country', $countryOptions, 'IT');
         ?>
     </div>
-    <pre class="border p-2"><code class="language-php">Form::milkSelect('country', 'Country',
-    ['IT' => 'Italy', 'FR' => 'France', 'DE' => 'Germany'],
+    <pre class="border p-2"><code class="language-php">$countryOptions = [
+    'AF' => 'Afghanistan',
+    'AL' => 'Albania',
+    // ... circa 50+ nazioni
+    'IT' => 'Italy',
+    'GB' => 'United Kingdom',
+    'US' => 'United States',
+    'VN' => 'Vietnam'
+];
+
+Form::milkSelect('country', 'Country', $countryOptions,
     'IT'  // selected value
 );</code></pre>
 
@@ -58,6 +135,54 @@ use App\{Get, Form};
     ['php', 'js'],  // selected values (array)
     ['type' => 'multiple']
 );</code></pre>
+
+    <h3>Grouped JSON Options (value/text/group)</h3>
+    <p>MilkSelect supports JSON-like options with grouping. Group headers are shown in bold and remain visible during search only when the group has matching options.</p>
+    <div class="bg-light p-3 mb-3">
+        <?php
+        $globalSelectFields = [
+            ['value' => 'allegati.ID_ALLEGATO', 'text' => 'ID_ALLEGATO', 'group' => 'allegati'],
+            ['value' => 'allegati.TIPO_ALLEGATO', 'text' => 'TIPO_ALLEGATO', 'group' => 'allegati'],
+            ['value' => 'allegati.NOME_FILE', 'text' => 'NOME_FILE', 'group' => 'allegati'],
+            ['value' => 'assenze.ID_ASSENZA', 'text' => 'ID_ASSENZA', 'group' => 'assenze'],
+            ['value' => 'assenze.DATA_ASSENZA', 'text' => 'DATA_ASSENZA', 'group' => 'assenze'],
+            ['value' => 'assenze.NOTE', 'text' => 'NOTE', 'group' => 'assenze'],
+            ['value' => 'aule.ID_AULA', 'text' => 'ID_AULA', 'group' => 'aule'],
+            ['value' => 'aule.AULA', 'text' => 'AULA', 'group' => 'aule'],
+            ['value' => 'aule.DISLOCAZIONE', 'text' => 'DISLOCAZIONE', 'group' => 'aule'],
+            ['value' => 'comunicazioni.ID_COMUNICAZIONE', 'text' => 'ID_COMUNICAZIONE', 'group' => 'comunicazioni'],
+            ['value' => 'comunicazioni.TITOLO_COMUNICAZIONE', 'text' => 'TITOLO_COMUNICAZIONE', 'group' => 'comunicazioni'],
+            ['value' => 'comunicazioni.DATA_COMUNICAZIONE', 'text' => 'DATA_COMUNICAZIONE', 'group' => 'comunicazioni'],
+            ['value' => 'config.id', 'text' => 'id', 'group' => 'config'],
+            ['value' => 'config.ANNO_SCOL', 'text' => 'ANNO_SCOL', 'group' => 'config'],
+            ['value' => 'config.DATA_INIZIO', 'text' => 'DATA_INIZIO', 'group' => 'config'],
+            ['value' => 'config.DATA_FINE', 'text' => 'DATA_FINE', 'group' => 'config'],
+            ['value' => 'corsi.MATR_CRS', 'text' => 'MATR_CRS', 'group' => 'corsi'],
+            ['value' => 'corsi.CORSO', 'text' => 'CORSO', 'group' => 'corsi'],
+            ['value' => 'corsi.INDIVIDUALE', 'text' => 'INDIVIDUALE', 'group' => 'corsi'],
+            ['value' => 'corsi.ATTIVO_CRS', 'text' => 'ATTIVO_CRS', 'group' => 'corsi'],
+            ['value' => 'eventi.ID_EVENTO', 'text' => 'ID_EVENTO', 'group' => 'eventi'],
+            ['value' => 'eventi.NOME_EVENTO', 'text' => 'NOME_EVENTO', 'group' => 'eventi'],
+            ['value' => 'eventi.DATA', 'text' => 'DATA', 'group' => 'eventi'],
+            ['value' => 'frequenze.ID_FREQUENZA', 'text' => 'ID_FREQUENZA', 'group' => 'frequenze'],
+            ['value' => 'frequenze.MATRIC', 'text' => 'MATRIC', 'group' => 'frequenze'],
+            ['value' => 'frequenze.COD_LEZ', 'text' => 'COD_LEZ', 'group' => 'frequenze'],
+            ['value' => 'frequenze.DATA_INIZIO_FREQ', 'text' => 'DATA_INIZIO_FREQ', 'group' => 'frequenze'],
+            ['value' => 'frequenze.DATA_FINE_FREQ', 'text' => 'DATA_FINE_FREQ', 'group' => 'frequenze']
+        ];
+
+        Form::milkSelect('report_field', 'Report field', $globalSelectFields, 'config.ANNO_SCOL');
+        ?>
+    </div>
+    <pre class="border p-2"><code class="language-php">$globalSelectFields = [
+    ['value' => 'allegati.ID_ALLEGATO', 'text' => 'ID_ALLEGATO', 'group' => 'allegati'],
+    ['value' => 'allegati.NOME_FILE', 'text' => 'NOME_FILE', 'group' => 'allegati'],
+    ['value' => 'config.ANNO_SCOL', 'text' => 'ANNO_SCOL', 'group' => 'config'],
+    ['value' => 'corsi.CORSO', 'text' => 'CORSO', 'group' => 'corsi'],
+    ['value' => 'frequenze.ID_FREQUENZA', 'text' => 'ID_FREQUENZA', 'group' => 'frequenze']
+];
+
+Form::milkSelect('report_field', 'Report field', $globalSelectFields, 'config.ANNO_SCOL');</code></pre>
 
     <hr>
 

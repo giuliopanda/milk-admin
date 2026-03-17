@@ -5,7 +5,7 @@ use App\Abstracts\AbstractModule;
 use App\Response;
 use App\Route;
 use Builders\TitleBuilder;
-use Extensions\Projects\Classes\ProjectNaming;
+use Extensions\Projects\Classes\{ProjectJsonStore, ProjectNaming};
 use Extensions\Projects\Classes\Module\{
     ActionContextRegistry,
     BreadcrumbManager,
@@ -129,6 +129,7 @@ class ViewPageRenderer
         $listAction = (string) ($context['list_action'] ?? '');
         $chainParams = $this->fkResolver->getChainParams($context);
         $deleteParams = array_merge(['id' => $id], $chainParams);
+        $canDelete = ProjectJsonStore::normalizeBool($context['can_manage_delete_records'] ?? false);
 
         $titleBtns = [];
         if ($listAction !== '') {
@@ -139,7 +140,7 @@ class ViewPageRenderer
                 'color' => 'secondary',
             ];
         }
-        if ($deleteConfirmAction !== '') {
+        if ($deleteConfirmAction !== '' && $canDelete) {
             $deleteUrl = Route::url(UrlBuilder::action($modulePage, $deleteConfirmAction, $deleteParams));
             $titleBtns[] = [
                 'label' => 'Delete Entire Record',

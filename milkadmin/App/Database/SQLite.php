@@ -52,86 +52,86 @@ class SQLite
      * 
      * @var bool
      */
-    public $error = false;
+    public bool $error = false;
     
     /**
      * The last SQL query that was executed
      * 
      * @var string
      */
-    public $last_query = "";
+    public string $last_query = "";
     
     /**
      * Table prefix used for all database operations
      * 
      * @var string
      */
-    public $prefix = '';
+    public string $prefix = '';
 
     /**
      * SQLite3 connection object
      * 
      * @var \SQLite3|null
      */
-    private $sqlite = null;
+    private ?\SQLite3 $sqlite = null;
 
-    public $type = 'sqlite';
+    public string $type = 'sqlite';
     
     /**
      * List of tables in the database
      * 
      * @var array
      */
-    public $tables_list = array();
+    public array $tables_list = [];
     
     /**
      * Name of the current database file
      * 
      * @var string
      */
-    public $dbname = '';
+    public string $dbname = '';
     
     /**
      * List of fields for each table
      * 
      * @var array
      */
-    var $fields_list = array();
+    public array $fields_list = [];
 
     /**
      * List of fields selected in the query
      * 
      * @var array
      */
-    var $query_columns = array();
+    public array $query_columns = [];
     
     /**
      * Number of rows affected by the last query
      * 
      * @var int
      */
-    var $affected_rows = 0;
+    public int $affected_rows = 0;
     
     /**
      * List of views in the database
      * 
      * @var array
      */
-    private $views_list = array();
+    private array $views_list = [];
     
     /**
      * List of columns for each table (cache)
      * 
      * @var null|array
      */
-    private $show_columns_list = null;
+    private ?array $show_columns_list = null;
     
     /**
      * Constructor that initializes the connection with an optional table prefix
      *
      * @param string $prefix Optional prefix for database tables
      */
-    function __construct($prefix = '') {
+    public function __construct(string $prefix = '') {
         $this->prefix = $prefix;
     }
    
@@ -182,6 +182,7 @@ class SQLite
         $this->last_error = '';
         $this->affected_rows = 0;
         $this->query_columns = [];
+        assert($this->sqlite instanceof \SQLite3);
 
         $sql_to_log = $sql;
         
@@ -292,18 +293,17 @@ class SQLite
             } elseif (is_bool($value)) {
                 $values[] = $value ? '1' : '0';
             } elseif (is_int($value) || is_float($value)) {
-                $values[] = $value;
+                $values[] = (string) $value;
             } else {
                 $values[] = "'" . str_replace("'", "''", strval($value)) . "'";
             }
         }
         
         $index = 0;
-        $query = preg_replace_callback('/\?/', function($match) use ($values, &$index) {
+        $query = preg_replace_callback('/\?/', function(array $_) use ($values, &$index): string {
             return isset($values[$index]) ? $values[$index++] : '?';
         }, $query);
-        
-        return $query;
+        return is_string($query) ? $query : '';
     }
 
      /**
@@ -368,6 +368,7 @@ class SQLite
         if(!$this->checkConnection()) {  
             return null;
         }
+        assert($this->sqlite instanceof \SQLite3);
         $table = str_replace(";","", $table);
         $sql = 'SELECT * FROM `'. $this->sqlPrefix($table).'`;';
         $this->last_query = $sql;
@@ -509,6 +510,7 @@ class SQLite
         if(!$this->checkConnection()) {  
             return [];
         }
+        assert($this->sqlite instanceof \SQLite3);
         $ris = array();
         if ($cache && $this->tables_list != false) {
             return $this->tables_list;
@@ -533,8 +535,9 @@ class SQLite
         if(!$this->checkConnection()) {  
             return [];
         }
+        assert($this->sqlite instanceof \SQLite3);
         $ris = array();
-        if ($cache && isset($this->views_list) && $this->views_list != false) {
+        if ($cache && $this->views_list != false) {
             return $this->views_list;
         }
         $views = $this->sqlite->query("SELECT name FROM sqlite_master WHERE type='view'");
@@ -556,6 +559,7 @@ class SQLite
         if(!$this->checkConnection()) {  
             return null;
         }
+        assert($this->sqlite instanceof \SQLite3);
         
         $query = "SELECT sql FROM sqlite_master WHERE type='view' AND name = ?"; 
         
@@ -592,11 +596,12 @@ class SQLite
         if(!$this->checkConnection()) {  
             return [];
         }
+        assert($this->sqlite instanceof \SQLite3);
         if ($force_reload || $this->show_columns_list == null) {
             $this->preloadShowColumns();
         }
         $table_name = $this->sqlPrefix($table_name);
-        if (array_key_exists($table_name, $this->show_columns_list) != false) {
+        if (is_array($this->show_columns_list) && array_key_exists($table_name, $this->show_columns_list) != false) {
             return $this->show_columns_list[$table_name];
         }
         return [];
@@ -626,6 +631,7 @@ class SQLite
         if(!$this->checkConnection()) {
             return [];
         }
+        assert($this->sqlite instanceof \SQLite3);
         $ris = array();
         if ($cache && array_key_exists($tableName, $this->fields_list) != false) {
             return $this->fields_list[$tableName];
@@ -688,6 +694,10 @@ class SQLite
      * @return array [type, sql]
      */
     public function showCreateTable(string $table_name): array {
+        if(!$this->checkConnection()) {
+            return ['type' => '', 'sql' => ''];
+        }
+        assert($this->sqlite instanceof \SQLite3);
         $query = "SELECT sql, type FROM sqlite_master WHERE type='table' AND name=?";
         $stmt = $this->sqlite->prepare($query);
         $stmt->bindValue(1, $table_name, SQLITE3_TEXT);
@@ -702,9 +712,13 @@ class SQLite
         return ['type'=>'table', 'sql'=>$row['sql']];
     }
     /**
-     * @return [type, sql]
+     * @return array{type:string,sql:string}
      */
     private function showCreateTableFromView(string $table_name): array {
+        if(!$this->checkConnection()) {
+            return ['type' => '', 'sql' => ''];
+        }
+        assert($this->sqlite instanceof \SQLite3);
         $query = "SELECT sql FROM sqlite_master WHERE type='view' AND name=?";
         $stmt = $this->sqlite->prepare($query);
         $stmt->bindValue(1, $table_name, SQLITE3_TEXT);
@@ -719,7 +733,7 @@ class SQLite
         $structure_query = "PRAGMA table_info(".$table_name.")";
         $structure_result = $this->sqlite->query($structure_query);
         if ($structure_result === false) {
-            return ['', ''];
+            return ['type' => '', 'sql' => ''];
         }
         // Poi costruisci una CREATE TABLE più dettagliata
         $createSQL = "CREATE TABLE ".$this->qn($table_name)." (\n";
@@ -745,6 +759,9 @@ class SQLite
      * @return int Number of affected rows
      */
     public function affectedRows(): int {
+        if (!$this->sqlite instanceof \SQLite3) {
+            return 0;
+        }
         return $this->sqlite->changes();
     }
 
@@ -790,6 +807,7 @@ class SQLite
         if(!$this->checkConnection()) {
             return false;
         }
+        assert($this->sqlite instanceof \SQLite3);
         $field = [];
         $values = [];
         $bind_params = [];
@@ -818,17 +836,12 @@ class SQLite
         }
 
         // Normal insert with data
-        if (count($values) > 0) {
-            $query = "INSERT INTO ".$this->qn($table)." (".implode(", ", $field)." ) VALUES (".implode(", ", $values).");";
-            $query = $this->sqlPrefix($query);
-            $this->query($query, $bind_params);
-            if (!$this->error) {
-                return $this->sqlite->lastInsertRowID();
-            } else {
-                return false;
-            }
+        $query = "INSERT INTO ".$this->qn($table)." (".implode(", ", $field)." ) VALUES (".implode(", ", $values).");";
+        $query = $this->sqlPrefix($query);
+        $this->query($query, $bind_params);
+        if (!$this->error) {
+            return $this->sqlite->lastInsertRowID();
         }
-
         return false;
     }
 
@@ -957,13 +970,11 @@ class SQLite
         $statements = array_filter(array_map('trim', explode(';', $sql)));
         
         foreach ($statements as $statement) {
-            if (!empty($statement)) {
-                $result = $this->sqlite->exec($statement);
-                if ($result === false) {
-                    $this->error = true;
-                    $this->last_error = $this->sqlite->lastErrorMsg();
-                    return false;
-                }
+            $result = $this->sqlite->exec($statement);
+            if ($result === false) {
+                $this->error = true;
+                $this->last_error = $this->sqlite->lastErrorMsg();
+                return false;
             }
         }
         return true;
@@ -1009,7 +1020,7 @@ class SQLite
             $query = "UPDATE ".$this->qn($table)." SET ".implode(", ", $field)."  WHERE ".implode(" AND ", $values).";";
             $query = $this->sqlPrefix($query);
             $this->query($query, $bind_params);
-            return !$this->error;
+            return true;
         } else {
             $this->error = true;
         }
@@ -1079,13 +1090,14 @@ class SQLite
     /**
      * Returns the ID generated by the last INSERT query
      * 
-     * @return \integer
+     * @return int
      */
-    public function insertId() {
+    public function insertId(): int {
         if($this->checkConnection()) {  
+            assert($this->sqlite instanceof \SQLite3);
             return $this->sqlite->lastInsertRowID();
         } else {
-            return false;
+            return 0;
         }
     } 
 
@@ -1108,7 +1120,7 @@ class SQLite
      * @param string $val The name to quote
      * @return string The quoted name
      */
-    public function qn(string $val) {
+    public function qn(string $val): string {
         $val = $this->sqlPrefix($val);
         
         // Handle explicit AS aliases
@@ -1119,13 +1131,16 @@ class SQLite
         // Handle table.column notation
         if (strpos($val, '.') !== false) {
             $parts = explode('.', $val, 2);
+            if (!isset($parts[1]) || $parts[1] === '') {
+                return $this->qnSafe($parts[0]);
+            }
             return $this->qnSafe($parts[0]) . '.' . $this->qnSafe($parts[1]);
         }
         
         return $this->qnSafe($val);
     }
 
-    private function qnSafe(string $name) {
+    private function qnSafe(string $name): string {
         $name = trim($name);
         
         // Se è già quotato con virgolette doppie, ritorna così com'è
@@ -1165,13 +1180,16 @@ class SQLite
      * @param string $val The value to quote
      * @return string The quoted value
      */
-    public function quote(string $val): string {
-        if (is_null($val) || strtolower($val) == 'null') {
+    public function quote(mixed $val): string {
+        if (is_null($val) || (is_string($val) && strtolower($val) === 'null')) {
             return 'NULL';
-        } elseif (is_int($val)) {
-            return (string)$val;
+        } elseif (is_int($val) || is_float($val)) {
+            return (string) $val;
         } else {
-            return "'".$this->sqlite->escapeString($val)."'";
+            if (!$this->sqlite instanceof \SQLite3) {
+                return "'" . str_replace("'", "''", (string) $val) . "'";
+            }
+            return "'" . $this->sqlite->escapeString((string) $val) . "'";
         }
     }
   
@@ -1252,20 +1270,6 @@ class SQLite
             );
         }
 
-        if (!$this->sqlite) {
-            $errorMsg = "Failed to create SQLite3 object";
-            $this->error = true;
-            $this->last_error = $errorMsg;
-
-            throw new DatabaseException(
-                $errorMsg,
-                'sqlite',
-                [
-                    'database' => $this->dbname
-                ]
-            );
-        }
-
         return true;
     }
 
@@ -1298,6 +1302,7 @@ class SQLite
      */
     public function begin(): void {
         if($this->checkConnection()) {   
+            assert($this->sqlite instanceof \SQLite3);
             $this->sqlite->exec('BEGIN TRANSACTION');
         }
     }
@@ -1309,6 +1314,7 @@ class SQLite
      */
     public function commit(): void {
         if($this->checkConnection()) {   
+            assert($this->sqlite instanceof \SQLite3);
             $this->sqlite->exec('COMMIT');
         }
     }
@@ -1320,6 +1326,7 @@ class SQLite
      */
     public function tearDown(): void {
         if($this->checkConnection()) {   
+            assert($this->sqlite instanceof \SQLite3);
             $this->sqlite->exec('ROLLBACK');
         }
     }
@@ -1330,6 +1337,7 @@ class SQLite
     public function close(): void 
     {
         if($this->checkConnection()) {   
+            assert($this->sqlite instanceof \SQLite3);
             $this->sqlite->close();
             $this->sqlite = null;
         }
@@ -1399,6 +1407,7 @@ class SQLite
         if(!$this->checkConnection()) {  
             return false;
         }
+        assert($this->sqlite instanceof \SQLite3);
         
         if ($this->show_columns_list != null) {
             return true; // già caricato

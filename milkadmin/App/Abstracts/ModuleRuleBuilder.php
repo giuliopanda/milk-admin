@@ -248,7 +248,7 @@ class ModuleRuleBuilder
     /**
      * Set the permission
      *
-     * @param array $permission Permission definition
+     * @param array $permissions Permission definition
      * @return self
      */
     public function permissions(array $permissions): self

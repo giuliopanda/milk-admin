@@ -3,6 +3,8 @@
 /**
  * Un bottone di esempio
  */
+$alert = isset($alert) ? (string) $alert : '';
+$hello = isset($hello) ? (string) $hello : '';
 ?>
 <div class="js_example_btn"  data-alert="<?php _pt($alert); ?>">
     This is an example button:

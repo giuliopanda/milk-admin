@@ -7,20 +7,21 @@
 [![MySQL](https://img.shields.io/badge/MySQL-supported-blue.svg)](https://www.mysql.com/)
 [![SQLite](https://img.shields.io/badge/SQLite-supported-blue.svg)](https://www.sqlite.org/)
 [![Status](https://img.shields.io/badge/Status-Beta-orange.svg)](https://github.com/giuliopanda/milk-admin)
+[![Tests](https://img.shields.io/badge/Tests-PHPUnit-green.svg)]()
+[![Static Analysis](https://img.shields.io/badge/PHPStan-Level%205-blue.svg)]()
 [![Documentation](https://img.shields.io/badge/Docs-Online-green.svg)](https://milkadmin.org/milk-admin/?page=docs&action=Developer/GettingStarted/introduction)
 
 ---
-**Milk Admin** is a PHP admin panel designed for building backoffice administration panels.
 
-It focuses on explicit control, relational CRUD flows, and long-term maintainability, avoiding heavy abstractions and rigid resource-based architectures.
+**Milk Admin** is a PHP admin panel framework designed for building backoffice administration systems.
 
-It focuses on **explicit control**, **relational CRUD flows**, and **long-term maintainability**, avoiding heavy abstractions, and rigid resource-based architectures.
+It focuses on **explicit control**, **relational CRUD flows**, and **long-term maintainability**, avoiding heavy abstractions and rigid architectures.
 
-Milk Admin provides a stable and structured backend core, modern PHP 8+ code, and minimal dependencies — allowing developers to focus on real business logic instead of framework workarounds.
+Milk Admin provides a stable backend core, modern PHP 8+ code, and minimal dependencies — allowing developers to focus on real business logic.
 
 > **Project Status**  
 > Milk Admin is currently in **Beta**.  
-> The core architecture is stable and actively evolving, while APIs and features may change.
+> The core architecture is stable and actively evolving.
 
 **Official links:**  
 [Website](https://www.milkadmin.org/) ·  
@@ -29,19 +30,60 @@ Milk Admin provides a stable and structured backend core, modern PHP 8+ code, an
 
 ---
 
+##  What's New in 0.9.7
+
+- Codebase validated with **PHPStan Level 5**
+-  Added **official PHPUnit test suite**
+-  Improved internal consistency and validation coverage
+
+---
+
+## Static Analysis (PHPStan Level 5)
+
+Milk Admin is validated using **PHPStan Level 5**, a strict static analysis level that ensures:
+
+- Detection of **invalid types and method calls**
+- Validation of **function signatures and return types**
+- Prevention of **undefined variables and properties**
+- Early detection of **logical inconsistencies**
+
+Level 5 strikes a balance between **strictness and flexibility**, making the codebase more robust without slowing down development.
+
+---
+
+### Official Tests (`tests/`)
+
+Milk Admin includes a structured testing system to ensure reliability and long-term stability.
+
+The official PHPUnit suite validates the **core framework and stable contracts**:
+
+- **App/Core**  Helpers, config, container, hooks, routing, request/response
+- **Security**  CSRF, permissions, sanitization, filesystem protection
+- **Database** Model layer, query builder, relations, persistence, special fields
+- **Expression Parser**  Expression parsing and validation engine
+- **Builders**  RuleBuilder, field definitions, TableBuilder
+- **Extensions**  Extension loading system
+- **Modules / Theme**  Module components and theming system
+
+ These tests guarantee **framework stability and backward compatibility**
+
+---
+
 ## When Milk Admin is a good fit
 
 - You are building an **admin panel or internal backoffice**
 - Your data model is **relational and nested**
 - You want **full control over the admin flow**
-- You prefer writing **plain PHP** over configuring resources
+- You prefer writing **plain PHP**
 - You care about **long-term maintainability**
+
+---
 
 ## When it might not be a good fit
 
 - You need a public-facing website
-- You want a full-stack frontend framework
-- You rely heavily on Single Page Application - style interactivity
+- You want a full frontend framework
+- You rely heavily on SPA-style interactivity
 
 ---
 
@@ -49,11 +91,11 @@ Milk Admin provides a stable and structured backend core, modern PHP 8+ code, an
 
 Milk Admin embraces **explicit code over configuration**.
 
-- Controllers describe real business flows  
-- Models handle validation and data integrity  
+- Controllers describe business flows  
+- Models enforce validation and integrity  
 - Builders handle presentation  
 
-If you stop using Milk Admin tomorrow, your code should still make sense.
+If you stop using Milk Admin, your code should still make sense.
 
 ---
 
@@ -61,64 +103,63 @@ If you stop using Milk Admin tomorrow, your code should still make sense.
 
 ### Builder Classes
 
-Dedicated builder classes simplify the creation of common CRUD components such as **tables, forms, lists, charts, searches, filters, and custom views**.
+Create CRUD interfaces using structured builders:
 
-They provide a consistent and structured way to build admin interfaces with minimal boilerplate, while remaining fully customizable.
+- Tables, forms, lists
+- Filters, search, custom views
+- Charts and dashboards (in progress)
+
+Minimal boilerplate, full control.
 
 ---
 
 ### Modular Architecture
 
-Features are organized into **independent modules**, each containing its own models, controllers, and views.
-
-Modules can be installed, disabled, updated, or extended individually.  
-Ready-made downloadable modules are available to speed up development.
+- Independent modules
+- Install / disable / extend easily
+- Encapsulated logic (models, controllers, views)
 
 ---
 
 ### Extensions System
 
-Milk Admin includes an extension system that enhances existing modules with additional behavior.
+- Local extensions (module-scoped)
+- Global extensions (system-wide)
 
-Extensions can be:
-- **Local**: scoped to a single module
-- **Global**: reusable across the entire system
-
-This allows clean separation of concerns without over-engineering.
+Clean separation of concerns without over-engineering.
 
 ---
 
 ### Ready-to-Use Admin UI
 
-A complete Bootstrap-based admin interface is provided out of the box, including:
+Includes:
 
-- Authentication and login pages
-- User profile management
-- Navigation and menu system
-- Integrated access control
+- Authentication system
+- User management
+- Navigation and menus
+- Access control
 
-You can focus on backend logic without worrying about UI scaffolding.
+Built with **Bootstrap 5 + Vanilla JS**
 
 ---
 
 ## Technologies
 
-- **Backend**: PHP 8+, Composer (minimal dependencies)
+- **Backend**: PHP 8+, Composer
 - **Database**: MySQL / SQLite
-- **Frontend**: Bootstrap 5, Vanilla JavaScript
-- **Template Engine**: Pure PHP (no template engine overhead)
+- **Frontend**: Bootstrap 5
+- **Template Engine**: Pure PHP
 
 ### Built-in Features
 
 - CSRF protection
 - SQL injection prevention
 - XSS escaping helpers
-- Brute-force login protection
-- Web-based installer (WordPress-style)
-- Public API support (Token / JWT)
-- Cron jobs and scheduled tasks
-- CLI tools and shell commands
-
+- Brute-force protection
+- Web installer (WordPress-style)
+- API support (Token / JWT)
+- Cron jobs
+- CLI tools
 
 ---
 
@@ -148,6 +189,7 @@ http://localhost/milk-admin/public_html/
 4. **Follow the installation wizard** (2 minutes)
 
 5. **Start building your first module**
+
 
 ---
 
@@ -322,5 +364,3 @@ Use it freely for personal or commercial projects.
 
 * Website: [https://www.milkadmin.org/](https://www.milkadmin.org/)
 * Documentation: [https://milkadmin.org/milk-admin/?page=docs](https://milkadmin.org/milk-admin/?page=docs&action=Developer/GettingStarted/introduction)
-
-```

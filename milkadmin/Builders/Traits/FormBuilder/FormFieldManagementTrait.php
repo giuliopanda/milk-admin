@@ -338,7 +338,6 @@ trait FormFieldManagementTrait {
      * Add custom HTML content
      *
      * @param string $html Custom HTML content
-     * @param string $position Position in form ('before_fields', 'after_fields', 'before_submit')
      * @return self For method chaining
      *
      * @example ->addHtml('<div class="alert alert-info">Please fill all required fields</div>', 'before_fields')
@@ -382,7 +381,7 @@ trait FormFieldManagementTrait {
             $field_name = "H1";
             $count_field_name = 1;
             while (isset($this->fields[$field_name])) {
-                $field_name = "H" . str_pad($count_field_name, 3, '0', STR_PAD_LEFT);
+                $field_name = "H" . str_pad((string) $count_field_name, 3, '0', STR_PAD_LEFT);
                 $count_field_name++;
             }
         } else {
@@ -515,7 +514,7 @@ trait FormFieldManagementTrait {
                 }
             ];
         } else {
-            // Altrimenti è un link normale
+            // Otherwise it's a normal link
             $actions['cancel'] = [
                 'label' => 'Cancel',
                 'type' => 'link',

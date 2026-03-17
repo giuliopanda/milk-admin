@@ -246,7 +246,7 @@ class API
                             if (json_last_error() === JSON_ERROR_NONE && isset($body_data['token'])) {
                                 $token = $body_data['token'];
                             } else {
-                                // Se non è JSON, prova a fare il parse come query string
+                                // If not JSON, try to parse as query string
                                 parse_str($raw_body, $parsed_body);
                                 if (isset($parsed_body['token'])) {
                                     $token = $parsed_body['token'];
@@ -258,7 +258,7 @@ class API
                         throw new ApiAuthException('Invalid or missing API token.', 403);
                     }
                 } else {
-                    // Lancia eccezione se i permessi non sono sufficienti
+                    // Throw exception if permissions are insufficient
                     self::checkPermissions($endpoint['options']['permissions']);
                 }
             }
@@ -410,15 +410,15 @@ class API
      * @throws ApiAuthException
      */
     private static function checkPermissions(array|string $permissions): void {
-        // Se i permessi sono disattivati, tutto ok
+        // If permissions are disabled, everything is ok
         if (!Settings::get("permissions_enabled")) {
             return;
         }
 
-        // Caso: autenticazione disattivata per la route
+        // Case: authentication disabled for the route
         // (Questo check potrebbe non essere necessario qui, dipende dalla tua logica)
 
-        // Ottieni i permessi dell'utente
+        // Get user permissions
         $user_permissions = Permissions::getUserPermissions();
 
         // No permissions found for user
@@ -586,13 +586,13 @@ class API
             }
 
             if (!class_exists($module)) {
-                throw new ApiException("Modulo '$module' non trovato: impossibile eseguire l'endpoint.", 500);
+                throw new ApiException("Module '$module' not found: cannot execute endpoint.", 500);
             }
 
             $instance = new $module();
 
             if (!method_exists($instance, $method)) {
-                throw new ApiException("Metodo '$method' mancante nel modulo '$module'.", 500);
+                throw new ApiException("Method '$method' missing in module '$module'.", 500);
             }
 
             return call_user_func([$instance, $method], $request);
@@ -633,13 +633,13 @@ class API
      * @return void
      */
     public static function successResponse(mixed $data): void {
-        // Se i dati sono già un array con struttura di risposta (success/f), passali direttamente
+        // If data is already an array with response structure (success/error), pass it directly
         if (is_array($data) && (isset($data['success']) || isset($data['error']))) {
             self::jsonResponse($data, 200);
             return;
         }
 
-        // Altrimenti wrappa in formato standard
+        // Otherwise wrap in standard format
         self::jsonResponse([
             'success' => true,
             'data'  => $data

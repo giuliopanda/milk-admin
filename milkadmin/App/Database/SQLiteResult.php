@@ -4,6 +4,8 @@ namespace App\Database;
 /**
  * Wrapper for SQLite3 Result that converts methods to snake case and implements eager fetching
  * to prevent database locks. All rows are fetched immediately and cached in memory.
+ *
+ * @implements \IteratorAggregate<int, object>
  */
 class SQLiteResult implements ResultInterface, \IteratorAggregate
 {
@@ -75,7 +77,7 @@ class SQLiteResult implements ResultInterface, \IteratorAggregate
      * @param int $mode SQLITE3_BOTH, SQLITE3_ASSOC, or SQLITE3_NUM
      * @return array|false Array of data or false if no more rows
      */
-    public function fetch_array(): array|false
+    public function fetch_array(?int $mode = null): array|false
     {
         if ($this->current_position >= $this->cached_row_count) {
             $this->at_end = true;
@@ -177,7 +179,7 @@ class SQLiteResult implements ResultInterface, \IteratorAggregate
      *
      * @return true
      */
-    public function finalize(): true
+    public function finalize(): bool
     {
         // Clear cached data
         $this->cached_rows = [];
@@ -189,7 +191,7 @@ class SQLiteResult implements ResultInterface, \IteratorAggregate
         return true;
     }
 
-    public function free(): true
+    public function free(): bool
     {
         return $this->finalize();
     }

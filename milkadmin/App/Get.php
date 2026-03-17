@@ -102,7 +102,7 @@ class Get
      * $results = $db->query("SELECT * FROM users WHERE active = 1");
      * ```
      *
-     * @return MySql|SQLite|ArrayDb|false Instance of the database connection
+     * @return MySql|SQLite|ArrayDb|null Instance of the database connection
      */
     public static function db(): MySql|SQLite|ArrayDb|null
     {
@@ -150,9 +150,9 @@ class Get
      * ```
      *
      * @param string $name Connection name
-     * @return MySql|SQLite|ArrayDb Instance of the database connection
+     * @return MySql|SQLite|ArrayDb|null Instance of the database connection
      */
-    public static function dbConnection(string $name): MySql|SQLite|ArrayDb
+    public static function dbConnection(string $name): MySql|SQLite|ArrayDb|null
     {
         return DatabaseManager::connection($name);
     }
@@ -177,6 +177,10 @@ class Get
     {
         if ($db == null) {
             $db = self::db();
+        }
+
+        if (!$db instanceof MySql && !$db instanceof SQLite) {
+            return null;
         }
       
         if ($db->getType() == 'mysql') {
@@ -242,18 +246,18 @@ class Get
         require_once(self::dirPath(LOCAL_DIR . '/functions.php'));
         
         $file_loaded = [];
-        $module_loaded = []; // Nuovo array per tracciare i moduli con path completo
+        $module_loaded = []; // New array to track modules with full path
         
-        // Carico prima i moduli da MILK_DIR (hanno priorità)
+        // Load MILK_DIR modules first (they have priority)
         self::loadModulesFromDir(MILK_DIR . '/Modules', $file_loaded, $module_loaded);
         
-        // Carico i moduli da LOCAL_DIR solo se non sono già stati caricati da MILK_DIR
+        // Load LOCAL_DIR modules only if not already loaded from MILK_DIR
         self::loadModulesFromDir(LOCAL_DIR . '/Modules', $file_loaded, $module_loaded);
         
         Hooks::run('module_file_loaded');
         Hooks::run('modules_loaded');
         
-        // Carico anche gli init.php dei plugins
+        // Also load plugin init.php files
         $php_files = glob(THEME_DIR.'/Plugins/*/init.php');
         foreach ($php_files as $php) {
             require $php;
@@ -264,7 +268,7 @@ class Get
 
 
     // Helper function to load modules from a directory
-    private static function loadModulesFromDir($baseDir, &$module_loaded)
+    private static function loadModulesFromDir($baseDir, &$file_loaded, &$module_loaded)
     {
         $patterns = [
             $baseDir . '/*Module.php',           // Direct Module files
@@ -290,9 +294,9 @@ class Get
 
                 $basename = basename($filename);
 
-                // Crea un identificatore unico per il modulo
-                // Per file in subdirectory: "SubDir/ModuleName.php"
-                // Per file diretti: "ModuleName.php"
+                // Create a unique identifier for the module
+                // For files in subdirectory: "SubDir/ModuleName.php"
+                // For direct files: "ModuleName.php"
                 if (strpos($pattern, '/*/*') !== false) {
                     $moduleName = basename($dir);
                     $moduleIdentifier = $moduleName . '/' . $basename;
@@ -305,10 +309,14 @@ class Get
                     continue;
                 }
 
-                // Segna il modulo come caricato
+                // Mark the module as loaded
                 $module_loaded[] = $moduleIdentifier;
 
                 $real_path =  self::dirPath($filename);
+                if (in_array($real_path, $file_loaded, true)) {
+                    continue;
+                }
+                $file_loaded[] = $real_path;
                 $isLocalDir = (strpos($real_path, LOCAL_DIR) !== false);
                 $namespacePrefix = $isLocalDir ? 'Local\\Modules\\' : 'Modules\\';
 
@@ -375,7 +383,8 @@ class Get
         } else {
             require self::dirPath(THEME_DIR . '/Plugins/PluginNotFound/plugin.php');
         }
-        return ob_get_clean();
+        $content = ob_get_clean();
+        return is_string($content) ? $content : '';
     }
 
     /**
@@ -462,7 +471,7 @@ class Get
         if ($file == $file_without_root) {
             return $file;
         } 
-        // aggiungo la cartella milkadmin_local 
+        // Add the milkadmin_local folder 
         $theme_dir = Config::get('theme_dir', 'default');
 
         if (is_file(MILK_DIR . '/milkadmin_local/' . $theme_dir  . $file_without_root)) {
@@ -483,13 +492,14 @@ class Get
      * 
      * @return string The path of the temporary directory with trailing slash
      */
-    public static function tempDir(): mixed
+    public static function tempDir(): string
     {
         $temp = Config::get('temp_dir', LOCAL_DIR . "/temp/");
         if (!is_dir($temp)) {
             mkdir($temp, 0755, true);
         }
-        return realpath($temp);
+        $resolved = realpath($temp);
+        return $resolved === false ? (string) $temp : $resolved;
     }
 
     /**
@@ -508,7 +518,11 @@ class Get
     public static function dateTimeZone()
     {
         $now = new \DateTime();
-        $now->setTimezone(new \DateTimeZone(Get::userTimezone()));
+        $timezone = trim(Get::userTimezone());
+        if ($timezone === '') {
+            $timezone = 'UTC';
+        }
+        $now->setTimezone(new \DateTimeZone($timezone));
         return new \DateTime($now->format('Y-m-d H:i:s'));
     }
 
@@ -623,22 +637,22 @@ class Get
             }
         }
 
-        // At this point, $date should be a DateTime object
-        if (!($date instanceof \DateTime)) {
-            return is_string($date) ? $date : '';
-        }
-
         // Clone to avoid modifying the original
         $dateClone = clone $date;
 
         // Apply timezone conversion if requested
         if ($timezone) {
-            $dateClone->setTimezone(new \DateTimeZone(Get::userTimezone()));
+            $timezoneName = trim(Get::userTimezone());
+            if ($timezoneName === '') {
+                $timezoneName = 'UTC';
+            }
+            $dateClone->setTimezone(new \DateTimeZone($timezoneName));
         }
 
         // Get locale from config
-        $locale = Config::get('locale', 'en_US');
-        $localeKey = preg_split('/[.@]/', $locale)[0] ?? $locale;
+        $locale = (string) Config::get('locale', 'en_US');
+        $localeParts = preg_split('/[.@]/', $locale);
+        $localeKey = is_array($localeParts) && isset($localeParts[0]) ? $localeParts[0] : $locale;
 
         $dateFormat = 'Y-m-d';
         $timeFormat = 'H:i';
@@ -712,10 +726,10 @@ class Get
      * }, false, ['app.log']);
      * ```
      * 
-     * @param string $service_name Nome del servizio
-     * @param mixed $implementation Classe o funzione da bindare
-     * @param bool $singleton Se true, il servizio sarà istanziato una sola volta
-     * @param array $arguments Argomenti per l'inizializzazione se singleton
+     * @param string $service_name Service name
+     * @param mixed $implementation Class or function to bind
+     * @param bool $singleton If true, the service will be instantiated only once
+     * @param array $arguments Arguments for initialization if singleton
      */
 
     public static function bind($service_name, $implementation,  $singleton = false, $arguments = [])
@@ -796,7 +810,7 @@ class Get
         if (Cli::isCli()) return 'CLI';
         $ip_address = null;
 
-        // Se configurato per fidarsi dei proxy headers
+        // If configured to trust proxy headers
         if ($trust_proxy_headers) {
             $proxy_headers = [
                 'HTTP_CF_CONNECTING_IP',     // Cloudflare
@@ -810,8 +824,12 @@ class Get
 
             foreach ($proxy_headers as $header) {
                 if (!empty($_SERVER[$header])) {
-                    $ips = explode(',', $_SERVER[$header]);
-                    // Prendi il primo IP valido dalla lista
+                    $rawHeader = $_SERVER[$header];
+                    if (!is_scalar($rawHeader)) {
+                        continue;
+                    }
+                    $ips = explode(',', (string) $rawHeader);
+                    // Take the first valid IP from the list
                     foreach ($ips as $ip) {
                         $ip = trim($ip);
                         if (self::validateIp($ip)) {
@@ -823,22 +841,22 @@ class Get
             }
         }
 
-        // Fallback a REMOTE_ADDR (sempre presente e affidabile)
+        // Fallback to REMOTE_ADDR (always present and reliable)
         if (empty($ip_address) && !empty($_SERVER['REMOTE_ADDR'])) {
             $ip_address = $_SERVER['REMOTE_ADDR'];
         }
 
-        // Converti IPv6 localhost in IPv4
+        // Convert IPv6 localhost to IPv4
         if ($ip_address === '::1') {
             $ip_address = '127.0.0.1';
         }
 
-        // Valida l'IP finale
+        // Validate the final IP
         if (!self::validateIp($ip_address)) {
             $ip_address = 'UNKNOWN';
         }
 
-        // Troncalo alla lunghezza di 64 caratteri
+        // Truncate to 64 characters
         return substr($ip_address, 0, 64);
     }
 
@@ -851,9 +869,12 @@ class Get
      * @param string $ip The IP address to validate
      * @return bool True if valid IP address, false otherwise
      */
-    private static function validateIp($ip)
+    private static function validateIp(?string $ip): bool
     {
-        // Rimuovi eventuali porte
+        if ($ip === null || $ip === '') {
+            return false;
+        }
+        // Remove any ports
         if (strpos($ip, ':') !== false && !filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
             $ip = explode(':', $ip)[0];
         }
@@ -868,12 +889,18 @@ class Get
             if (!preg_match('/^https?:\/\//', $config_domain)) {
                 $config_domain = 'http://' . $config_domain;
             }
-            $domain = parse_url($config_domain, PHP_URL_HOST);
-            if (strpos($domain, 'www.') === 0) {
+            $parsedHost = parse_url($config_domain, PHP_URL_HOST);
+            if (is_string($parsedHost) && $parsedHost !== '') {
+                $domain = $parsedHost;
+            }
+            if (is_string($domain) && strpos($domain, 'www.') === 0) {
                 $domain = substr($domain, 4);
             }
         }
-        $host = $_SERVER['HTTP_HOST'] ?? $domain;
+        $host = (string) ($_SERVER['HTTP_HOST'] ?? $domain ?? '');
+        if ($host === '') {
+            return 'localhost';
+        }
         $domain = explode(':', $host)[0];
         $parts = explode('.', $domain);
         $count = count($parts);
@@ -893,6 +920,22 @@ class Get
         if (self::$db2 !== null) {
             self::$db2->close();
             self::$db2 = null;
+        }
+    }
+
+    /**
+     * Reset cached database adapters used by the Get facade.
+     *
+     * This is primarily useful in tests or when connection configuration is
+     * replaced at runtime and cached adapters must be invalidated.
+     */
+    public static function resetDatabaseConnections(): void
+    {
+        self::closeConnections();
+
+        if (self::$array_db !== null) {
+            self::$array_db->close();
+            self::$array_db = null;
         }
     }
 }

@@ -85,10 +85,6 @@ class ChartBuilder extends GetDataBuilder
         $query->clean('limit');
 
         $result = $this->context->getModel()->get($query);
-        if (!is_object($result)) {
-            return ['labels' => [], 'datasets' => []];
-        }
-
         $rows = $result->getRawData();
         $this->cached_chart_data = $modelList->getDataChart($rows, $this->structure);
         return $this->cached_chart_data;

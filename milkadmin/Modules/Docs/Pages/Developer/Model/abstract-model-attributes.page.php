@@ -4,13 +4,13 @@ namespace Modules\Docs\Pages;
  * @title Model Attributes
  * @guide developer
  * @order 40
- * @tags model, attributes, ToDisplayValue, ToDatabaseValue, SetValue, Validate, formatting, custom handlers
+ * @tags model, attributes, ToDisplayValue, ToDatabaseValue, GetRawValue, SetValue, Validate, formatting, custom handlers
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>
 <div class="bg-white p-4">
     <h1>Model Attributes</h1>
-    <p class="text-muted">Revision: 2025/12/25</p>
+    <p class="text-muted">Revision: 2026/03/15</p>
     <p class="lead">Model attributes allow you to define custom handlers for formatting, transforming, validating field values, and building reusable query scopes. Using PHP 8 attributes, you can attach custom methods to specific fields and queries to control how data is displayed, stored, validated, and filtered.</p>
 
     <h2 class="mt-4">Quick Reference</h2>
@@ -38,6 +38,12 @@ namespace Modules\Docs\Pages;
                     <td>Called when preparing data for database storage</td>
                 </tr>
                 <tr>
+                    <td><code>#[GetRawValue(field_name)]</code></td>
+                    <td>object $current_record</td>
+                    <td>Return the raw transformed value</td>
+                    <td>Used when exporting included relationship data in <code>raw</code> mode</td>
+                </tr>
+                <tr>
                     <td><code>#[SetValue(field_name)]</code></td>
                     <td>array $current_record, mixed $value</td>
                      <td>Return the transformed value</td>
@@ -46,7 +52,7 @@ namespace Modules\Docs\Pages;
                 <tr>
                     <td><code>#[Validate(field_name)]</code></td>
                     <td>object $current_record</td>
-                    <td>Return true if valid, or error message string if invalid<</td>
+                    <td>Return true if valid, or error message string if invalid</td>
                     <td>Called during <code>validate()</code> operation</td>
                 </tr>
                 <tr>
@@ -67,7 +73,11 @@ namespace Modules\Docs\Pages;
 
     <h2 class="mt-4">How Attributes Work</h2>
 
-    <p>When you create a Model instance, the <code>AbstractModel</code> automatically scans all public methods in your Model class looking for these attributes. When found, it registers them as handlers for specific fields and operations.</p>
+    <p>When you create a Model instance, the <code>AbstractModel</code> bootstrap scans public and protected methods declared in your Model class and in loaded model extensions. When it finds these attributes, it registers them as handlers for specific fields and operations.</p>
+
+    <div class="alert alert-info">
+        <strong>Where handlers can live:</strong> attribute methods can be declared directly in the model or inside a loaded <code>AbstractModelExtension</code>. Both are discovered during model bootstrap.
+    </div>
 
     <h2 class="mt-4">#[ToDisplayValue] - Custom Display Formatting</h2>
 
@@ -125,6 +135,23 @@ public function getSqlCreditCard($current_record_obj) {
         );
     }
     return null;
+}</code></pre>
+
+    <h2 class="mt-4">#[GetRawValue] - Advanced Raw Export</h2>
+
+    <p>Use this attribute when you need to customize the raw value exported for included relationship data without switching to <code>formatted</code> or <code>sql</code> mode.</p>
+
+    <h3>Signature</h3>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">#[GetRawValue('relationship_alias.field_name')]
+protected function methodName($current_record_obj): mixed
+{
+    // Return the raw value that should be exposed in raw relationship output
+}</code></pre>
+
+    <h3>Example: Normalize Related Raw Data</h3>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">#[GetRawValue('doctor.phone')]
+protected function normalizeDoctorPhone($current_record_obj) {
+    return preg_replace('/\s+/', '', (string) ($current_record_obj->doctor->phone ?? ''));
 }</code></pre>
 
     <h2 class="mt-4">#[SetValue] - Custom Value Transformation</h2>
@@ -208,7 +235,7 @@ public function validateEndDate($current_record) {
 }
 
 // Usage
-$appointment = $model->include('doctor')->getById(1);
+$appointment = $model->with('doctor')->getById(1);
 $appointment->setOutputMode('formatted');
 echo $appointment->doctor->name;  // "Dr. John Smith"</code></pre>
 
@@ -413,7 +440,7 @@ $orders = $model
 
     <h2 class="mt-4">Query Scope Management Methods</h2>
 
-    <p>The ScopeTrait provides several methods to inspect and manage query scopes:</p>
+    <p><code>AbstractModel</code> exposes several methods to inspect and manage query scopes:</p>
 
     <div class="table-responsive">
         <table class="table table-bordered table-striped">

@@ -86,7 +86,6 @@ class FormBuilder extends AbstractFormBuilderExtension
                     // Optionally redirect to deny page
                     $queryString = Route::getQueryString();
                     Route::redirect('?page=deny&redirect=' . Route::urlsafeB64Encode($queryString));
-                    return;
                 }
 
                 // Record belongs to current user - optionally show info

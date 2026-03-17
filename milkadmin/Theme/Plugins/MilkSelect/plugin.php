@@ -17,21 +17,31 @@
  */
 
 // Default values
-$id = $id ?? _raz(uniqid('milkselect', true));
-$options = $options ?? [];
-$type = $type ?? 'single';
+if (!is_string($id) || $id === '') {
+    $id = _raz(uniqid('milkselect', true));
+}
+if (!is_array($options)) {
+    $options = [];
+}
+if (!is_string($type) || $type === '') {
+    $type = 'single';
+}
 $value = $value ?? null;
-$name = $name ?? '';
-$placeholder = $placeholder ?? ($type === 'multiple' ? 'Aggiungi valore...' : 'Cerca o seleziona...');
-$required = $required ?? false;
-$class = $class ?? '';
-$floating = $floating ?? false;
+if (!is_string($name)) {
+    $name = '';
+}
+if (!is_string($placeholder) || $placeholder === '') {
+    $placeholder = ($type === 'multiple' ? 'Aggiungi valore...' : 'Cerca o seleziona...');
+}
+$required = isset($required) ? (bool) $required : false;
+$class = (isset($class) && is_string($class)) ? $class : '';
+$floating = isset($floating) ? (bool) $floating : false;
 $api_url = $api_url ?? null;
 $display_value = $display_value ?? null;
-$readonly = $readonly ?? false;
+$readonly = isset($readonly) ? (bool) $readonly : false;
 
 // Validate options (only if api_url is not provided)
-if (!$api_url && (!is_array($options) || count($options) === 0)) {
+if (!$api_url && count($options) === 0) {
     echo '<div class="alert alert-warning">MilkSelect: No options or api_url provided</div>';
     return;
 }
@@ -41,12 +51,57 @@ if (!in_array($type, ['single', 'multiple'])) {
     $type = 'single';
 }
 
-// Detect if array is associative (has custom keys like IDs)
-$isAssociative = array_keys($options) !== range(0, count($options) - 1);
+// Detect option formats
+$isObjectOptions = false;
+if (count($options) > 0) {
+    $firstOption = reset($options);
+    $isObjectOptions = is_array($firstOption) &&
+        (array_key_exists('text', $firstOption) || array_key_exists('value', $firstOption) || array_key_exists('group', $firstOption));
+}
+$isAssociative = !$isObjectOptions && array_keys($options) !== range(0, count($options) - 1);
 
-// For JavaScript: prepare parallel arrays
-$optionValues = $isAssociative ? array_values($options) : $options;
-$optionKeys = $isAssociative ? array_keys($options) : null;
+// For JavaScript: prepare normalized options
+$optionValues = [];
+$optionKeys = null;
+$valueToTextMap = [];
+$textToValueMap = [];
+
+if ($isObjectOptions) {
+    foreach ($options as $option) {
+        if (!is_array($option)) {
+            continue;
+        }
+
+        $rawText = $option['text'] ?? $option['label'] ?? ($option['value'] ?? null);
+        if ($rawText === null || $rawText === '') {
+            continue;
+        }
+
+        $text = (string)$rawText;
+        $rawValue = $option['value'] ?? $text;
+        $valueString = (string)$rawValue;
+        $group = isset($option['group']) && $option['group'] !== '' ? (string)$option['group'] : null;
+
+        $normalizedOption = [
+            'value' => $valueString,
+            'text' => $text
+        ];
+        if ($group !== null) {
+            $normalizedOption['group'] = $group;
+        }
+        $optionValues[] = $normalizedOption;
+
+        if (!array_key_exists($valueString, $valueToTextMap)) {
+            $valueToTextMap[$valueString] = $text;
+        }
+        if (!array_key_exists($text, $textToValueMap)) {
+            $textToValueMap[$text] = $valueString;
+        }
+    }
+} else {
+    $optionValues = $isAssociative ? array_values($options) : $options;
+    $optionKeys = $isAssociative ? array_keys($options) : null;
+}
 
 // Process preselected value
 $processedValue = '';
@@ -65,7 +120,20 @@ if ($api_url && $display_value !== null && $value !== null && $value !== '') {
         $displayValues = [];
         $savedValues = [];
         foreach ($value as $v) {
-            if (is_numeric($v) && $isAssociative && isset($options[$v])) {
+            if ($isObjectOptions) {
+                $lookupValue = (string)$v;
+                if (isset($valueToTextMap[$lookupValue])) {
+                    $displayValues[] = $valueToTextMap[$lookupValue];
+                    $savedValues[] = $lookupValue;
+                } elseif (isset($textToValueMap[$lookupValue])) {
+                    $displayValues[] = $lookupValue;
+                    $savedValues[] = $textToValueMap[$lookupValue];
+                } else {
+                    // Not found in options - use as is
+                    $displayValues[] = $lookupValue;
+                    $savedValues[] = $lookupValue;
+                }
+            } elseif (is_numeric($v) && $isAssociative && isset($options[$v])) {
                 // Value is an ID - get display name
                 $displayValues[] = $options[$v];
                 $savedValues[] = $v; // Keep ID
@@ -89,6 +157,24 @@ if ($api_url && $display_value !== null && $value !== null && $value !== '') {
         $displayValue = json_encode($displayValues);
         $processedValue = json_encode($savedValues);
         $htmlValue = json_encode($savedValues); // Arrays need JSON in HTML
+    } else if ($isObjectOptions) {
+        $lookupValue = (string)$value;
+        if (isset($valueToTextMap[$lookupValue])) {
+            // Single value using option value
+            $displayValue = json_encode($valueToTextMap[$lookupValue]);
+            $processedValue = $lookupValue;
+            $htmlValue = $lookupValue;
+        } else if (isset($textToValueMap[$lookupValue])) {
+            // Single value passed as display text
+            $displayValue = json_encode($lookupValue);
+            $processedValue = $textToValueMap[$lookupValue];
+            $htmlValue = (string)$processedValue;
+        } else {
+            // Fallback
+            $displayValue = json_encode($lookupValue);
+            $processedValue = $lookupValue;
+            $htmlValue = $lookupValue;
+        }
     } else if ($isAssociative && isset($options[$value])) {
         // Single value with key (numeric or string) - display the text, save the key
         $displayValue = json_encode($options[$value]);

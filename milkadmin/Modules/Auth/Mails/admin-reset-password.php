@@ -2,6 +2,12 @@
 use App\Config;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
+$user = is_object($user ?? null) ? $user : (object) ['username' => ''];
+$url = isset($url) ? (string) $url : '';
+$mail = (isset($this) && isset($this->mail)) ? $this->mail : null;
+if ($mail === null) {
+    return;
+}
 ob_start();
 // Here is the email content
 ?>
@@ -11,10 +17,9 @@ You have received this password reset link from the administrator of <?php echo 
 <a href="<?php echo $url; ?>">Reset Password</a>
 <?php
 
-$this->mail->Body    = ob_get_clean();
-$this->mail->AltBody = strip_tags($this->mail->Body);
+$mail->Body = ob_get_clean();
+$mail->AltBody = strip_tags((string) $mail->Body);
 // Here is the email subject
-$this->mail->Subject = 'Password Reset';
+$mail->Subject = 'Password Reset';
 
 // You can manage other parameters this->mail is an instance of PHPMailer
-

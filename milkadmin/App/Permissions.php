@@ -207,7 +207,7 @@ class Permissions
         if ($exclusive) {
             self::$exclusive_groups[$group] = true;
             
-            // Se il gruppo è già definito con permessi, assicuriamo che solo uno sia attivo
+            // If the group is already defined with permissions, ensure only one is active
             if (isset(self::$user_permissions[$group]) && count(self::$user_permissions[$group]) > 0) {
                 $found_active = false;
                 foreach (self::$user_permissions[$group] as $perm => $value) {
@@ -245,7 +245,8 @@ class Permissions
     public static function getGroups(): array {
         $ris = [];
         foreach (self::$group_title as $group => $group_title) {
-            if (is_array(self::get($group)) && count(self::get($group)) > 0) {
+            $groupPermissions = self::get($group);
+            if (count($groupPermissions) > 0) {
                 $ris[$group] = $group_title;
             }
         }
@@ -297,6 +298,7 @@ class Permissions
             $group = $permission[0];
             $permission_name = $permission[1];
             if ($group == '_user') {
+                $ris = false;
                 if ($permission_name == 'is_admin') {
                     $ris = (self::$user_permissions['_user']['is_admin'] ?? false);
                 } else if ($permission_name == 'is_guest') {
@@ -366,13 +368,13 @@ class Permissions
             self::$user_permissions[$group] = [];
         }
         
-        // Se il gruppo è esclusivo, prima disattiviamo tutti i permessi
+        // If the group is exclusive, first deactivate all permissions
         if (self::isExclusiveGroup($group)) {
             foreach (self::$user_permissions[$group] as $perm => $value) {
                 self::$user_permissions[$group][$perm] = false;
             }
             
-            // Poi attiviamo solo il primo permesso che trova a true
+            // Then activate only the first permission that is true
             $found_active = false;
             foreach ($permissions as $permission_name => $value) {
                 if ( (bool)$value && !$found_active) {
@@ -383,7 +385,7 @@ class Permissions
                 }
             }
         } else {
-            // Per gruppi non esclusivi, settiamo normalmente
+            // For non-exclusive groups, set normally
 
             foreach ($permissions as $permission_name => $value) {
                 self::$user_permissions[$group][$permission_name] = (bool)$value;

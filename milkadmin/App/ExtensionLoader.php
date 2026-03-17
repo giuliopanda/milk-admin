@@ -248,7 +248,7 @@ class ExtensionLoader
                 continue;
             }
             $class_file = $reflection->getFileName();
-            if (!is_string($class_file) || $class_file === '') {
+            if (!is_string($class_file)) {
                 continue;
             }
             if ((realpath($class_file) ?: $class_file) !== $real_path) {
@@ -266,7 +266,7 @@ class ExtensionLoader
                 continue;
             }
             $class_file = $reflection->getFileName();
-            if (!is_string($class_file) || $class_file === '') {
+            if (!is_string($class_file)) {
                 continue;
             }
             if ((realpath($class_file) ?: $class_file) === $real_path) {
@@ -304,7 +304,7 @@ class ExtensionLoader
 
     public static function callReturnHook(array $extensions, string $hook_name, array $params = []): mixed
     {
-        if (empty($params) || count($params) == 0) {
+        if (empty($params)) {
             $first_param = null;
             $params  = [];
         } else {

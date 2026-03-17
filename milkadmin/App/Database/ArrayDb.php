@@ -120,6 +120,7 @@ class ArrayDb
                 ['query' => $sql, 'params' => $params]
             );
         }
+        assert($this->database instanceof ArrayEngine);
 
         $sql = $this->sqlPrefix($sql);
         $this->last_query = $sql;
@@ -150,29 +151,27 @@ class ArrayDb
             return $array_result;
         }
 
-        if (is_array($result)) {
-            if (isset($result['inserted'])) {
-                $this->affected_rows = (int) $result['inserted'];
-                $this->setLastInsertIdFromTable($result['table'] ?? null);
-                if (!$this->persistStorageForTable($result['table'] ?? null)) {
-                    return false;
-                }
-                return true;
+        if (isset($result['inserted'])) {
+            $this->affected_rows = (int) $result['inserted'];
+            $this->setLastInsertIdFromTable($result['table'] ?? null);
+            if (!$this->persistStorageForTable($result['table'] ?? null)) {
+                return false;
             }
-            if (isset($result['updated'])) {
-                $this->affected_rows = (int) $result['updated'];
-                if (!$this->persistStorageForTable($result['table'] ?? null)) {
-                    return false;
-                }
-                return true;
+            return true;
+        }
+        if (isset($result['updated'])) {
+            $this->affected_rows = (int) $result['updated'];
+            if (!$this->persistStorageForTable($result['table'] ?? null)) {
+                return false;
             }
-            if (isset($result['deleted'])) {
-                $this->affected_rows = (int) $result['deleted'];
-                if (!$this->persistStorageForTable($result['table'] ?? null)) {
-                    return false;
-                }
-                return true;
+            return true;
+        }
+        if (isset($result['deleted'])) {
+            $this->affected_rows = (int) $result['deleted'];
+            if (!$this->persistStorageForTable($result['table'] ?? null)) {
+                return false;
             }
+            return true;
         }
 
         return true;
@@ -204,9 +203,10 @@ class ArrayDb
         }, $params);
 
         $index = 0;
-        return preg_replace_callback('/\?/', function () use ($quoted_values, &$index) {
+        $formatted = preg_replace_callback('/\?/', function () use ($quoted_values, &$index) {
             return $quoted_values[$index++] ?? '?';
         }, $query);
+        return is_string($formatted) ? $formatted : $query;
     }
 
     /**
@@ -381,6 +381,7 @@ class ArrayDb
         if (!$this->checkConnection()) {
             return false;
         }
+        assert($this->database instanceof ArrayEngine);
         $this->database->removeTable($table);
         $this->tables_list = array_keys($this->database->getAllTables());
         $this->persistStorageData($table, []);
@@ -398,6 +399,7 @@ class ArrayDb
         if (!$this->checkConnection()) {
             return false;
         }
+        assert($this->database instanceof ArrayEngine);
 
         try {
             $data = $this->database->getTable($table_name);
@@ -420,6 +422,7 @@ class ArrayDb
         if (!$this->checkConnection()) {
             return false;
         }
+        assert($this->database instanceof ArrayEngine);
         $this->database->setTable($table_name, []);
         return $this->persistStorageData($table_name, []);
     }
@@ -549,6 +552,7 @@ class ArrayDb
         if (!$this->checkConnection()) {
             return [];
         }
+        assert($this->database instanceof ArrayEngine);
         if ($cache && !empty($this->tables_list)) {
             return $this->tables_list;
         }
@@ -571,6 +575,7 @@ class ArrayDb
         if (!$this->checkConnection()) {
             return [];
         }
+        assert($this->database instanceof ArrayEngine);
 
         $table_name = $this->sqlPrefix($table_name);
         $table = [];
@@ -609,6 +614,7 @@ class ArrayDb
         if (!$this->checkConnection()) {
             return [];
         }
+        assert($this->database instanceof ArrayEngine);
 
         if ($cache && array_key_exists($table_name, $this->fields_list) != false) {
             return $this->fields_list[$table_name];
@@ -683,21 +689,22 @@ class ArrayDb
 
         if (strpos($val, '.') !== false) {
             $parts = explode('.', $val, 2);
-            return $this->qnSafe($parts[0]) . '.' . $this->qnSafe($parts[1]);
+            return $this->qnSafe((string) ($parts[0] ?? '')) . '.' . $this->qnSafe((string) ($parts[1] ?? ''));
         }
 
         return $this->qnSafe($val);
     }
 
-    public function quote(string $val): string
+    public function quote(mixed $val): string
     {
-        if (is_null($val) || strtolower((string) $val) === 'null') {
+        if ($val === null || (is_string($val) && strtolower($val) === 'null')) {
             return 'NULL';
         }
         if (is_int($val) || is_float($val)) {
             return (string) $val;
         }
-        return "'" . addslashes((string) $val) . "'";
+        $stringVal = is_scalar($val) ? (string) $val : serialize($val);
+        return "'" . addslashes($stringVal) . "'";
     }
 
     private function qnSafe(string $name): string
@@ -948,6 +955,9 @@ class ArrayDb
     private function csvLine(array $fields): string
     {
         $handle = fopen('php://temp', 'r+');
+        if ($handle === false) {
+            return '';
+        }
         fputcsv($handle, $fields);
         rewind($handle);
         $line = (string) stream_get_contents($handle);

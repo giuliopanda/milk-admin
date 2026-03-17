@@ -131,7 +131,6 @@ class Route
                 if (!Permissions::check($required_permission)) {
                     // Permission denied - redirect to deny route
                     self::redirectToDeny($name, $required_permission);
-                    return true; // Return true because we handled the request (with redirect)
                 }
             }
 
@@ -227,7 +226,7 @@ class Route
      * // Result: https://example.com/?page=contact
      * ```
      *
-     * @param mixed $query Query parameters as array or string (default: '')
+     * @param array|string $query Query parameters as array or string (default: '')
      * @return string The complete URL
      */
     public static function url(array|string $query = ''): string {
@@ -362,7 +361,7 @@ class Route
             } else if (MessagesHandler::hasSuccess()) {
                 $data = ['alert-success'=>MessagesHandler::successToString()];
             }
-        } else if (is_array($data)) {
+        } else {
             if (MessagesHandler::hasErrors()) {
                 $data['message-handler'] = MessagesHandler::getErrors();
             } else if (MessagesHandler::hasSuccess()) {
@@ -407,7 +406,7 @@ class Route
             unset($_SESSION[$idSession]);
 
         }
-        if ($add_post && isset($_POST) && !empty($_POST)) {
+        if ($add_post && !empty($_POST)) {
             $data = array_merge($data, $_POST);
         }
 
@@ -466,7 +465,7 @@ class Route
      * This method can accept an array of parameters or a string and converts
      * it to a properly formatted query string starting with '?'.
      * 
-     * @param mixed $query Query parameters as ['page' => 'home'] or '?page=home'
+     * @param array|string $query Query parameters as ['page' => 'home'] or '?page=home'
      * @return string Query string starting with '?' or empty string
      */
     static private function buildQuery(array|string $query = ''): string {
@@ -725,7 +724,7 @@ class Route
         foreach ($query_params as $key => $value) {
             // Check if the value is a placeholder (format: %placeholder_name% or [placeholder_name]).
             if (preg_match('/^(?:%([^%]+)%|\[([^\[\]]+)\])$/', (string) $value, $matches)) {
-                $placeholder_name = (string) ($matches[1] !== '' ? $matches[1] : ($matches[2] ?? ''));
+                $placeholder_name = (string) ($matches[1] !== '' ? $matches[1] : $matches[2]);
                 
                 // If a corresponding value exists in the array, replace the placeholder
                 if (isset($values[$placeholder_name])) {

@@ -33,7 +33,7 @@ final class ConstantExpression extends Expression
     /**
      * @param Token $token
      *
-     * @return null|scalar
+     * @return null|int|float|string
      */
     private static function extractConstantValue(Token $token)
     {

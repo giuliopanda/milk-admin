@@ -117,15 +117,15 @@ class TableBuilder extends GetDataBuilder
     // Enhanced class management methods with js- class protection
 
     public function tableClass($classes): static {
-        // Preserva sempre le classi essenziali per funzionalità
+        // Always preserve essential classes for functionality
         $essential_classes = ['js-table'];
         
-        // Aggiungi 'table' se non presente nelle classi fornite
+        // Add 'table' if not present in provided classes
         if (strpos($classes, 'table') === false && strpos($classes, 'table-') === false) {
             $essential_classes[] = 'table';
         }
         
-        // Combina classi essenziali con quelle fornite
+        // Combine essential classes with provided ones
         $full_classes = implode(' ', $essential_classes) . ' ' . $classes;
         $this->table_attrs['table']['class'] = trim($full_classes);
         return $this;
@@ -133,11 +133,11 @@ class TableBuilder extends GetDataBuilder
 
     public function rowClass($classes, $condition = null): static {
         if ($condition === null) {
-            // Per le righe, aggiungi sempre js-table-tr per preservare la funzionalità JavaScript
+            // For rows, always add js-table-tr to preserve JavaScript functionality
             $classes_with_js = 'js-table-tr ' . $classes;
             $this->table_attrs['tr']['class'] = $classes_with_js;
         } else {
-            // Aggiungi condizione per righe specifiche
+            // Add condition for specific rows
             $this->row_conditions[] = [
                 'type' => 'condition',
                 'classes' => $classes,
@@ -235,9 +235,9 @@ class TableBuilder extends GetDataBuilder
     }
 
     public function tableColor($color): static {
-        // Mappa i colori semplici alle classi Bootstrap
+        // Map simple colors to Bootstrap classes
         $color_map = [
-            // Colori base
+            // Base colors
             'primary' => 'table-primary',
             'secondary' => 'table-secondary', 
             'success' => 'table-success',
@@ -247,7 +247,7 @@ class TableBuilder extends GetDataBuilder
             'light' => 'table-light',
             'dark' => 'table-dark',
             
-            // Aliases più semplici
+            // Simpler aliases
             'blue' => 'table-primary',
             'gray' => 'table-secondary',
             'grey' => 'table-secondary',
@@ -273,33 +273,33 @@ class TableBuilder extends GetDataBuilder
             'small' => 'table-sm'
         ];
         
-        // Se il colore esiste nella mappa, usa le classi Bootstrap
+        // If the color exists in the map, use Bootstrap classes
         if (isset($color_map[$color])) {
             $bootstrap_classes = $color_map[$color];
         } else {
-            // Se non esiste, prova a costruire la classe assumendo sia un colore Bootstrap valido
+            // If it doesn't exist, try to build the class assuming it's a valid Bootstrap color
             $bootstrap_classes = 'table-' . $color;
         }
         
-        // Per i colori (non utility come hover, bordered), aggiungi sempre striped e coordina header
+        // For colors (not utilities like hover, bordered), always add striped and coordinate header
         $utility_colors = ['striped', 'bordered', 'hover', 'small'];
         $is_color = !in_array($color, $utility_colors);
         
         if ($is_color) {
-            // Aggiungi striped per i colori e imposta header coordinato
+            // Add striped for colors and set coordinated header
             $bootstrap_classes = 'table-striped ' . $bootstrap_classes;
             $this->headerColor($color);
         }
         
-        // Aggiungi sempre la classe base 'table' di Bootstrap
+        // Always add Bootstrap base 'table' class
         $full_classes = 'table ' . $bootstrap_classes;
         
-        // Applica le classi mantenendo js-table
+        // Apply classes maintaining js-table
         $this->tableClass($full_classes);
         
-        // Se non sono già state impostate altre configurazioni, applica quelle di default
+        // If no other configurations have been set yet, apply default ones
         if (!isset($this->table_attrs['table']['class']) || strpos($this->table_attrs['table']['class'], 'table-row-selected') === false) {
-            // Aggiungi classi di default se mancanti
+            // Add default classes if missing
             $current_classes = $this->table_attrs['table']['class'] ?? '';
             if (strpos($current_classes, 'table-hover') === false) {
                 $current_classes = trim($current_classes . ' table-hover');
@@ -314,9 +314,9 @@ class TableBuilder extends GetDataBuilder
     }
 
     public function headerColor($color): static {
-        // Mappa i colori per header e selezione
+        // Map colors for header and selection
         $header_color_map = [
-            // Colori base
+            // Base colors
             'primary' => 'table-header-primary',
             'secondary' => 'table-header-secondary', 
             'success' => 'table-header-success',
@@ -326,7 +326,7 @@ class TableBuilder extends GetDataBuilder
             'light' => 'table-header-light',
             'dark' => 'table-header-dark',
             
-            // Aliases semplici
+            // Simple aliases
             'blue' => 'table-header-primary',
             'gray' => 'table-header-secondary',
             'grey' => 'table-header-secondary',
@@ -338,7 +338,7 @@ class TableBuilder extends GetDataBuilder
             'black' => 'table-header-dark'
         ];
         
-        // Se il colore esiste nella mappa, usa la classe custom
+        // If the color exists in the map, use the custom class
         if (isset($header_color_map[$color])) {
             $header_class = $header_color_map[$color];
         } else {
@@ -346,11 +346,11 @@ class TableBuilder extends GetDataBuilder
             $header_class = 'table-header-' . $color;
         }
         
-        // Applica le classi all'header e alla tabella per la selezione
+        // Apply classes to header and table for selection
         $this->headerClass($header_class);
-        $this->addTableAttr('table', 'data-header-color', $color); // Per CSS targeting
+        $this->addTableAttr('table', 'data-header-color', $color); // For CSS targeting
         
-        // Se non sono già state impostate classi per la tabella, applica quelle di default
+        // If no classes have been set for the table yet, apply default ones
         if (!isset($this->table_attrs['table']['class'])) {
             $this->tableClass('table table-hover table-row-selected');
         }
@@ -386,11 +386,7 @@ class TableBuilder extends GetDataBuilder
      * @example ->field('status')->class('text-center fw-bold')
      */
     public function class(string $classes): static {
-        if ($this->current_field === null) {
-            throw BuilderException::noCurrentField('class');
-        }
-
-        $column_name = $this->current_field;
+        $column_name = $this->columns->requireCurrentField('class');
         $key = 'td.' . str_replace(' ', '_', $column_name);
 
         // Preserva classi js- specifiche per alcune colonne
@@ -414,11 +410,7 @@ class TableBuilder extends GetDataBuilder
      * @example ->field('price')->colHeaderClass('text-end')
      */
     public function colHeaderClass(string $classes): static {
-        if ($this->current_field === null) {
-            throw BuilderException::noCurrentField('colHeaderClass');
-        }
-
-        $column_name = $this->current_field;
+        $column_name = $this->columns->requireCurrentField('colHeaderClass');
         $key = 'th.' . str_replace(' ', '_', $column_name);
         $this->table_attrs[$key]['class'] = $classes;
         return $this;
@@ -437,11 +429,7 @@ class TableBuilder extends GetDataBuilder
      * @example ->field('status')->cellClassValue('active', 'bg-success text-white')
      */
     public function cellClassValue($value, string $classes, string $comparison = '=='): static {
-        if ($this->current_field === null) {
-            throw BuilderException::noCurrentField('cellClassValue');
-        }
-
-        $column_name = $this->current_field;
+        $column_name = $this->columns->requireCurrentField('cellClassValue');
         $this->column_conditions[] = [
             'type' => 'value',
             'column' => $column_name,
@@ -467,11 +455,7 @@ class TableBuilder extends GetDataBuilder
      * @example ->field('price')->cellClassOtherValue('status', 'discount', 'text-success fw-bold')
      */
     public function cellClassOtherValue(string $check_field, $value, string $classes, string $comparison = '=='): static {
-        if ($this->current_field === null) {
-            throw BuilderException::noCurrentField('cellClassOtherValue');
-        }
-
-        $column_name = $this->current_field;
+        $column_name = $this->columns->requireCurrentField('cellClassOtherValue');
         $this->column_conditions[] = [
             'type' => 'value',
             'column' => $column_name,
@@ -495,11 +479,7 @@ class TableBuilder extends GetDataBuilder
      * @example ->field('price')->classAlternate('bg-light', 'bg-white')
      */
     public function classAlternate(string $odd_classes, ?string $even_classes = null): static {
-        if ($this->current_field === null) {
-            throw BuilderException::noCurrentField('classAlternate');
-        }
-
-        $column_name = $this->current_field;
+        $column_name = $this->columns->requireCurrentField('classAlternate');
         $this->column_conditions[] = [
             'type' => 'alternate',
             'column' => $column_name,
@@ -517,7 +497,7 @@ class TableBuilder extends GetDataBuilder
         $current = trim((string) ($this->table_attrs[$element]['class'] ?? ''));
         $classes = $current === '' ? [] : preg_split('/\s+/', $current);
         $classes = array_values(array_filter(is_array($classes) ? $classes : [], static function ($value) {
-            return is_string($value) && $value !== '';
+            return $value !== '';
         }));
 
         if ($enabled) {

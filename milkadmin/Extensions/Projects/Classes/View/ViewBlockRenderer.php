@@ -64,6 +64,9 @@ class ViewBlockRenderer
         $fkField = (string) ($formContext['parent_fk_field'] ?? '');
         $isRoot = (bool) ($formContext['is_root'] ?? false);
         $editAction = (string) ($formContext['edit_action'] ?? '');
+        if (!$this->isEditAllowedForContext($formContext)) {
+            $editAction = '';
+        }
 
         // Resolve title.
         if ($sectionTitle === '') {
@@ -178,6 +181,9 @@ class ViewBlockRenderer
         $isRoot = (bool) ($formContext['is_root'] ?? false);
         $fkField = (string) ($formContext['parent_fk_field'] ?? '');
         $editAction = (string) ($formContext['edit_action'] ?? '');
+        if (!$this->isEditAllowedForContext($formContext)) {
+            $editAction = '';
+        }
         $maxRecords = (string) ($formContext['max_records'] ?? 'n');
         $chainParams = $this->buildChainParamsForChild($formContext, $parentId, $rootId);
         $editDisplay = DisplayModeHelper::getEditMode($formContext);
@@ -220,7 +226,7 @@ class ViewBlockRenderer
 
         $innerHtml = '';
 
-        if (is_array($records) && !empty($records)) {
+        if (!empty($records)) {
             foreach ($records as $row) {
                 $recordId = _absint(ModelRecordHelper::extractFieldValue($row, $primaryKey));
                 $recordTitle = $this->extractRecordTitle($row, $titleField, $recordId);
@@ -240,7 +246,7 @@ class ViewBlockRenderer
         $showAdd = true;
         if ($maxRecords !== 'n') {
             $finite = UrlBuilder::getFiniteMaxRecords($maxRecords);
-            if ($finite > 0 && is_array($records) && count($records) >= $finite) {
+            if ($finite > 0 && count($records) >= $finite) {
                 $showAdd = false;
             }
         }
@@ -286,6 +292,9 @@ class ViewBlockRenderer
         $isRoot = (bool) ($formContext['is_root'] ?? false);
         $fkField = (string) ($formContext['parent_fk_field'] ?? '');
         $editAction = (string) ($formContext['edit_action'] ?? '');
+        if (!$this->isEditAllowedForContext($formContext)) {
+            $editAction = '';
+        }
         $maxRecords = (string) ($formContext['max_records'] ?? 'n');
         $chainParams = $this->buildChainParamsForChild($formContext, $parentId, $rootId);
 
@@ -346,45 +355,43 @@ class ViewBlockRenderer
         $editDisplay = DisplayModeHelper::getEditMode($formContext);
         $fetchAttr = DisplayModeHelper::buildFetchAttribute($editDisplay);
 
-        if (is_array($records)) {
-            foreach ($records as $row) {
-                $recordId = _absint(ModelRecordHelper::extractFieldValue($row, $primaryKey));
-                $formattedRow = is_object($row) && method_exists($row, 'getFormattedData')
-                    ? $row->getFormattedData('array', false)
-                    : (is_array($row) ? $row : []);
-                if (!is_array($formattedRow)) {
-                    $formattedRow = [];
-                }
-
-                $editParams = array_merge(['id' => $recordId], $chainParams);
-                $editUrl = Route::url(UrlBuilder::action($this->modulePage, $editAction, $editParams));
-
-                $tbodyHtml .= '<tr>';
-                $firstCol = true;
-                foreach ($columns as $field => $label) {
-                    $val = $formattedRow[$field] ?? null;
-                    $displayVal = $this->formatValue($val);
-                    if ($firstCol && $editAction !== '') {
-                        $displayVal = '<a class="text-decoration-none" href="' . _r($editUrl) . '"' . $fetchAttr . '>'
-                            . $displayVal . '</a>';
-                        $firstCol = false;
-                    }
-                    $tbodyHtml .= '<td>' . $displayVal . '</td>';
-                }
-
-                // Nested table columns.
-                foreach ($nestedContexts as $nested) {
-                    $tbodyHtml .= '<td>' . $this->renderNestedTableCell(
-                        $nested['context'],
-                        $formContext,
-                        $recordId,
-                        $rootId,
-                        $parentId
-                    ) . '</td>';
-                }
-
-                $tbodyHtml .= '</tr>';
+        foreach ($records as $row) {
+            $recordId = _absint(ModelRecordHelper::extractFieldValue($row, $primaryKey));
+            $formattedRow = is_object($row) && method_exists($row, 'getFormattedData')
+                ? $row->getFormattedData('array', false)
+                : (is_array($row) ? $row : []);
+            if (!is_array($formattedRow)) {
+                $formattedRow = [];
             }
+
+            $editParams = array_merge(['id' => $recordId], $chainParams);
+            $editUrl = Route::url(UrlBuilder::action($this->modulePage, $editAction, $editParams));
+
+            $tbodyHtml .= '<tr>';
+            $firstCol = true;
+            foreach ($columns as $field => $label) {
+                $val = $formattedRow[$field] ?? null;
+                $displayVal = $this->formatValue($val);
+                if ($firstCol && $editAction !== '') {
+                    $displayVal = '<a class="text-decoration-none" href="' . _r($editUrl) . '"' . $fetchAttr . '>'
+                        . $displayVal . '</a>';
+                    $firstCol = false;
+                }
+                $tbodyHtml .= '<td>' . $displayVal . '</td>';
+            }
+
+            // Nested table columns.
+            foreach ($nestedContexts as $nested) {
+                $tbodyHtml .= '<td>' . $this->renderNestedTableCell(
+                    $nested['context'],
+                    $formContext,
+                    $recordId,
+                    $rootId,
+                    $parentId
+                ) . '</td>';
+            }
+
+            $tbodyHtml .= '</tr>';
         }
 
         // "Add new" row / button.
@@ -392,7 +399,7 @@ class ViewBlockRenderer
         $showAdd = true;
         if ($maxRecords !== 'n') {
             $finite = UrlBuilder::getFiniteMaxRecords($maxRecords);
-            if ($finite > 0 && is_array($records) && count($records) >= $finite) {
+            if ($finite > 0 && count($records) >= $finite) {
                 $showAdd = false;
             }
         }
@@ -439,6 +446,9 @@ class ViewBlockRenderer
         $nestedModel = new $nestedModelClass();
         $nestedFkField = (string) ($nestedContext['parent_fk_field'] ?? '');
         $nestedEditAction = (string) ($nestedContext['edit_action'] ?? '');
+        if (!$this->isEditAllowedForContext($nestedContext)) {
+            $nestedEditAction = '';
+        }
         $nestedListAction = (string) ($nestedContext['list_action'] ?? '');
         $nestedMaxRecords = (string) ($nestedContext['max_records'] ?? 'n');
         $nestedHasChildren = !empty($nestedContext['children_meta_by_alias'] ?? []);
@@ -736,6 +746,31 @@ class ViewBlockRenderer
     protected function errorHtml(string $message): string
     {
         return '<p class="text-danger mb-0">' . _r($message) . '</p>';
+    }
+
+    protected function isEditAllowedForContext(array $context): bool
+    {
+        if (array_key_exists('allow_edit', $context)) {
+            return $this->normalizeBool($context['allow_edit']);
+        }
+
+        return true;
+    }
+
+    protected function normalizeBool(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+        if (is_int($value)) {
+            return $value === 1;
+        }
+
+        return in_array(
+            strtolower(trim((string) $value)),
+            ['1', 'true', 'yes', 'on'],
+            true
+        );
     }
 
     // ==================================================================

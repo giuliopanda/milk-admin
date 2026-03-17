@@ -6,6 +6,10 @@ use Modules\Auth\RememberMeService;
 use Theme\Template;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
+$is_authenticated_in = (bool) ($is_authenticated_in ?? false);
+$msg_error = isset($msg_error) ? (string) $msg_error : '';
+$redirect = isset($redirect) ? (string) $redirect : '';
+$username = isset($username) ? (string) $username : '';
 
 ?>
 <div class="center-login">

@@ -9,10 +9,20 @@
  * $page_info['pag-elperpage-show'] (optional)
  * $page_info['pagination-limit'] (optional)
  */
-$total = $page_info['total_record'];
+$page_info = (isset($page_info) && is_array($page_info)) ? $page_info : [];
+$total = (int) ($page_info['total_record'] ?? 0);
+$limit = (int) ($page_info['limit'] ?? 20);
+if ($limit <= 0) {
+    $limit = 20;
+}
+$limit_start = (int) ($page_info['limit_start'] ?? 0);
+$page_info['limit'] = $limit;
+$page_info['limit_start'] = $limit_start;
+$page_info['default_limit'] = (int) ($page_info['default_limit'] ?? $limit);
+
 $pag_limit = $page_info['pagination-limit'] ?? 14;
-$pages = ceil($page_info['total_record'] / $page_info['limit']);
-$actual_page = ceil($page_info['limit_start'] / $page_info['limit']) + 1;
+$pages = (int) ceil($total / $limit);
+$actual_page = (int) ceil($limit_start / $limit) + 1;
 
 $number_of_links = ceil(($pag_limit) / 2);
 

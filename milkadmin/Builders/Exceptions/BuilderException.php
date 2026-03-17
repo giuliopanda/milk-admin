@@ -26,7 +26,7 @@ class BuilderException extends \Exception
      * Create exception for missing field context
      *
      * @param string $method_name Name of the method that requires field context
-     * @return static
+     * @return self
      */
     public static function noCurrentField(string $method_name): self
     {
@@ -40,7 +40,7 @@ class BuilderException extends \Exception
      * Create exception for invalid field name
      *
      * @param string $field_name Invalid field name
-     * @return static
+     * @return self
      */
     public static function invalidField(string $field_name): self
     {
@@ -53,7 +53,7 @@ class BuilderException extends \Exception
      * Create exception for method chaining violation
      *
      * @param string $context Additional context about the violation
-     * @return static
+     * @return self
      */
     public static function chainingViolation(string $context = ''): self
     {

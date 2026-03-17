@@ -49,11 +49,11 @@ trait CascadeSaveTrait
             }
 
             // Check if this field is a relationship
-            if (!method_exists($this, 'hasRelationship') || !$this->hasRelationship($field_name)) {
+            if (!$this->getRelationshipDefinitionService()->hasRelationship($this->getRuleBuilder(), $field_name)) {
                 continue;
             }
 
-            $relationship = $this->getRelationship($field_name);
+            $relationship = $this->getRelationshipDefinitionService()->getRelationship($this->getRuleBuilder(), $field_name);
             if (!$relationship) {
                 continue;
             }

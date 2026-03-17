@@ -339,10 +339,6 @@ class BuilderContext
 
     private function hasRelationshipAlias(string $alias): bool
     {
-        if (!method_exists($this->model, 'getRules')) {
-            return false;
-        }
-
         $rules = $this->model->getRules();
         foreach ($rules as $rule) {
             if (!isset($rule['relationship'])) {

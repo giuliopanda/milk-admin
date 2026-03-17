@@ -32,7 +32,7 @@ class SearchUrlParamsResolver
             return $resolved;
         }
 
-        $source = is_array($request) ? $request : (is_array($_REQUEST ?? null) ? $_REQUEST : []);
+        $source = is_array($request) ? $request : $_REQUEST;
         foreach ($definitions as $definition) {
             if (!is_array($definition)) {
                 continue;
@@ -170,4 +170,3 @@ class SearchUrlParamsResolver
         return in_array($normalized, ['1', 'true', 'yes', 'on'], true);
     }
 }
-

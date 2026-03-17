@@ -132,8 +132,8 @@ HTML;
         $nextDisabledAttr = $nextDisabled ? 'disabled' : '';
 
         // Current month/year for Today button
-        $currentMonth = date('n');
-        $currentYear = date('Y');
+        $currentMonth = (int) date('n');
+        $currentYear = (int) date('Y');
 
         // Build compact class if enabled
         $compactClass = $this->data->isCompact() ? ' calendar-compact' : '';

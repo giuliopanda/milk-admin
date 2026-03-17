@@ -81,8 +81,6 @@ abstract class AbstractInstall {
 
     /**
      * Constructor
-     *
-     * @param array|null $extensions Optional array of extensions to load
      */
     public function __construct() {
     }

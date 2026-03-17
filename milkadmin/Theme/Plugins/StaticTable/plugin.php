@@ -10,6 +10,7 @@
 
 !defined('MILK_DIR') && die(); // Avoid direct access
 
+$rows = (isset($rows) && is_array($rows)) ? $rows : [];
 $primary = '';
 $info = $info ?? [];
 if (count($info) == 0){
@@ -46,8 +47,7 @@ $table_id = $table_id ?? 'tableId'.uniqid();
 
 //
 
-if (is_array($info) && is_array($rows)) : 
-    ?>
+?>
     <table <?php Theme\Template::addAttrs($table_attrs, 'table'); ?>>
         <thead <?php Theme\Template::addAttrs($table_attrs, 'thead'); ?>>
             <tr>
@@ -88,7 +88,7 @@ if (is_array($info) && is_array($rows)) :
                 <?php endforeach; ?>
             </tbody>
         <?php endif; ?>
-        <?php if ($page_info['footer'] ?? false && $footer_row > 0) : ?>
+        <?php if (($page_info['footer'] ?? false) && $footer_row !== false) : ?>
             <tfoot <?php Theme\Template::addAttrs($table_attrs, 'tfoot'); ?>>
                 <tr <?php Theme\Template::addAttrs($table_attrs, 'tfoot.tr'); ?>>
                     <?php foreach ($info as $col_name => $header) : ?>
@@ -99,5 +99,4 @@ if (is_array($info) && is_array($rows)) :
             </tfoot>
         <?php endif; ?>
     </table>
-    <?php 
-endif;
+<?php

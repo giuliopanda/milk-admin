@@ -53,9 +53,9 @@ class Hook extends AbstractHookExtension
      * @return array Modified data
      */
     #[HookCallback('init', 10)]
-    public function testInit()
+    public function testInit(array $data = []): array
     {
-        
+        return $data;
     }
 
 

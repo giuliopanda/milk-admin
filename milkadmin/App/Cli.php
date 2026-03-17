@@ -74,7 +74,7 @@ class Cli
         } catch (CliException $e) {
             self::error($e->getMessage());
             return false;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             self::error("Unexpected error: " . $e->getMessage());
             return false;
         }
@@ -98,7 +98,7 @@ class Cli
      * @throws CliException If registration fails (invalid name, not callable, or already registered)
      */
     public static function set(string $name, callable|string|array $function): void {
-        if (empty($name) || !is_string($name)) {
+        if (empty($name)) {
             throw new CliException("Function name must be a non-empty string");
         }
         if (!is_callable($function)) {
@@ -196,7 +196,7 @@ class Cli
      */
     static function drawTable(array $data, ?array $columns = null): void {
         // Early return if data is empty
-        if (!is_array($data) || count($data) == 0) {
+        if (count($data) == 0) {
             echo "No data to show\n";
             return;
         }
@@ -261,8 +261,6 @@ class Cli
                     $value = json_encode($value);
                 } elseif (is_bool($value)) {
                     $value = $value ? 'true' : 'false';
-                } elseif (is_null($value)) {
-                    $value = 'null';
                 }
                 
                 // Truncate long values
@@ -331,7 +329,7 @@ class Cli
             if ($title_length >= $width) {
                 echo $color . $title_with_spaces . $reset . "\n";
             } else {
-                $line_length = floor(($width - $title_length) / 2);
+                $line_length = (int) floor(($width - $title_length) / 2);
                 $left_line = str_repeat("━", $line_length);
                 $right_line = str_repeat("━", $width - $line_length - $title_length);
                 echo $color . $left_line . $reset . $title_with_spaces . $color . $right_line . $reset . "\n";
@@ -353,10 +351,39 @@ class Cli
      * Prints a message on the console
      *
      * @param string $msg Message to print
+     * @param string|null $color Named color (e.g. "red", "cyan") or raw ANSI code
+     * @param bool $newLine Whether to append a newline
      * @return void
      */
-    static function echo(string $msg): void {
-        print $msg."\n";
+    static function echo(string $msg, ?string $color = null, bool $newLine = true): void {
+        $prefix = '';
+        $suffix = '';
+
+        if ($color !== null && $color !== '') {
+            $map = [
+                'black' => "\033[30m",
+                'red' => "\033[31m",
+                'green' => "\033[32m",
+                'yellow' => "\033[33m",
+                'blue' => "\033[34m",
+                'magenta' => "\033[35m",
+                'cyan' => "\033[36m",
+                'white' => "\033[37m",
+                'gray' => "\033[90m",
+                'grey' => "\033[90m",
+            ];
+
+            $key = strtolower($color);
+            if (isset($map[$key])) {
+                $prefix = $map[$key];
+                $suffix = "\033[0m";
+            } elseif (str_starts_with($color, "\033[")) {
+                $prefix = $color;
+                $suffix = "\033[0m";
+            }
+        }
+
+        print $prefix . $msg . $suffix . ($newLine ? "\n" : '');
     }
 
     /**

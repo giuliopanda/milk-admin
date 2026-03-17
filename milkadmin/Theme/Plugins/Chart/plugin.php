@@ -13,13 +13,40 @@ $options = $options ?? [];
 if (!is_array($options)) {
     $options = [];
 }
-$debug = isset($_GET['debug_charts']) && $_GET['debug_charts'] !== '0';
+
+$to_bool = static function ($value, bool $default = false): bool {
+    if ($value === null) {
+        return $default;
+    }
+    if (is_bool($value)) {
+        return $value;
+    }
+    if (is_int($value) || is_float($value)) {
+        return ((int) $value) === 1;
+    }
+
+    $normalized = strtolower(trim((string) $value));
+    if ($normalized === '') {
+        return $default;
+    }
+
+    return in_array($normalized, ['1', 'true', 'yes', 'on'], true);
+};
+
 $height = $options['height'] ?? null;
 if ($height === null || $height === '') {
     $height = '260px';
 } elseif (is_numeric($height)) {
     $height = $height . 'px';
 }
+
+$wrap_chart_body = true;
+if (array_key_exists('wrap_chart_body', $options)) {
+    $wrap_chart_body = $to_bool($options['wrap_chart_body'], true);
+} elseif (array_key_exists('remove_chart_body', $options)) {
+    $wrap_chart_body = !$to_bool($options['remove_chart_body'], false);
+}
+
 if ($options === []) {
     $options = (object) [];
 }
@@ -27,22 +54,12 @@ if ($options === []) {
 ?>
 
 <div class="chart-container" id="<?php _p($id); ?>_container">
-    <?php if ($debug): ?>
-        <pre class="bg-light p-2 mb-2" style="overflow:auto; max-height: 260px;">
-<?php
-echo "chart debug\n";
-echo "id: " . $id . "\n";
-echo "type: " . $type . "\n";
-echo "height: " . $height . "\n";
-echo "data:\n";
-var_dump($data);
-echo "options:\n";
-var_dump($options);
-?>
-        </pre>
-    <?php endif; ?>
     <?php echo Get::themePlugin('loading'); ?>
-    <div class="chart-body" style="height: <?php _p($height); ?>;">
+    <?php if ($wrap_chart_body): ?>
+        <div class="chart-body" style="height: <?php _p($height); ?>; overflow:auto">
+            <canvas id="<?php _p($id); ?>" style="height: 100%; width: 100%;"></canvas>
+        </div>
+    <?php else: ?>
         <canvas id="<?php _p($id); ?>" style="height: 100%; width: 100%;"></canvas>
-    </div>
+    <?php endif; ?>
 </div>

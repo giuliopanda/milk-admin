@@ -1,5 +1,7 @@
 <?php
 namespace Modules\Docs\Pages;
+
+use App\Route;
 /**
  * @title JWT API 
  * @guide user

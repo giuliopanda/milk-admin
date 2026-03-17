@@ -940,7 +940,7 @@ class SchemaMysql {
         try {
             $this->db->prefix = Config::get('prefix');
             $result = $this->db->query('SELECT 1 FROM ' . $this->db->qn($this->table) . ' LIMIT 1');
-            $this->table_has_rows = is_object($result) && method_exists($result, 'num_rows') && $result->num_rows() > 0;
+            $this->table_has_rows = is_object($result) && $result->num_rows() > 0;
         } catch (\Throwable $e) {
             $this->table_has_rows = false;
         }
@@ -1001,7 +1001,7 @@ class SchemaMysql {
                 $result = $this->db->query("SELECT COUNT(*) as count FROM " . $this->db->qn($this->table) . " WHERE " . $this->db->qn($name) . " IS NOT NULL LIMIT 1");
                 if ($result) {
                     $row = $result->fetch_object();
-                    if ($row->count > 0) {
+                    if (is_object($row) && isset($row->count) && (int) $row->count > 0) {
                         $this->last_error = "Cannot remove field '{$name}': it contains non-null data";
                         return false;
                     }

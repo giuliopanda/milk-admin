@@ -5,6 +5,7 @@ use App\{Config, Get, MessagesHandler, Route};
 
 if (!defined('MILK_DIR')) die();
 
+$html = is_string($html ?? null) ? $html : '';
 $hide_update_form = $hide_update_form ?? false;
 $auto_reload_url = $auto_reload_url ?? '';
 $auto_reload_seconds = isset($auto_reload_seconds) ? (int)$auto_reload_seconds : 0;

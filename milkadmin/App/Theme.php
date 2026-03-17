@@ -20,13 +20,13 @@ class Theme
 	*/
 	static $registry 				= array();
 
-	/**
-	 * Stores a new variable inside an array to be used in the theme
-	 * To remove a variable, just pass NULL as the path value.	
-	 * @param string  path	Where to save the data inside the registry array es: main.mieidati.
-	 * @param mixed  data	The data to save
-	 * @return  	void
-	**/
+		/**
+		 * Stores a new variable inside an array to be used in the theme
+		 * To remove a variable, just pass NULL as the path value.	
+		 * @param string $path Where to save the data inside the registry array (es: main.mieidati)
+		 * @param mixed $data The data to save
+		 * @return void
+		**/
 	public static function set($path, $data) 
 	{
 		if ($path == '') return;
@@ -44,11 +44,11 @@ class Theme
 		self::$registry[$path][] = $data;
 	}
 
-	/**
-	 * Deletes a variable
-	 * @param  string path		The path where the data was saved inside the registry array es: main.miavar
-	 * @return  	void
-	 */
+		/**
+		 * Deletes a variable
+		 * @param string $path The path where the data was saved inside the registry array (es: main.miavar)
+		 * @return void
+		 */
 	public static function delete($path)  
 	{
 		if (isset(self::$registry[$path])) {
@@ -56,13 +56,12 @@ class Theme
 		}
 	}
 
-	/**
-	 * Returns the variable if it is an array the last variable
-	 * @param  string path		The path where the data was saved inside the registry array es: main.miavar
-	 * @param  mixed  default	If there is no data in the path returns the default value
-	 * @param  mixed  return  	Returns the stored value or the default value
-	 * @return mixed
-	**/
+		/**
+		 * Returns the variable if it is an array the last variable
+		 * @param string $path The path where the data was saved inside the registry array (es: main.miavar)
+		 * @param mixed $default If there is no data in the path returns the default value
+		 * @return mixed
+		**/
 	public static function get($path, $default = null) 
 	{
 		if (isset(self::$registry[$path])) {
@@ -78,12 +77,13 @@ class Theme
 		return Hooks::run('theme_get_'.$path, $return, 'string');
 	}
 
-	/**
-	 * Orders an array of data based on a key
-	 * @param  \string path			The name of the variable
-	 * @param  \string order_field	The key to order by
-	 * @param  \string dir			The direction of the sorting asc or desc
-	 */
+		/**
+		 * Orders an array of data based on a key
+		 * @param string $path The name of the variable
+		 * @param string $order_field The key to order by
+		 * @param string $dir The direction of the sorting asc or desc
+		 * @return void
+		 */
 	static function multiarrayOrder($path, $order_field, $dir='asc') {
 		$data = self::getAll($path);
 		if (is_array($data)) {
@@ -100,12 +100,12 @@ class Theme
 		}
 	}
 
-	/**
-	 * Returns the variable if it is an array the last variable
-	 * @param  string path		The name of the variable
-	 * @param  mixed  default	If there is no data in the path returns the default value
-	 * @param  mixed  return  	mixed
-	**/
+		/**
+		 * Returns the variable if it is an array the last variable
+		 * @param string $path The name of the variable
+		 * @param mixed $default If there is no data in the path returns the default value
+		 * @return mixed
+		**/
 	static function getAll($path, $default = null) 
 	{
 		if (isset(self::$registry[$path])) {
@@ -115,20 +115,20 @@ class Theme
 		}
 		return Hooks::run('theme_get_'.$path, $return, 'array');
 	}
-	/**
-	 * Verifies if a variable is set
-	 * @param  \string path		The path where the data was saved inside the registry array es: main.miavar
-	 * @param  \bool  return 
-	**/
+		/**
+		 * Verifies if a variable is set
+		 * @param string $path The path where the data was saved inside the registry array (es: main.miavar)
+		 * @return bool
+		**/
 	static function has($path) {
 		return isset(self::$registry[$path]);
 	}
 
-	/**
-	 * Iterates over a variable. 
-	 *@param   path		string	The path where the data was saved inside the registry array es: main.miavar
-	 *@param   return  	yield
-	**/
+		/**
+		 * Iterates over a variable. 
+		 * @param string $path The path where the data was saved inside the registry array (es: main.miavar)
+		 * @return \Generator<mixed, mixed, mixed, void>
+		**/
 	static function for($path) 
 	{
         $data = self::getAll($path);
@@ -141,14 +141,16 @@ class Theme
 		return;
     }
 
-	/**
-	 * Verifies if a variable is of a certain type
-	 * @param   var		mixed		The variable to verify
-	 * @param   type	string		The type to verify
-	 * If type is an array or an object, it verifies that the keys are present
-	 * If it is an object, it also verifies that the object is of the same type
-	 * @return  	Boolean
-	 */
+		/**
+		 * Verifies if a variable is of a certain type
+		 *
+		 * If type is an array or an object, it verifies that the keys are present.
+		 * If it is an object, it also verifies that the object is of the same type.
+		 *
+		 * @param mixed $var The variable to verify
+		 * @param mixed $type The type to verify
+		 * @return bool
+		 */
 	static function check($var, $type) {
 		
 		if ($type == 'string' && is_string($var)) {

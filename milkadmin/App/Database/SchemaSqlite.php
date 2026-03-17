@@ -36,7 +36,7 @@ class SchemaSqlite {
     
     private array $fields = [];
     private array $indices = [];
-    private ?array $primary_keys = [];
+    private array $primary_keys = [];
     private ?string $primary_key = null;  // manteniamo per retrocompatibilità
 
     private array $differences = [];
@@ -284,21 +284,18 @@ class SchemaSqlite {
         $sql .= implode(",\n", $fields_sql);
         $sql .= "\n);";
         
-        // Esegui la creazione tabella
-        $this->db->query($sql);
-        if ($this->db->error) {
-            $this->last_error = $this->db->last_error;
-            return false;
-        }
+        try {
+            // Esegui la creazione tabella
+            $this->db->query($sql);
 
-        // Crea gli indici separatamente (SQLite richiede CREATE INDEX separati)
-        foreach ($this->indices as $index) {
-            $index_sql = $index->toSqlSqlite($this->table);
-            $this->db->query($index_sql);
-            if ($this->db->error) {
-                $this->last_error = $this->db->last_error;
-                return false;
+            // Crea gli indici separatamente (SQLite richiede CREATE INDEX separati)
+            foreach ($this->indices as $index) {
+                $index_sql = $index->toSqlSqlite($this->table);
+                $this->db->query($index_sql);
             }
+        } catch (\Throwable $e) {
+            $this->last_error = $this->db->last_error !== '' ? $this->db->last_error : $e->getMessage();
+            return false;
         }
 
         $this->differences = ['action' => 'create', 'table' => $this->table, 'fields' => $insertFields];
@@ -363,24 +360,14 @@ class SchemaSqlite {
             
             // 3. Elimina la tabella originale
             $this->db->query("DROP TABLE " . $this->db->qn($this->table));
-            if ($this->db->error) {
-                throw new \Exception("Errore durante l'eliminazione della tabella originale");
-            }
             
             // 4. Rinomina la tabella temporanea
             $this->db->query("ALTER TABLE " . $this->db->qn($temp_table) . " RENAME TO " . $this->db->qn($this->table));
-            if ($this->db->error) {
-                throw new \Exception("Errore durante il rename della tabella");
-            }
             
             // 5. Ricrea gli indici
             foreach ($this->indices as $index) {
                 $sql = $index->toSqlSqlite($this->table);
                 $this->db->query($sql);
-                if ($this->db->error) {
-                    $this->last_error = $this->db->last_error;
-                    return false;
-                }
             }
             
             return true;

@@ -1,6 +1,7 @@
 <?php
 namespace Extensions\Projects\Classes;
 
+use App\Abstracts\AbstractModule;
 use App\Exceptions\FileException;
 use App\File;
 
@@ -103,6 +104,44 @@ class ProjectJsonStore
         unset(self::$instances[$key]);
     }
 
+    /**
+     * Return the manifest data for the current/requested module page.
+     *
+     * Returns false when:
+     * - page is missing or module instance is not available
+     * - module does not use Projects extension
+     * - manifest file is missing/unreadable/invalid
+     *
+     * @param string|null $modulePage Optional module page slug. Defaults to $_REQUEST['page'].
+     * @return array|false
+     */
+    public static function getCurrentManifestData(?string $modulePage = null): array|false
+    {
+        $module = self::resolveModuleInstance($modulePage);
+        if (!$module instanceof AbstractModule) {
+            return false;
+        }
+
+        $extensions = self::readModuleExtensions($module);
+        if (!self::moduleUsesProjectsExtension($module, $extensions)) {
+            return false;
+        }
+
+        $moduleDir = self::resolveModuleDir($module);
+        if ($moduleDir === '') {
+            return false;
+        }
+
+        $projectsConfig = self::resolveProjectsExtensionConfig($extensions);
+        $manifestPath = self::findModuleManifestPath($moduleDir, $projectsConfig);
+        if ($manifestPath === null) {
+            return false;
+        }
+
+        $manifest = self::for(dirname($manifestPath))->manifest();
+        return is_array($manifest) ? $manifest : false;
+    }
+
     // ------------------------------------------------------------------
     //  Instance state
     // ------------------------------------------------------------------
@@ -180,6 +219,145 @@ class ProjectJsonStore
     private function __construct(string $projectDir)
     {
         $this->dir = rtrim(str_replace('\\', '/', $projectDir), '/');
+    }
+
+    /**
+     * Resolve module instance from an explicit page or current request page.
+     */
+    private static function resolveModuleInstance(?string $modulePage = null): ?AbstractModule
+    {
+        $page = trim((string) ($modulePage ?? ($_REQUEST['page'] ?? '')));
+        if ($page === '') {
+            return null;
+        }
+
+        $module = AbstractModule::getInstance($page);
+        return $module instanceof AbstractModule ? $module : null;
+    }
+
+    /**
+     * Read normalized extensions array from module instance.
+     *
+     * @return array<string|int, mixed>
+     */
+    private static function readModuleExtensions(AbstractModule $module): array
+    {
+        try {
+            $reflection = new \ReflectionObject($module);
+            while ($reflection instanceof \ReflectionClass) {
+                if ($reflection->hasProperty('extensions')) {
+                    $property = $reflection->getProperty('extensions');
+                    $value = $property->getValue($module);
+                    return is_array($value) ? $value : [];
+                }
+                $reflection = $reflection->getParentClass();
+            }
+        } catch (\Throwable) {
+            return [];
+        }
+
+        return [];
+    }
+
+    /**
+     * Detect whether the given module uses the Projects extension.
+     *
+     * @param array<string|int, mixed> $extensions
+     */
+    private static function moduleUsesProjectsExtension(AbstractModule $module, array $extensions): bool
+    {
+        $loaded = $module->getLoadedExtensions('Projects');
+        if (is_object($loaded)) {
+            return true;
+        }
+
+        foreach ($extensions as $key => $value) {
+            if (is_string($key) && strcasecmp(trim($key), 'Projects') === 0) {
+                return true;
+            }
+            if (is_int($key) && is_string($value) && strcasecmp(trim($value), 'Projects') === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Extract Projects extension config from module extensions.
+     *
+     * @param array<string|int, mixed> $extensions
+     * @return array<string,mixed>
+     */
+    private static function resolveProjectsExtensionConfig(array $extensions): array
+    {
+        foreach ($extensions as $key => $value) {
+            if (is_string($key) && strcasecmp(trim($key), 'Projects') === 0) {
+                return is_array($value) ? $value : [];
+            }
+            if (is_int($key) && is_string($value) && strcasecmp(trim($value), 'Projects') === 0) {
+                return [];
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Resolve module directory from module concrete class file path.
+     */
+    private static function resolveModuleDir(AbstractModule $module): string
+    {
+        try {
+            $moduleFilePath = (string) (new \ReflectionClass($module))->getFileName();
+        } catch (\Throwable) {
+            return '';
+        }
+
+        if ($moduleFilePath === '') {
+            return '';
+        }
+
+        $normalized = str_replace('\\', '/', $moduleFilePath);
+        if (preg_match('~^(.*?/Modules/[^/]+)(?:/.*)?$~', $normalized, $matches) === 1) {
+            return rtrim((string) $matches[1], '/');
+        }
+
+        return rtrim((string) dirname($moduleFilePath), '/');
+    }
+
+    /**
+     * Find manifest path for a module directory.
+     *
+     * @param array<string,mixed> $projectsConfig
+     */
+    private static function findModuleManifestPath(string $moduleDir, array $projectsConfig = []): ?string
+    {
+        $moduleDir = rtrim(str_replace('\\', '/', $moduleDir), '/');
+        if ($moduleDir === '') {
+            return null;
+        }
+
+        $folders = [];
+        $schemaFolder = trim((string) ($projectsConfig['schemaFolder'] ?? ''));
+        if ($schemaFolder !== '') {
+            $folders[] = trim($schemaFolder, "/\\ \t\n\r\0\x0B");
+        }
+
+        $folders[] = 'Project';
+        $folders[] = 'project';
+        $folders[] = 'Projects';
+        $folders[] = 'projects';
+        $folders = array_values(array_unique(array_filter($folders, static fn($folder): bool => $folder !== '')));
+
+        foreach ($folders as $folder) {
+            $path = $moduleDir . '/' . $folder . '/manifest.json';
+            if (is_file($path)) {
+                return $path;
+            }
+        }
+
+        return null;
     }
 
     // ------------------------------------------------------------------

@@ -210,12 +210,12 @@ class ProjectUninstallService
 
         $tableName = '';
         if (preg_match('/->table\\(\\s*[\'"]([^\'"]+)[\'"]\\s*\\)/', $content, $matches) === 1) {
-            $tableName = trim((string) ($matches[1] ?? ''));
+            $tableName = trim((string) $matches[1]);
         }
 
         $dbType = '';
         if (preg_match('/->db\\(\\s*[\'"]([^\'"]+)[\'"]\\s*\\)/', $content, $matches) === 1) {
-            $dbType = trim((string) ($matches[1] ?? ''));
+            $dbType = trim((string) $matches[1]);
         }
 
         return ['table_name' => $tableName, 'db_type' => $dbType];
@@ -233,7 +233,7 @@ class ProjectUninstallService
         try {
             if ($normalizedDbType === 'db2') {
                 $connection = Get::db2();
-            } elseif ($normalizedDbType !== '' && method_exists(Get::class, 'dbConnection')) {
+            } elseif ($normalizedDbType !== '') {
                 $connection = Get::dbConnection($normalizedDbType);
             } else {
                 $connection = Get::db();
@@ -242,7 +242,7 @@ class ProjectUninstallService
             $connection = null;
         }
 
-        if (!is_object($connection) || !method_exists($connection, 'dropTable')) {
+        if (!is_object($connection)) {
             return false;
         }
 

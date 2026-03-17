@@ -38,8 +38,7 @@ class AuthModule extends AbstractModule
          */
         Hooks::set('route_before_run', function($page) {
             if ($page == 'deny') {
-                $user = Get::make('Auth')->getUser();
-                if ($user->is_guest) {
+                if ($this->isCurrentUserGuest()) {
                     $redirect = ['page'=>'auth', 'action'=>'login'];
                     if (isset($_REQUEST['redirect'])) {
                         $redirect['redirect'] = $_REQUEST['redirect'];
@@ -75,14 +74,10 @@ class AuthModule extends AbstractModule
          // If there's no version, it means the system still needs to be installed
 
          $links = LinksBuilder::create();
-        if (!Permissions::check('_user.is_guest')) {
-            //  horizontal menu  
-            $user = Get::make('Auth');
-            if ($user) {
-                $user->getUser();     
-                $links->add('Profile', '?page=auth&action=profile')->icon('bi bi-person-circle')
-                ->add('Logout', '?page=auth&action=logout')->icon('bi bi-box-arrow-right');
-            }
+        if (!$this->isCurrentUserGuest()) {
+            // horizontal menu
+            $links->add('Profile', '?page=auth&action=profile')->icon('bi bi-person-circle')
+            ->add('Logout', '?page=auth&action=logout')->icon('bi bi-box-arrow-right');
         } 
         if (Permissions::check('auth.manage')) {
             // The user is an administrator
@@ -221,6 +216,7 @@ class AuthModule extends AbstractModule
             Cli::error("This function can only be executed from command line");
             return false;
         }
+        $user_model = new UserModel();
 
         // Generate default values if not provided
         if (empty($username)) {
@@ -235,18 +231,17 @@ class AuthModule extends AbstractModule
         $password = $this->generateSecurePassword();
 
         // Check if username already exists
-        $existing_user = Get::db()->getRow('SELECT id FROM `#__users` WHERE username = ?', [$username]);
-        if ($existing_user) {
+        if ($user_model->usernameExists((string) $username)) {
             Cli::error("Username '$username' already exists. Please choose a different username.");
             Cli::echo("Usage: php milkadmin/cli.php create-administrator [username] [email]");
             return false;
         }
 
         // Create the administrator user
-        $user_id = Get::make('Auth')->saveUser(0, $username, $email, $password, 1, 1);
+        $user_id = $user_model->saveUserData(0, $username, $email, $password, 1, 1, [], 'UTC', '');
         
-        if ($user_id === false || $user_id == 0) {
-            $error = Get::make('Auth')->getLastError();
+        if ($user_id === false || (int) $user_id == 0) {
+            $error = $user_model->last_error;
             Cli::error("Failed to create administrator user: " . ($error ?: 'Unknown error'));
             return false;
         }
@@ -285,20 +280,57 @@ class AuthModule extends AbstractModule
         return $randomString;
     }
 
+    /**
+     * Determine if current request belongs to a guest session.
+     */
+    private function isCurrentUserGuest(): bool {
+        $session_model = new SessionModel();
+        $session = $this->findCurrentSession($session_model);
+        if (!is_object($session)) {
+            return true;
+        }
+        return ((int) ($session->user_id ?? 0) <= 0);
+    }
+
+    /**
+     * Find current active session based on PHP session id and client IP.
+     */
+    private function findCurrentSession(SessionModel $session_model): ?object {
+        $expired_session = (int) Config::get('auth_expires_session', 15);
+        $minutes = max(1, $expired_session - 2);
+        $currentDateTime = new \DateTime();
+        $currentDateTime->modify('-' . $minutes . ' minutes');
+        $formattedDateTime = $currentDateTime->format('Y-m-d H:i:s');
+
+        return $session_model->findActiveByPhpSessionAndIp(
+            (string) session_id(),
+            $formattedDateTime,
+            Get::clientIp()
+        );
+    }
+
 }
 
-// carico la classe contract
+// carico assets sessione solo se esiste una sessione utente autenticata
 Hooks::set('modules_loaded', function() {
     if (Cli::isCli()) return;
-    $auth = Get::make('Auth');
+    if (Config::get('version') != null) {
+        // Initialize Auth early to override default _user permissions from autoload.php.
+        Get::make('Auth');
 
-    if (Config::get('version') != null) { 
-       
-        if ($auth) {
-            $user = $auth->getUser();
-            if (!$user->is_guest) {
-                Theme::set('javascript', Route::url().'/Modules/Auth/Assets/sessions.js');
-            }
+        $session_model = new SessionModel();
+        $expired_session = (int) Config::get('auth_expires_session', 15);
+        $minutes = max(1, $expired_session - 2);
+        $currentDateTime = new \DateTime();
+        $currentDateTime->modify('-' . $minutes . ' minutes');
+        $formattedDateTime = $currentDateTime->format('Y-m-d H:i:s');
+        $session = $session_model->findActiveByPhpSessionAndIp(
+            (string) session_id(),
+            $formattedDateTime,
+            Get::clientIp()
+        );
+        if (is_object($session) && ((int) ($session->user_id ?? 0) > 0)) {
+            Theme::set('javascript', Route::url().'/Modules/Auth/Assets/sessions.js');
         }
     }
 }, 9);

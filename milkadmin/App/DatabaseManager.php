@@ -343,6 +343,12 @@ class DatabaseManager
             // The database classes handle their own cleanup in destructor
             unset(self::$connections[$name]);
         }
+
+        if ($name === 'db') {
+            Get::closeConnections();
+        } elseif ($name === 'db2') {
+            Get::closeConnections();
+        }
     }
 
     /**
@@ -355,6 +361,7 @@ class DatabaseManager
     public static function disconnectAll(): void
     {
         self::$connections = [];
+        Get::resetDatabaseConnections();
     }
 
     /**

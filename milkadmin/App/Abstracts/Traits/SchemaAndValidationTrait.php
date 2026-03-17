@@ -1,7 +1,7 @@
 <?php
 namespace App\Abstracts\Traits;
 
-use App\{Get, MessagesHandler, ModelValidator};
+use App\{Get, MessagesHandler, ModelValidator, Sanitize};
 
 !defined('MILK_DIR') && die();
 
@@ -142,7 +142,7 @@ trait SchemaAndValidationTrait
                         if ($configuredLength > 0) {
                             $max = max($max, $configuredLength);
                         }
-                        $schema->string($name, $max ?? 255, $rule['nullable'], $rule['default']);
+                        $schema->string($name, $max, $rule['nullable'], $rule['default']);
                     }
                     break;
                 case 'enum':
@@ -161,7 +161,7 @@ trait SchemaAndValidationTrait
                         if ($configuredLength > 0) {
                             $max = max($max, $configuredLength);
                         }
-                        $schema->string($name, ($max ?? 255), $rule['nullable'], $rule['default']);
+                        $schema->string($name, $max, $rule['nullable'], $rule['default']);
                     }
                     break;
                 default:
@@ -201,7 +201,7 @@ trait SchemaAndValidationTrait
      */
     public function getQueryColumns() {
         if (!$this->get_query_columns) {
-            if (isset($this->records_objects) && is_array($this->records_objects) && !empty($this->records_objects)) {
+            if (isset($this->records_objects) && !empty($this->records_objects)) {
                 $this->get_query_columns = array_keys(reset($this->records_objects));
             } 
         }
@@ -249,9 +249,7 @@ trait SchemaAndValidationTrait
         if ($schema->exists()) {
                 if ($schema->modify($force_update)) {
                 $this->schema_field_differences = $schema->getFieldDifferences();
-                if (method_exists($this, 'afterModifyTable')) {
-                    $this->afterModifyTable();
-                }
+                $this->afterModifyTable();
                 return true;
                 } else {
                 $this->last_error = $schema->getLastError();
@@ -260,9 +258,7 @@ trait SchemaAndValidationTrait
         } else {
             if ($schema->create()) {
                 $this->schema_field_differences = $schema->getFieldDifferences();
-                if (method_exists($this, 'afterCreateTable')) {
-                    $this->afterCreateTable();
-                }
+                $this->afterCreateTable();
                 return true;
             } else {
                 $this->last_error = $schema->getLastError() ?? '';
@@ -310,10 +306,10 @@ trait SchemaAndValidationTrait
         $schema = Get::schema($this->table, $this->db);
         if ($schema === null) {
             $db = $this->db ?? Get::db();
-            if ($db && method_exists($db, 'dropTable')) {
+            if ($db) {
                 return (bool) $db->dropTable($this->table);
             }
-            $this->last_error = _r('Schema adapter not available for database type.');
+            $this->last_error = Sanitize::input('Schema adapter not available for database type.', 'string');
             return false;
         }
         return $schema->drop();
@@ -406,8 +402,8 @@ trait SchemaAndValidationTrait
 
         $validator = new ModelValidator($rules);
         foreach ($records_to_validate as $record_info) {
-            $data = (array) ($record_info['data'] ?? []);
-            $validator->validate($data);
+            $data = (array) $record_info['data'];
+            $validator->validate($this->getExpressionParameterNormalizerService()->normalize($this, $data));
             $this->validateCustomHandlers($data, $rules);
         }
 

@@ -34,7 +34,6 @@ trait QueryBuilderTrait
      */
     public function query(): ?Query
     {
-        $apply_scopes = false;
         if ($this->current_query !== null) {
             if ($this->current_query->getLastExecutedQuery() !== null) {
                 $this->current_query = null;
@@ -42,19 +41,15 @@ trait QueryBuilderTrait
                 return $this->current_query;
             }
         }
-        if ($this->current_query === null) {
-            $new_model = new static();
-            if (!empty($this->include_relationships)) {
-                $new_model->with($this->include_relationships);
-            }
-            $this->current_query = new Query($this->table, $this->db, $new_model);
-            $apply_scopes = true;
+
+        $new_model = new static();
+        if (!empty($this->include_relationships)) {
+            $new_model->with($this->include_relationships);
         }
+        $this->current_query = new Query($this->table, $this->db, $new_model);
 
         // Apply query scopes (default and named queries)
-        if ($apply_scopes && method_exists($this, 'applyQueryScopes')) {
-            $this->current_query = $this->applyQueryScopes($this->current_query);
-        }
+        $this->current_query = $this->applyQueryScopes($this->current_query);
 
         return $this->current_query;
     }
@@ -207,8 +202,8 @@ trait QueryBuilderTrait
     /**
      * Execute the current query and return a Model with single record
      *
-     * @param string $query The SQL query to execute
-     * @param array $params Parameters to pass to the query to prevent SQL injection
+     * @param string $order_field Order field name
+     * @param string $order_dir Order direction
      *
      * @example
      * ```php
@@ -228,7 +223,7 @@ trait QueryBuilderTrait
         }
         $result = $query->getRow();
         $this->current_query = null;
-        return $result;
+        return ($result instanceof static) ? $result : null;
     }
 
     /**
@@ -358,7 +353,8 @@ trait QueryBuilderTrait
                     $filter_type = explode(':', $filter);
                     $filter = implode(':', array_slice($filter_type, 1));
                     $filter_type = $filter_type[0];
-                    $standard_fn_filter =  'filter_' ._raz($filter_type);
+                    $sanitizedFilterType = preg_replace('/[^0-9a-zA-Z_]/', '', (string) $filter_type);
+                    $standard_fn_filter =  'filter_' . (is_string($sanitizedFilterType) ? $sanitizedFilterType : '');
                     if (isset($this->fn_filter[$filter_type])) {
                         call_user_func($this->fn_filter[$filter_type], $filter, $query);
                     } else if (method_exists($this, $standard_fn_filter)) {

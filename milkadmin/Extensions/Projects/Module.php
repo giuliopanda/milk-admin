@@ -9,6 +9,7 @@ use App\Response;
 use App\Route;
 use App\Settings;
 use App\Token;
+use App\Hooks;
 use Builders\FormBuilder;
 use Builders\SearchBuilder;
 use Builders\TableBuilder;
@@ -60,9 +61,21 @@ use Extensions\Projects\Classes\ProjectNaming;
 class Module extends AbstractModuleExtension
 {
     protected const AUTO_SOFT_DELETE_SCOPE_FILTER = 'projects_soft_delete_scope';
+    protected const SPECIAL_PERMISSION_MAIN_TABLE_EDIT = 'main_table_edit';
+    protected const SPECIAL_PERMISSION_MAIN_TABLE_VIEW = 'main_table_view';
+    protected const SPECIAL_PERMISSION_MAIN_TABLE_DELETE = 'main_table_delete';
 
     protected string $schemaFolder = 'Project';
     protected array $manifestErrors = [];
+    protected bool $specialPermissionManifestIdResolved = false;
+    protected string $specialPermissionManifestId = '';
+    /** @var array{block_title:string,block_name:string,row_name:string} */
+    protected array $specialPermissionUiMeta = [
+        'block_title' => '',
+        'block_name' => 'Access Data',
+        'row_name' => '',
+    ];
+    protected bool $specialPermissionUiMetaResolved = false;
 
     protected ActionContextRegistry $registry;
     protected BreadcrumbManager $breadcrumbManager;
@@ -146,6 +159,8 @@ class Module extends AbstractModuleExtension
 
     public function configure(ModuleRuleBuilder $rule_builder): void
     {
+        Hooks::set('project_get_special_permissions', [$this, 'collectSpecialPermissionsForHook'], 10);
+
         $moduleReflection = new \ReflectionClass($this->module);
         $moduleNamespace = $moduleReflection->getNamespaceName();
         $moduleDir = $this->resolveModuleDirFromPath((string) $moduleReflection->getFileName());
@@ -219,7 +234,15 @@ class Module extends AbstractModuleExtension
         $this->listRenderer = null;
         $this->editRenderer = null;
         $this->viewRenderer = null;
-        $this->viewSchema = null;  
+        $this->viewSchema = null;
+        $this->specialPermissionManifestIdResolved = false;
+        $this->specialPermissionManifestId = '';
+        $this->specialPermissionUiMetaResolved = false;
+        $this->specialPermissionUiMeta = [
+            'block_title' => '',
+            'block_name' => 'Access Data',
+            'row_name' => '',
+        ];
 
         // Global Projects action available for every module using this extension.
         $this->module->registerRequestAction('download-file', [$this, 'renderDownloadFilePage']);
@@ -253,6 +276,103 @@ class Module extends AbstractModuleExtension
     public function getManifestErrors(): array
     {
         return $this->manifestErrors;
+    }
+
+    /**
+     * Return additional project permissions for the current module,
+     * including their default value when not explicitly set.
+     *
+     * @return array<int,array{permission:string,default:bool}>
+     */
+    public function getAdditionalPermissionsWithDefault(): array
+    {
+        $permissionKeys = [
+            self::SPECIAL_PERMISSION_MAIN_TABLE_EDIT,
+            self::SPECIAL_PERMISSION_MAIN_TABLE_VIEW,
+            self::SPECIAL_PERMISSION_MAIN_TABLE_DELETE,
+        ];
+        $uiMeta = $this->resolveSpecialPermissionUiMeta();
+
+        $permissions = [];
+        foreach ($permissionKeys as $permissionKey) {
+            $permissionName = $this->buildMainTableSpecialPermissionName($permissionKey);
+            if ($permissionName === '') {
+                continue;
+            }
+
+            $permissions[] = [
+                'permission' => 'project.' . $permissionName,
+                'default' => true,
+                'block_title' => $uiMeta['block_title'],
+                'block_name' => $uiMeta['block_name'],
+                'row_name' => $uiMeta['row_name'],
+            ];
+        }
+
+        return $permissions;
+    }
+
+    /**
+     * Hook callback for:
+     * Hooks::run('project_get_special_permissions', [], ?string $modulePage)
+     *
+     * @param array<int,array{permission:string,default:bool}>|mixed $permissions
+     * @return array<int,array{permission:string,default:bool}>
+     */
+    public function collectSpecialPermissionsForHook(mixed $permissions = [], ?string $modulePage = null): array
+    {
+        $normalized = is_array($permissions) ? $permissions : [];
+        $requestedModulePage = strtolower(trim((string) $modulePage));
+        $currentModulePage = strtolower(trim((string) $this->module->getPage()));
+
+        if ($requestedModulePage !== '' && $currentModulePage !== '' && $requestedModulePage !== $currentModulePage) {
+            return $normalized;
+        }
+
+        $known = [];
+        foreach ($normalized as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            $permission = trim((string) ($entry['permission'] ?? ''));
+            if ($permission !== '') {
+                $known[$permission] = true;
+            }
+        }
+
+        foreach ($this->getAdditionalPermissionsWithDefault() as $entry) {
+            $permission = trim((string) ($entry['permission'] ?? ''));
+            if ($permission === '' || isset($known[$permission])) {
+                continue;
+            }
+            $normalized[] = $entry;
+            $known[$permission] = true;
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Special permission gateway for Projects extension.
+     *
+     * Permission string format must be: "group.permission_key" (exactly one dot).
+     * Main table permissions used by this extension:
+     * - "project.<manifest_id>.main_table_edit"
+     * - "project.<manifest_id>.main_table_view"
+     * - "project.<manifest_id>.main_table_delete"
+     *
+     * Rules:
+     * - "group" is the manifest id (example: "reports_project").
+     * - "permission_key" should be snake_case (example: "main_table_edit").
+     */
+    public function checkSpecialPermission(string $permissionName): bool
+    {
+        $permissionName = trim($permissionName);
+        //die($permissionName);
+        if ($permissionName === '') {
+            return true;
+        }
+        return Hooks::run("project_check_special_permission", true, 'project.'.$permissionName);
     }
 
     public function renderAutoListPage(): void
@@ -307,7 +427,6 @@ class Module extends AbstractModuleExtension
         if ($context === null) {
             MessagesHandler::addError('No form context available for delete action.');
             Route::redirect(['page' => $this->module->getPage()]);
-            return;
         }
         if (!$this->canManageDeleteRecordsForContext($context)) {
             $msg = 'You are not allowed to delete or restore records.';
@@ -320,14 +439,12 @@ class Module extends AbstractModuleExtension
                 return;
             }
             Route::redirect(['page' => $this->module->getPage()]);
-            return;
         }
 
         $modelClass = (string) ($context['model_class'] ?? '');
         if ($modelClass === '' || !class_exists($modelClass)) {
             MessagesHandler::addError('Model class not found for delete action.');
             Route::redirect(['page' => $this->module->getPage()]);
-            return;
         }
 
         $model = new $modelClass();
@@ -335,14 +452,12 @@ class Module extends AbstractModuleExtension
         if ($primaryKey === '') {
             MessagesHandler::addError('Invalid primary key for delete action.');
             Route::redirect(['page' => $this->module->getPage()]);
-            return;
         }
 
         $id = _absint($_REQUEST['id'] ?? 0);
         if ($id <= 0) {
             MessagesHandler::addError('Missing record id for delete action.');
             Route::redirect(['page' => $this->module->getPage()]);
-            return;
         }
 
         if (!$this->isValidDeleteConfirmation($context, $id)) {
@@ -358,7 +473,6 @@ class Module extends AbstractModuleExtension
                 return;
             }
             Route::redirect(['page' => $this->module->getPage()]);
-            return;
         }
 
         $requestedRootId = (bool) ($context['is_root'] ?? false)
@@ -749,13 +863,122 @@ class Module extends AbstractModuleExtension
         return "Cannot {$action}: project status is {$statusLabel}.";
     }
 
+    protected function buildMainTableSpecialPermissionName(string $permissionKey): string
+    {
+        $manifestId = $this->resolveSpecialPermissionManifestId();
+        $permissionKey = strtolower(trim($permissionKey));
+        if ($manifestId === '' || $permissionKey === '') {
+            return '';
+        }
+
+        return $manifestId . '.' . $permissionKey;
+    }
+
+    protected function hasMainTableSpecialPermission(string $permissionKey): bool
+    {
+        $permissionName = $this->buildMainTableSpecialPermissionName($permissionKey);
+        if ($permissionName === '') {
+            return true;
+        }
+
+        return $this->checkSpecialPermission(
+            $permissionName
+        );
+    }
+
+    protected function resolveSpecialPermissionManifestId(): string
+    {
+        if ($this->specialPermissionManifestIdResolved) {
+            return $this->specialPermissionManifestId;
+        }
+
+        $this->specialPermissionManifestIdResolved = true;
+        $manifestData = ProjectJsonStore::getCurrentManifestData((string) $this->module->getPage());
+        if (!is_array($manifestData)) {
+            $this->specialPermissionManifestId = '';
+            return '';
+        }
+
+        $this->specialPermissionManifestId = strtolower(trim((string) ($manifestData['id'] ?? '')));
+        return $this->specialPermissionManifestId;
+    }
+
+    /**
+     * @return array{block_title:string,block_name:string,row_name:string}
+     */
+    protected function resolveSpecialPermissionUiMeta(): array
+    {
+        if ($this->specialPermissionUiMetaResolved) {
+            return $this->specialPermissionUiMeta;
+        }
+
+        $this->specialPermissionUiMetaResolved = true;
+        $blockTitle = '';
+        $rowName = '';
+        $blockName = 'Access Data';
+
+        try {
+            $moduleReflection = new \ReflectionClass($this->module);
+            $moduleDir = $this->resolveModuleDirFromPath((string) $moduleReflection->getFileName());
+            $manifestPath = $this->findManifestPath($moduleDir);
+            if ($manifestPath !== null) {
+                $store = ProjectJsonStore::for(dirname($manifestPath));
+                $manifestData = $store->manifest();
+                if (is_array($manifestData)) {
+                    $blockTitle = trim((string) ($manifestData['name'] ?? ''));
+                }
+
+                $index = $store->manifestIndex();
+                if ($index instanceof ProjectManifestIndex) {
+                    $rootFormNames = $index->getRootFormNames();
+                    $rootFormName = trim((string) ($rootFormNames[0] ?? ''));
+                    if ($rootFormName !== '') {
+                        $rowName = $store->schemaTitle($rootFormName, $rootFormName);
+                    }
+                }
+            }
+        } catch (\Throwable) {
+            // Keep fallbacks
+        }
+
+        if ($blockTitle === '') {
+            $blockTitle = trim((string) $this->module->getPage());
+        }
+        if ($rowName === '') {
+            $rowName = 'Main Table';
+        }
+
+        $this->specialPermissionUiMeta = [
+            'block_title' => $blockTitle,
+            'block_name' => $blockName,
+            'row_name' => $rowName,
+        ];
+
+        return $this->specialPermissionUiMeta;
+    }
+
+    /**
+     * @param array<string,mixed> $context
+     */
+    protected function isRootContext(array $context): bool
+    {
+        return ProjectJsonStore::normalizeBool($context['is_root'] ?? false);
+    }
+
     /**
      * @param array<string,mixed> $context
      */
     protected function canManageDeleteRecordsForContext(array $context): bool
     {
-        if ($this->isCurrentUserAdministrator()) {
-            return true;
+        if (
+            $this->isRootContext($context)
+            && !$this->hasMainTableSpecialPermission(self::SPECIAL_PERMISSION_MAIN_TABLE_DELETE)
+        ) {
+            return false;
+        }
+
+        if (array_key_exists('can_manage_delete_records', $context)) {
+            return ProjectJsonStore::normalizeBool($context['can_manage_delete_records']);
         }
 
         $softDeleteEnabled = ProjectJsonStore::normalizeBool(
@@ -808,7 +1031,7 @@ class Module extends AbstractModuleExtension
         }
 
         if (is_int($value) || is_float($value)) {
-            return (string) $value !== '';
+            return true;
         }
 
         if (is_object($value)) {
@@ -995,6 +1218,13 @@ class Module extends AbstractModuleExtension
             $config->allowDeleteRecord = false;
             $config->canManageDeleteRecords = false;
         }
+        if ($isRoot && !$this->hasMainTableSpecialPermission(self::SPECIAL_PERMISSION_MAIN_TABLE_EDIT)) {
+            $config->allowEdit = false;
+        }
+        if ($isRoot && !$this->hasMainTableSpecialPermission(self::SPECIAL_PERMISSION_MAIN_TABLE_DELETE)) {
+            $config->allowDeleteRecord = false;
+            $config->canManageDeleteRecords = false;
+        }
         $config->searchFilters = $isRoot
             ? $this->resolveSearchFiltersForForm($searchFiltersByForm, $formName)
             : [];
@@ -1022,7 +1252,11 @@ class Module extends AbstractModuleExtension
         }
 
         // -- Display --
-        $config->viewActionEnabled = $isRoot ? (bool) ($node['view_action'] ?? false) : false;
+        $allowRootViewAction = !$isRoot
+            || $this->hasMainTableSpecialPermission(self::SPECIAL_PERMISSION_MAIN_TABLE_VIEW);
+        $config->viewActionEnabled = $isRoot
+            ? ((bool) ($node['view_action'] ?? false) && $allowRootViewAction)
+            : false;
         $config->viewDisplay       = (string) ($node['view_display'] ?? 'page');
         $config->listDisplay       = (string) ($node['list_display'] ?? 'page');
         $config->editDisplay       = (string) ($node['edit_display'] ?? 'page');

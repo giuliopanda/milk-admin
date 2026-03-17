@@ -52,6 +52,9 @@ trait CrudOperationsTrait
         }
 
         $query = $this->newQuery();
+        if ($query === null) {
+            return null;
+        }
         $new_model = new static();
         $new_model->setRules($this->getRules());
         // Propagate include_relationships from current model to new model
@@ -63,7 +66,7 @@ trait CrudOperationsTrait
 
         $ris = $query->where($this->primary_key . ' = ?', [$id])->getRow();
         $this->current_query = null;
-        return $ris;
+        return ($ris instanceof static) ? $ris : null;
 
     }
 
@@ -91,7 +94,7 @@ trait CrudOperationsTrait
         $this->error = false;
         $this->last_error = '';
         if (is_string($ids)) {
-            $id_array = array_map('_absint', explode(',', $ids));
+            $id_array = array_map(static fn($id): int => abs((int) $id), explode(',', $ids));
         } else {
             $id_array = $ids;
         }
@@ -100,11 +103,17 @@ trait CrudOperationsTrait
         if (empty($id_array)) {
             return null;
         }
+        if ($this->db === null) {
+            return null;
+        }
         $id_name = $this->primary_key;
 
         // Build WHERE clause for multiple IDs
         $placeholders = str_repeat('?,', count($id_array) - 1) . '?';
         $query = $this->newQuery();
+        if ($query === null) {
+            return null;
+        }
         $new_model = new static();
         $new_model->setRules($this->getRules());
         // Propagate include_relationships from current model to new model
@@ -117,22 +126,31 @@ trait CrudOperationsTrait
 
         $ris = $query->getResults();
         $this->current_query = null;
-        return $ris;
+        return ($ris instanceof static) ? $ris : null;
     }
 
-    public function getRow(): AbstractModel  {
+    public function getRow(): mixed  {
+        if ($this->current_query === null) {
+            return null;
+        }
         $ris = $this->current_query->getRow();
         $this->current_query = null;
         return $ris;
     }
 
-    public function getResults(): AbstractModel {
+    public function getResults(): mixed {
+        if ($this->current_query === null) {
+            return null;
+        }
         $ris = $this->current_query->getResults();
         $this->current_query = null;
         return $ris;
     }
 
     public function getVar(?string $value = null) : mixed {
+        if ($this->current_query === null) {
+            return null;
+        }
         $ris = $this->current_query->getVar($value);
         $this->current_query = null;
         return $ris;
@@ -196,7 +214,7 @@ trait CrudOperationsTrait
         $this->error = false;
         $this->last_error = '';
         if (is_string($ids)) {
-            $id_array = array_map('_absint', explode(',', $ids));
+            $id_array = array_map(static fn($id): int => abs((int) $id), explode(',', $ids));
         } else {
             $id_array = $ids;
         }
@@ -205,14 +223,26 @@ trait CrudOperationsTrait
         if (empty($id_array)) {
             return false;
         }
+        if ($this->db === null) {
+            return false;
+        }
         $id_name = $this->primary_key;
 
         // Build WHERE clause for multiple IDs
         $placeholders = str_repeat('?,', count($id_array) - 1) . '?';
         $query = $this->query();
+        if ($query === null) {
+            return false;
+        }
         $query->where($this->db->qn($id_name) . ' IN (' . $placeholders . ')', $id_array);
         $results = $query->getResults();
+        if (!is_object($results)) {
+            return false;
+        }
         $ris = $results->getRawData();
+        if (!is_array($ris)) {
+            return false;
+        }
         $this->dates_in_user_timezone = false;
         $this->setResults($ris);
         return true;
@@ -236,6 +266,9 @@ trait CrudOperationsTrait
     public function getByIdAndUpdate($id, array $merge_data = []): static {
         $this->dates_in_user_timezone = false;
         $model = $this->getById($id);
+        if ($model === null) {
+            $model = $this->getEmpty($merge_data);
+        }
         
         if ($model->isEmpty()) {
             // Empty model - fill with merge_data
@@ -267,18 +300,56 @@ trait CrudOperationsTrait
     }
 
 
-    private function rebuildActions() {
+    private function rebuildActions(): void
+    {
         $primary_key = $this->getPrimaryKey();
         if ($primary_key != "" && is_array($this->records_objects)) {
             foreach ($this->records_objects as $index => $record) {
                 if (!is_array($record)) {
                     continue;
                 }
-                $pk_value = $record[$primary_key] ?? null;
-                $has_primary_key = !($pk_value === null || $pk_value === '' || $pk_value === 0 || $pk_value === '0');
-                $this->records_objects[$index]['___action'] = $has_primary_key ? 'edit' : 'insert';
+
+                if ($this->hasRecordState($index)) {
+                    $this->syncRecordActionFromState($index);
+                    continue;
+                }
+
+                $current_action = $record['___action'] ?? null;
+                if ($current_action !== null) {
+                    $this->records_objects[$index]['___action'] = $this->normalizeRecordActionForPersistence($record, null, $index);
+                }
             }
         }
+    }
+
+    private function normalizeRecordActionForPersistence(array $record, ?array $prepared_data = null, ?int $index = null): ?string
+    {
+        $current_action = $record['___action'] ?? null;
+        if ($current_action === null) {
+            return null;
+        }
+
+        $pk_value = $record[$this->primary_key] ?? ($prepared_data[$this->primary_key] ?? null);
+        $has_primary_key = !(
+            $pk_value === null
+            || $pk_value === ''
+            || $pk_value === 0
+            || $pk_value === '0'
+        );
+
+        if ($current_action === 'edit' && !$has_primary_key) {
+            return 'insert';
+        }
+
+        if (
+            $current_action === 'insert'
+            && $has_primary_key
+            && ($index === null || !$this->isNewRecordIndex($index))
+        ) {
+            return 'edit';
+        }
+
+        return $current_action;
     }
 
    
@@ -327,8 +398,21 @@ trait CrudOperationsTrait
         // Create a new Model instance
         $new_model = new static();
         $new_model->setRules($this->getRules());
-        // Create an empty record in records_objects
-        $new_model->fill($data);
+        $new_model->initializePristineNewRecord();
+        $new_model->applyDefaultValuesForCurrentRecord();
+
+        if ($data !== []) {
+            $data = $new_model->extractRelationshipData($data);
+            $data = $new_model->filterData($data);
+
+            foreach ($data as $key => $value) {
+                if ($value instanceof AbstractModel) {
+                    continue;
+                }
+                $new_model->setValueWithConversion($key, $value);
+            }
+        }
+
         return $new_model;
     }
 
@@ -339,19 +423,12 @@ trait CrudOperationsTrait
      * @param array $params Optional parameters for the query
      * @return static Model instance with results
      */
-    public function get(Query $query, ?array $params = []) : \App\Abstracts\AbstractModel {
-        if ($query instanceof Query) {
-            $new_model = new static();
-            $new_model->setRules($this->getRules());
-            $query->setModelClass($new_model);
-            return $query->getResults();
-        } else {
-            $model = new static();
-            $model->setRules($this->getRules());
-            $results = $this->db->query($query, $params);
-            $model->setResult($results);
-            return $model;
-        }
+    public function get(Query $query, ?array $params = []) : static {
+        $new_model = new static();
+        $new_model->setRules($this->getRules());
+        $query->setModelClass($new_model);
+        $result = $query->getResults();
+        return ($result instanceof static) ? $result : $new_model;
     }
 
     
@@ -418,6 +495,11 @@ trait CrudOperationsTrait
         if ($this->records_objects === null) {
             return true;
         }
+        if ($this->db === null) {
+            $this->error = true;
+            $this->last_error = 'No database connection';
+            return false;
+        }
         $this->cleanEmptyRecords();
         $add = true;
         if (ExtensionLoader::preventRecursion('beforeSave')) {
@@ -450,7 +532,7 @@ trait CrudOperationsTrait
 
             foreach ($this->deleted_primary_keys as $pk_value) {
                 // First, handle cascade delete for hasOne and hasMany relationships
-                if ($cascade && method_exists($this, 'processCascadeDelete')) {
+                if ($cascade) {
                     $cascade_delete_result = $this->processCascadeDelete($pk_value);
                     if (!$cascade_delete_result) {
                         // Error occurred during cascade delete
@@ -497,22 +579,26 @@ trait CrudOperationsTrait
                 ExtensionLoader::callHook($this->loaded_extensions, 'afterDelete', [$this->deleted_primary_keys]);
 
                 // Call afterDelete method if it exists in the model
-                if (method_exists($this, 'afterDelete')) {
-                    $this->afterDelete($this->deleted_primary_keys);
-                }
+                $this->afterDelete($this->deleted_primary_keys);
             }
 
             $after_save_data = [];
             // 2. Processa le creazioni e modifiche
             foreach ($this->records_objects as $index => $record) {
-                // Salta i record originali non modificati
-                if ($record['___action'] === null) {
-                
-                    continue;
+                if ($this->hasRecordState($index)) {
+                    $record['___action'] = $this->syncRecordActionFromState($index);
+                } else {
+                    $record['___action'] = $this->normalizeRecordActionForPersistence($record, null, $index);
                 }
+
+                if ($record['___action'] === null && $this->isNewRecordIndex($index) && $this->hasPersistableInsertDefaults()) {
+                    $record['___action'] = 'insert';
+                }
+
+                $this->records_objects[$index]['___action'] = $record['___action'];
              
                 // Process cascade relationships if enabled
-                if ($cascade && method_exists($this, 'processCascadeRelationships')) {
+                if ($record['___action'] !== null && $cascade) {
                    
                     $record = $this->processCascadeRelationships($index, $record); 
                     if ($record === null) {
@@ -542,25 +628,24 @@ trait CrudOperationsTrait
              
                 // Prepara i dati
                
-                $data = $this->prepareData($data);
+                $data = $this->prepareData($data, $index, $record['___action']);
 
-                // Safety rule: without primary key an edit must become an insert.
-                $pk_value_for_action = $record[$this->primary_key] ?? ($data[$this->primary_key] ?? null);
-                $has_primary_key_for_action = !(
-                    $pk_value_for_action === null
-                    || $pk_value_for_action === ''
-                    || $pk_value_for_action === 0
-                    || $pk_value_for_action === '0'
-                );
-                if (($record['___action'] ?? null) === 'edit' && !$has_primary_key_for_action) {
+                // Safety rule: normalize insert/edit again after data preparation.
+                $record['___action'] = $this->normalizeRecordActionForPersistence($record, $data, $index);
+                if ($record['___action'] === null && $this->isNewRecordIndex($index) && $data !== []) {
                     $record['___action'] = 'insert';
-                    $this->records_objects[$index]['___action'] = 'insert';
+                }
+                $this->records_objects[$index]['___action'] = $record['___action'];
+
+                // Salta i record originali non modificati
+                if ($record['___action'] === null) {
+                    continue;
                 }
                 
                 if ($record['___action'] === 'insert') {
                     // INSERT
                     // Se c'è una primary key e non è auto-increment, mantienila
-                    if (isset($data[$this->primary_key]) && ($data[$this->primary_key] === null || $data[$this->primary_key] === '' || $data[$this->primary_key] === 0)) {
+                    if (isset($data[$this->primary_key]) && ($data[$this->primary_key] === '' || $data[$this->primary_key] === 0)) {
                         unset($data[$this->primary_key]);
                     }
 
@@ -601,7 +686,7 @@ trait CrudOperationsTrait
                     }
 
                     // Process hasOne and hasMany relationships AFTER parent is saved (so we have the ID)
-                    if ($cascade && method_exists($this, 'processHasOneRelationships')) {
+                    if ($cascade && isset($this->records_objects[$index]) && is_array($this->records_objects[$index])) {
                         $hasone_results = $this->processHasOneRelationships($index, $this->records_objects[$index]);
                         foreach ($hasone_results as $rel_alias => $rel_result) {
                             $result_entry[$rel_alias] = $rel_result;
@@ -609,6 +694,8 @@ trait CrudOperationsTrait
                     }
 
                     $this->save_results[] = $result_entry;
+                    $this->markRecordAsNew($index, false);
+                    $this->refreshRecordStateAfterSuccessfulSave($index);
                     if ($insert_id) {
                         $data['___action'] = 'insert';
                         $data[$this->primary_key] = $insert_id;
@@ -666,7 +753,7 @@ trait CrudOperationsTrait
                             }
 
                             // Process hasOne and hasMany relationships AFTER parent is updated (so we have the ID)
-                            if ($cascade && method_exists($this, 'processHasOneRelationships')) {
+                            if ($cascade && isset($this->records_objects[$index]) && is_array($this->records_objects[$index])) {
                                 $hasone_results = $this->processHasOneRelationships($index, $this->records_objects[$index]);
                                 foreach ($hasone_results as $rel_alias => $rel_result) {
                                     $result_entry[$rel_alias] = $rel_result;
@@ -674,6 +761,8 @@ trait CrudOperationsTrait
                             }
 
                             $this->save_results[] = $result_entry;
+                            $this->markRecordAsNew($index, false);
+                            $this->refreshRecordStateAfterSuccessfulSave($index);
                             $data['___action'] = 'edit';
                             $after_save_data[] = $data;
                         }
@@ -688,8 +777,10 @@ trait CrudOperationsTrait
 
 
             // Azzera le action ora che abbiamo fatto la copia
-            foreach ($this->records_objects as $index => $record) {
-                $this->records_objects[$index]['___action'] = null;
+            if (is_array($this->records_objects)) {
+                foreach ($this->records_objects as $index => $record) {
+                    $this->records_objects[$index]['___action'] = null;
+                }
             }
 
             // Pulisci l'array dei deleted
@@ -708,9 +799,7 @@ trait CrudOperationsTrait
                 ExtensionLoader::callHook($this->loaded_extensions, 'afterSave', [$after_save_data, $this->save_results]);
 
                 // Call afterSave method if it exists in the model
-                if (method_exists($this, 'afterSave')) {
-                    $this->afterSave($after_save_data, $this->save_results);
-                }
+                $this->afterSave($after_save_data, $this->save_results);
 
             }
 
@@ -791,6 +880,9 @@ trait CrudOperationsTrait
             }
         }
 
+        if ($this->db === null) {
+            return 0;
+        }
         return (int)$this->db->insertId();
     }
 
@@ -819,6 +911,11 @@ trait CrudOperationsTrait
     {
         $this->error = false;
         $this->last_error = '';
+        if ($this->db === null) {
+            $this->error = true;
+            $this->last_error = 'No database connection';
+            return false;
+        }
 
         if ($id === null || $id === '') {
             if (!is_array($this->records_objects)) {
@@ -849,12 +946,10 @@ trait CrudOperationsTrait
         
         try {
             // First, handle cascade delete for hasOne and hasMany relationships
-            if (method_exists($this, 'processCascadeDelete')) {
-                $cascade_delete_result = $this->processCascadeDelete($id);
-                if (!$cascade_delete_result) {
-                    // Error occurred during cascade delete
-                    return false;
-                }
+            $cascade_delete_result = $this->processCascadeDelete($id);
+            if (!$cascade_delete_result) {
+                // Error occurred during cascade delete
+                return false;
             }
 
             // Then delete the parent record
@@ -882,13 +977,11 @@ trait CrudOperationsTrait
                 ExtensionLoader::freeRecursion('afterDelete');
 
                 // Call afterDelete method if it exists in the model
-                if (method_exists($this, 'afterDelete')) {
-                    $this->afterDelete([$id]);
-                }
+                $this->afterDelete([$id]);
                
             }
 
-            return (bool)$success;
+            return $success;
         } catch (\Exception $e) {
             $this->error = true;
             $this->last_error = $e->getMessage();
@@ -963,13 +1056,33 @@ trait CrudOperationsTrait
      * @param array $data The data to prepare
      * @return array The prepared data
      */
-    protected function prepareData(array $data): array
+    protected function prepareData(array $data, ?int $recordIndex = null, ?string $action = null): array
     {
         $prepared = [];
         $rules = $this->getRules('sql');
+        $dirtyFields = $recordIndex !== null ? $this->getRecordDirtyFields($recordIndex) : [];
+        $staleFields = $recordIndex !== null ? $this->getRecordStaleFields($recordIndex) : [];
+        $isInsert = $action === 'insert';
 
         foreach ($rules as $field_name => $rule) {
-            $value = $data[$field_name] ?? null;
+            $field_name = (string) $field_name;
+            $includeField = isset($dirtyFields[$field_name]) || isset($staleFields[$field_name]);
+
+            if (!$includeField && $isInsert && array_key_exists('default', $rule) && $rule['default'] !== null) {
+                $includeField = true;
+            }
+
+            if (!$includeField && $this->isAlwaysPreparedSpecialField($field_name, $rule)) {
+                $includeField = true;
+            }
+
+            if (!$includeField) {
+                continue;
+            }
+
+            $value = array_key_exists($field_name, $data)
+                ? $data[$field_name]
+                : ($rule['default'] ?? null);
 
             // Use common prepareSingleFieldValue logic from DataFormattingTrait
             $prepared[$field_name] = $this->prepareSingleFieldValue($field_name, $value, $rule);
@@ -978,16 +1091,34 @@ trait CrudOperationsTrait
         return $prepared;
     }
 
-    /**
-     * Filter data based on object properties
-     *
-     * This method can be overridden in child classes to filter data
-     *
-     * @param array $data The data to filter
-     * @return array The filtered data
-     */
-    protected function filterData(array $data): array {
-         // da sovrascrivere nelle classi figlie
-        return $data;
+    private function isAlwaysPreparedSpecialField(string $fieldName, array $rule): bool
+    {
+        return isset($rule['save_value'])
+            || (($rule['_auto_created_at'] ?? false) === true)
+            || (($rule['_auto_updated_at'] ?? false) === true)
+            || (($rule['_auto_created_by'] ?? false) === true)
+            || (($rule['_auto_updated_by'] ?? false) === true)
+            || strtolower(trim($fieldName)) === 'created_by'
+            || strtolower(trim($fieldName)) === 'updated_by';
     }
+
+    private function hasPersistableInsertDefaults(): bool
+    {
+        foreach ($this->getRules('sql') as $fieldName => $rule) {
+            if (!is_array($rule) || $this->getRelationshipDefinitionService()->hasRelationship($this->getRuleBuilder(), (string) $fieldName)) {
+                continue;
+            }
+
+            if (($rule['sql'] ?? true) === false) {
+                continue;
+            }
+
+            if (array_key_exists('default', $rule) && $rule['default'] !== null) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
 }

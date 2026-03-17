@@ -95,12 +95,10 @@ trait FormSystemOperationsTrait {
         }
 
         // Call beforeSave hook on extensions
-        if (method_exists($this, 'callExtensionPipeline')) {
-            $hadErrorsBeforePipeline = MessagesHandler::hasErrors();
-            $request = $this->callExtensionPipeline('beforeSave', $request);
-            if (!$hadErrorsBeforePipeline && MessagesHandler::hasErrors()) {
-                return false;
-            }
+        $hadErrorsBeforePipeline = MessagesHandler::hasErrors();
+        $request = $this->callExtensionPipeline('beforeSave', $request);
+        if (!$hadErrorsBeforePipeline && MessagesHandler::hasErrors()) {
+            return false;
         }
 
         // Get primary key value
@@ -133,9 +131,7 @@ trait FormSystemOperationsTrait {
                     $this->last_insert_id = $id;
 
                     // Call afterSave hook on extensions
-                    if (method_exists($this, 'callExtensionHook')) {
-                        $this->callExtensionHook('afterSave', [$request]);
-                    }
+                    $this->callExtensionHook('afterSave', [$request]);
 
                     //MessagesHandler::addSuccess('Save successful');
                     return true;
@@ -228,16 +224,16 @@ trait FormSystemOperationsTrait {
                         }
 
                         if ($is_existing_file) {
-                            // File già esistente, non spostarlo - mantieni il percorso attuale
+                            // File already exists, don't move it - keep the current path
                             $moved_files[$file_index] = [
                                 'url' => $temp_file_name,
                                 'name' => $original_name
                             ];
                         } else {
-                            // Nuovo file caricato - deve essere spostato dalla directory temporanea
+                            // New uploaded file - must be moved from temporary directory
                             $temp_file_path = $temp_dir . '/' . $temp_file_name;
 
-                            // Verifica che il file temporaneo esista
+                            // Verify that the temporary file exists
                             if (!file_exists($temp_file_path)) {
                                 return ['success' => false, 'message' => _r('Uploaded file not found: ') . $temp_file_path];
                             }
@@ -247,22 +243,22 @@ trait FormSystemOperationsTrait {
                                 return ['success' => false, 'message' => _r('Uploaded file is not readable: ') . $original_name];
                             }
 
-                            // Genera un nome univoco per la cartella media
+                            // Generate a unique name for the media folder
                             $media_file_name = $this->generateUniqueFilename($media_folder, $temp_file_name);
                             $media_file_path = $media_folder . $media_file_name;
 
-                            // Sposta il file da temp a media
+                            // Move file from temp to media
                             if (!rename($temp_file_path, $media_file_path)) {
                                 return ['success' => false, 'message' => _r('Failed to move uploaded file: ') . $original_name];
                             }
 
-                            // Imposta i permessi corretti
+                            // Set correct permissions
                             if (!chmod($media_file_path, 0644)) {
                                 // Log warning but don't fail completely
                                 error_log("Warning: Could not set file permissions for: " . $media_file_path);
                             }
 
-                            // Aggiunge il file mosso all'array con la nuova struttura
+                            // Add moved file to array with new structure
                             $moved_files[$file_index] = [
                                 'url' => $media_rel_path . $media_file_name,
                                 'name' => $original_name
@@ -270,11 +266,11 @@ trait FormSystemOperationsTrait {
                         }
                     }
 
-                    // Se sono stati mossi file, aggiorna l'oggetto con il JSON
+                    // If files were moved, update object with JSON
                     if (!empty($moved_files)) {
                         $obj->$key = json_encode($moved_files);
                     } else {
-                        // Se non ci sono file, svuota il campo
+                        // If there are no files, empty the field
                         $obj->$key = null;
                     }
                 }
@@ -300,7 +296,7 @@ trait FormSystemOperationsTrait {
         $new_filename = $filename;
         while (file_exists($folder . $new_filename)) {
             $counter++;
-            $new_filename = $name_without_ext . '_' . str_pad($counter, 3, '0', STR_PAD_LEFT) . '.' . $extension;
+            $new_filename = $name_without_ext . '_' . str_pad((string) $counter, 3, '0', STR_PAD_LEFT) . '.' . $extension;
         }
 
         return $new_filename;
@@ -390,9 +386,7 @@ trait FormSystemOperationsTrait {
         $this->ActionExecution();
 
         // Call beforeRender hook on extensions
-        if (method_exists($this, 'callExtensionPipeline')) {
-            $this->fields = $this->callExtensionPipeline('beforeRender', $this->fields);
-        }
+        $this->fields = $this->callExtensionPipeline('beforeRender', $this->fields);
 
         // Start form
         $html = ObjectToForm::start($this->page,  $this->current_action, $this->form_attributes, $this->only_json, $this->custom_data);
@@ -426,10 +420,10 @@ trait FormSystemOperationsTrait {
                 $should_show = false;
                 switch ($operator) {
                     case 'empty':
-                        $should_show = ($field_value === null || $field_value === '' || $field_value === 0 || is_null($field_value));
+                        $should_show = ($field_value === null || $field_value === '' || $field_value === 0);
                         break;
                     case 'not_empty':
-                        $should_show = ($field_value !== null && $field_value !== '' && $field_value !== 0 && !is_null($field_value));
+                        $should_show = ($field_value !== null && $field_value !== '' && $field_value !== 0);
                         break;
                     case '=':
                     case '==':
@@ -466,9 +460,9 @@ trait FormSystemOperationsTrait {
 
             // Use row_value if exists and not empty, otherwise use default, otherwise empty string
             $value = '';
-            if (isset($field['row_value']) && $field['row_value'] !== '' && $field['row_value'] !== null) {
+            if (array_key_exists('row_value', $field) && $field['row_value'] !== '' && $field['row_value'] !== null) {
                 $value = $field['row_value'];
-            } elseif (isset($field['default']) && $field['default'] !== '' && $field['default'] !== null) {
+            } elseif (array_key_exists('default', $field) && $field['default'] !== '' && $field['default'] !== null) {
                 $value = $this->resolveDefaultValue($field['default']);
             }
             $html .= ObjectToForm::row($field, $value);
@@ -512,7 +506,7 @@ trait FormSystemOperationsTrait {
         }
 
         try {
-            $parser = new \App\ExpressionParser();
+            $parser = (new \App\ExpressionParser())->useUntrustedMode();
             $params = [];
             if (is_object($this->model) && method_exists($this->model, 'getRawData')) {
                 $rawData = $this->model->getRawData('array', false);
@@ -620,6 +614,11 @@ trait FormSystemOperationsTrait {
            
             // Check if there's a showIf condition and evaluate it
             if (isset($action['showIf']) && is_array($action['showIf']) ) {
+                $field_name = '';
+                $operator = '';
+                $value = null;
+                $should_show = true;
+
                 if (count($action['showIf']) == 3) {
                     [$field_name, $operator, $value] = $action['showIf'];
                     $should_show = false;
@@ -627,8 +626,6 @@ trait FormSystemOperationsTrait {
                     [$field_name, $operator] = $action['showIf'];
                     $value = null;
                     $should_show = false;
-                } else {
-                    $should_show = true;
                 }
 
                 // Get field value (prefer row_value over default value)
@@ -642,10 +639,10 @@ trait FormSystemOperationsTrait {
                 // Evaluate condition based on operator
                 switch ($operator) {
                     case 'empty':
-                        $should_show = ($field_value === null || $field_value === '' || $field_value === 0 || is_null($field_value));
+                        $should_show = ($field_value === null || $field_value === '' || $field_value === 0);
                         break;
                     case 'not_empty':
-                        $should_show = ($field_value !== null && $field_value !== '' && $field_value !== 0 && !is_null($field_value));
+                        $should_show = ($field_value !== null && $field_value !== '' && $field_value !== 0);
                         break;
                     case '=':
                     case '==':

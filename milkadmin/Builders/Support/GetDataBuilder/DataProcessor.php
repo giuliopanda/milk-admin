@@ -26,7 +26,7 @@ class DataProcessor
     {
         $this->context = $context;
         $this->columns = $columns;
-        $this->expressionParser = new ExpressionParser();
+        $this->expressionParser = (new ExpressionParser())->useUntrustedMode();
     }
 
     public function setFooter(array $data): void
@@ -466,12 +466,7 @@ class DataProcessor
                 continue;
             }
 
-            if (is_array($current)) {
-                $current = $current[$part] ?? null;
-                continue;
-            }
-
-            return '';
+            $current = $current[$part] ?? null;
         }
 
         // Handle hasMany arrays

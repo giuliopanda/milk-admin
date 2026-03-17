@@ -5,6 +5,15 @@ use Builders\TitleBuilder;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
 
+$title = isset($title) ? (string) $title : '';
+$page = isset($page) ? (string) $page : '';
+$record_id = isset($record_id) ? (int) $record_id : 0;
+$fields = (isset($fields) && is_array($fields)) ? $fields : [];
+$auditRecords = (isset($auditRecords) && is_array($auditRecords)) ? $auditRecords : [];
+$currentRecord = $currentRecord ?? null;
+$isDeleted = isset($isDeleted) ? (bool) $isDeleted : false;
+$deleteInfo = $deleteInfo ?? null;
+
 /**
  * Helper function to highlight differences between two strings
  * Returns the current value with changed parts highlighted in yellow

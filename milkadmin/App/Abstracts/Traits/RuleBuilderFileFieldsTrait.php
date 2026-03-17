@@ -37,10 +37,10 @@ trait RuleBuilderFileFieldsTrait
         $this->formType('image');
         $this->label($this->createLabel($name));
 
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
+        if (!isset($this->rules[$this->currentFieldKey()]['form-params'])) {
+            $this->rules[$this->currentFieldKey()]['form-params'] = [];
         }
-        $this->rules[$this->current_field]['form-params']['accept'] = 'image/*';
+        $this->rules[$this->currentFieldKey()]['form-params']['accept'] = 'image/*';
 
         return $this;
     }
@@ -53,17 +53,17 @@ trait RuleBuilderFileFieldsTrait
      */
     public function multiple(bool|int $multiple = true): self
     {
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
+        if (!isset($this->rules[$this->currentFieldKey()]['form-params'])) {
+            $this->rules[$this->currentFieldKey()]['form-params'] = [];
         }
 
         if (is_bool($multiple)) {
             if ($multiple) {
-                $this->rules[$this->current_field]['form-params']['multiple'] = 'multiple';
+                $this->rules[$this->currentFieldKey()]['form-params']['multiple'] = 'multiple';
             } else {
-                unset($this->rules[$this->current_field]['form-params']['multiple']);
+                unset($this->rules[$this->currentFieldKey()]['form-params']['multiple']);
             }
-        } elseif (is_int($multiple)) {
+        } else {
             $this->maxFiles($multiple);
         }
         return $this;
@@ -77,13 +77,13 @@ trait RuleBuilderFileFieldsTrait
      */
     public function maxFiles(int $max): self
     {
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
+        if (!isset($this->rules[$this->currentFieldKey()]['form-params'])) {
+            $this->rules[$this->currentFieldKey()]['form-params'] = [];
         }
         if ($max > 1) {
-            $this->rules[$this->current_field]['form-params']['multiple'] = 'multiple';
+            $this->rules[$this->currentFieldKey()]['form-params']['multiple'] = 'multiple';
         }
-        $this->rules[$this->current_field]['form-params']['max-files'] = $max;
+        $this->rules[$this->currentFieldKey()]['form-params']['max-files'] = $max;
         return $this;
     }
 
@@ -95,10 +95,10 @@ trait RuleBuilderFileFieldsTrait
      */
     public function accept(string $accept): self
     {
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
+        if (!isset($this->rules[$this->currentFieldKey()]['form-params'])) {
+            $this->rules[$this->currentFieldKey()]['form-params'] = [];
         }
-        $this->rules[$this->current_field]['form-params']['accept'] = $accept;
+        $this->rules[$this->currentFieldKey()]['form-params']['accept'] = $accept;
         return $this;
     }
 
@@ -110,10 +110,10 @@ trait RuleBuilderFileFieldsTrait
      */
     public function maxSize(int $size): self
     {
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
+        if (!isset($this->rules[$this->currentFieldKey()]['form-params'])) {
+            $this->rules[$this->currentFieldKey()]['form-params'] = [];
         }
-        $this->rules[$this->current_field]['form-params']['max-size'] = $size;
+        $this->rules[$this->currentFieldKey()]['form-params']['max-size'] = $size;
         return $this;
     }
 
@@ -125,10 +125,10 @@ trait RuleBuilderFileFieldsTrait
      */
     public function uploadDir(string $dir): self
     {
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
+        if (!isset($this->rules[$this->currentFieldKey()]['form-params'])) {
+            $this->rules[$this->currentFieldKey()]['form-params'] = [];
         }
-        $this->rules[$this->current_field]['form-params']['upload-dir'] = $dir;
+        $this->rules[$this->currentFieldKey()]['form-params']['upload-dir'] = $dir;
         return $this;
     }
 
@@ -140,13 +140,13 @@ trait RuleBuilderFileFieldsTrait
      */
     public function sortable(bool $enabled = true): self
     {
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
+        if (!isset($this->rules[$this->currentFieldKey()]['form-params'])) {
+            $this->rules[$this->currentFieldKey()]['form-params'] = [];
         }
         if ($enabled) {
-            $this->rules[$this->current_field]['form-params']['sortable'] = true;
+            $this->rules[$this->currentFieldKey()]['form-params']['sortable'] = true;
         } else {
-            unset($this->rules[$this->current_field]['form-params']['sortable']);
+            unset($this->rules[$this->currentFieldKey()]['form-params']['sortable']);
         }
         return $this;
     }
@@ -159,13 +159,13 @@ trait RuleBuilderFileFieldsTrait
      */
     public function downloadLink(bool $enabled = true): self
     {
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
+        if (!isset($this->rules[$this->currentFieldKey()]['form-params'])) {
+            $this->rules[$this->currentFieldKey()]['form-params'] = [];
         }
         if ($enabled) {
-            $this->rules[$this->current_field]['form-params']['download-link'] = true;
+            $this->rules[$this->currentFieldKey()]['form-params']['download-link'] = true;
         } else {
-            unset($this->rules[$this->current_field]['form-params']['download-link']);
+            unset($this->rules[$this->currentFieldKey()]['form-params']['download-link']);
         }
         return $this;
     }

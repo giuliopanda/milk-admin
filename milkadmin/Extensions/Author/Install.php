@@ -110,7 +110,7 @@ class Install extends AbstractInstallExtension
      *
      * @return bool Success status
      */
-    private function removeCreatedByColumn(): bool
+    protected function removeCreatedByColumn(): bool
     {
         $module = $this->module->get();
         $model = $module->getModel();

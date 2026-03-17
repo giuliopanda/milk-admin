@@ -24,9 +24,35 @@
 
 !defined('MILK_DIR') && die(); // Avoid direct access
 
+$__vars = get_defined_vars();
+$page_info_raw = $__vars['page_info'] ?? null;
+if ($page_info_raw instanceof App\Modellist\PageInfo) {
+    $page_info = $page_info_raw->toArray();
+} elseif (is_array($page_info_raw)) {
+    $page_info = $page_info_raw;
+} else {
+    $page_info = [];
+}
+$show_header = isset($__vars['show_header']) ? (bool) $__vars['show_header'] : true;
+$table_attrs = is_array($__vars['table_attrs'] ?? null) ? $__vars['table_attrs'] : [];
+$rows = is_array($__vars['rows'] ?? null) ? $__vars['rows'] : [];
+$info_value = $__vars['info'] ?? null;
+$info = ($info_value instanceof App\Modellist\ListStructure || is_array($info_value)) ? $info_value : [];
 
 $page_info['ajax'] = $page_info['ajax'] ?? true;
-$show_header = $show_header ?? true;
+$page_info['json'] = $page_info['json'] ?? false;
+$page_info['page'] = isset($page_info['page']) ? (string) $page_info['page'] : '';
+$page_info['action'] = isset($page_info['action']) ? (string) $page_info['action'] : '';
+$page_info['filters'] = isset($page_info['filters']) ? (string) $page_info['filters'] : '';
+$page_info['bulk_actions'] = is_array($page_info['bulk_actions'] ?? null) ? $page_info['bulk_actions'] : [];
+$page_info['limit'] = (int) ($page_info['limit'] ?? 20);
+if ($page_info['limit'] <= 0) {
+    $page_info['limit'] = 20;
+}
+$page_info['limit_start'] = (int) ($page_info['limit_start'] ?? 0);
+if ($page_info['limit_start'] < 0) {
+    $page_info['limit_start'] = 0;
+}
 
 // Inizializza le condizioni per classi dinamiche
 $row_conditions = $page_info['row_conditions'] ?? [];
@@ -37,7 +63,6 @@ $primary = $page_info['primary_key'] ?? '';
 
 // Fallback: search in info structure if not found in page_info
 if ($primary === '') {
-    $info = $info ?? [];
     foreach ($info as $key => $i) {
         if (isset($i['primary']) && $i['primary'] == true) {
             $primary = $key;
@@ -57,9 +82,6 @@ $default_attrs = array(
     'th.checkbox' => ['class' => 'th-small'],
 );
 
-if (!isset($table_attrs) || !is_array($table_attrs)) {
-    $table_attrs = [];
-}
 $table_attrs = array_merge($default_attrs, $table_attrs);
 
 if ($page_info['table_attrs'] ?? false) {
@@ -112,11 +134,9 @@ if (!isset($page_info['id'])) {
     $table_id = _r($page_info['id']);
 }
 
-$table_id = $table_id ?? 'tableId'.uniqid();
-
 $order_field = $page_info['order_field'] ?? '';
 $order_dir = $page_info['order_dir'] ?? '';
-$actual_page = ceil($page_info['limit_start'] / $page_info['limit']) + 1;
+$actual_page = intdiv($page_info['limit_start'], $page_info['limit']) + 1;
 
 // Prepare custom data (replaces form_html_input_hidden)
 $custom_data = [];
@@ -133,7 +153,7 @@ if (isset($page_info['form_html_input_hidden']) && !empty($page_info['form_html_
     }
 }
 
-if (($info instanceof App\Modellist\ListStructure || is_array($info))  && ($page_info instanceof App\Modellist\PageInfo || is_array($page_info))) { 
+if ($page_info instanceof App\Modellist\PageInfo || is_array($page_info)) { 
 
     if (!$page_info['json']) {
         ?>
@@ -146,8 +166,8 @@ if (($info instanceof App\Modellist\ListStructure || is_array($info))  && ($page
             data-page="<?php _p($page_info['page']); ?>"
             data-action="<?php _p($page_info['action']); ?>"
             data-table-id="<?php _p($table_id); ?>"
-            data-current-page="<?php _p($actual_page, 'int'); ?>"
-            data-limit="<?php _p($page_info['limit'], 'int'); ?>"
+            data-current-page="<?php _p($actual_page); ?>"
+            data-limit="<?php _p($page_info['limit']); ?>"
             data-order-field="<?php _p($order_field); ?>"
             data-order-dir="<?php _p($order_dir); ?>"
             data-filters="<?php _p($page_info['filters']); ?>"
@@ -219,7 +239,7 @@ if (($info instanceof App\Modellist\ListStructure || is_array($info))  && ($page
             $footer_row = array_pop($rows);
         }
         ?>
-        <?php if (is_countable($rows) && count($rows) > 0) { ?>
+        <?php if (count($rows) > 0) { ?>
             <tbody <?php Theme\Template::addAttrs($table_attrs, 'tbody'); ?>>
                 <?php foreach ($rows as $row_index => $row) {
                     // Calcola classi dinamiche per la riga
@@ -365,7 +385,7 @@ if (($info instanceof App\Modellist\ListStructure || is_array($info))  && ($page
                 <?php } ?>
             </tbody>
         <?php } ?>
-        <?php if ($page_info['footer'] ?? false && $footer_row > 0) { ?>
+        <?php if (($page_info['footer'] ?? false) && $footer_row !== false) { ?>
             <tfoot <?php Theme\Template::addAttrs($table_attrs, 'tfoot'); ?>>
                 <tr <?php Theme\Template::addAttrs($table_attrs, 'tfoot.tr'); ?>>
                     <?php foreach ($info as $col_name => $header) { ?>
@@ -379,7 +399,7 @@ if (($info instanceof App\Modellist\ListStructure || is_array($info))  && ($page
     </div>
    
     <?php 
-    if (($page_info['pagination'] ?? true) && $page_info['total_record'] > 0) {
+    if (($page_info['pagination'] ?? true) && (($page_info['total_record'] ?? 0) > 0)) {
         echo App\Get::themePlugin('table/pagination', [ 'page_info' => $page_info]);
     }
   

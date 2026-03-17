@@ -5,7 +5,18 @@ use App\{Hooks, Permissions, Route, Token};
 
 !defined('MILK_DIR') && die(); // Avoid direct access
 $id = $_REQUEST['id'] ?? 0;
-$user = $user ?? new \stdClass();
+$user = is_object($user ?? null) ? $user : new \stdClass();
+$user->id = _absint($user->id ?? 0);
+$user->username = isset($user->username) ? (string) $user->username : '';
+$user->email = isset($user->email) ? (string) $user->email : '';
+$user->status = (int) ($user->status ?? 1);
+$user->is_admin = (int) ($user->is_admin ?? 0);
+$user->timezone = isset($user->timezone) ? (string) $user->timezone : 'UTC';
+$user->locale = isset($user->locale) ? (string) $user->locale : '';
+$user->permissions = is_array($user->permissions ?? null) ? $user->permissions : [];
+$current_user = is_object($current_user ?? null) ? $current_user : (object) ['id' => 0, 'is_admin' => 0];
+$current_user->id = _absint($current_user->id ?? 0);
+$current_user->is_admin = (int) ($current_user->is_admin ?? 0);
 ?>
 <form id="editUserForm" class="js-needs-validation mb-3" novalidate method="post" action="<?php echo Route::url(); ?>">
     <input type="hidden" name="page" value="auth">
@@ -35,15 +46,15 @@ $user = $user ?? new \stdClass();
         <div class="form-check">
             <input class="form-check-input" type="checkbox" value="1" name="send_email" id="sendEmail">
             <label class="form-check-label" for="sendEmail">
-                <?php echo ($id > 0) ? _p('Send an email to reset your password') : _p('Send welcome email') ; ?>
+                <?php _pt(($id > 0) ? 'Send an email to reset your password' : 'Send welcome email'); ?>
             </label>
         </div>
     </div>
 
     <div class="mb-3">
         <div class="form-floating">
-            <input type="password" name="password" class="form-control" id="changePassword" placeholder="<?php echo ($user->id > 0) ? _pt('Change password') : _pt('Password'); ?>" <?php echo ($user->id > 0) ? '' : 'required'; ?>>
-            <label for="changePassword"><?php echo ($user->id > 0) ? _pt('Change password') : _pt('Password'); ?></label>
+            <input type="password" name="password" class="form-control" id="changePassword" placeholder="<?php echo ($user->id > 0) ? _rt('Change password') : _rt('Password'); ?>" <?php echo ($user->id > 0) ? '' : 'required'; ?>>
+            <label for="changePassword"><?php echo ($user->id > 0) ? _rt('Change password') : _rt('Password'); ?></label>
         </div>
     </div>
   
@@ -190,7 +201,7 @@ $user = $user ?? new \stdClass();
                                            data-group="<?php _p($group); ?>" 
                                            name="permissions[<?php _p($group); ?>][<?php _p($permission_name); ?>]" 
                                            id="permission-<?php _p($group); ?>-<?php _p($permission_name); ?>" 
-                                           <?php _p(($user->permissions[$group][$permission_name] ?? 0 == 1) ? 'checked' : ''); ?>>
+                                           <?php _p((($user->permissions[$group][$permission_name] ?? 0) == 1) ? 'checked' : ''); ?>>
                                     <label class="form-check form-check-label ps-0" for="permission-<?php _p($group); ?>-<?php _p($permission_name); ?>">
                                         <?php _pt($permission_title); ?>
                                     </label> 
@@ -213,7 +224,8 @@ $user = $user ?? new \stdClass();
         <button class="btn btn-primary  py-2" type="submit" onclick="saveUser()"><?php _pt('Save'); ?></button>
 
         <?php if ($id > 0 && $user->is_admin != 1 && $id != $current_user->id) : ?>
-            <button class="btn btn-danger  py-2" type="submit" onclick="deleteUser(<?php ($user->status == -1) ? 'true' : 'false'; ?>)"><?php ($user->status == -1) ? _p('Definitely Delete') : _p('Trash'); ?></button>
+            <?php $is_trashed = ($user->status == -1); ?>
+            <button class="btn btn-danger  py-2" type="submit" onclick="deleteUser(<?php echo $is_trashed ? 'true' : 'false'; ?>)"><?php _pt($is_trashed ? 'Definitely Delete' : 'Trash'); ?></button>
         <?php endif; ?>
     </div>
 </div>

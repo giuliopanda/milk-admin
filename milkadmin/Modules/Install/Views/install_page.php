@@ -1,10 +1,12 @@
 <?php
 namespace Modules\Install\Views;
 
-use App\MessagesHandler;
+use App\Token;
 use Theme\Template;
 
 if (!defined('MILK_DIR')) die();
+
+$html = is_string($html ?? null) ? $html : '';
 
 // System requirements check
 $requirements = [
@@ -144,7 +146,6 @@ foreach ($directories as $key => $dir) {
         'error' => !$exists ? 'Path does not exist' : (!$writable ? 'Not writable' : '')
     ];
 }
-
 // Check if there are any blocking requirements that failed
 $blockingRequirementsFailed = false;
 $showTableRequirements = false;
@@ -152,7 +153,7 @@ foreach ($requirements as $requirement) {
     if (!$requirement['status']) {
         $showTableRequirements = true;
     }
-    if (isset($requirement['blocking']) && $requirement['blocking'] && !$requirement['status']) {
+    if ($requirement['blocking'] && !$requirement['status']) {
         $blockingRequirementsFailed = true;
         break;
     }
@@ -165,7 +166,8 @@ foreach ($permissions as $permission) {
     if (!$permission['status']) {
         $showTablePermissions = true;
     }
-    if ($permission['blocking'] && !$permission['status']) {
+    // All directory permission checks defined above are blocking.
+    if (!$permission['status']) {
         $blockingPermissionsFailed = true;
         break;
     }
@@ -205,7 +207,7 @@ Built with a Bootstrap template and a lightweight, easy-to-learn framework for c
                 <tbody>
                     <?php foreach ($requirements as $name => $requirement): 
                         if (!$requirement['status']): 
-                            $isBlocking = isset($requirement['blocking']) && $requirement['blocking'];
+                            $isBlocking = $requirement['blocking'];
                             ?>
                             <tr class="<?php echo $isBlocking ? 'table-danger' : 'table-warning'; ?>">
                                 <td>
@@ -259,7 +261,7 @@ Built with a Bootstrap template and a lightweight, easy-to-learn framework for c
                         <td><?php echo $permission['name']; ?></td>
                         <td><code><?php echo $permission['path']; ?></code></td>
                         <td>
-                            <span class="badge <?php echo $permission['blocking'] ? 'bg-danger' : 'bg-warning'; ?>">
+                            <span class="badge bg-danger">
                                 <?php echo $permission['error']; ?>
                             </span>
                         </td>
@@ -289,8 +291,6 @@ Built with a Bootstrap template and a lightweight, easy-to-learn framework for c
     </div>
     <?php endif; ?>
     
-    <?php MessagesHandler::displayMessages(true); ?>
-
     <form class="js-needs-validation" id="installForm" novalidate method="post" <?php echo !$allRequirementsMet ? 'style="opacity: 0.5; pointer-events: none;"' : ''; ?>>
         <?php 
         // eventuali script vanno caricati esternamente e questo dovrebbe essere sanitizzato

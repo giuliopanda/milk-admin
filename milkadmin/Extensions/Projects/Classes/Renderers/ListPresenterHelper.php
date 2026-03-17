@@ -610,7 +610,7 @@ class ListPresenterHelper
         }
 
         if (is_int($value) || is_float($value)) {
-            return (string) $value !== '';
+            return true;
         }
 
         if (is_object($value)) {
@@ -663,6 +663,10 @@ class ListPresenterHelper
      */
     protected function canManageDeleteRecordsForContext(array $context): bool
     {
+        if (array_key_exists('can_manage_delete_records', $context)) {
+            return $this->normalizeBool($context['can_manage_delete_records']);
+        }
+
         if ($this->isCurrentUserAdministrator()) {
             return true;
         }

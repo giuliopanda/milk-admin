@@ -83,8 +83,6 @@ class ObjectToForm
      * ```
      *
      * @param string $page The page identifier for the form
-     * @param string $url_success The URL to redirect to on successful submission
-     * @param string $url_error The URL to redirect to on error (defaults to current URL)
      * @param string $action_save The action name for form processing (default: 'save')
      * @param array $attributes Additional form attributes
      * @return string The HTML for the form opening tag and hidden fields
@@ -120,9 +118,10 @@ class ObjectToForm
                 '_REQUEST_keys' => array_keys($_REQUEST),
                 '_REQUEST_data_keys' => (isset($_REQUEST['data']) && is_array($_REQUEST['data'])) ? array_keys($_REQUEST['data']) : null,
             ];
-            ob_start();
-            var_dump($debug_payload);
-            $dump = (string) ob_get_clean();
+            $dump = json_encode($debug_payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            if ($dump === false) {
+                $dump = '';
+            }
             $html .= '<pre style="background:#111;color:#eee;padding:12px;white-space:pre-wrap;overflow:auto;">'
                 . htmlspecialchars($dump, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
                 . '</pre>';
@@ -257,7 +256,7 @@ class ObjectToForm
      * @param mixed $value The current value of the field
      * @return string The HTML for the input field
      */
-    public static function getInput(array $rule, $value) {
+    public static function getInput(array $rule, $value): string {
         $type = $rule['form-type'] ?? $rule['type'];
         $rule['label'] = $rule['label'] ?? $rule['name'];
         $rule['label'] = $rule['form-label'] ?? $rule['label'];
@@ -274,44 +273,32 @@ class ObjectToForm
        
         switch ($type) {
             case 'hidden':
-                return Form::input('hidden', $rule['name'], $rule['label'], $value, $form_params, true);
-                break;
+                return self::asString(Form::input('hidden', $rule['name'], $rule['label'], $value, $form_params, true));
             case 'string':
-                return Form::input('text', $rule['name'], $rule['label'], $value, $form_params, true);
-                break;
+                return self::asString(Form::input('text', $rule['name'], $rule['label'], $value, $form_params, true));
             case 'int':
-                return Form::input('text', $rule['name'], $rule['label'], $value, $form_params, true);
-                break;
+                return self::asString(Form::input('text', $rule['name'], $rule['label'], $value, $form_params, true));
             case 'number':
-                return Form::input('number', $rule['name'], $rule['label'], $value, $form_params, true);
-                break;
+                return self::asString(Form::input('number', $rule['name'], $rule['label'], $value, $form_params, true));
             case 'float':
-                return Form::input('text', $rule['name'], $rule['label'], $value, $form_params, true);
-                 break;
+                return self::asString(Form::input('text', $rule['name'], $rule['label'], $value, $form_params, true));
             case 'text':
             case 'textarea':
                 $form_params['rows'] = $form_params['rows'] ?? 7;
-                return Form::textarea($rule['name'], $rule['label'], $value, $form_params['rows'], $form_params, true);
-                break;
+                return self::asString(Form::textarea($rule['name'], $rule['label'], $value, $form_params['rows'], $form_params, true));
            case 'password':
-               return Form::input('password', $rule['name'], $rule['label'], $value, $form_params, true);
-               break;
+               return self::asString(Form::input('password', $rule['name'], $rule['label'], $value, $form_params, true));
            case 'email':
-                return Form::input('email', $rule['name'], $rule['label'], $value, $form_params, true);
-                 break;
+                return self::asString(Form::input('email', $rule['name'], $rule['label'], $value, $form_params, true));
             case 'url':
-                return Form::input('url', $rule['name'], $rule['label'], $value, $form_params, true);
-                 break;
+                return self::asString(Form::input('url', $rule['name'], $rule['label'], $value, $form_params, true));
             case 'tel':
-                return Form::input('tel', $rule['name'], $rule['label'], $value, $form_params, true);
-                 break;
+                return self::asString(Form::input('tel', $rule['name'], $rule['label'], $value, $form_params, true));
             case 'date':
-                return Form::input('date', $rule['name'], $rule['label'], $value, $form_params, true);
-                break;
+                return self::asString(Form::input('date', $rule['name'], $rule['label'], $value, $form_params, true));
             case 'datetime':
             case 'datetime-local':
-                return Form::input('datetime-local', $rule['name'], $rule['label'], $value, $form_params, true);
-                break;
+                return self::asString(Form::input('datetime-local', $rule['name'], $rule['label'], $value, $form_params, true));
              case 'time':
                 // Normalize time value to HH:MM format (required by HTML5 time input)
                 // Replace common separators (. , space) with :
@@ -322,18 +309,15 @@ class ObjectToForm
                         $value = str_pad($matches[1], 2, '0', STR_PAD_LEFT) . ':' . $matches[2];
                     }
                 }
-                return Form::input('time', $rule['name'], $rule['label'], $value, $form_params, true);
-                break;
+                return self::asString(Form::input('time', $rule['name'], $rule['label'], $value, $form_params, true));
             case 'timestamp':
                 // Convert Unix timestamp to datetime-local format (Y-m-d\TH:i)
                 if (is_numeric($value) && $value > 0) {
                     $value = date('Y-m-d\TH:i', $value);
                 }
-                return Form::input('datetime-local', $rule['name'], $rule['label'], $value, $form_params, true);
-                break;
+                return self::asString(Form::input('datetime-local', $rule['name'], $rule['label'], $value, $form_params, true));
             case 'html':
                 return $rule['html'] ?? '';
-                break;
             case 'openTag':
                 $tag = $rule['tag'] ?? 'div';
                  // Build data attributes for toggle visibility
@@ -364,12 +348,10 @@ class ObjectToForm
                 $attributes = self::buildAttributesString ($rule['attributes'] ?? []) ;
                 $html ='<'. $tag . ' ' . $attributes . ' id="' . $rule['id'] . '" name="' . $rule['name'] . '" ' . $data_attrs . ' >';
                 return $html;
-                break;
             case 'closeTag':
                 $tag = $rule['tag'] ?? 'div';
                 $html = '</' . $tag . ' >';
                 return $html;
-                break;
              case 'select':
              case 'list':
                 $rule['options'] = $rule['options'] ?? [];
@@ -386,19 +368,18 @@ class ObjectToForm
                             $value = $decoded;
                         }
                     }
-                    return Form::milkSelect($rule['name'], $rule['label'], $rule['options'], $value, $form_params, true);
+                    return self::asString(Form::milkSelect($rule['name'], $rule['label'], $rule['options'], $value, $form_params, true));
                 }
                 // When allowEmpty + options <= 25 + not multiple: normal select with empty option
                 if ($allowEmpty && count($rule['options']) <= 25) {
                     $rule['options'] = ['' => ''] + $rule['options'];
-                    return Form::select($rule['name'], $rule['label'], $rule['options'], $value, $form_params, true);
+                    return self::asString(Form::select($rule['name'], $rule['label'], $rule['options'], $value, $form_params, true));
                 }
                 // Use milkSelect for large option sets (> 25) for better UX (autocomplete/search)
                 if (count($rule['options']) > 25) {
-                    return Form::milkSelect($rule['name'], $rule['label'], $rule['options'], $value, $form_params, true);
+                    return self::asString(Form::milkSelect($rule['name'], $rule['label'], $rule['options'], $value, $form_params, true));
                 }
-                return Form::select($rule['name'], $rule['label'],  $rule['options'], $value, $form_params, true);
-                break;
+                return self::asString(Form::select($rule['name'], $rule['label'],  $rule['options'], $value, $form_params, true));
             case 'milkSelect':
                 $rule['options'] = $rule['options'] ?? [];
 
@@ -439,16 +420,14 @@ class ObjectToForm
                     $form_params['display_value'] = $display_value;
                 }
 
-                return Form::milkSelect($rule['name'], $rule['label'], $rule['options'], $value, $form_params, true);
-                break;
+                return self::asString(Form::milkSelect($rule['name'], $rule['label'], $rule['options'], $value, $form_params, true));
             case 'enum':
                 $rule['options'] = $rule['options'] ?? [];
                 $rule_options = [];
                 foreach ($rule['options'] as $value) {
                     $rule_options[$value] = $value;
                 }
-                return Form::select($rule['name'], $rule['label'], $rule_options, $value, $form_params, true);
-                break;
+                return self::asString(Form::select($rule['name'], $rule['label'], $rule_options, $value, $form_params, true));
             case 'checkbox':
                 // value is the value the saved field has, rule['value'] is the value attribute of the checkbox. If the two values ​​are equal, the checkbox is checked. To select the checkbox, $value must equal rule['value'] or true.
                 $checkbox_html = '';
@@ -458,7 +437,7 @@ class ObjectToForm
                 if ($is_disabled) {
                     $submit_value = $value;
                     if ($submit_value === true) {
-                        $submit_value = $rule['value'] ?? '1';
+                        $submit_value = $rule['value'];
                     } elseif ($submit_value === false) {
                         $submit_value = $rule['checkbox_unchecked'] ?? '0';
                     }
@@ -467,7 +446,7 @@ class ObjectToForm
                             $submit_value = $rule['default'];
                         } elseif (isset($rule['checkbox_unchecked'])) {
                             $submit_value = $rule['checkbox_unchecked'];
-                        } elseif (isset($rule['value'])) {
+                        } elseif (array_key_exists('value', $rule)) {
                             $submit_value = $rule['value'];
                         }
                     }
@@ -476,7 +455,7 @@ class ObjectToForm
                     // Add hidden field BEFORE checkbox to handle unchecked state
                     // The hidden field will be sent when checkbox is unchecked
                     // When checkbox is checked, its value will override the hidden field value
-                    if (isset($rule['checkbox_unchecked']) && $rule['checkbox_unchecked'] !== null) {
+                    if (isset($rule['checkbox_unchecked'])) {
                         $checkbox_html .= '<input type="hidden" name="' . _r($rule['name']) . '" value="' . _r($rule['checkbox_unchecked']) . '">';
                     }
                 }
@@ -485,29 +464,27 @@ class ObjectToForm
                 $checkbox_html .= Form::checkbox($rule['name'], $rule['label'],  $rule['value'], $is_checked, $form_params, true);
 
                 return $checkbox_html;
-                break;
             case 'checkboxes':
                 $inline = self::normalizeBool($form_params['inline'] ?? false);
                 unset($form_params['inline']);
-                return Form::checkboxes($rule['name'], $rule['options'],  $value, $inline, $form_params, [], true);
-                break;
+                return self::asString(Form::checkboxes($rule['name'], $rule['options'],  $value, $inline, $form_params, [], true));
             case 'radio':
             case 'radios':
                 $inline = self::normalizeBool($form_params['inline'] ?? false);
                 unset($form_params['inline']);
-                return Form::radios($rule['name'], $rule['options'],  $value, $inline, $form_params, [], true);
-                break;
+                return self::asString(Form::radios($rule['name'], $rule['options'],  $value, $inline, $form_params, [], true));
             case 'file':
 
-                return Get::themePlugin('UploadFiles', ['name'=>$rule['name'], 'label'=> $rule['label'], 'value'=>$value, 'options'=>$form_params ?? [], 'upload_name' => _raz($rule['name'])] );
-                break;
+                return self::asString(Get::themePlugin('UploadFiles', ['name'=>$rule['name'], 'label'=> $rule['label'], 'value'=>$value, 'options'=>$form_params ?? [], 'upload_name' => _raz($rule['name'])] ));
             case 'image':
 
-                return Get::themePlugin('UploadImages', ['name'=>$rule['name'], 'label'=> $rule['label'], 'value'=>$value, 'options'=>$form_params ?? [], 'upload_name' => _raz($rule['name'])] );
-                break;
-            case 'beauty-select':
-                return Get::themePlugin('BeautySelect', ['id' => $rule['name'], 'label' => $rule['label'], 'value' => $value, 'options' => $rule['options'] ?? [], 'isMultiple' => $rule['isMultiple'] ?? false, 'floating'=> $rule['isMultiple'] ?? true ]);
-                break;
+                return self::asString(Get::themePlugin('UploadImages', ['name'=>$rule['name'], 'label'=> $rule['label'], 'value'=>$value, 'options'=>$form_params ?? [], 'upload_name' => _raz($rule['name'])] ));
+            case 'milk-select':
+            case 'milkselect':
+                $milk_options = $form_params;
+                $milk_options['type'] = ($rule['isMultiple'] ?? false) ? 'multiple' : 'single';
+                $milk_options['floating'] = $rule['isMultiple'] ?? true;
+                return self::asString(Form::milkSelect($rule['name'], $rule['label'], $rule['options'] ?? [], $value, $milk_options, true));
             case 'editor':
                 $is_readonly = self::normalizeBool($form_params['readonly'] ?? false);
                 $is_disabled = self::normalizeBool($form_params['disabled'] ?? false);
@@ -518,7 +495,7 @@ class ObjectToForm
                     unset($form_params['readonly']);
                     $rows = isset($form_params['rows']) ? (int) $form_params['rows'] : 7;
                     unset($form_params['rows']);
-                    return Form::textarea($rule['name'], $rule['label'], $value, $rows, $form_params, true);
+                    return self::asString(Form::textarea($rule['name'], $rule['label'], $value, $rows, $form_params, true));
                 }
 
                 $editor_required = self::normalizeBool($form_params['required'] ?? false);
@@ -529,7 +506,7 @@ class ObjectToForm
                     $editor_invalid_feedback = (string) $form_params['invalid_feedback'];
                 }
 
-                return Get::themePlugin('editor', [
+                return self::asString(Get::themePlugin('editor', [
                     'id' => $rule['name'],
                     'name' => $rule['name'],
                     'label' => $rule['label'],
@@ -537,16 +514,14 @@ class ObjectToForm
                     'height' => '200px',
                     'required' => $editor_required,
                     'invalidFeedback' => $editor_invalid_feedback
-                ]);
-                break;
+                ]));
             default:
                 // custom input
                 $ret = Hooks::run('form-'.$type, $rule, $value);
                 if (is_array($ret)) {
                     $ret = '<div class="text-danger">'.sprintf(_r('Hook %s not found for type %s'), 'form-'.$type, $type).'</div>';
                 }
-                return $ret;
-                break;
+                return self::asString($ret);
         }
     }
 
@@ -574,6 +549,21 @@ class ObjectToForm
 
         $normalized = strtolower(trim((string) $value));
         return in_array($normalized, ['1', 'true', 'yes', 'on'], true);
+    }
+
+    private static function asString(mixed $value): string
+    {
+        if (is_string($value)) {
+            return $value;
+        }
+        if ($value === null || $value === false) {
+            return '';
+        }
+        if (is_scalar($value)) {
+            return (string) $value;
+        }
+
+        return '';
     }
 
     private static function isCheckboxChecked(mixed $currentValue, mixed $checkedValue): bool

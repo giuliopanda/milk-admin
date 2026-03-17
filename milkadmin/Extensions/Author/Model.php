@@ -62,7 +62,7 @@ class Model extends AbstractModelExtension
      * Automatically set created_by when inserting a new record
      * This method is called via attribute scanning
      *
-     * @param obj $current_record Current record data
+     * @param object $current_record Current record data
      * @return int User ID
      */
     #[ToDatabaseValue('created_by')]
@@ -88,7 +88,7 @@ class Model extends AbstractModelExtension
      * Format created_by for display
      * Shows username or email based on extension configuration
      *
-     * @param obj $current_record Current record data
+     * @param object $current_record Current record data
      * @return string Formatted author name
      */
     #[ToDisplayValue('created_by')]

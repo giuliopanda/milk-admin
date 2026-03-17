@@ -44,13 +44,12 @@ abstract class Expression
     protected $evaluates_groups = false;
 
     /**
-     * @var ?\Vimeo\MysqlEngine\Schema\Column
+     * @var object|null
      */
     public $column;
 
     /**
      * @var int
-     * @readonly
      */
     public $start;
 

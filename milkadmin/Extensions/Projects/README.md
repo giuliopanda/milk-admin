@@ -19,6 +19,51 @@ Additional docs:
 
 This README describes how to structure a module that uses it, how to write the manifest, and what conventions are enforced.
 
+## Programmatic Manifest Access
+
+If you need manifest data outside extension internals, use:
+
+```php
+use Extensions\Projects\Classes\ProjectJsonStore;
+
+$manifest = ProjectJsonStore::getCurrentManifestData(); // or ProjectJsonStore::getCurrentManifestData('module-page')
+if ($manifest === false) {
+    // Current/requested module does not use Projects extension
+    // or manifest is missing/unreadable/invalid.
+}
+```
+
+`ProjectJsonStore::getCurrentManifestData(?string $modulePage = null): array|false`
+
+- Returns manifest data (`array`) for the current request page (`$_REQUEST['page']`) or for the provided `$modulePage`.
+- Returns `false` when:
+  - no module instance is available for that page,
+  - the module does not use `Projects` extension,
+  - `manifest.json` is missing/unreadable/invalid.
+
+## Additional Permissions (Short Note)
+
+`Projects` exposes special permissions through hook `project_get_special_permissions`.
+
+Current default permissions for main table are:
+
+- `project.<manifest_id>.main_table_view` (default `true`)
+- `project.<manifest_id>.main_table_edit` (default `true`)
+- `project.<manifest_id>.main_table_delete` (default `true`)
+
+Notes:
+
+- `<manifest_id>` comes from `manifest.json` field `id` (not module page).
+- Permission keys are snake_case.
+- The extension also sends lightweight UI metadata used by `UserRights`:
+  - `block_title` (project name from manifest),
+  - `block_name` (currently `Access Data`),
+  - `row_name` (root table `_name` from schema JSON).
+
+Runtime checks are delegated to:
+
+- `Hooks::run("project_check_special_permission", true, 'project.' . $permissionName)`
+
 ## Quick Start
 
 1. Enable the module extension:

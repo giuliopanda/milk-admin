@@ -14,13 +14,13 @@ class SearchBuilder {
     private array $table_ids = [];
     private string $filter_id_attr = '';
     private $fields = [];
-    private $current_field = null; // chiave del campo corrente in $fields
+    private $current_field = null; // key of current field in $fields
     private $auto_execute = true;
     private $form_classes = '';
     private $container_classes = '';
-    private $wrapper_class = 'd-flex align-items-center gap-2 flex-wrap'; // classe wrapper per layout inline
+    private $wrapper_class = 'd-flex align-items-center gap-2 flex-wrap'; // wrapper class for inline layout
     private $search_mode = 'onchange'; // 'onchange' or 'submit'
-    private $show_search_buttons = false; // se mostrare automaticamente i pulsanti search/clear in modalità submit
+    private $show_search_buttons = false; // whether to automatically show search/clear buttons in submit mode
 
     /**
      * List of extension names to load for this builder
@@ -72,7 +72,7 @@ class SearchBuilder {
     /**
      * Creates a select dropdown filter
      */
-    public function select($filter_type): self {
+    public function select($filter_type, string $label = '', array $options = [], $selected = ''): self {
         $this->fields[] = [
             'type' => 'select',
             'filter_type' => $filter_type,
@@ -84,6 +84,17 @@ class SearchBuilder {
             'options' => []
         ];
         $this->current_field = array_key_last($this->fields);
+
+        if ($label !== '') {
+            $this->fields[$this->current_field]['label'] = $label;
+        }
+        if (!empty($options)) {
+            $this->fields[$this->current_field]['select_options'] = $options;
+        }
+        if ($selected !== '') {
+            $this->fields[$this->current_field]['selected'] = $selected;
+        }
+
         return $this;
     }
 
@@ -109,7 +120,7 @@ class SearchBuilder {
     /**
      * Creates a generic input field
      */
-    public function input($type, $filter_type): self {
+    public function input($type, $filter_type, string $label = '', $value = ''): self {
         $this->fields[] = [
             'type' => 'input',
             'input_type' => $type,
@@ -122,6 +133,14 @@ class SearchBuilder {
             'options' => []
         ];
         $this->current_field = array_key_last($this->fields);
+
+        if ($label !== '') {
+            $this->fields[$this->current_field]['label'] = $label;
+        }
+        if ($value !== '') {
+            $this->fields[$this->current_field]['value'] = $value;
+        }
+
         return $this;
     }
 
@@ -212,13 +231,17 @@ class SearchBuilder {
      * Sets options for select or action list
      * @param array $options ['value' => 'label']
      */
-    public function options(array $options): self {
+    public function options(array $options, $selected = null): self {
         if ($this->current_field !== null) {
             $field_type = $this->fields[$this->current_field]['type'];
             if ($field_type === 'select') {
                 $this->fields[$this->current_field]['select_options'] = $options;
             } elseif ($field_type === 'action_list') {
                 $this->fields[$this->current_field]['list_options'] = $options;
+            }
+
+            if ($selected !== null && in_array($field_type, ['select', 'action_list'], true)) {
+                $this->fields[$this->current_field]['selected'] = $selected;
             }
         }
         return $this;
@@ -309,9 +332,10 @@ class SearchBuilder {
      * Renders the complete search form
      * 
      * @param array $container_options Options for the main container
-     * @return string|void
+     * @return string
      */
-    public function render(array $container_options = []): string {
+    public function render(array $container_options = [], bool $return_only = true): string {
+        unset($return_only);
         if (empty($this->fields)) {
             return '';
         }
@@ -723,23 +747,6 @@ class SearchBuilder {
     }
     
     /**
-     * Prepares action list options with required data attributes
-     *
-     * @param array $field Field configuration
-     * @return array
-     */
-    private function prepareActionListOptions(array $field): array {
-        $options = $field['options'] ?? [];
-
-        // Generate unique ID based on table ID and filter type for action lists too
-        if (!isset($options['id'])) {
-            $options['id'] = $this->table_id . 'SearchForm' . ucfirst($field['filter_type']);
-        }
-
-        return $options;
-    }
-    
-    /**
      * Prepares action list input options with required data attributes
      * 
      * @param array $field Field configuration
@@ -853,7 +860,7 @@ class SearchBuilder {
      * @return string Complete HTML calendar ready for display
      */
     public function __toString(): string {
-        return $this->render() ?? '';
+        return $this->render();
     }
 
 }

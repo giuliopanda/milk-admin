@@ -43,5 +43,9 @@ $admin_password_display = htmlspecialchars($admin_password !== '' ? $admin_passw
         <p><?php _pt('Please check the error message below:'); ?></p>
         <p><?php _pt(MessagesHandler::getErrorAlert()); ?></p>
 
-    <?php  _pt(Hooks::run('install.done', '')); ?>
+    <?php
+    if (!MessagesHandler::hasErrors()) {
+        _pt(Hooks::run('install.done', ''));
+    }
+    ?>
 </div>

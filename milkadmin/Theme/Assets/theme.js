@@ -1226,21 +1226,26 @@ class ItoTableSorterPaginator {
      * @param {number} rowsPerPage - Numero di righe mostrate per pagina.
      * @param {el} elementPaginationUl - L'ID del container (ul) in cui verranno inseriti i link di paginazione.
      */
-    constructor(elementTable, rowsPerPage = 5, elementPaginationUl = null) {
+    constructor(elementTable, rowsPerPage = 5, elementPaginationUl = null, options = {}) {
         this.table = elementTable;
         if (!this.table) {
-            throw new Error(`Table "${tableId}" not found`);
+            throw new Error('Table element not found');
         }
 
         this.tbody = this.table.querySelector('tbody');
         this.headers = Array.from(this.table.querySelectorAll('thead th'));
         this.rows = Array.from(this.tbody.querySelectorAll('tr'));
         this.paginationEl = elementPaginationUl;
-        this.rowsPerPage = rowsPerPage;
+        const parsedRowsPerPage = parseInt(rowsPerPage, 10);
+        this.rowsPerPage = Number.isFinite(parsedRowsPerPage) ? parsedRowsPerPage : 0;
         this.currentPage = 1;
         this.sortDirections = {};
+        this.enableSorting = options.sortable !== false;
+        this.enablePagination = options.pagination !== false;
 
-        this.initSorters();
+        if (this.enableSorting) {
+            this.initSorters();
+        }
         this.renderTable();
     }
   
@@ -1330,12 +1335,14 @@ class ItoTableSorterPaginator {
      * Mostra le righe della pagina corrente e aggiorna la paginazione (se richiesta).
      */
     renderTable() {
-      // Calcolo dell'indice iniziale e finale in base alla pagina corrente
-      const startIndex = (this.currentPage - 1) * this.rowsPerPage;
-      const endIndex = startIndex + this.rowsPerPage;
-  
-      // Estrazione delle righe da visualizzare
-      const visibleRows = this.rows.slice(startIndex, endIndex);
+      let visibleRows = this.rows;
+      if (this.enablePagination && this.rowsPerPage > 0) {
+        // Calcolo dell'indice iniziale e finale in base alla pagina corrente
+        const startIndex = (this.currentPage - 1) * this.rowsPerPage;
+        const endIndex = startIndex + this.rowsPerPage;
+        // Estrazione delle righe da visualizzare
+        visibleRows = this.rows.slice(startIndex, endIndex);
+      }
   
       // Svuoto il tbody
       this.tbody.innerHTML = '';
@@ -1344,8 +1351,10 @@ class ItoTableSorterPaginator {
       visibleRows.forEach(row => this.tbody.appendChild(row));
   
       // Se è stato fornito l'id per la paginazione, aggiorno i link
-      if (this.paginationEl) {
+      if (this.paginationEl && this.enablePagination) {
         this.renderPagination();
+      } else if (this.paginationEl && !this.enablePagination) {
+        this.paginationEl.classList.add('d-none');
       }
     }
   
@@ -1357,7 +1366,7 @@ class ItoTableSorterPaginator {
         if (!paginationContainer) return;
 
         // Nascondi la paginazione se non necessaria
-        if (this.rowsPerPage <= 0 || this.rows.length <= this.rowsPerPage) {
+        if (!this.enablePagination || this.rowsPerPage <= 0 || this.rows.length <= this.rowsPerPage) {
             paginationContainer.classList.add('d-none');
             return;
         } else {

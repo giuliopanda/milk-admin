@@ -66,7 +66,7 @@ class Model extends AbstractModelExtension
      * Intercept delete operation to soft/hard delete instead
      *
      * @param array $ids Array of IDs to delete
-     * @return bool|null Return false to prevent actual deletion, null to continue
+     * @return bool Return false to prevent actual deletion
      */
     
     public function beforeDelete($return, $ids): bool {

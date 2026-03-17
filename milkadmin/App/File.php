@@ -33,6 +33,31 @@ use App\Exceptions\FileException;
 class File {
 
     /**
+     * Validate file path before touching filesystem APIs.
+     *
+     * Prevents low-level ValueError/Warning leaks and rejects path formats
+     * that are invalid for the current platform.
+     *
+     * @throws FileException
+     */
+    private static function validateFilePath(string $file_path): void
+    {
+        if ($file_path === '') {
+            throw new FileException('Path not writable: empty path');
+        }
+
+        if (str_contains($file_path, "\0")) {
+            throw new FileException('Path not writable: null bytes are not allowed');
+        }
+
+        // On Unix-like systems a Windows drive path is not a valid absolute path
+        // and can unintentionally create files with backslashes in the current dir.
+        if (DIRECTORY_SEPARATOR !== '\\' && preg_match('/^[A-Za-z]:[\\\\\\/]/', $file_path) === 1) {
+            throw new FileException('Path not writable: invalid absolute path for this platform');
+        }
+    }
+
+    /**
      * Appends data to a file with mandatory exclusive locking
      *
      * This method appends the provided data to the end of an existing file,
@@ -66,7 +91,9 @@ class File {
      */
     static function appendContents(string $file_path, string $data): void
     {
-        $fp = fopen($file_path, 'cb');
+        self::validateFilePath($file_path);
+
+        $fp = @fopen($file_path, 'cb');
         if (!$fp) {
             throw new FileException("Cannot open file for appending: $file_path");
         }
@@ -118,11 +145,13 @@ class File {
      * }
      */
     public static function getContents(string $file_path): string {
+        self::validateFilePath($file_path);
+
         if (!file_exists($file_path)) {
             throw new FileException("File does not exist: $file_path");
         }
 
-        $fp = fopen($file_path, 'r');
+        $fp = @fopen($file_path, 'r');
         if (!$fp) {
             throw new FileException("Cannot open file for reading: $file_path");
         }
@@ -183,6 +212,8 @@ class File {
      * File::putContents('messages.txt', $new_content);
      */
     public static function putContents(string $file_path, string $data): void {
+        self::validateFilePath($file_path);
+
         // Check directory permissions first
         $dir = dirname($file_path);
         if (!is_writable($dir)) {
@@ -190,7 +221,7 @@ class File {
             throw new FileException("Directory not writable: $dir. Please check permissions.");
         }
 
-        $fp = fopen($file_path, 'c');
+        $fp = @fopen($file_path, 'c');
         if (!$fp) {
             \App\MessagesHandler::addError("Failed to open file: " . basename($file_path) . ". Check file permissions.", 'file_permissions');
             throw new FileException("Cannot open file for writing: $file_path");

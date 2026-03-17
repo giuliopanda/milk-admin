@@ -9,4 +9,5 @@ use Builders\TitleBuilder;
  * $html - string
  */
 
+$html = isset($html) ? (string) $html : '';
 echo $html; 

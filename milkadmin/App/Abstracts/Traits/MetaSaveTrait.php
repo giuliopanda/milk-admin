@@ -25,10 +25,6 @@ trait MetaSaveTrait
      */
     protected function afterSave(mixed $after_save_data, mixed $save_results): void
     {
-        if (!method_exists($this, 'saveMeta')) {
-            return;
-        }
-
         $successful_ids = [];
         if (is_array($save_results)) {
             foreach ($save_results as $row) {
@@ -50,21 +46,19 @@ trait MetaSaveTrait
         }
 
         // If we can map dirty meta by index, preserve record-level mapping.
-        if (method_exists($this, 'getAllDirtyMeta')) {
-            $dirty_map = $this->getAllDirtyMeta();
-            if (!empty($dirty_map)) {
-                $dirty_indices = array_keys($dirty_map);
-                sort($dirty_indices, SORT_NUMERIC);
+        $dirty_map = $this->getAllDirtyMeta();
+        if (!empty($dirty_map)) {
+            $dirty_indices = array_keys($dirty_map);
+            sort($dirty_indices, SORT_NUMERIC);
 
-                foreach ($dirty_indices as $offset => $dirty_index) {
-                    $entity_id = $successful_ids[$offset] ?? null;
-                    if ($entity_id === null) {
-                        continue;
-                    }
-                    $this->saveMeta($entity_id, (int)$dirty_index);
+            foreach ($dirty_indices as $offset => $dirty_index) {
+                $entity_id = $successful_ids[$offset] ?? null;
+                if ($entity_id === null) {
+                    continue;
                 }
-                return;
+                $this->saveMeta($entity_id, (int)$dirty_index);
             }
+            return;
         }
 
         // Backward fallback: apply current dirty context to each saved id.
@@ -94,10 +88,6 @@ trait MetaSaveTrait
      */
     protected function afterDelete(mixed $entity_ids): void
     {
-        if (!method_exists($this, 'deleteMeta')) {
-            return;
-        }
-
         $ids = is_array($entity_ids) ? $entity_ids : [$entity_ids];
         foreach ($ids as $entity_id) {
             if ($entity_id === null || $entity_id === '') {

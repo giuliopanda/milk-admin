@@ -62,9 +62,13 @@ class Model extends AbstractModelExtension
      * Configure the CommentsModel dynamically based on parent model
      * This is called via hook when CommentsModel is instantiated
      *
-     * @param RuleBuilder $rule The rule builder for CommentsModel
-     * @param CommentsModel $commentsModel The comments model instance
-     * @return void
+     * @return array{
+     *   table_name:string,
+     *   foreign_key:string,
+     *   entity_label:string,
+     *   db:string,
+     *   comment_field:string
+     * }
      */
     public function getTableParams(): array
     {

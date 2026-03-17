@@ -11,6 +11,7 @@ class DrawJsTable {
             firstHeaderClass: '',
             showLabels: true,
             itemsPerPage: 5,
+            sortableTable: true,
             number_format: ''
         },
         compact: {
@@ -21,6 +22,7 @@ class DrawJsTable {
             firstHeaderClass: 'thead-light',
             showLabels: true,
             itemsPerPage: 5,
+            sortableTable: true,
             number_format: 'dot'
         },
         dark: {
@@ -31,6 +33,7 @@ class DrawJsTable {
             firstHeaderClass: 'thead-dark',
             showLabels: true,
             itemsPerPage: 5,
+            sortableTable: true,
             number_format: 'dot'
         },
         hoverable: {
@@ -41,6 +44,7 @@ class DrawJsTable {
             firstHeaderClass: '',
             showLabels: true,
             itemsPerPage: 5,
+            sortableTable: true,
             number_format: 'dot'
         },
     };
@@ -74,16 +78,29 @@ class DrawJsTable {
             this.options.cellClass = this.options.cellClass;
         }
         
-        // Log per debugging
-        console.log("DrawJsTable options:", {
-            preset: options.preset,
-            userItemsPerPage: userItemsPerPage,
-            finalItemsPerPage: this.options.itemsPerPage
-        });
     }
 
     getCellClass(columnIndex) {
         return this.options.cellClass[columnIndex] ||  '';
+    }
+
+    static toBool(value, defaultValue = true) {
+        if (value === undefined || value === null) {
+            return defaultValue;
+        }
+        if (typeof value === 'boolean') {
+            return value;
+        }
+        if (typeof value === 'number') {
+            return value === 1;
+        }
+
+        const normalized = String(value).trim().toLowerCase();
+        if (normalized === '') {
+            return defaultValue;
+        }
+
+        return ['1', 'true', 'yes', 'on'].includes(normalized);
     }
 
     render() {
@@ -170,15 +187,29 @@ class DrawJsTable {
 
         container.eI(table).eI(tbody);
 
-        // Verifica nuovamente che itemsPerPage sia un numero valido
         const itemsPerPage = parseInt(this.options.itemsPerPage, 10);
-        console.log(`Creating table with itemsPerPage=${itemsPerPage}`);
-        
-        if (itemsPerPage > 0) {
+        const safeItemsPerPage = Number.isFinite(itemsPerPage) ? itemsPerPage : 0;
+        const sortable = DrawJsTable.toBool(
+            this.options.sortableTable,
+            true
+        );
+        const paginationEnabled = safeItemsPerPage > 0;
+
+        let ul = null;
+        if (paginationEnabled) {
             const nav = container.eI('nav', {'arial-label': 'Table pagination'});
-            const ul = nav.eI('ul', 'pagination');
-            const tableManager = new ItoTableSorterPaginator(table, itemsPerPage, ul);
+            ul = nav.eI('ul', 'pagination');
         }
+
+        new ItoTableSorterPaginator(
+            table,
+            safeItemsPerPage,
+            ul,
+            {
+                sortable: sortable,
+                pagination: paginationEnabled,
+            }
+        );
     }
 
     update() {

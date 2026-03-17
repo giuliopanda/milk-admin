@@ -88,7 +88,12 @@ trait InstallationTrait {
             return;
         }
 
-        if (is_object($this->model) && method_exists($this->model, 'buildTable') && method_exists($this->model, 'dropTable')) {
+        $model = $this->model;
+        if (!is_object($model) && !is_string($model)) {
+            return;
+        }
+
+        if (method_exists($model, 'buildTable') && method_exists($model, 'dropTable')) {
             Cli::set($this->page.":install", [$this, 'shellInstallModule']);
             if (!$this->is_core_module) {
                 Cli::set($this->page.":uninstall", [$this, 'shellUninstallModule']);
@@ -360,7 +365,7 @@ trait InstallationTrait {
      * Calls the _installExecute method and returns the data
      *
      * @param array $data Data from the installation form
-     * @return void
+     * @return array
      */
     public function installExecute($data = []) {
        
@@ -388,20 +393,29 @@ trait InstallationTrait {
         $table_changes = [];
         $this_class= get_class($this);
         // Install main model
-        if (is_object($this->model) && method_exists($this->model, 'buildTable')) {
-            if ($this->model->getDbType() == 'array') {
+        $model = $this->model;
+        if (is_object($model) && is_callable([$model, 'buildTable'])) {
+            $db_type = is_callable([$model, 'getDbType'])
+                ? (string) call_user_func([$model, 'getDbType'])
+                : '';
+            if ($db_type === 'array') {
                 return true;
             }
-            $build_result = $this->model->buildTable();
+            $build_result = (bool) call_user_func([$model, 'buildTable']);
             if ($build_result) {
-                $change_summary = $this->formatSchemaChanges($this->model->getSchemaFieldDifferences());
-                if ($change_summary !== null) {
-                    $table_changes[] = $change_summary;
+                $field_differences = is_callable([$model, 'getSchemaFieldDifferences'])
+                    ? call_user_func([$model, 'getSchemaFieldDifferences'])
+                    : [];
+                if (is_array($field_differences)) {
+                    $change_summary = $this->formatSchemaChanges($field_differences);
+                    if ($change_summary !== null) {
+                        $table_changes[] = $change_summary;
+                    }
                 }
             }
-            if ($this->model->last_error != '') {
+            if (property_exists($model, 'last_error') && is_string($model->last_error) && $model->last_error !== '') {
                 $success = false;
-                $errors[] = $this->model->last_error;
+                $errors[] = $model->last_error;
             }
         }
         // Install additional models
@@ -708,7 +722,7 @@ trait InstallationTrait {
         }
 
         $property = $map[$type];
-        if (!isset($this->$property) || !is_array($this->$property)) {
+        if (!isset($this->$property)) {
             return  $first_value;
         }
 

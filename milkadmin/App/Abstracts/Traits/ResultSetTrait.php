@@ -8,6 +8,7 @@ namespace App\Abstracts\Traits;
  * Provides navigation methods for ResultInterface-based Models
  * Uses current_index and cached_row from AbstractModel
  */
+// @phpstan-ignore-next-line trait.unused
 trait ResultSetTrait
 {
     /**

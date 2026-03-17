@@ -19,9 +19,17 @@ use PHPMailer\PHPMailer\PHPMailer;
 
 class Mail
 {
-    private ?PHPMailer $mail = null;
+    private PHPMailer $mail;
     public string  $last_error = '';
     private bool  $new_email = false;
+
+    public function __construct()
+    {
+        $this->mail = new PHPMailer(true);
+        $this->mail->isMail();
+        $this->mail->CharSet = 'UTF-8';
+        $this->mail->Subject = "MilkAdmin email";
+    }
 
     /**
      * Configures the mailer with SMTP settings or PHP's mail() function
@@ -198,11 +206,7 @@ class Mail
      */
     public function subject(string $subject): self {
         $this->isNewEamil();
-        try {
-            $this->mail->Subject = $subject;
-        } catch (\Exception $e) {
-            $this->last_error = $this->mail->ErrorInfo;
-        }
+        $this->mail->Subject = $subject;
         return $this;
     }
 
@@ -360,16 +364,14 @@ class Mail
      * @return void
      */
     private function clear(): void {
-        if ( $this->mail ) {
-            $this->mail->clearAddresses();
-            $this->mail->clearAllRecipients();
-            $this->mail->clearAttachments();
-            $this->mail->clearCCs();
-            $this->mail->clearBCCs();
-            $this->mail->clearReplyTos();
-            $this->mail->clearCustomHeaders();
-            $this->mail->isHTML(true);  
-        }
+        $this->mail->clearAddresses();
+        $this->mail->clearAllRecipients();
+        $this->mail->clearAttachments();
+        $this->mail->clearCCs();
+        $this->mail->clearBCCs();
+        $this->mail->clearReplyTos();
+        $this->mail->clearCustomHeaders();
+        $this->mail->isHTML(true);  
     }
 
     /**

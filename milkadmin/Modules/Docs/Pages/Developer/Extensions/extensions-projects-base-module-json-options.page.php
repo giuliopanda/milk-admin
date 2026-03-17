@@ -61,7 +61,7 @@ class BlogPostsModule extends AbstractModule
     }
 }</code></pre>
 
-    <h2 class="mt-4">3) Esempio manifest.json</h2>
+    <h2 class="mt-4">3) manifest.json Example</h2>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-json">{
   "_version": "1.0",
   "_name": "Blog Posts",

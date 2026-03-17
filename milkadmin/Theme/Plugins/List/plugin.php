@@ -13,7 +13,34 @@
 
 !defined('MILK_DIR') && die(); // Avoid direct access
 
+$__vars = get_defined_vars();
+$page_info_raw = $__vars['page_info'] ?? null;
+if ($page_info_raw instanceof App\Modellist\PageInfo) {
+    $page_info = $page_info_raw->toArray();
+} elseif (is_array($page_info_raw)) {
+    $page_info = $page_info_raw;
+} else {
+    $page_info = [];
+}
+$box_attrs = is_array($__vars['box_attrs'] ?? null) ? $__vars['box_attrs'] : [];
+$rows = is_array($__vars['rows'] ?? null) ? $__vars['rows'] : [];
+$info_value = $__vars['info'] ?? null;
+$info = ($info_value instanceof App\Modellist\ListStructure || is_array($info_value)) ? $info_value : [];
+
 $page_info['ajax'] = $page_info['ajax'] ?? true;
+$page_info['json'] = $page_info['json'] ?? false;
+$page_info['page'] = isset($page_info['page']) ? (string) $page_info['page'] : '';
+$page_info['action'] = isset($page_info['action']) ? (string) $page_info['action'] : '';
+$page_info['filters'] = isset($page_info['filters']) ? (string) $page_info['filters'] : '';
+$page_info['bulk_actions'] = is_array($page_info['bulk_actions'] ?? null) ? $page_info['bulk_actions'] : [];
+$page_info['limit'] = (int) ($page_info['limit'] ?? 20);
+if ($page_info['limit'] <= 0) {
+    $page_info['limit'] = 20;
+}
+$page_info['limit_start'] = (int) ($page_info['limit_start'] ?? 0);
+if ($page_info['limit_start'] < 0) {
+    $page_info['limit_start'] = 0;
+}
 
 // Inizializza le condizioni per classi dinamiche
 $box_conditions = $page_info['box_conditions'] ?? [];
@@ -23,7 +50,6 @@ $field_conditions = $page_info['field_conditions'] ?? [];
 $box_template = $page_info['box_template'] ?? __DIR__ . '/box-item.php';
 
 $primary = '';
-$info = $info ?? [];
 
 foreach ($info as $key => $i) {
     if (isset($i['primary']) && $i['primary'] == true) {
@@ -45,10 +71,6 @@ $default_attrs = array(
     'field.value' => ['class' => 'col-7'],
     'checkbox.wrapper' => ['class' => 'form-check'],
 );
-
-if (!isset($box_attrs) || !is_array($box_attrs)) {
-    $box_attrs = [];
-}
 
 $box_attrs = array_merge($default_attrs, $box_attrs);
 
@@ -92,11 +114,9 @@ if (!isset($page_info['id'])) {
     $list_id = _r($page_info['id']);
 }
 
-$list_id = $list_id ?? 'listId'.uniqid();
-
 $order_field = $page_info['order_field'] ?? '';
 $order_dir = $page_info['order_dir'] ?? '';
-$actual_page = ceil($page_info['limit_start'] / $page_info['limit']) + 1;
+$actual_page = intdiv($page_info['limit_start'], $page_info['limit']) + 1;
 
 // Prepare custom data (replaces form_html_input_hidden)
 $custom_data = [];
@@ -113,7 +133,7 @@ if (isset($page_info['form_html_input_hidden']) && !empty($page_info['form_html_
     }
 }
 
-if (($info instanceof App\Modellist\ListStructure || is_array($info))  && ($page_info instanceof App\Modellist\PageInfo || is_array($page_info))) {
+if ($page_info instanceof App\Modellist\PageInfo || is_array($page_info)) {
 
     if (!$page_info['json']) {
         ?>
@@ -126,8 +146,8 @@ if (($info instanceof App\Modellist\ListStructure || is_array($info))  && ($page
             data-page="<?php _p($page_info['page']); ?>"
             data-action="<?php _p($page_info['action']); ?>"
             data-list-id="<?php _p($list_id); ?>"
-            data-current-page="<?php _p($actual_page, 'int'); ?>"
-            data-limit="<?php _p($page_info['limit'], 'int'); ?>"
+            data-current-page="<?php _p($actual_page); ?>"
+            data-limit="<?php _p($page_info['limit']); ?>"
             data-order-field="<?php _p($order_field); ?>"
             data-order-dir="<?php _p($order_dir); ?>"
             data-filters="<?php _p($page_info['filters']); ?>"
@@ -165,7 +185,7 @@ if (($info instanceof App\Modellist\ListStructure || is_array($info))  && ($page
         </div>
     <?php } ?>
 
-    <?php if (is_countable($rows) && count($rows) > 0) { ?>
+    <?php if (count($rows) > 0) { ?>
         <div <?php Theme\Template::addAttrs($box_attrs, 'box-container'); ?>>
             <?php foreach ($rows as $row_index => $row) {
                 // Calcola classi dinamiche per il box
@@ -344,7 +364,7 @@ if (($info instanceof App\Modellist\ListStructure || is_array($info))  && ($page
     <?php } ?>
 
     <?php
-    if (($page_info['pagination'] ?? true) && $page_info['total_record'] > 0) {
+    if (($page_info['pagination'] ?? true) && (($page_info['total_record'] ?? 0) > 0)) {
         echo App\Get::themePlugin('list/pagination', ['page_info' => $page_info]);
     }
 

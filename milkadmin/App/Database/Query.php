@@ -64,7 +64,7 @@ class Query
     /**
      * ORDER BY clauses for the query
      * 
-     * @var array<int, array{0: string, 1: string}>
+     * @var array<int, array{0: string, 1: string, 2?: bool}>
      */
     private array $order = [];
 
@@ -278,7 +278,7 @@ class Query
         }
 
         $placeholders = implode(',', array_fill(0, count($values), '?'));
-        $whereClause = $this->db->qn($field) . " IN ($placeholders)";
+        $whereClause = $this->qn($field) . " IN ($placeholders)";
 
         return $this->where($whereClause, $values, $operator);
     }
@@ -366,11 +366,11 @@ class Query
         if ($type === 'hasOne' || $type === 'hasMany') {
             return sprintf(
                 "EXISTS (SELECT 1 FROM %s WHERE %s.%s = %s.%s AND (%s))",
-                $this->db->qn($relatedTable),
-                $this->db->qn($relatedTable),
-                $this->db->qn($relationship['foreign_key']),
-                $this->db->qn($this->table),
-                $this->db->qn($relationship['local_key']),
+                $this->qn($relatedTable),
+                $this->qn($relatedTable),
+                $this->qn((string) $relationship['foreign_key']),
+                $this->qn($this->table),
+                $this->qn((string) $relationship['local_key']),
                 $condition
             );
         }
@@ -378,11 +378,11 @@ class Query
         if ($type === 'belongsTo') {
             return sprintf(
                 "EXISTS (SELECT 1 FROM %s WHERE %s.%s = %s.%s AND (%s))",
-                $this->db->qn($relatedTable),
-                $this->db->qn($relatedTable),
-                $this->db->qn($relationship['related_key']),
-                $this->db->qn($this->table),
-                $this->db->qn($relationship['foreign_key']),
+                $this->qn($relatedTable),
+                $this->qn($relatedTable),
+                $this->qn((string) $relationship['related_key']),
+                $this->qn($this->table),
+                $this->qn((string) $relationship['foreign_key']),
                 $condition
             );
         }
@@ -474,24 +474,24 @@ class Query
         if ($type === 'hasOne' || $type === 'hasMany') {
             return sprintf(
                 "LEFT JOIN %s AS %s ON %s.%s = %s.%s",
-                $this->db->qn($relatedTable),
-                $this->db->qn($alias),
-                $this->db->qn($alias),
-                $this->db->qn($relationship['foreign_key']),
-                $this->db->qn($this->table),
-                $this->db->qn($relationship['local_key'])
+                $this->qn($relatedTable),
+                $this->qn($alias),
+                $this->qn($alias),
+                $this->qn((string) $relationship['foreign_key']),
+                $this->qn($this->table),
+                $this->qn((string) $relationship['local_key'])
             );
         }
 
         if ($type === 'belongsTo') {
             return sprintf(
                 "LEFT JOIN %s AS %s ON %s.%s = %s.%s",
-                $this->db->qn($relatedTable),
-                $this->db->qn($alias),
-                $this->db->qn($alias),
-                $this->db->qn($relationship['related_key']),
-                $this->db->qn($this->table),
-                $this->db->qn($relationship['foreign_key'])
+                $this->qn($relatedTable),
+                $this->qn($alias),
+                $this->qn($alias),
+                $this->qn((string) $relationship['related_key']),
+                $this->qn($this->table),
+                $this->qn((string) $relationship['foreign_key'])
             );
         }
 
@@ -503,9 +503,10 @@ class Query
      * 
      * @param string|array<int, string> $field Field name or array of field names
      * @param string|array<int, string> $dir Direction ('ASC' or 'DESC') or array of directions
+     * @param bool $quoteField If false, field is used as-is (for raw expressions)
      * @return $this Allows method chaining
      */
-    public function order(string|array $field = '', string|array $dir = 'ASC'): self
+    public function order(string|array $field = '', string|array $dir = 'ASC', bool $quoteField = true): self
     {
         if ($field === '' || (is_array($field) && empty($field))) {
             return $this;
@@ -514,10 +515,10 @@ class Query
         if (is_array($field)) {
             foreach ($field as $i => $f) {
                 $direction = is_array($dir) ? ($dir[$i] ?? 'ASC') : $dir;
-                $this->order[] = [$f, $direction];
+                $this->order[] = [$f, $direction, $quoteField];
             }
         } else {
-            $this->order[] = [$field, is_string($dir) ? $dir : 'ASC'];
+            $this->order[] = [$field, is_string($dir) ? $dir : 'ASC', $quoteField];
         }
         
         return $this;
@@ -560,7 +561,7 @@ class Query
         } else {
             $start = $start_or_limit;
         }
-        $this->limit = [_absint($start), _absint($limit)];
+        $this->limit = [abs((int) $start), abs((int) $limit)];
         return $this;
     }
 
@@ -624,7 +625,7 @@ class Query
         $params = [];
         
         $selectFields = empty($this->select) ? ['*'] : $this->select;
-        $sql = 'SELECT ' . implode(',', $selectFields) . ' FROM ' . $this->db->qn($this->table);
+        $sql = 'SELECT ' . implode(',', $selectFields) . ' FROM ' . $this->qn($this->table);
         
         if (!empty($this->from)) {
             $sql .= ' ' . implode(' ', $this->from);
@@ -634,7 +635,7 @@ class Query
         $sql .= $whereClause;
 
         if ($this->group !== '') {
-            $sql .= ' GROUP BY ' . $this->db->qn($this->group);
+            $sql .= ' GROUP BY ' . $this->qn($this->group);
         }
 
         [$havingClause, $havingParams] = $this->buildHaving();
@@ -696,6 +697,7 @@ class Query
         foreach ($this->order as $orderItem) {
             $field = $orderItem[0];
             $direction = strtolower($orderItem[1]) === 'asc' ? 'ASC' : 'DESC';
+            $quoteField = $orderItem[2] ?? true;
             
             if (isset($this->sort_mappings[$field])) {
                 $field = $this->sort_mappings[$field];
@@ -707,7 +709,7 @@ class Query
             }
             $seenFields[$fieldKey] = true;
             
-            $orderParts[] = $this->db->qn($field) . ' ' . $direction;
+            $orderParts[] = ($quoteField ? $this->qn($field) : $field) . ' ' . $direction;
         }
 
         if (empty($orderParts)) {
@@ -726,7 +728,7 @@ class Query
             return '';
         }
         
-        return ' LIMIT ' . _absint($this->limit[0]) . ',' . _absint($this->limit[1]);
+        return ' LIMIT ' . abs((int) $this->limit[0]) . ',' . abs((int) $this->limit[1]);
     }
 
     /**
@@ -756,8 +758,8 @@ class Query
             is_null($param) => 'NULL',
             is_bool($param) => $param ? '1' : '0',
             is_int($param), is_float($param) => (string) $param,
-            is_string($param) => method_exists($this->db, 'quote') 
-                ? $this->db->quote($param) 
+            is_string($param) => (is_object($this->db) && method_exists($this->db, 'quote'))
+                ? (string) $this->db->quote($param)
                 : "'" . addslashes($param) . "'",
             default => "'" . addslashes(serialize($param)) . "'",
         };
@@ -772,7 +774,7 @@ class Query
      */
     public function getTotal(): array
     {
-        $sql = 'SELECT COUNT(*) FROM ' . $this->db->qn($this->table);
+        $sql = 'SELECT COUNT(*) FROM ' . $this->qn($this->table);
 
         // Include FROM/JOIN clauses (like get() method does)
         if (!empty($this->from)) {
@@ -784,7 +786,7 @@ class Query
 
         // Include GROUP BY if present (for complex queries)
         if ($this->group !== '') {
-            $sql .= ' GROUP BY ' . $this->db->qn($this->group);
+            $sql .= ' GROUP BY ' . $this->qn($this->group);
         }
 
         // Include HAVING if present (for complex queries)
@@ -857,6 +859,15 @@ class Query
         return [' WHERE ' . implode(' ', $clauses), $params];
     }
 
+    private function qn(string $value): string
+    {
+        if (is_object($this->db) && method_exists($this->db, 'qn')) {
+            return (string) $this->db->qn($value);
+        }
+
+        return $value;
+    }
+
     /**
      * Executes the query and returns the results
      *
@@ -865,7 +876,9 @@ class Query
      */
     public function getResults(): AbstractModel|array|null|false
     {
-        if ($this->db === null)  return null;
+        if (!is_object($this->db)) {
+            return null;
+        }
         $this->last_executed_query = $this->toSql();
         
         if ($this->static_model !== null) {
@@ -875,7 +888,8 @@ class Query
                 $this->static_model->setResults($result);
             }
             
-            $this->static_model->setQueryColumns($this->db->getQueryColumns());
+            $columns = method_exists($this->db, 'getQueryColumns') ? $this->db->getQueryColumns() : [];
+            $this->static_model->setQueryColumns($columns);
             $this->applyRelationships();
           
             return $this->static_model;
@@ -892,19 +906,23 @@ class Query
      */
     public function getRow(): AbstractModel|array|null|false
     {
-        if ($this->db === null)  return null;
+        $db = $this->db;
+        if (!is_object($db)) {
+            return null;
+        }
         $this->last_executed_query = $this->toSql();
         
         $this->limit(0, 1);
         
         if ($this->static_model !== null) {
-            $this->static_model->setRow($this->db->getRow(...$this->get()));
-            $this->static_model->setQueryColumns($this->db->getQueryColumns());
+            $this->static_model->setRow($db->getRow(...$this->get()));
+            $columns = method_exists($db, 'getQueryColumns') ? $db->getQueryColumns() : [];
+            $this->static_model->setQueryColumns($columns);
             $this->applyRelationships();
             return $this->static_model;
         }
        
-        return $this->db->getRow(...$this->get());
+        return $db->getRow(...$this->get());
     }
 
     /**
@@ -912,7 +930,7 @@ class Query
      */
     private function applyRelationships(): void
     {
-        if (!empty($this->include_relationships) && method_exists($this->static_model, 'with')) {
+        if ($this->static_model !== null && !empty($this->include_relationships)) {
             $this->static_model->with($this->include_relationships);
         }
     }
@@ -933,15 +951,18 @@ class Query
      */
     public function getVar(?string $value = null): mixed
     {
-        if ($this->db === null)  return null;
+        $db = $this->db;
+        if (!is_object($db)) {
+            return null;
+        }
         $this->limit(0, 1);
         
         $this->last_executed_query = $this->toSql();
         if ($value === null) {
-            return $this->db->getVar(...$this->get());
+            return $db->getVar(...$this->get());
         }
         
-        $result = $this->db->getRow(...$this->get());
+        $result = $db->getRow(...$this->get());
       
         if ($result === false) {
             return false;
@@ -967,7 +988,9 @@ class Query
 
     // Esegue la query se $db è stato inizializzato
     public function total(): int {
-        if ($this->db === null) return 0;
+        if (!is_object($this->db)) {
+            return 0;
+        }
         $this->clean('select')->select('COUNT(*) as total');
         $total = (int)$this->db->getVar(...$this->get());
         return $total;
@@ -982,11 +1005,9 @@ class Query
     {
         $this->static_model = $model;
 
-        if (method_exists($model, 'getIncludeRelationships')) {
-            $relationships = $model->getIncludeRelationships();
-            if (!empty($relationships)) {
-                $this->include_relationships = $relationships;
-            }
+        $relationships = $model->getIncludeRelationships();
+        if (!empty($relationships)) {
+            $this->include_relationships = $relationships;
         }
     }
 

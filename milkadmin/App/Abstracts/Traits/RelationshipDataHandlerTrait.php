@@ -29,13 +29,9 @@ trait RelationshipDataHandlerTrait
      */
     protected function extractRelationshipData(array $data): array
     {
-        if (!method_exists($this, 'hasRelationship')) {
-            return $data; // No relationships support
-        }
-
         foreach ($data as $key => $value) {
             // Check if this is a hasMeta field
-            if ($this->hasMetaRelationship($key)) {
+            if ($this->getRelationshipDefinitionService()->hasMetaRelationship($this->getRuleBuilder(), $key)) {
                 // Meta values should be scalars (string, int, float, bool, null)
                 if (is_array($value) || is_object($value)) {
                     // Try to JSON encode complex values
@@ -47,8 +43,11 @@ trait RelationshipDataHandlerTrait
             }
 
             // Check if this is a relationship
-            if ($this->hasRelationship($key)) {
-                $relationship = $this->getRelationship($key);
+            if ($this->getRelationshipDefinitionService()->hasRelationship($this->getRuleBuilder(), $key)) {
+                $relationship = $this->getRelationshipDefinitionService()->getRelationship($this->getRuleBuilder(), $key);
+                if (!is_array($relationship) || !isset($relationship['type']) || !is_string($relationship['type'])) {
+                    continue;
+                }
 
                 // Only process hasOne, hasMany and belongsTo relationships with array values
                 if (in_array($relationship['type'], ['hasOne', 'hasMany', 'belongsTo']) && is_array($value)) {
@@ -99,7 +98,7 @@ trait RelationshipDataHandlerTrait
      */
     protected function markMetaDirty(string $alias, mixed $value): void
     {
-        $index = $this->current_index ?? 0;
+        $index = $this->current_index;
         if (!isset($this->dirty_meta[$index])) {
             $this->dirty_meta[$index] = [];
         }
@@ -113,7 +112,7 @@ trait RelationshipDataHandlerTrait
      */
     public function hasDirtyMeta(?int $index = null): bool
     {
-        $index = $index ?? $this->current_index ?? 0;
+        $index = $index ?? $this->current_index;
         return !empty($this->dirty_meta[$index]);
     }
 
@@ -124,7 +123,7 @@ trait RelationshipDataHandlerTrait
      */
     public function getDirtyMeta(?int $index = null): array
     {
-        $index = $index ?? $this->current_index ?? 0;
+        $index = $index ?? $this->current_index;
         return $this->dirty_meta[$index] ?? [];
     }
 
@@ -146,7 +145,7 @@ trait RelationshipDataHandlerTrait
      */
     public function clearDirtyMeta(?int $index = null): void
     {
-        $index = $index ?? $this->current_index ?? 0;
+        $index = $index ?? $this->current_index;
         unset($this->dirty_meta[$index]);
     }
 
@@ -159,14 +158,20 @@ trait RelationshipDataHandlerTrait
      */
     public function saveMeta(mixed $entity_id, ?int $index = null): bool
     {
-        $index = $index ?? $this->current_index ?? 0;
+        if ($this->rule_builder === null) {
+            return true;
+        }
+
+        $index = $index ?? $this->current_index;
 
         if (!$this->hasDirtyMeta($index)) {
             return true;
         }
 
         $dirty = $this->getDirtyMeta($index);
-        $rules = $this->rule_builder->getRules();
+        if ($dirty === []) {
+            return true;
+        }
         $all_meta = $this->rule_builder->getAllHasMeta();
 
         if (empty($all_meta)) {
@@ -180,6 +185,9 @@ trait RelationshipDataHandlerTrait
             foreach ($all_meta as $config) {
                 if ($config['alias'] === $alias) {
                     $model_class = $config['related_model'];
+                    if (!is_string($model_class) || $model_class === '') {
+                        continue;
+                    }
                     if (!isset($by_model[$model_class])) {
                         $by_model[$model_class] = [];
                     }
@@ -217,6 +225,10 @@ trait RelationshipDataHandlerTrait
             return true;
         }
 
+        if ($this->db === null) {
+            return false;
+        }
+
         $first_config = $items[0]['config'];
         $foreign_key = $first_config['foreign_key'];
         $meta_key_column = $first_config['meta_key_column'];
@@ -225,7 +237,10 @@ trait RelationshipDataHandlerTrait
         // Get meta model instance
         $meta_model = new $model_class();
         $meta_table = $meta_model->getRuleBuilder()->getTable();
-        $meta_pk = $meta_model->getPrimaryKey();
+        $meta_pk = (string) ($meta_model->getPrimaryKey() ?? '');
+        if ($meta_pk === '' || $meta_table === null || $meta_table === '') {
+            return false;
+        }
 
         // Get database connection
         $db = $this->db;
@@ -282,6 +297,10 @@ trait RelationshipDataHandlerTrait
      */
     public function deleteMeta(mixed $entity_id): bool
     {
+        if ($this->rule_builder === null || $this->db === null) {
+            return true;
+        }
+
         $all_meta = $this->rule_builder->getAllHasMeta();
 
         if (empty($all_meta)) {
@@ -292,6 +311,9 @@ trait RelationshipDataHandlerTrait
         $by_model = [];
         foreach ($all_meta as $config) {
             $model_class = $config['related_model'];
+            if (!is_string($model_class) || $model_class === '') {
+                continue;
+            }
             if (!isset($by_model[$model_class])) {
                 $by_model[$model_class] = $config;
             }

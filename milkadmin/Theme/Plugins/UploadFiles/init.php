@@ -39,7 +39,7 @@ use App\{Get, Hooks, Route, Token};
         $name = $_POST['form-name'];
 
         // controllo se il file è stato caricato
-        if (!isset($_FILES) || !isset($_FILES['file'])) {
+        if (!isset($_FILES['file'])) {
             echo json_encode(['msg' => 'No file uploaded', 'success' => false]);
             return;
         }
@@ -89,7 +89,7 @@ use App\{Get, Hooks, Route, Token};
             $name_without_ext = pathinfo($_FILES['file']['name'], PATHINFO_FILENAME);
             $file_name = _raz(substr(strtolower($name_without_ext),0,30));
             if ($count_name > 0) {
-                $file_name .= str_pad($count_name, 3, '0', STR_PAD_LEFT);
+                $file_name .= str_pad((string) $count_name, 3, '0', STR_PAD_LEFT);
             }
             $count_name++;
             $file_name .= ".".pathinfo($_FILES['file']['name'], PATHINFO_EXTENSION);

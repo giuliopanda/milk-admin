@@ -29,7 +29,7 @@ final class CastExpression extends Expression
     public $castType;
 
     /**
-     * @param Token $tokens
+     * @param Token $token
      */
     public function __construct(Token $token, Expression $expr, MysqlColumnType $cast_type)
     {

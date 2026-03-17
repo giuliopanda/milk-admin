@@ -40,7 +40,6 @@ class DocsController extends AbstractController
         if (!$this->access()) {
             $queryString = Route::getQueryString();
             Route::redirect('?page=deny&redirect=' . Route::urlsafeB64Encode($queryString));
-            return;
         }
 
         // Get parameters (prefer POST action for JSON reloads)

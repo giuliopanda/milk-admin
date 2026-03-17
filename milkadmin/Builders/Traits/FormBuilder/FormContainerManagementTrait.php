@@ -400,12 +400,12 @@ trait FormContainerManagementTrait {
      * @return string Generated field name
      */
     private function generateHtmlFieldName(int $counter): string {
-        $field_name = "HCNT" . str_pad($counter, 4, '0', STR_PAD_LEFT);
+        $field_name = "HCNT" . str_pad((string) $counter, 4, '0', STR_PAD_LEFT);
 
         // Ensure uniqueness
         while (isset($this->fields[$field_name])) {
             $counter++;
-            $field_name = "HCNT" . str_pad($counter, 4, '0', STR_PAD_LEFT);
+            $field_name = "HCNT" . str_pad((string) $counter, 4, '0', STR_PAD_LEFT);
         }
 
         return $field_name;

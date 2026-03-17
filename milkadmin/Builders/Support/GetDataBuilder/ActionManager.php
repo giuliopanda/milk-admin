@@ -118,7 +118,10 @@ class ActionManager
     {
         $page = $this->context->getPage();
         $model = $this->context->getModel();
-        $key = $model->getPrimaryKey() ?? 'id';
+        $key = (string) $model->getPrimaryKey();
+        if ($key === '') {
+            $key = 'id';
+        }
         $defaults = [
             'edit' => [
                 'label' => 'Edit',
@@ -158,9 +161,7 @@ class ActionManager
             $response = $this->normalizeResults($this->function_results);
         }
 
-        if (is_array($this->action_response)) {
-            $response = array_merge($this->action_response, $response);
-        }
+        $response = array_merge($this->action_response, $response);
 
         return $response;
     }

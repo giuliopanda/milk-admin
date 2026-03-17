@@ -10,13 +10,13 @@ class ViewCardConfig
 {
     /** @param ViewTableConfig[] $tables */
     public function __construct(
-        public readonly string $id,
-        public readonly string $type,          // 'single-table' | 'group'
-        public readonly ?ViewTableConfig $table,  // set when type = single-table
-        public readonly array $tables,            // set when type = group
-        public readonly string $title,
-        public readonly string $icon,
-        public readonly string $preHtml,
-        public readonly string $postHtml
+        public string $id,
+        public string $type,          // 'single-table' | 'group'
+        public ?ViewTableConfig $table,  // set when type = single-table
+        public array $tables,            // set when type = group
+        public string $title,
+        public string $icon,
+        public string $preHtml,
+        public string $postHtml
     ) {}
 }

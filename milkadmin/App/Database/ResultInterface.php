@@ -4,6 +4,8 @@ namespace App\Database;
 /**
  * Common interface for result sets (MySQL, SQLite, etc.)
  * Ensures method consistency regardless of driver
+ *
+ * @extends \IteratorAggregate<int, object>
  */
 interface ResultInterface extends \IteratorAggregate
 {
@@ -20,7 +22,7 @@ interface ResultInterface extends \IteratorAggregate
     /**
      * Fetch an array (behavior like fetch_assoc for MySQL, fetchArray for SQLite)
      */
-    public function fetch_array(): array|null|false;
+    public function fetch_array(?int $mode = null): array|null|false;
 
     /**
      * Fetch an associative array
@@ -55,7 +57,7 @@ interface ResultInterface extends \IteratorAggregate
     /**
      * Releases the result set resources
      */
-    public function finalize(): true;
+    public function finalize(): bool;
 
     /**
      * Returns the list of fields

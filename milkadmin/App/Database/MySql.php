@@ -46,111 +46,111 @@ class MySql
      * 
      * @var string
      */
-    public $last_error = '';
+    public string $last_error = '';
     
     /**
      * Error flag indicating if the last query resulted in an error
      * 
      * @var bool
      */
-    public $error = false;
+    public bool $error = false;
     
     /**
      * The last SQL query that was executed
      * 
      * @var string
      */
-    public $last_query = "";
+    public string $last_query = "";
     
     /**
      * Table prefix used for all database operations
      * 
      * @var string
      */
-    public $prefix = '';
+    public string $prefix = '';
 
     /**
      * MySQLi connection object
      * 
      * @var \mysqli|null
      */
-    var $mysqli = null;
+    public ?\mysqli $mysqli = null;
     
     /**
      * List of tables in the database
      * 
      * @var array
      */
-    var $tables_list = array();
+    public array $tables_list = [];
     
     /**
      * Name of the current database
      * 
      * @var string
      */
-    var $dbname = '';
+    public string $dbname = '';
     /**
      * Type of the database
      * 
      * @var string
      */
-    public $type = 'mysql';
+    public string $type = 'mysql';
     
     /**
      * List of fields for each table
      * 
      * @var array
      */
-    var $fields_list = [];
+    public array $fields_list = [];
 
     /**
      * List of fields selected in the query
      * 
      * @var array
      */
-    var $query_columns = [];
+    public array $query_columns = [];
     
     /**
      * Number of rows affected by the last query
      * 
      * @var int
      */
-    var $affected_rows = 0;
+    public int $affected_rows = 0;
 
     /**
      * List of views in the database
      * 
      * @var array
      */
-    var $views_list = [];
+    public array $views_list = [];
 
     /**
      * List of columns for each table (cache)
      *
      * @var null|array
      */
-     private $show_columns_list = null;
+     private ?array $show_columns_list = null;
 
      /**
       * Static query log for debugging
       *
       * @var array
       */
-     public static $query_log = [];
+     public static array $query_log = [];
 
      /**
       * Enable/disable query logging
       *
       * @var bool
       */
-     public static $enable_query_log = false;
+     public static bool $enable_query_log = false;
 
      /**
      * Constructor that initializes the connection with an optional table prefix
      *
      * @param string $prefix Optional prefix for database tables
      */
-    function __construct($prefix = '') {
+    public function __construct(string $prefix = '') {
         $this->prefix = $prefix;
     }
    
@@ -162,7 +162,7 @@ class MySql
      * 
      * @param string $sql The SQL query to execute
      * @param array|null $params Optional parameters for prepared statements
-     * @return mixed Query MySQLResult or false on error. Returns true/false on insert/update/delete.
+     * @return MySQLResult|bool Query MySQLResult or false on error. Returns true/false on insert/update/delete.
      * 
      * @example
      * ```php
@@ -195,6 +195,7 @@ class MySql
                 ['query' => $sql, 'params' => $params]
             );
         }
+        assert($this->mysqli instanceof \mysqli);
         $sql = $this->sqlPrefix($sql);
         $this->last_query = $sql;
         $this->error = false;
@@ -309,7 +310,7 @@ class MySql
                 $this->query_columns = $ris->get_fields();
             } else {
                 // Query di tipo INSERT/UPDATE/DELETE → nessun result set
-                $this->affected_rows = $stmt->affected_rows;
+                $this->affected_rows = (int) $stmt->affected_rows;
                 $ris = true;
             }
 
@@ -328,7 +329,7 @@ class MySql
                 $errorMsg = $this->mysqli->error;
                 Logs::set('DATABASE', "MYSQL Query error: '".$sql."' error:". $errorMsg, 'ERROR');
                 $this->error = true;
-                $this->last_error = $errorMsg;
+                $this->last_error = (string) $errorMsg;
                 if (Config::get('debug', false)) {
                     $this->last_error .= " \n<br> ".$this->toSql($sql, $params);
                 }
@@ -405,8 +406,8 @@ class MySql
         $query = preg_replace_callback('/\?/', function($match) use ($quoted_values, &$index) {
             return isset($quoted_values[$index]) ? $quoted_values[$index++] : '?';
         }, $query);
-        
-        return $query;
+
+        return is_string($query) ? $query : '';
     }
 
      /**
@@ -471,6 +472,7 @@ class MySql
         if(!$this->checkConnection()) {  
             return null;
         }
+        assert($this->mysqli instanceof \mysqli);
         $table = str_replace(";","", $table);
         $sql = 'SELECT * FROM `'. $this->sqlPrefix($table).'`;';
         $this->last_query = $sql;
@@ -642,7 +644,7 @@ class MySql
         if(!$this->checkConnection()) {  
             return [];
         }
-        if ($cache && isset($this->views_list) && $this->views_list != false) {
+        if ($cache && $this->views_list != false) {
             return $this->views_list;
         }
         
@@ -712,7 +714,7 @@ class MySql
             $this->preloadShowColumns();
         }
         $table_name = $this->sqlPrefix($table_name);
-        if (array_key_exists($table_name, $this->show_columns_list) != false) {
+        if (is_array($this->show_columns_list) && array_key_exists($table_name, $this->show_columns_list) != false) {
             return $this->show_columns_list[$table_name];
         }
         return [];
@@ -721,7 +723,7 @@ class MySql
      /**
      * Returns an array with table fields and primary keys
      * 
-     * @param string $tableName The table name
+     * @param string $table_name The table name
      * @param bool $cache Whether to use cached results (default true)
      * @return array Associative array with 'fields' and 'keys' elements
      * 
@@ -750,7 +752,8 @@ class MySql
         $primary = [];
         
         if ($fields === false) {
-            $this->last_error = "Error in query 'DESCRIBE ".$this->qn($table_name)."' ".$this->mysqli->error;
+            $mysqli_error = ($this->mysqli instanceof \mysqli) ? $this->mysqli->error : '';
+            $this->last_error = "Error in query 'DESCRIBE ".$this->qn($table_name)."' ".$mysqli_error;
             return [];
         }
         
@@ -774,7 +777,7 @@ class MySql
             return ['type' => '', 'sql' => ''];
         }
         $row = $result->fetch_assoc();
-        if ($row === false || $row === null) {
+        if ($row === false) {
             return ['type' => '', 'sql' => ''];
         }
         
@@ -791,7 +794,10 @@ class MySql
      * @return int Number of affected rows
      */
     public function affectedRows(): int {
-        return $this->mysqli->affected_rows;
+        if (!$this->mysqli instanceof \mysqli) {
+            return 0;
+        }
+        return (int) $this->mysqli->affected_rows;
     }
 
     /**
@@ -819,7 +825,7 @@ class MySql
      * 
      * @param string $table The table name
      * @param array $data Associative array of column names and values
-     * @return bool|int Insert ID on success, false on failure
+     * @return int|false Insert ID on success, false on failure
      * 
      * @example
      * ```php
@@ -837,7 +843,7 @@ class MySql
      * }
      * ```
      */
-    public function insert(string $table, array $data): bool
+    public function insert(string $table, array $data): int|false
     {
         if(!$this->checkConnection()) {
             return false;
@@ -870,17 +876,12 @@ class MySql
         }
 
         // Normal insert with data
-        if (count($values) > 0) {
-            $query = "INSERT INTO ".$this->qn($table)." (".implode(", ", $field)." ) VALUES (".implode(", ", $values).");";
-            $query = $this->sqlPrefix($query);
-            $this->query($query, $bind_params);
-            if (!$this->error) {
-                return $this->mysqli->insert_id;
-            } else {
-                return false;
-            }
+        $query = "INSERT INTO ".$this->qn($table)." (".implode(", ", $field)." ) VALUES (".implode(", ", $values).");";
+        $query = $this->sqlPrefix($query);
+        $this->query($query, $bind_params);
+        if (!$this->error) {
+            return $this->mysqli->insert_id;
         }
-
         return false;
     }
 
@@ -906,7 +907,8 @@ class MySql
      * ]);
      * ```
      */
-    public function delete(string $table, array $where): bool {
+    public function delete(string $table, array $where, int $limit = 0): bool {
+        unset($limit);
         if(!$this->checkConnection()) {  
             return false;
         }
@@ -1070,14 +1072,14 @@ class MySql
         if (count($values) > 0) 
         {
             if ($limit > 0) {
-                $limit = " LIMIT ". _absint($limit);
+                $limit = " LIMIT ". abs((int) $limit);
             } else {
                 $limit = "";
             }
             $query = "UPDATE ".$this->qn($table)." SET ".implode(", ", $field)."  WHERE ".implode(" AND ", $values).$limit.";";
             $query = $this->sqlPrefix($query);
             $this->query($query, $bind_params);
-            return !$this->error;
+            return true;
         } else {
             $this->error = true;
         }
@@ -1146,14 +1148,13 @@ class MySql
     /**
      * Returns the ID generated by the last INSERT query
      * 
-     * @return \integer
+     * @return int
      */
-    public function insertId() {
-        if($this->checkConnection()) {  
-            return $this->mysqli->insert_id;
-        } else {
-            return false;
+    public function insertId(): int {
+        if(!$this->checkConnection() || !$this->mysqli instanceof \mysqli) {
+            return 0;
         }
+        return (int) $this->mysqli->insert_id;
     } 
 
     /**
@@ -1175,7 +1176,7 @@ class MySql
      * @param string $val The name to quote
      * @return string The quoted name
      */
-    public function qn(string $val) {
+    public function qn(string $val): string {
         $val = $this->sqlPrefix($val);
         
         // Handle explicit AS aliases
@@ -1195,7 +1196,7 @@ class MySql
         return $this->qnSafe($val);
     }
 
-    private function qnSafe(string $name) {
+    private function qnSafe(string $name): string {
         // Rimuovi spazi iniziali/finali
         $name = trim($name);
         
@@ -1242,14 +1243,18 @@ class MySql
      * @param string $val The value to quote
      * @return string The quoted value
      */
-    public function quote(string $val): string {
-        if (is_null($val) || strtolower($val) == 'NULL') {
+    public function quote(mixed $val): string {
+        if ($val === null || (is_string($val) && strtolower($val) === 'null')) {
             return 'NULL';
-        } elseif (is_int($val)) {
-            return $val;
-        } else {
-            return "'".$this->mysqli->real_escape_string($val)."'";
         }
+        if (is_int($val) || is_float($val)) {
+            return (string) $val;
+        }
+        $stringVal = is_scalar($val) ? (string) $val : serialize($val);
+        if (!$this->mysqli instanceof \mysqli) {
+            return "'" . addslashes($stringVal) . "'";
+        }
+        return "'" . $this->mysqli->real_escape_string($stringVal) . "'";
     }
   
    /**
@@ -1277,7 +1282,23 @@ class MySql
         $this->error =  false;
         $this->dbname = $dbname;
         $timeout = 5;
-        $this->mysqli =  mysqli_init( );
+        $mysqli = mysqli_init();
+        if (!$mysqli instanceof \mysqli) {
+            $errorMsg = "Cannot initialize mysqli";
+            Logs::set('DATABASE', "MYSQL Connect: ".$errorMsg, 'ERROR');
+            $this->error =  true;
+            $this->last_error = $errorMsg;
+            throw new DatabaseException(
+                $errorMsg,
+                'mysql',
+                [
+                    'host' => $ip,
+                    'database' => $dbname,
+                    'user' => $login
+                ]
+            );
+        }
+        $this->mysqli = $mysqli;
         if (!$this->mysqli->options( MYSQLI_OPT_CONNECT_TIMEOUT, $timeout ) ) {
             $errorMsg = "Cannot setup connection timeout";
             Logs::set('DATABASE', "MYSQL Connect: ".$errorMsg, 'ERROR');

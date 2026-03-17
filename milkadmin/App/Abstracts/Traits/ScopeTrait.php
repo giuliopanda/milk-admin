@@ -105,17 +105,7 @@ trait ScopeTrait
      */
     protected function applyQueryScopes(Query $query): Query
     {
-        // First, handle SELECT * -> SELECT table.* if we have withCount scopes
-        // This is necessary for subqueries to work correctly
-        $has_with_count = false;
-        foreach ($this->default_queries as $scope_name => $callback) {
-            if (str_starts_with($scope_name, 'withCount:') && !in_array($scope_name, $this->disabled_scopes)) {
-                $has_with_count = true;
-                break;
-            }
-        }
-
-        if ($has_with_count && !$query->hasSelect()) {
+        if ($this->getWithCountScopeService()->hasEnabledScopes($this->default_queries, $this->disabled_scopes) && !$query->hasSelect()) {
             // No explicit SELECT, default would be *, change to table.*
             $query->select([$this->table . '.*']);
         }
@@ -157,44 +147,7 @@ trait ScopeTrait
      */
     protected function applyWithCountScope(Query $query, array $config): void
     {
-        $alias = $config['alias'];
-        $local_key = $config['local_key'];  // This is the primary key field in THIS table
-        $foreign_key = $config['foreign_key'];  // This is the foreign key field in the RELATED table
-        $related_model_class = $config['related_model'];
-        $where_config = $config['where'] ?? null;  // Custom where condition from ->where()
-
-        // Create an instance of the related model
-        $related_model = new $related_model_class();
-
-        // Get the related table name
-        $related_table = $related_model->getRuleBuilder()->getTable();
-
-        // Build a query for the related model - this will apply its default scopes
-        $subquery = $related_model->query();
-
-        // Add the correlation condition (foreign key in related table = primary key in this table)
-        // Example: books.author_id = authors.author_id
-        $correlation_condition = sprintf(
-            '%s.%s = %s.%s',
-            $this->db->qn($related_table),
-            $this->db->qn($foreign_key),
-            $this->db->qn($this->table),
-            $this->db->qn($local_key)
-        );
-        $subquery->where($correlation_condition);
-
-        // Add custom where condition if provided
-        if ($where_config !== null) {
-            $subquery->where($where_config['condition'], $where_config['params']);
-        }
-
-        // Get the SQL for the subquery with all scopes applied
-        $subquery->clean('select')->select('COUNT(*)');
-        $subquery_sql = $subquery->toSql();
-      
-        // Add the subquery to the main query's SELECT
-        $count_select = sprintf('(%s) AS %s', $subquery_sql, $this->db->qn($alias));
-        $query->select($count_select);
+        $this->getWithCountScopeService()->applyScope($query, $this, $config);
     }
 
     /**

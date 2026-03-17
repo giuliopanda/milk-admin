@@ -95,7 +95,7 @@ echo '<input type="text" value="' . $userInput . '">'; // Could inject attribute
     // Also handles arrays and objects! 
 </script>
 // DANGEROUS (NEVER DO):
-<script> var userName = <?php echo "<?php echo $userName; ?>"; ?>; // Vulnerable to JS injection! </script>
+<script> var userName = <?php echo '<?php echo $userName; ?>'; ?>; // Vulnerable to JS injection! </script>
         
 <?php _p(ob_get_clean()); ?></code></pre>
 

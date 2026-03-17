@@ -17,25 +17,25 @@ use App\Get;
 
 class ModelList
 {
-    public $order = true; // I'm editing it publicly
-    var $table = '';
-    var $table_id = '';
-    var $list_structure;
-    var $primary_key = '';
-    var $limit;
-    var $default_limit = 10;
-    var $page;
-    var $filters;
-    var $order_field;
-    var $order_dir;
-    var $default_order_field;
-    var $default_order_dir;
-    var $table_structure = null;
-    var $fn_filter = [];
-    var $db;
-    var $page_info;
-    var $filter_applied = [];
-    var $static_model = null;
+    public bool $order = true; // I'm editing it publicly
+    public string $table = '';
+    public string $table_id = '';
+    public ListStructure $list_structure;
+    public string $primary_key = '';
+    public ?int $limit = null;
+    public int $default_limit = 10;
+    public ?int $page = null;
+    public mixed $filters = null;
+    public ?string $order_field = null;
+    public ?string $order_dir = null;
+    public ?string $default_order_field = null;
+    public ?string $default_order_dir = null;
+    public ?array $table_structure = null;
+    public array $fn_filter = [];
+    public mixed $db;
+    public PageInfo $page_info;
+    public array $filter_applied = [];
+    public mixed $static_model = null;
     
     /**
      * ModelList class constructor
@@ -51,7 +51,10 @@ class ModelList
         $this->db = $db;
         $this->table = $table;
         if ($table_id == null) {
-            $this->table_id = $_REQUEST['table_id'] ?? _raz(uniqid('table_list_', true));
+            $tableIdRequest = $_REQUEST['table_id'] ?? null;
+            $this->table_id = is_scalar($tableIdRequest)
+                ? preg_replace('/[^0-9a-zA-Z_]/', '', (string) $tableIdRequest)
+                : preg_replace('/[^0-9a-zA-Z_]/', '', uniqid('table_list_', true));
         } else {
             $this->table_id = $table_id;
         }
@@ -156,7 +159,7 @@ class ModelList
         if (!isset($request)) {
             $request = $_REQUEST[$this->table_id] ?? [];
         }
-        $limit = _absint($request['limit'] ?? $this->default_limit);
+        $limit = abs((int) ($request['limit'] ?? $this->default_limit));
         if ($limit < 1) {
             $limit = $this->default_limit;
         }
@@ -239,8 +242,8 @@ class ModelList
             $this->order_dir = $request['order_dir'] ?? 'desc';
         }
        
-        $limit = _absint($request['limit'] ?? $this->default_limit);
-        $page = _absint($request['page'] ?? 1);
+        $limit = abs((int) ($request['limit'] ?? $this->default_limit));
+        $page = abs((int) ($request['page'] ?? 1));
        
         if ($limit < 1) {
             $limit = $this->default_limit;
@@ -356,20 +359,18 @@ class ModelList
             }
         }
 
-        if ($this->list_structure instanceof ListStructure) {
-            foreach ($this->list_structure->toArray() as $field => $config) {
-                if (!str_contains($field, '.')) {
-                    continue;
-                }
-                [$alias, $related_field] = explode('.', $field, 2);
-                if ($alias === '' || $related_field === '') {
-                    continue;
-                }
-                if (!isset($relationship_aliases[$alias])) {
-                    continue;
-                }
-                $related_fields[$alias][$related_field] = true;
+        foreach ($this->list_structure->toArray() as $field => $config) {
+            if (!str_contains($field, '.')) {
+                continue;
             }
+            [$alias, $related_field] = explode('.', $field, 2);
+            if ($alias === '' || $related_field === '') {
+                continue;
+            }
+            if (!isset($relationship_aliases[$alias])) {
+                continue;
+            }
+            $related_fields[$alias][$related_field] = true;
         }
         if (empty($related_fields)) {
             return;
@@ -387,10 +388,10 @@ class ModelList
 
     function setRequest($request) {
         if (isset($request['limit'])) {
-            $this->limit = _absint($request['limit']);
+            $this->limit = abs((int) $request['limit']);
         }
         if (isset($request['page'])) {
-            $this->page = _absint($request['page']);
+            $this->page = abs((int) $request['page']);
         }
         if (isset($request['order_field'])) {
             $this->order_field = $request['order_field'];
@@ -444,7 +445,11 @@ class ModelList
         foreach ($data as $row) {
             foreach ($structure as $field => $structure_field) {
                 $value = property_exists($row, $field) ? $row->$field : null;
-                if ($structure_field['axis'] ?? 'y' == 'x') {
+                $axis = 'y';
+                if (is_array($structure_field) && isset($structure_field['axis'])) {
+                    $axis = (string) $structure_field['axis'];
+                }
+                if ($axis === 'x') {
                     $labels[] = $value ?? '';
                 } else {
                     if (!isset($dataset[$field])) {

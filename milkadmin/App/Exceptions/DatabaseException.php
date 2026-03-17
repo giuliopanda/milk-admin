@@ -33,7 +33,7 @@ class DatabaseException extends \Exception
     /**
      * Connection parameters (sanitized)
      *
-     * @var array
+     * @var array<string, mixed>
      */
     protected array $connectionParams;
 
@@ -42,7 +42,7 @@ class DatabaseException extends \Exception
      *
      * @param string $message Error message
      * @param string $dbType Database type (mysql or sqlite)
-     * @param array $connectionParams Connection parameters (passwords will be masked)
+     * @param array<string, mixed> $connectionParams Connection parameters (passwords will be masked)
      * @param int $code Error code (default 0)
      * @param \Throwable|null $previous Previous exception
      */
@@ -74,7 +74,7 @@ class DatabaseException extends \Exception
     /**
      * Get sanitized connection parameters
      *
-     * @return array Connection parameters with masked passwords
+     * @return array<string, mixed> Connection parameters with masked passwords
      */
     public function getConnectionParams(): array
     {
@@ -84,8 +84,8 @@ class DatabaseException extends \Exception
     /**
      * Sanitize connection parameters to hide sensitive data
      *
-     * @param array $params Connection parameters
-     * @return array Sanitized parameters
+     * @param array<string, mixed> $params Connection parameters
+     * @return array<string, mixed> Sanitized parameters
      */
     protected function sanitizeParams(array $params): array
     {

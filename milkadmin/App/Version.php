@@ -40,7 +40,7 @@ class Version
             return $version;
         }
 
-        $parts = array_values(array_filter(explode('.', $version), 'strlen'));
+        $parts = array_values(array_filter(explode('.', $version), static fn (string $value): bool => $value !== ''));
         $clean_parts = [];
         foreach ($parts as $part) {
             $clean_parts[] = (string)((int)$part);
@@ -154,10 +154,10 @@ class Version
             return [0, 0, 0];
         }
 
-        $parts = explode('.', $normalized);
-        $major = (int)($parts[0] ?? 0);
-        $minor = (int)($parts[1] ?? 0);
-        $patch = (int)($parts[2] ?? 0);
+        $parts = array_pad(explode('.', $normalized), 3, '0');
+        $major = (int) $parts[0];
+        $minor = (int) $parts[1];
+        $patch = (int) $parts[2];
 
         return [$major, $minor, $patch];
     }

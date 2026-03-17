@@ -254,9 +254,6 @@ class FieldsConfigurator
         }
 
         $schema = $this->loadSchemaFromPath($schemaPath);
-        if (!is_array($schema)) {
-            return [];
-        }
 
         $modelSection = is_array($schema['model'] ?? null) ? $schema['model'] : [];
         $fieldDefs = is_array($modelSection['fields'] ?? null) ? $modelSection['fields'] : [];
@@ -375,7 +372,7 @@ class FieldsConfigurator
     {
         $normalized = str_replace('\\', '/', $modelFilePath);
         if (preg_match('~^(.*?/Modules/[^/]+)(?:/.*)?$~', $normalized, $matches) === 1) {
-            return (string) ($matches[1] ?? '');
+            return (string) $matches[1];
         }
         return dirname($modelFilePath);
     }
@@ -683,6 +680,10 @@ class FieldsConfigurator
 
         if (!empty($virtualAliases)) {
             $tb->queryCustomCallback(function ($query, $db) use ($virtualAliases): void {
+                if (!is_object($query) || !method_exists($query, 'select')) {
+                    return;
+                }
+
                 if (method_exists($query, 'hasSelect') && !$query->hasSelect()) {
                     $query->select('*');
                 }
@@ -691,7 +692,10 @@ class FieldsConfigurator
                     if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $alias) !== 1) {
                         continue;
                     }
-                    $query->select('NULL AS ' . $db->qn($alias));
+                    $quotedAlias = (is_object($db) && method_exists($db, 'qn'))
+                        ? $db->qn($alias)
+                        : $alias;
+                    $query->select('NULL AS ' . $quotedAlias);
                 }
             });
         }
@@ -714,7 +718,7 @@ class FieldsConfigurator
             }
 
             try {
-                $parser = new ExpressionParser();
+                $parser = (new ExpressionParser())->useUntrustedMode();
                 $parser->setParameters($row);
                 return $parser->execute($expression);
             } catch (\Throwable) {

@@ -44,13 +44,17 @@ class Lexer
             }
         };
 
-        $readNumber = function () use (&$pos, &$line, &$column, $peek, $advance, $input): array {
+        $isDigit = static function (?string $char): bool {
+            return $char !== null && $char >= '0' && $char <= '9';
+        };
+
+        $readNumber = function () use (&$pos, &$line, &$column, $peek, $advance, $isDigit): array {
             $num = '';
             $startCol = $column;
             $startPos = $pos;
             $startLine = $line;
 
-            while ($peek() !== null && ctype_digit($peek())) {
+            while ($isDigit($peek())) {
                 $num .= $advance();
             }
 
@@ -61,32 +65,38 @@ class Lexer
                 $savedLine = $line;
 
                 $dateStr = $num;
-                $dateStr .= $advance(); // -
+                $dateStr .= $advance(); // primo separatore
 
                 $month = '';
-                while ($peek() !== null && ctype_digit($peek())) {
+                $nextChar = $peek();
+                while ($isDigit($nextChar)) {
                     $month .= $advance();
+                    $nextChar = $peek();
                 }
 
-                if (strlen($month) === 2 && $peek() === '-') {
+                if (strlen($month) === 2) {
                     $dateStr .= $month;
-                    $dateStr .= $advance(); // -
+                    $dateStr .= $advance(); // secondo separatore
 
                     $day = '';
-                    while ($peek() !== null && ctype_digit($peek())) {
+                    $nextChar = $peek();
+                    while ($isDigit($nextChar)) {
                         $day .= $advance();
+                        $nextChar = $peek();
                     }
 
                     if (strlen($day) === 2) {
                         $dateStr .= $day;
-                        $date = \DateTime::createFromFormat('Y-m-d', $dateStr);
-                        if ($date !== false) {
-                            return [
-                                'type' => TokenType::TOKEN_DATE,
-                                'value' => $dateStr,
-                                'line' => $startLine,
-                                'column' => $startCol
-                            ];
+                        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateStr) === 1) {
+                            $date = \DateTime::createFromFormat('Y-m-d', $dateStr);
+                            if ($date !== false) {
+                                return [
+                                    'type' => TokenType::TOKEN_DATE,
+                                    'value' => $dateStr,
+                                    'line' => $startLine,
+                                    'column' => $startCol
+                                ];
+                            }
                         }
                     }
                 }
@@ -103,31 +113,39 @@ class Lexer
                 $savedLine = $line;
 
                 $day = $num;
-                $advance(); // /
+                $rawDate = $day . $advance(); // primo separatore
 
                 $month = '';
-                while ($peek() !== null && ctype_digit($peek())) {
+                $nextChar = $peek();
+                while ($isDigit($nextChar)) {
                     $month .= $advance();
+                    $nextChar = $peek();
                 }
 
-                if ((strlen($month) === 1 || strlen($month) === 2) && $peek() === '/') {
-                    $advance(); // /
+                if (strlen($month) === 1 || strlen($month) === 2) {
+                    $rawDate .= $month;
+                    $rawDate .= $advance(); // secondo separatore
 
                     $year = '';
-                    while ($peek() !== null && ctype_digit($peek())) {
+                    $nextChar = $peek();
+                    while ($isDigit($nextChar)) {
                         $year .= $advance();
+                        $nextChar = $peek();
                     }
 
                     if (strlen($year) === 4) {
-                        $isoDate = sprintf('%s-%s-%s', $year, str_pad($month, 2, '0', STR_PAD_LEFT), str_pad($day, 2, '0', STR_PAD_LEFT));
-                        $date = \DateTime::createFromFormat('Y-m-d', $isoDate);
-                        if ($date !== false) {
-                            return [
-                                'type' => TokenType::TOKEN_DATE,
-                                'value' => $isoDate,
-                                'line' => $startLine,
-                                'column' => $startCol
-                            ];
+                        $rawDate .= $year;
+                        if (preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', $rawDate) === 1) {
+                            $isoDate = sprintf('%s-%s-%s', $year, str_pad($month, 2, '0', STR_PAD_LEFT), str_pad($day, 2, '0', STR_PAD_LEFT));
+                            $date = \DateTime::createFromFormat('Y-m-d', $isoDate);
+                            if ($date !== false) {
+                                return [
+                                    'type' => TokenType::TOKEN_DATE,
+                                    'value' => $isoDate,
+                                    'line' => $startLine,
+                                    'column' => $startCol
+                                ];
+                            }
                         }
                     }
                 }
@@ -140,8 +158,10 @@ class Lexer
             // Leggi parte decimale se presente
             if ($peek() === '.') {
                 $num .= $advance();
-                while ($peek() !== null && ctype_digit($peek())) {
+                $nextChar = $peek();
+                while ($isDigit($nextChar)) {
                     $num .= $advance();
+                    $nextChar = $peek();
                 }
             }
 
@@ -238,7 +258,7 @@ class Lexer
             $startCol = $column;
             $startLine = $line;
 
-            if (ctype_digit($char)) {
+            if ($isDigit($char)) {
                 $tokens[] = $readNumber();
             } elseif ($char === '"' || $char === "'") {
                 $tokens[] = $readString();

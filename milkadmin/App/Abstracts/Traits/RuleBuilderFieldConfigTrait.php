@@ -20,7 +20,7 @@ trait RuleBuilderFieldConfigTrait
      */
     public function options(array $options): self
     {
-        $this->rules[$this->current_field]['options'] = $options;
+        $this->rules[$this->currentFieldKey()]['options'] = $options;
         return $this;
     }
 
@@ -33,9 +33,9 @@ trait RuleBuilderFieldConfigTrait
      */
     public function apiUrl(string $url, ?string $display_field = null): self
     {
-        $this->rules[$this->current_field]['api_url'] = $url;
+        $this->rules[$this->currentFieldKey()]['api_url'] = $url;
         if ($display_field !== null) {
-            $this->rules[$this->current_field]['api_display_field'] = $display_field;
+            $this->rules[$this->currentFieldKey()]['api_display_field'] = $display_field;
         }
         return $this;
     }
@@ -52,7 +52,7 @@ trait RuleBuilderFieldConfigTrait
      */
     public function label(string $label): self
     {
-        $this->rules[$this->current_field]['label'] = $label;
+        $this->rules[$this->currentFieldKey()]['label'] = $label;
         return $this;
     }
 
@@ -64,7 +64,7 @@ trait RuleBuilderFieldConfigTrait
      */
     public function default($value): self
     {
-        $this->rules[$this->current_field]['default'] = $value;
+        $this->rules[$this->currentFieldKey()]['default'] = $value;
         return $this;
     }
 
@@ -77,8 +77,8 @@ trait RuleBuilderFieldConfigTrait
      */
     public function checkboxValues($checked_value, $unchecked_value = null): self
     {
-        $this->rules[$this->current_field]['checkbox_checked'] = $checked_value;
-        $this->rules[$this->current_field]['checkbox_unchecked'] = $unchecked_value;
+        $this->rules[$this->currentFieldKey()]['checkbox_checked'] = $checked_value;
+        $this->rules[$this->currentFieldKey()]['checkbox_unchecked'] = $unchecked_value;
         return $this;
     }
 
@@ -90,12 +90,15 @@ trait RuleBuilderFieldConfigTrait
      */
     public function saveValue($value): self
     {
-        $this->rules[$this->current_field]['save_value'] = $value;
+        $this->rules[$this->currentFieldKey()]['save_value'] = $value;
         return $this;
     }
 
-    public function changeType($name, string $type): self
+    public function changeType(string $name, string $type): self
     {
+        if (!isset($this->rules[$name]) || !is_array($this->rules[$name])) {
+            $this->rules[$name] = [];
+        }
         $this->rules[$name]['type'] = $type;
         return $this;
     }
@@ -108,7 +111,7 @@ trait RuleBuilderFieldConfigTrait
      */
     public function nullable(bool $nullable = true): self
     {
-        $this->rules[$this->current_field]['nullable'] = $nullable;
+        $this->rules[$this->currentFieldKey()]['nullable'] = $nullable;
         return $this;
     }
 
@@ -119,10 +122,10 @@ trait RuleBuilderFieldConfigTrait
      */
     public function required(): self
     {
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
+        if (!isset($this->rules[$this->currentFieldKey()]['form-params'])) {
+            $this->rules[$this->currentFieldKey()]['form-params'] = [];
         }
-        $this->rules[$this->current_field]['form-params']['required'] = true;
+        $this->rules[$this->currentFieldKey()]['form-params']['required'] = true;
         return $this;
     }
 
@@ -134,7 +137,7 @@ trait RuleBuilderFieldConfigTrait
      */
     public function requireIf(string $expression): self
     {
-        $this->rules[$this->current_field]['required_expr'] = $expression;
+        $this->rules[$this->currentFieldKey()]['required_expr'] = $expression;
         return $this;
     }
 
@@ -146,7 +149,7 @@ trait RuleBuilderFieldConfigTrait
     public function primary($primary_key): self
     {
         $this->primary_key = $primary_key;
-        $this->rules[$this->current_field]['primary'] = true;
+        $this->rules[$this->currentFieldKey()]['primary'] = true;
         return $this;
     }
 
@@ -157,7 +160,7 @@ trait RuleBuilderFieldConfigTrait
      */
     public function unique(): self
     {
-        $this->rules[$this->current_field]['unique'] = true;
+        $this->rules[$this->currentFieldKey()]['unique'] = true;
         return $this;
     }
 
@@ -168,7 +171,7 @@ trait RuleBuilderFieldConfigTrait
      */
     public function index(): self
     {
-        $this->rules[$this->current_field]['index'] = true;
+        $this->rules[$this->currentFieldKey()]['index'] = true;
         return $this;
     }
 
@@ -179,15 +182,15 @@ trait RuleBuilderFieldConfigTrait
      */
     public function hideFromList(): self
     {
-        $this->rules[$this->current_field]['list'] = false;
+        $this->rules[$this->currentFieldKey()]['list'] = false;
         return $this;
     }
 
     public function hide(): self
     {
-        $this->rules[$this->current_field]['list'] = false;
-        $this->rules[$this->current_field]['edit'] = false;
-        $this->rules[$this->current_field]['view'] = false;
+        $this->rules[$this->currentFieldKey()]['list'] = false;
+        $this->rules[$this->currentFieldKey()]['edit'] = false;
+        $this->rules[$this->currentFieldKey()]['view'] = false;
         return $this;
     }
 
@@ -198,7 +201,7 @@ trait RuleBuilderFieldConfigTrait
      */
     public function hideFromEdit(): self
     {
-        $this->rules[$this->current_field]['edit'] = false;
+        $this->rules[$this->currentFieldKey()]['edit'] = false;
         return $this;
     }
 
@@ -209,7 +212,7 @@ trait RuleBuilderFieldConfigTrait
      */
     public function hideFromView(): self
     {
-        $this->rules[$this->current_field]['view'] = false;
+        $this->rules[$this->currentFieldKey()]['view'] = false;
         return $this;
     }
 
@@ -220,7 +223,7 @@ trait RuleBuilderFieldConfigTrait
      */
     public function excludeFromDatabase(): self
     {
-        $this->rules[$this->current_field]['sql'] = false;
+        $this->rules[$this->currentFieldKey()]['sql'] = false;
         return $this;
     }
 
@@ -232,7 +235,7 @@ trait RuleBuilderFieldConfigTrait
      */
     public function formType(string $type): self
     {
-        $this->rules[$this->current_field]['form-type'] = $type;
+        $this->rules[$this->currentFieldKey()]['form-type'] = $type;
         return $this;
     }
 
@@ -244,7 +247,7 @@ trait RuleBuilderFieldConfigTrait
      */
     public function formLabel(string $label): self
     {
-        $this->rules[$this->current_field]['form-label'] = $label;
+        $this->rules[$this->currentFieldKey()]['form-label'] = $label;
         return $this;
     }
 
@@ -256,21 +259,21 @@ trait RuleBuilderFieldConfigTrait
      */
     public function formParams(array $params): self
     {
-        $this->rules[$this->current_field]['form-params'] = $params;
+        $this->rules[$this->currentFieldKey()]['form-params'] = $params;
         if (isset($params['pattern'])) {
-            $this->rules[$this->current_field]['pattern'] = $params['pattern'];
+            $this->rules[$this->currentFieldKey()]['pattern'] = $params['pattern'];
         }
         if (isset($params['minlength'])) {
-            $this->rules[$this->current_field]['min_length'] = $params['minlength'];
+            $this->rules[$this->currentFieldKey()]['min_length'] = $params['minlength'];
         }
         if (isset($params['min_length'])) {
-            $this->rules[$this->current_field]['min_length'] = $params['min_length'];
+            $this->rules[$this->currentFieldKey()]['min_length'] = $params['min_length'];
         }
         if (isset($params['maxlength'])) {
-            $this->rules[$this->current_field]['max_length'] = $params['maxlength'];
+            $this->rules[$this->currentFieldKey()]['max_length'] = $params['maxlength'];
         }
         if (isset($params['max_length'])) {
-            $this->rules[$this->current_field]['max_length'] = $params['max_length'];
+            $this->rules[$this->currentFieldKey()]['max_length'] = $params['max_length'];
         }
         return $this;
     }
@@ -283,10 +286,10 @@ trait RuleBuilderFieldConfigTrait
      */
     public function error(string $message): self
     {
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
+        if (!isset($this->rules[$this->currentFieldKey()]['form-params'])) {
+            $this->rules[$this->currentFieldKey()]['form-params'] = [];
         }
-        $this->rules[$this->current_field]['form-params']['invalid-feedback'] = $message;
+        $this->rules[$this->currentFieldKey()]['form-params']['invalid-feedback'] = $message;
         return $this;
     }
 
@@ -298,7 +301,7 @@ trait RuleBuilderFieldConfigTrait
      */
     public function calcExpr(string $expression): self
     {
-        $this->rules[$this->current_field]['calc_expr'] = $expression;
+        $this->rules[$this->currentFieldKey()]['calc_expr'] = $expression;
         return $this;
     }
 
@@ -311,7 +314,7 @@ trait RuleBuilderFieldConfigTrait
      */
     public function validateExpr(string $expression, ?string $message = null): self
     {
-        $this->rules[$this->current_field]['validate_expr'] = $expression;
+        $this->rules[$this->currentFieldKey()]['validate_expr'] = $expression;
         if ($message !== null) {
             $this->error($message);
         }
@@ -326,10 +329,10 @@ trait RuleBuilderFieldConfigTrait
      */
     public function step($value): self
     {
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
+        if (!isset($this->rules[$this->currentFieldKey()]['form-params'])) {
+            $this->rules[$this->currentFieldKey()]['form-params'] = [];
         }
-        $this->rules[$this->current_field]['form-params']['step'] = $value;
+        $this->rules[$this->currentFieldKey()]['form-params']['step'] = $value;
         return $this;
     }
 
@@ -341,19 +344,19 @@ trait RuleBuilderFieldConfigTrait
      */
     public function min($value): self
     {
-        $type = $this->rules[$this->current_field]['type'] ?? null;
+        $type = $this->rules[$this->currentFieldKey()]['type'] ?? null;
         if (is_string($value) && !is_numeric($value) && preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $value)) {
-            $this->rules[$this->current_field]['min_field'] = $value;
+            $this->rules[$this->currentFieldKey()]['min_field'] = $value;
             return $this;
         }
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
+        if (!isset($this->rules[$this->currentFieldKey()]['form-params'])) {
+            $this->rules[$this->currentFieldKey()]['form-params'] = [];
         }
         if (in_array($type, ['string', 'text'], true)) {
-            $this->rules[$this->current_field]['min_length'] = $value;
-            $this->rules[$this->current_field]['form-params']['minlength'] = $value;
+            $this->rules[$this->currentFieldKey()]['min_length'] = $value;
+            $this->rules[$this->currentFieldKey()]['form-params']['minlength'] = $value;
         } else {
-            $this->rules[$this->current_field]['form-params']['min'] = $value;
+            $this->rules[$this->currentFieldKey()]['form-params']['min'] = $value;
         }
         return $this;
     }
@@ -366,19 +369,19 @@ trait RuleBuilderFieldConfigTrait
      */
     public function max($value): self
     {
-        $type = $this->rules[$this->current_field]['type'] ?? null;
+        $type = $this->rules[$this->currentFieldKey()]['type'] ?? null;
         if (is_string($value) && !is_numeric($value) && preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $value)) {
-            $this->rules[$this->current_field]['max_field'] = $value;
+            $this->rules[$this->currentFieldKey()]['max_field'] = $value;
             return $this;
         }
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
+        if (!isset($this->rules[$this->currentFieldKey()]['form-params'])) {
+            $this->rules[$this->currentFieldKey()]['form-params'] = [];
         }
         if (in_array($type, ['string', 'text'], true)) {
-            $this->rules[$this->current_field]['max_length'] = $value;
-            $this->rules[$this->current_field]['form-params']['maxlength'] = $value;
+            $this->rules[$this->currentFieldKey()]['max_length'] = $value;
+            $this->rules[$this->currentFieldKey()]['form-params']['maxlength'] = $value;
         } else {
-            $this->rules[$this->current_field]['form-params']['max'] = $value;
+            $this->rules[$this->currentFieldKey()]['form-params']['max'] = $value;
         }
         return $this;
     }
@@ -390,7 +393,7 @@ trait RuleBuilderFieldConfigTrait
      */
     public function unsigned(): self
     {
-        $this->rules[$this->current_field]['unsigned'] = true;
+        $this->rules[$this->currentFieldKey()]['unsigned'] = true;
         return $this;
     }
 
@@ -402,7 +405,7 @@ trait RuleBuilderFieldConfigTrait
      */
     public function getter(callable $fn): self
     {
-        $this->rules[$this->current_field]['_get'] = $fn;
+        $this->rules[$this->currentFieldKey()]['_get'] = $fn;
         return $this;
     }
 
@@ -415,7 +418,7 @@ trait RuleBuilderFieldConfigTrait
      */
     public function rawGetter(callable $fn): self
     {
-        $this->rules[$this->current_field]['_get_raw'] = $fn;
+        $this->rules[$this->currentFieldKey()]['_get_raw'] = $fn;
         return $this;
     }
 
@@ -427,7 +430,7 @@ trait RuleBuilderFieldConfigTrait
      */
     public function setter(callable $fn): self
     {
-        $this->rules[$this->current_field]['_set'] = $fn;
+        $this->rules[$this->currentFieldKey()]['_set'] = $fn;
         return $this;
     }
 
@@ -439,7 +442,7 @@ trait RuleBuilderFieldConfigTrait
      */
     public function editor(callable $fn): self
     {
-        $this->rules[$this->current_field]['_edit'] = $fn;
+        $this->rules[$this->currentFieldKey()]['_edit'] = $fn;
         return $this;
     }
 
@@ -452,7 +455,7 @@ trait RuleBuilderFieldConfigTrait
      */
     public function property(string $key, $value): self
     {
-        $this->rules[$this->current_field][$key] = $value;
+        $this->rules[$this->currentFieldKey()][$key] = $value;
         return $this;
     }
 
@@ -464,7 +467,12 @@ trait RuleBuilderFieldConfigTrait
      */
     public function properties(array $properties): self
     {
-        $this->rules[$this->current_field] = array_merge($this->rules[$this->current_field], $properties);
+        $field = $this->currentFieldKey();
+        $current = $this->rules[$field] ?? [];
+        if (!is_array($current)) {
+            $current = [];
+        }
+        $this->rules[$field] = array_merge($current, $properties);
         return $this;
     }
 
@@ -476,7 +484,15 @@ trait RuleBuilderFieldConfigTrait
      */
     public function customize(callable $callback): self
     {
-        $this->rules[$this->current_field] = $callback($this->rules[$this->current_field]);
+        $field = $this->currentFieldKey();
+        $current = $this->rules[$field] ?? [];
+        if (!is_array($current)) {
+            $current = [];
+        }
+        $updated = $callback($current);
+        if (is_array($updated)) {
+            $this->rules[$field] = $updated;
+        }
         return $this;
     }
 }

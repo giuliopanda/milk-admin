@@ -77,10 +77,10 @@ class ModuleMenuRegistryService
             $menuEntries[] = self::createMenuEntry(
                 $modulePage,
                 $moduleTitle,
-                (string) ($menu['name'] ?? ''),
-                (string) ($menu['url'] ?? ''),
-                (string) ($menu['icon'] ?? ''),
-                (int) ($menu['order'] ?? 10)
+                (string) $menu['name'],
+                (string) $menu['url'],
+                (string) $menu['icon'],
+                (int) $menu['order']
             );
         }
         self::sortMenuEntries($menuEntries);
@@ -98,10 +98,10 @@ class ModuleMenuRegistryService
             $selectedEntry = self::createMenuEntry(
                 $modulePage,
                 $moduleTitle,
-                (string) ($entry['name'] ?? ''),
-                (string) ($entry['url'] ?? ''),
-                (string) ($entry['icon'] ?? ''),
-                (int) ($entry['order'] ?? 10)
+                (string) $entry['name'],
+                (string) $entry['url'],
+                (string) $entry['icon'],
+                (int) $entry['order']
             );
         }
 
@@ -226,12 +226,12 @@ class ModuleMenuRegistryService
         $ownersIndexed = [];
         foreach (self::$configured_menus_by_module as $modulePage => $entries) {
             foreach ($entries as $entry) {
-                if ((string) ($entry['name'] ?? '') !== $name) {
+                if ((string) $entry['name'] !== $name) {
                     continue;
                 }
                 $ownersIndexed[$modulePage] = [
-                    'module_page' => (string) ($entry['module_page'] ?? $modulePage),
-                    'module_title' => (string) ($entry['module_title'] ?? ucfirst($modulePage)),
+                    'module_page' => (string) $entry['module_page'],
+                    'module_title' => (string) $entry['module_title'],
                 ];
                 break;
             }
@@ -240,7 +240,7 @@ class ModuleMenuRegistryService
         $selectedBy = [];
         $submenus = [];
         foreach (self::$selected_menus_by_module as $modulePage => $entry) {
-            if ((string) ($entry['selected_menu'] ?? '') !== $name) {
+            if ((string) $entry['selected_menu'] !== $name) {
                 continue;
             }
 
@@ -251,7 +251,7 @@ class ModuleMenuRegistryService
                 continue;
             }
 
-            $moduleTitle = (string) ($entry['module_title'] ?? ucfirst($modulePage));
+            $moduleTitle = (string) $entry['module_title'];
             $fallback = self::createDefaultSubmenuEntry($modulePage, $moduleTitle);
             $submenus[] = $fallback;
         }
@@ -286,19 +286,19 @@ class ModuleMenuRegistryService
 
         foreach (self::$configured_menus_by_module as $moduleEntries) {
             foreach ($moduleEntries as $entry) {
-                $menuName = (string) ($entry['name'] ?? '');
+                $menuName = (string) $entry['name'];
                 if ($menuName === '') {
                     continue;
                 }
                 if (!isset($usage[$menuName])) {
                     $usage[$menuName] = ['owners' => [], 'selected_by' => []];
                 }
-                $usage[$menuName]['owners'][] = (string) ($entry['module_page'] ?? '');
+                $usage[$menuName]['owners'][] = (string) $entry['module_page'];
             }
         }
 
         foreach (self::$selected_menus_by_module as $modulePage => $entry) {
-            $menuName = (string) ($entry['selected_menu'] ?? '');
+            $menuName = (string) $entry['selected_menu'];
             if ($menuName === '') {
                 continue;
             }
@@ -309,8 +309,8 @@ class ModuleMenuRegistryService
         }
 
         foreach ($usage as $menuName => $data) {
-            $owners = array_values(array_unique(array_filter($data['owners'], 'strlen')));
-            $selectedBy = array_values(array_unique(array_filter($data['selected_by'], 'strlen')));
+            $owners = array_values(array_unique(array_filter($data['owners'], static fn (string $value): bool => $value !== '')));
+            $selectedBy = array_values(array_unique(array_filter($data['selected_by'], static fn (string $value): bool => $value !== '')));
             sort($owners);
             sort($selectedBy);
             $usage[$menuName] = [
@@ -335,9 +335,6 @@ class ModuleMenuRegistryService
     {
         $result = [];
         foreach ($menuLinks as $menuLink) {
-            if (!is_array($menuLink)) {
-                continue;
-            }
             $normalized = self::normalizeConfiguredMenuLink($menuLink);
             if ($normalized === null) {
                 continue;
@@ -423,12 +420,12 @@ class ModuleMenuRegistryService
             return [
                 'module_page' => $modulePage,
                 'module_title' => $moduleTitle,
-                'name' => (string) ($first['name'] ?? $moduleTitle),
-                'icon' => (string) ($first['icon'] ?? 'bi bi-circle'),
-                'order' => (int) ($first['order'] ?? 9999),
-                'raw_url' => (string) ($first['raw_url'] ?? ''),
-                'query' => (string) ($first['query'] ?? self::buildConfiguredMenuQuery($modulePage, '')),
-                'url' => (string) ($first['url'] ?? Route::url('?page=' . $modulePage)),
+                'name' => (string) $first['name'],
+                'icon' => (string) $first['icon'],
+                'order' => (int) $first['order'],
+                'raw_url' => (string) $first['raw_url'],
+                'query' => (string) $first['query'],
+                'url' => (string) $first['url'],
             ];
         }
 
@@ -468,11 +465,11 @@ class ModuleMenuRegistryService
     private static function sortMenuEntries(array &$entries): void
     {
         usort($entries, function (array $a, array $b): int {
-            $orderDiff = ((int) ($a['order'] ?? 10)) <=> ((int) ($b['order'] ?? 10));
+            $orderDiff = ((int) $a['order']) <=> ((int) $b['order']);
             if ($orderDiff !== 0) {
                 return $orderDiff;
             }
-            return strcmp((string) ($a['name'] ?? ''), (string) ($b['name'] ?? ''));
+            return strcmp((string) $a['name'], (string) $b['name']);
         });
     }
 }

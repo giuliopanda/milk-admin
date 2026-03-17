@@ -173,8 +173,16 @@ class ScheduleGridData {
         return $this->header_icon;
     }
 
+    public function getHeaderColor() {
+        return $this->header_color;
+    }
+
     public function getHeaderColorClass() {
         return $this->header_color_class;
+    }
+
+    public function getRowIdField() {
+        return $this->row_id_field;
     }
 
     public function getRowHeaderLabel() {

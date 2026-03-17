@@ -227,11 +227,11 @@ final class FromParser
      *
      * @return array{
      *         name: string,
-     *         subquery: SubqueryExpression,
-     *         join_type: JoinType::*,
-     *         join_operator: string,
-     *         alias: string,
-     *         join_expression: Expression|null
+     *         subquery?: SubqueryExpression,
+     *         join_type: string,
+     *         join_operator?: string,
+     *         alias?: string,
+     *         join_expression?: Expression|null
      * }
      */
     private function buildJoin(string $left_table, Token $token)

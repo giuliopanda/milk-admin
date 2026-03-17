@@ -1,5 +1,20 @@
 ## Changelog
 
+### v0.9.7 - 26/03/17
+- New: Added a new analytics layer in `milkadmin/App/Analytics` (`DataSet`, `DataSeries`, `AggregationEngine`, `AggregationPrimitives`, `GroupingPrimitives`) and a new `Request` class API.
+- Improved: Refactored the Model/ORM save flow (`AbstractModel`, `CrudOperationsTrait`, `DataFormattingTrait`, `SchemaAndValidationTrait`, `QueryBuilderTrait`) with the new `RecordStateTrait` and explicit per-record `dirty/stale/original` tracking.
+- Improved: `getEmpty()` now initializes pristine records (defaults are visible but not marked dirty); `save()` now recomputes `___action` deterministically (`insert`/`edit`/`null`) and realigns record state after persistence.
+- Improved: `prepareData()` now persists only dirty/stale fields, insert defaults when needed, and always-managed special fields (`save_value`, `created_at`, `updated_at`, `created_by`, `updated_by`).
+- Fix: Corrected nullable/default persistence behavior in the save flow (prevents unintended update overwrites, preserves explicit `null`, avoids unintended inserts for untouched fields).
+- Fix: Corrected stale `calc_expr` handling for DB-loaded records (stale computed fields are marked and persisted as `edit`).
+- Fix: Improved `getLastInsertId()` reliability by preferring IDs tracked in `save_results`.
+- Updated: Added dedicated save-flow documentation in `Developer/Model/abstract-model-save-flow` (revision 2026/03/12).
+- Improved: Updated the Builder/Form pipeline (`Form.php`, `ObjectToForm`, `FormBuilder`, `GetDataBuilder`, `TableBuilder`, FormBuilder traits) and theme plugins (MilkSelect/Table/List/Upload, BeautySelect cleanup).
+- Improved: Hardened core behavior in `Sanitize`, `File`, `CSRFProtection`, `Database/*`, SQL/Expression parsers, and `NamespacedFunctionAliases`.
+- Updated: Refined core extensions (`Projects`, `Audit`, `Author`, `Comments`, `SoftDelete`) and removed legacy files.
+- Tests: Added and consolidated the official PHPUnit suite in `tests/`, covering core framework behavior (App layer), Model/ORM and database save flows, Builders, Extensions, Theme plugins, and key integration paths. Test result: `php vendor/bin/phpunit -c tests/phpunit.xml tests/Unit` -> **OK (461 tests, 1867 assertions)**.
+- PHPStan: Codebase refactoring was aligned with static-analysis standards at **PHPStan level 5**, with stricter typing/flow consistency, safer nullability handling, and cleaner contracts across core classes and test code. Static analysis result: `php vendor/bin/phpstan analyse --configuration=phpstan.neon` -> **No errors**.
+
 ### v0.9.6 - 26/03/13
 - Removed: Vendor directory.
 

@@ -304,7 +304,7 @@ class ModelJsonSerializer
 
     protected function addIfSet(array &$def, array $fieldRule, string $ruleKey, ?string $defKey = null): void
     {
-        if (isset($fieldRule[$ruleKey]) && $fieldRule[$ruleKey] !== null) {
+        if (array_key_exists($ruleKey, $fieldRule)) {
             $def[$defKey ?? $ruleKey] = $fieldRule[$ruleKey];
         }
     }

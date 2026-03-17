@@ -35,9 +35,8 @@ class ListSearchFiltersConfigurator
             return ['html' => '', 'field_count' => 0];
         }
 
-        $html = $searchBuilder->render();
         return [
-            'html' => is_string($html) ? $html : '',
+            'html' => $searchBuilder->render(),
             'field_count' => $this->countVisualFields($filters),
         ];
     }
@@ -366,10 +365,6 @@ class ListSearchFiltersConfigurator
         }));
 
         $model = $tableBuilder->getModel();
-        if (!is_object($model) || !method_exists($model, 'getDb')) {
-            return;
-        }
-
         $db = $model->getDb();
         if (!is_object($db)) {
             return;
@@ -430,18 +425,11 @@ class ListSearchFiltersConfigurator
     protected function registerSoftDeleteScopeFilter(TableBuilder $tableBuilder, array $filter): void
     {
         $model = $tableBuilder->getModel();
-        if (!is_object($model) || !method_exists($model, 'getRules')) {
-            return;
-        }
-
         $rules = $model->getRules();
-        if (!is_array($rules) || !isset($rules['deleted_at'])) {
+        if (!isset($rules['deleted_at'])) {
             return;
         }
 
-        if (!method_exists($model, 'getDb')) {
-            return;
-        }
         $db = $model->getDb();
         if (!is_object($db)) {
             return;
@@ -652,8 +640,8 @@ class ListSearchFiltersConfigurator
         }
 
         return [
-            'alias' => (string) ($matches[1] ?? ''),
-            'field' => (string) ($matches[2] ?? ''),
+            'alias' => (string) $matches[1],
+            'field' => (string) $matches[2],
         ];
     }
 
@@ -1006,11 +994,11 @@ class ListSearchFiltersConfigurator
         if (strpos($value, '..') !== false) {
             [$min, $max] = array_pad(explode('..', $value, 2), 2, '');
         } elseif (preg_match('/^\s*([^,]+)\s*,\s*([^,]+)\s*$/', $value, $matches) === 1) {
-            $min = (string) ($matches[1] ?? '');
-            $max = (string) ($matches[2] ?? '');
+            $min = (string) $matches[1];
+            $max = (string) $matches[2];
         } elseif (preg_match('/^\s*([0-9]+(?:\.[0-9]+)?)\s*-\s*([0-9]+(?:\.[0-9]+)?)\s*$/', $value, $matches) === 1) {
-            $min = (string) ($matches[1] ?? '');
-            $max = (string) ($matches[2] ?? '');
+            $min = (string) $matches[1];
+            $max = (string) $matches[2];
         }
 
         $min = trim($min);

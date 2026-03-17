@@ -2,8 +2,10 @@ class MilkSelect {
     constructor(element, options = [], valueMap = null, displayValue = null, placeholder = null) {
     this.hiddenInput = element;
     this.isMultiple = element.dataset.selectType === "multiple";
-    this.options = options;
-    this.valueMap = valueMap || null; // solo in memoria
+    this.options = [];
+    this.optionItems = [];
+    this.valueMap = {};
+    this.saveByValue = false;
     this.selectedValues = []; // Display values (what user sees)
     this.selectedKeys = []; // IDs/keys (what gets saved)
     this.activeIndex = -1;
@@ -13,10 +15,13 @@ class MilkSelect {
     this.placeholder = placeholder || (this.isMultiple ? 'Aggiungi valore...' : 'Cerca o seleziona...');
     this.isFloating = element.dataset.floating === '1';
     this.apiUrl = element.dataset.apiUrl || null;
+    this.allowCreate = element.dataset.create === '1';
     this.fetchTimeout = null;
     this.isLoading = false;
     this.isEditing = false; // Track if user has modified the input text
     this.isReadonly = element.dataset.readonly === '1';
+    this.isDestroyed = false;
+    this.setOptions(options, valueMap);
     this.init();
   }
 
@@ -108,12 +113,245 @@ class MilkSelect {
     });
   }
 
+  /**
+   * Static helper to destroy an initialized MilkSelect instance by hidden input id
+   * @param {string} elementId
+   * @returns {boolean}
+   */
+  static destroy(elementId) {
+    const element = document.getElementById(elementId);
+    if (!element || !element.milkSelectInstance) {
+      return false;
+    }
+    element.milkSelectInstance.destroy();
+    return true;
+  }
+
+  /**
+   * Alias of static destroy()
+   * @param {string} elementId
+   * @returns {boolean}
+   */
+  static remove(elementId) {
+    return MilkSelect.destroy(elementId);
+  }
+
   init() {
     this.createDOM();
     this.loadExistingValues();
     this.addEventListeners();
     this.isMultiple ? this.createNewInput() : this.createSingleInput();
     this.applyInitialValidationState();
+  }
+
+  normalizeOptionItem(option, legacyValueMap = null) {
+    if (option === null || option === undefined) {
+      return null;
+    }
+
+    if (typeof option === "object" && !Array.isArray(option)) {
+      const rawText = option.text ?? option.label ?? option.value;
+      if (rawText === undefined || rawText === null || rawText === "") {
+        return null;
+      }
+
+      const text = String(rawText);
+      const rawValue = option.value ?? text;
+      const value = rawValue === null || rawValue === undefined ? text : String(rawValue);
+      const group = option.group !== undefined && option.group !== null && option.group !== ""
+        ? String(option.group)
+        : null;
+
+      return { text, value, group };
+    }
+
+    const text = String(option);
+    const mappedValue = legacyValueMap && legacyValueMap[text] !== undefined
+      ? legacyValueMap[text]
+      : text;
+
+    return {
+      text,
+      value: mappedValue === null || mappedValue === undefined ? text : String(mappedValue),
+      group: null
+    };
+  }
+
+  applyNormalizedOptions(normalized) {
+    this.optionItems = normalized;
+    this.options = normalized.map(item => item.text);
+    this.valueMap = {};
+    normalized.forEach(item => {
+      if (this.valueMap[item.text] === undefined) {
+        this.valueMap[item.text] = item.value;
+      }
+    });
+    this.saveByValue = normalized.some(item => item.value !== item.text);
+  }
+
+  setOptions(options, legacyValueMap = null) {
+    const sourceOptions = Array.isArray(options) ? options : [];
+    const normalized = [];
+
+    sourceOptions.forEach((option) => {
+      const normalizedItem = this.normalizeOptionItem(option, legacyValueMap);
+      if (normalizedItem) {
+        normalized.push(normalizedItem);
+      }
+    });
+
+    this.applyNormalizedOptions(normalized);
+  }
+
+  findOptionByText(text) {
+    return this.optionItems.find(item => item.text === text) || null;
+  }
+
+  findOptionByValue(value) {
+    const normalizedValue = String(value);
+    return this.optionItems.find(item => item.value === normalizedValue) || null;
+  }
+
+  findSelectedChipByKey(key) {
+    if (!this.wrapper) return null;
+    const chips = this.wrapper.querySelectorAll(".cs-autocomplete-selected-item");
+    const targetKey = String(key);
+    return Array.from(chips).find(chip => chip.dataset.key === targetKey) || null;
+  }
+
+  dispatchContainerEvent(eventName, detail = null) {
+    if (!this.container) return;
+    this.container.dispatchEvent(new CustomEvent(eventName, { detail }));
+  }
+
+  refreshDropdownAfterOptionsMutation() {
+    if (!this.dropdown || !this.dropdown.classList.contains("show")) {
+      return;
+    }
+
+    const hasTypedValue = !!(this.currentInput && this.currentInput.value && this.currentInput.value.trim().length > 0);
+    const searchTerm = hasTypedValue ? this.currentInput.value.toLowerCase() : "";
+    this.filterOptions(searchTerm, !hasTypedValue);
+    this.showDropdownIfNeeded();
+  }
+
+  syncSelectedValuesWithOptions() {
+    if (this.isMultiple) {
+      const validIndexes = [];
+      this.selectedKeys.forEach((key, idx) => {
+        const normalizedKey = String(key);
+        const normalizedText = String(this.selectedValues[idx] ?? "");
+        const option = this.findOptionByValue(normalizedKey)
+          || this.findOptionByText(normalizedText);
+        if (option) {
+          validIndexes.push(idx);
+        }
+      });
+
+      if (validIndexes.length === this.selectedKeys.length) {
+        return;
+      }
+
+      const validIndexesSet = new Set(validIndexes);
+      const keysToRemove = this.selectedKeys.filter((_, idx) => !validIndexesSet.has(idx));
+      keysToRemove.forEach((keyToRemove) => {
+        const chip = this.findSelectedChipByKey(keyToRemove);
+        if (chip) {
+          this.removeMultipleItem(String(keyToRemove), chip);
+        } else {
+          const index = this.selectedKeys.indexOf(String(keyToRemove));
+          if (index > -1) {
+            this.selectedKeys.splice(index, 1);
+            this.selectedValues.splice(index, 1);
+          }
+        }
+      });
+      this.updateHiddenInput();
+      return;
+    }
+
+    if (this.selectedKeys.length === 0 && this.selectedValues.length === 0) {
+      return;
+    }
+
+    const currentKey = String(this.selectedKeys[0] ?? "");
+    const currentText = String(this.selectedValues[0] ?? "");
+    const matchedOption = this.findOptionByValue(currentKey) || this.findOptionByText(currentText);
+
+    if (!matchedOption) {
+      this.selectedKeys = [];
+      this.selectedValues = [];
+      if (this.currentInput) {
+        this.currentInput.value = "";
+        this.currentInput.classList.remove('has-value');
+      }
+      this.removeClearButton();
+      this.updateHiddenInput();
+      return;
+    }
+
+    if (this.selectedValues[0] !== matchedOption.text) {
+      this.selectedValues = [matchedOption.text];
+      this.selectedKeys = [matchedOption.value];
+      if (this.currentInput) {
+        this.currentInput.value = matchedOption.text;
+        this.currentInput.classList.add('has-value');
+      }
+      this.updateHiddenInput();
+    }
+  }
+
+  addOption(option, selectAfterAdd = false) {
+    const normalizedItem = this.normalizeOptionItem(option);
+    if (!normalizedItem) {
+      return false;
+    }
+
+    const updatedItems = [...this.optionItems];
+    const existingIndex = updatedItems.findIndex(item => item.value === normalizedItem.value);
+    const isReplacement = existingIndex >= 0;
+
+    if (isReplacement) {
+      updatedItems[existingIndex] = normalizedItem;
+    } else {
+      updatedItems.push(normalizedItem);
+    }
+
+    this.applyNormalizedOptions(updatedItems);
+    this.syncSelectedValuesWithOptions();
+
+    if (selectAfterAdd) {
+      this.selectOption(normalizedItem);
+    } else {
+      this.refreshDropdownAfterOptionsMutation();
+    }
+
+    this.dispatchContainerEvent("optionAdded", {
+      option: normalizedItem,
+      replaced: isReplacement
+    });
+    return true;
+  }
+
+  removeOption(valueOrText) {
+    const lookupValue = String(valueOrText);
+    const shouldRemove = (item) => item.value === lookupValue || item.text === lookupValue;
+
+    const removedItems = this.optionItems.filter(shouldRemove);
+    if (removedItems.length === 0) {
+      return false;
+    }
+
+    const updatedItems = this.optionItems.filter(item => !shouldRemove(item));
+    this.applyNormalizedOptions(updatedItems);
+    this.syncSelectedValuesWithOptions();
+    this.refreshDropdownAfterOptionsMutation();
+
+    this.dispatchContainerEvent("optionRemoved", {
+      lookup: lookupValue,
+      removed: removedItems
+    });
+    return true;
   }
 
   createDOM() {
@@ -174,8 +412,14 @@ class MilkSelect {
       }
     }
 
+    if (this.selectedValues.length > 0 && this.selectedKeys.length === 0) {
+      this.selectedKeys = this.selectedValues.map(displayValue => this.valueMap[displayValue] ?? displayValue);
+    }
+    this.selectedKeys = this.selectedKeys.map(v => String(v));
+    this.selectedValues = this.selectedValues.map(v => String(v));
+
     if (this.isMultiple) {
-      this.selectedValues.forEach(v => this.addMultipleItem(v));
+      this.selectedValues.forEach((value, idx) => this.addMultipleItem(value, this.selectedKeys[idx] ?? value));
 
       // If there are existing values in multiple mode, mark validation as passed
       if (this.isRequired && this.selectedValues.length > 0 && this.validationInput) {
@@ -196,11 +440,14 @@ class MilkSelect {
 
 
   /** --- DYNAMIC UPDATE --- */
-  updateOptions(newOptions) {
-    this.options = Array.isArray(newOptions) ? newOptions : [];
+  updateOptions(newOptions, syncSelection = true) {
+    this.setOptions(newOptions);
+    if (syncSelection) {
+      this.syncSelectedValuesWithOptions();
+    }
     this.filterOptions("");
     this.dropdown.classList.remove("show");
-    this.container.dispatchEvent(new CustomEvent("optionsUpdated", { detail: this.options }));
+    this.dispatchContainerEvent("optionsUpdated", this.options);
   }
 
   createSingleInput() {
@@ -245,12 +492,12 @@ class MilkSelect {
     clearBtn.innerHTML = "×";
     clearBtn.addEventListener("click", e => {
       e.stopPropagation();
-      this.clearSingleValue();
+      this.clearSingleValue(true);
     });
     this.wrapper.appendChild(clearBtn);
   }
 
-  clearSingleValue() {
+  clearSingleValue(showDropdownOnClear = false) {
     this.selectedValues = [];
     this.selectedKeys = [];
     this.isEditing = false;
@@ -270,9 +517,10 @@ class MilkSelect {
       }
     }
 
-    // For API mode, don't show dropdown on clear - wait for typing
-    if (!this.apiUrl) {
-      this.showDropdown();
+    // Optional reopen (used only for explicit clear-button action).
+    if (showDropdownOnClear && !this.apiUrl) {
+      this.currentInput?.focus();
+      this.showDropdown(true);
     }
   }
 
@@ -344,25 +592,14 @@ class MilkSelect {
   // --- FOCUS HANDLERS ---
 
   handleSingleFocus(e) {
-    // API mode: don't show dropdown on focus, wait for typing
-    if (this.apiUrl) {
-      // Keep the current value displayed, do nothing
-      return;
-    }
-
-    // Static mode: show dropdown with all options
-    // Keep the selected value visible in the input
-    this.showDropdown();
+    // Do not auto-open on focus (important for programmatic focus, e.g. offcanvas/modal).
+    // Dropdown is opened by explicit click on wrapper or by typing/keyboard.
+    if (this.apiUrl) return;
   }
 
   handleMultipleFocus() {
-    // API mode: don't show dropdown on focus, wait for typing
-    if (this.apiUrl) {
-      return;
-    }
-
-    // Static mode: show dropdown
-    this.showDropdown();
+    // Do not auto-open on focus (important for programmatic focus, e.g. offcanvas/modal).
+    if (this.apiUrl) return;
   }
 
   // --- INPUT HANDLERS ---
@@ -451,14 +688,15 @@ class MilkSelect {
 
   processApiOptions(options) {
     if (Array.isArray(options)) {
-      this.options = options;
-      this.valueMap = null;
-    } else if (typeof options === 'object') {
-      this.options = Object.values(options);
-      this.valueMap = {};
-      Object.entries(options).forEach(([key, value]) => {
-        this.valueMap[value] = key;
-      });
+      this.setOptions(options);
+    } else if (typeof options === 'object' && options !== null) {
+      const mappedOptions = Object.entries(options).map(([value, text]) => ({
+        value,
+        text
+      }));
+      this.setOptions(mappedOptions);
+    } else {
+      this.setOptions([]);
     }
   }
 
@@ -469,7 +707,7 @@ class MilkSelect {
 
       // If field is empty, clear the selection
       if (currentValue === "") {
-        this.clearSingleValue();
+        this.clearSingleValue(false);
         return;
       }
 
@@ -481,37 +719,45 @@ class MilkSelect {
 
       // If not valid, reset to previous selected value or clear
       if (!isValidOption && !isCurrentSelection) {
+        if (this.allowCreate && currentValue !== "") {
+          const createOption = { value: currentValue, text: currentValue, group: null };
+          this.addOption(createOption, false);
+          this.selectOption(createOption);
+          return;
+        }
+
         if (this.selectedValues.length > 0) {
           // Restore the last valid selection
           e.target.value = this.selectedValues[0];
           e.target.classList.add('has-value');
         } else {
           // No previous selection, clear the field
-          this.clearSingleValue();
+          this.clearSingleValue(false);
         }
       }
     }, 200);
   }
 
-  filterOptions(searchTerm) {
+  filterOptions(searchTerm, forceShowAll = false) {
     this.dropdown.innerHTML = "";
+    const normalizedSearchTerm = (searchTerm || "").toLowerCase();
 
     // On first open (static mode), don't filter to show all options
-    const shouldFilter = !this.isFirstOpen || (searchTerm && searchTerm.length > 0);
+    const shouldFilter = !forceShowAll && (!this.isFirstOpen || normalizedSearchTerm.length > 0);
 
-    const filtered = this.options.filter(opt => {
+    const filtered = this.optionItems.filter(optionItem => {
       // Always exclude already selected values in multiple mode
-      if (this.isMultiple && this.selectedValues.includes(opt)) {
+      if (this.isMultiple && this.selectedKeys.includes(optionItem.value)) {
         return false;
       }
       // Filter by search term
-      return !shouldFilter || opt.toLowerCase().includes(searchTerm);
+      return !shouldFilter || optionItem.text.toLowerCase().includes(normalizedSearchTerm);
     });
 
     // In single mode: exclude the currently selected value ONLY if user hasn't started editing
     // Once user modifies the input, show all matching options including the selected one
-    const filteredFinal = filtered.filter(opt => {
-      if (!this.isMultiple && !this.isEditing && this.selectedValues.length > 0 && this.selectedValues[0] === opt) {
+    const filteredFinal = filtered.filter(optionItem => {
+      if (!forceShowAll && !this.isMultiple && !this.isEditing && this.selectedValues.length > 0 && this.selectedValues[0] === optionItem.text) {
         return false;
       }
       return true;
@@ -523,15 +769,50 @@ class MilkSelect {
       return;
     }
 
-    filteredFinal.forEach((opt, idx) => {
-      const item = document.createElement("div");
-      item.className = "cs-autocomplete-item";
-      item.textContent = opt;
-      item.addEventListener("click", () => this.selectOption(opt));
-      this.dropdown.appendChild(item);
-    });
+    this.renderDropdownItems(filteredFinal);
 
     this.activeIndex = -1;
+  }
+
+  renderDropdownItems(optionItems) {
+    const hasGroups = optionItems.some(optionItem => optionItem.group);
+
+    if (!hasGroups) {
+      optionItems.forEach(optionItem => this.appendDropdownItem(optionItem));
+      return;
+    }
+
+    const groups = new Map();
+    optionItems.forEach(optionItem => {
+      const groupName = optionItem.group || "";
+      if (!groups.has(groupName)) {
+        groups.set(groupName, []);
+      }
+      groups.get(groupName).push(optionItem);
+    });
+
+    groups.forEach((items, groupName) => {
+      if (groupName) {
+        const groupLabel = document.createElement("div");
+        groupLabel.className = "cs-autocomplete-group-label";
+        groupLabel.textContent = groupName;
+        this.dropdown.appendChild(groupLabel);
+      }
+
+      items.forEach(optionItem => this.appendDropdownItem(optionItem));
+    });
+  }
+
+  appendDropdownItem(optionItem) {
+    const item = document.createElement("div");
+    item.className = "cs-autocomplete-item";
+    item.textContent = optionItem.text;
+    item.dataset.value = optionItem.value;
+    if (optionItem.group) {
+      item.dataset.group = optionItem.group;
+    }
+    item.addEventListener("click", () => this.selectOption(optionItem));
+    this.dropdown.appendChild(item);
   }
 
   /**
@@ -547,16 +828,22 @@ class MilkSelect {
     }
   }
 
-  selectOption(value) {
-    // Get the corresponding ID/key if using value mapping
-    const key = this.valueMap ? this.valueMap[value] : value;
+  selectOption(optionData) {
+    const selectedOption = (optionData && typeof optionData === "object" && !Array.isArray(optionData))
+      ? optionData
+      : this.findOptionByText(optionData);
+
+    const displayValue = selectedOption ? selectedOption.text : String(optionData);
+    const key = selectedOption
+      ? String(selectedOption.value)
+      : String(this.valueMap[displayValue] ?? displayValue);
     this.isEditing = false; // Reset editing state
 
     if (this.isMultiple) {
-      if (!this.selectedValues.includes(value)) {
-        this.selectedValues.push(value);
+      if (!this.selectedKeys.includes(key)) {
+        this.selectedValues.push(displayValue);
         this.selectedKeys.push(key);
-        this.addMultipleItem(value);
+        this.addMultipleItem(displayValue, key);
       }
       this.currentInput.value = "";
       this.currentInput.focus();
@@ -572,9 +859,9 @@ class MilkSelect {
         }
       }
     } else {
-      this.selectedValues = [value];
+      this.selectedValues = [displayValue];
       this.selectedKeys = [key];
-      this.currentInput.value = value;
+      this.currentInput.value = displayValue;
       this.currentInput.classList.add('has-value');
       this.removeClearButton();
       this.addClearButton();
@@ -624,24 +911,25 @@ class MilkSelect {
     }
   }
 
-  addMultipleItem(value) {
+  addMultipleItem(value, key = value) {
     const item = document.createElement("div");
     item.className = "cs-autocomplete-selected-item";
     item.dataset.value = value;
+    item.dataset.key = String(key);
     if (this.isReadonly) {
       item.innerHTML = `${value}`;
     } else {
       item.innerHTML = `${value}<button type="button" class="cs-autocomplete-remove-btn">×</button>`;
       item.querySelector("button").addEventListener("click", () =>
-        this.removeMultipleItem(value, item)
+        this.removeMultipleItem(String(key), item)
       );
     }
     this.wrapper.insertBefore(item, this.currentInput);
   }
 
-  removeMultipleItem(value, el) {
+  removeMultipleItem(key, el) {
     el.remove();
-    const index = this.selectedValues.indexOf(value);
+    const index = this.selectedKeys.indexOf(String(key));
     if (index > -1) {
       this.selectedValues.splice(index, 1);
       this.selectedKeys.splice(index, 1);
@@ -670,7 +958,7 @@ class MilkSelect {
         e.preventDefault();
         // If dropdown is not open in static mode, open it
         if (!isDropdownOpen && !this.apiUrl) {
-          this.showDropdown();
+          this.showDropdown(true);
           return;
         }
         this.activeIndex = Math.min(this.activeIndex + 1, items.length - 1);
@@ -699,6 +987,10 @@ class MilkSelect {
         else if (inputValue.length > 0 && items.length > 0) {
           items[0].click();
         }
+        else if (inputValue.length > 0 && this.allowCreate && !this.apiUrl) {
+          const createOption = { value: inputValue, text: inputValue, group: null };
+          this.addOption(createOption, true);
+        }
         else {
           this.hideDropdown();
         }
@@ -719,8 +1011,9 @@ class MilkSelect {
     if (items[this.activeIndex]) items[this.activeIndex].scrollIntoView({ block: "nearest" });
   }
 
-  showDropdown() {
-    this.filterOptions(this.currentInput?.value.toLowerCase() || "");
+  showDropdown(forceShowAll = false) {
+    const searchTerm = forceShowAll ? "" : (this.currentInput?.value.toLowerCase() || "");
+    this.filterOptions(searchTerm, forceShowAll);
     this.showDropdownIfNeeded();
     this.isFirstOpen = false;
   }
@@ -744,7 +1037,7 @@ class MilkSelect {
   }
 
   updateHiddenInput() {
-    const valuesToSave = this.valueMap ? this.selectedKeys : this.selectedValues;
+    const valuesToSave = this.saveByValue ? this.selectedKeys : this.selectedValues;
 
     let val;
     if (this.isMultiple) {
@@ -759,27 +1052,34 @@ class MilkSelect {
 
 
   addEventListeners() {
-  
-    document.addEventListener("click", e => {
-      if (!this.container.contains(e.target)) this.hideDropdown();
-    });
+    this.onDocumentClick = (e) => {
+      if (this.container && !this.container.contains(e.target)) this.hideDropdown();
+    };
+    document.addEventListener("click", this.onDocumentClick);
 
-    this.wrapper.addEventListener("click", () => {
-       if (!this.isReadonly) this.currentInput?.focus();
-    });
+    this.onWrapperClick = () => {
+      if (!this.isReadonly) {
+        this.currentInput?.focus();
+        if (!this.apiUrl) {
+          this.showDropdown(true);
+        }
+      }
+    };
+    this.wrapper.addEventListener("click", this.onWrapperClick);
 
     // Remove is-invalid class on focus
-    this.wrapper.addEventListener("focus", () => {
+    this.onWrapperFocus = () => {
       if (this.wrapper.classList.contains('is-invalid')) {
         this.wrapper.classList.remove('is-invalid');
         this.hiddenInput.classList.remove('is-invalid');
         this.hiddenInput.classList.remove('js-focus-remove-is-invalid');
         this.setContainerInvalid(false);
       }
-    }, true);
+    };
+    this.wrapper.addEventListener("focus", this.onWrapperFocus, true);
 
     // Add is-valid class when field loses focus and has a valid value
-    this.wrapper.addEventListener("blur", () => {
+    this.onWrapperBlur = () => {
       if (this.isRequired && this.isFormValidated()) {
         const hasValue = this.isMultiple
           ? this.selectedValues.length > 0
@@ -790,7 +1090,61 @@ class MilkSelect {
           this.wrapper.classList.add('is-valid');
         }
       }
-    }, true);
+    };
+    this.wrapper.addEventListener("blur", this.onWrapperBlur, true);
+  }
+
+  removeEventListeners() {
+    if (this.onDocumentClick) {
+      document.removeEventListener("click", this.onDocumentClick);
+      this.onDocumentClick = null;
+    }
+    if (this.wrapper && this.onWrapperClick) {
+      this.wrapper.removeEventListener("click", this.onWrapperClick);
+      this.onWrapperClick = null;
+    }
+    if (this.wrapper && this.onWrapperFocus) {
+      this.wrapper.removeEventListener("focus", this.onWrapperFocus, true);
+      this.onWrapperFocus = null;
+    }
+    if (this.wrapper && this.onWrapperBlur) {
+      this.wrapper.removeEventListener("blur", this.onWrapperBlur, true);
+      this.onWrapperBlur = null;
+    }
+  }
+
+  destroy() {
+    if (this.isDestroyed) {
+      return;
+    }
+
+    clearTimeout(this.fetchTimeout);
+    this.hideDropdown();
+    this.removeEventListeners();
+
+    if (this.container && this.container.parentNode) {
+      this.container.parentNode.removeChild(this.container);
+    }
+
+    if (this.hiddenInput) {
+      this.hiddenInput.dataset.milkselectInitialized = 'false';
+      if (this.hiddenInput.milkSelectInstance === this) {
+        delete this.hiddenInput.milkSelectInstance;
+      }
+      if (this.isRequired) {
+        this.hiddenInput.setAttribute('required', '');
+      }
+    }
+
+    this.currentInput = null;
+    this.dropdown = null;
+    this.wrapper = null;
+    this.container = null;
+    this.isDestroyed = true;
+  }
+
+  remove() {
+    this.destroy();
   }
 }
 

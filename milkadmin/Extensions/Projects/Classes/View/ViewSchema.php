@@ -4,14 +4,14 @@ namespace Extensions\Projects\Classes\View;
 !defined('MILK_DIR') && die();
 
 /**
- * Immutable value object representing a parsed view layout.
+ * Value object representing a parsed view layout.
  */
 class ViewSchema
 {
     /** @param ViewCardConfig[] $cards */
     public function __construct(
-        public readonly string $version,
-        public readonly array $cards
+        public string $version,
+        public array $cards
     ) {}
 
     /**

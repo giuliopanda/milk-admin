@@ -7,7 +7,6 @@
 
 namespace App\ArrayQuery\Parser;
 
-use App\ArrayQuery\Query\CreateColumn;
 use App\ArrayQuery\Query\Expression\BetweenOperatorExpression;
 use App\ArrayQuery\Query\Expression\BinaryOperatorExpression;
 use App\ArrayQuery\Query\Expression\CaseOperatorExpression;
@@ -27,6 +26,7 @@ use App\ArrayQuery\Query\Expression\RowExpression;
 use App\ArrayQuery\Query\Expression\SubqueryExpression;
 use App\ArrayQuery\Query\Expression\UnaryExpression;
 use App\ArrayQuery\Query\Expression\VariableExpression;
+use App\ArrayQuery\Query\MysqlColumnType;
 use App\ArrayQuery\Support\TokenType;
 
 final class ExpressionParser
@@ -274,7 +274,7 @@ final class ExpressionParser
                         $as_type_tokens
                     );
 
-                    $type = CreateTableParser::parseFieldType($as_type_token_values, true);
+                    $type = $this->parseCastType($as_type_token_values);
 
                     $fn = new CastExpression($token, $expr, $type);
                 } else {
@@ -342,10 +342,6 @@ final class ExpressionParser
                                     throw new ParserException("Expected , in IN () list");
                                 }
                             }
-
-                            ($__tmp2__ = $this->expression) instanceof InOperatorExpression ? $__tmp2__ : (function () {
-                                throw new \TypeError('Failed assertion');
-                            })();
 
                             $this->expression->setInList($in_list);
                             break;
@@ -660,6 +656,53 @@ final class ExpressionParser
     private function getPrecedence(string $operator)
     {
         return self::OPERATOR_PRECEDENCE[$operator] ?? 0;
+    }
+
+    /**
+     * Lightweight CAST type parsing used by CAST(expr AS type).
+     * Keeps behavior conservative without introducing parser-side dependencies.
+     *
+     * @param array<int, string> $asTypeTokenValues
+     */
+    private function parseCastType(array $asTypeTokenValues): MysqlColumnType
+    {
+        $type = new MysqlColumnType();
+        $normalized = array_map(
+            static function (string $value): string {
+                return strtoupper(trim($value));
+            },
+            $asTypeTokenValues
+        );
+
+        if ($normalized === []) {
+            $type->type = 'CHAR';
+            return $type;
+        }
+
+        $first = $normalized[0];
+        if (($first === 'SIGNED' || $first === 'UNSIGNED') && count($normalized) === 1) {
+            $type->type = 'INT';
+            $type->unsigned = $first === 'UNSIGNED';
+            return $type;
+        }
+
+        $type->type = $first;
+
+        if (in_array('UNSIGNED', $normalized, true)) {
+            $type->unsigned = true;
+        }
+
+        if (isset($normalized[1])) {
+            $match = [];
+            if (preg_match('/^\((\d+)(?:\s*,\s*(\d+))?\)$/', $normalized[1], $match) === 1) {
+                $type->length = (int) $match[1];
+                if (isset($match[2])) {
+                    $type->decimals = (int) $match[2];
+                }
+            }
+        }
+
+        return $type;
     }
 
     /**

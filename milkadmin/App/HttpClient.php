@@ -276,9 +276,6 @@ class HttpClient
         }
 
         $multi_handle = curl_multi_init();
-        if (!$multi_handle) {
-            throw new HttpClientException("Unable to initialize curl_multi");
-        }
 
         $curl_handles = [];
 
@@ -336,10 +333,10 @@ class HttpClient
             $info = curl_getinfo($ch);
             $error = curl_error($ch);
 
-            if ($error || $response === false) {
+            if ($error !== '') {
                 $responses[$key] = [
                     'error' => true,
-                    'message' => $error ?: 'Response not available',
+                    'message' => $error,
                 ];
             } else {
                 $responses[$key] = self::parseResponse($response, $info);
@@ -395,7 +392,7 @@ class HttpClient
         // SSL configuration
         if (!$options['verify_ssl']) {
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
         }
 
         return $ch;
@@ -569,9 +566,7 @@ class HttpClient
             curl_multi_remove_handle($multi_handle, $ch);
         }
 
-        if ($multi_handle) {
-            curl_multi_close($multi_handle);
-        }
+        curl_multi_close($multi_handle);
     }
 
     /**

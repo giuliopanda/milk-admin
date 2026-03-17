@@ -261,7 +261,7 @@ protected function configure(ModuleRuleBuilder $rule): void
             <tr><td><code>uninstallExecute()</code></td><td>InstallationTrait</td><td>Override for custom uninstall flow.</td></tr>
             <tr><td><code>getAdditionalModels($model_name = '')</code></td><td>InstallationTrait</td><td>Gets all or one additional model configured via <code>addModels()</code>.</td></tr>
 
-            <tr><td><code>registerRequestAction(string $action, array|string $handler, ?string $accessLevel = null)</code></td><td>RouteControllerTrait</td><td>Registers a runtime request action handler.</td></tr>
+            <tr><td><code>registerRequestAction(string $action, array|string $handler, ?string $accessLevel = null)</code></td><td>RouteControllerTrait</td><td>Registers a runtime request action handler (forwarded to the active Controller when present).</td></tr>
             <tr><td><code>handleRoutes()</code></td><td>RouteControllerTrait</td><td>Main action routing entry point for module requests.</td></tr>
             <tr><td><code>relatedSearchField()</code></td><td>RouteControllerTrait</td><td>Helper endpoint for relation search/autocomplete requests.</td></tr>
 

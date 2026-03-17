@@ -7,6 +7,8 @@ namespace App\Database;
  * - Liberare subito il buffer MySQL
  * - Comportamento uniforme con SQLiteResult
  * - Prevenire problemi con result set aperti
+ *
+ * @implements \IteratorAggregate<int, object>
  */
 class MySQLResult implements ResultInterface, \IteratorAggregate
 {
@@ -74,7 +76,7 @@ class MySQLResult implements ResultInterface, \IteratorAggregate
      *
      * @return array|false Array dei dati o false se non ci sono più righe
      */
-    public function fetch_array(): array|false
+    public function fetch_array(?int $mode = null): array|false
     {
         if ($this->current_position >= $this->cached_row_count) {
             $this->at_end = true;
@@ -180,7 +182,7 @@ class MySQLResult implements ResultInterface, \IteratorAggregate
      *
      * @return true
      */
-    public function finalize(): true
+    public function finalize(): bool
     {
         // Clear cached data
         $this->cached_rows = [];
@@ -198,7 +200,7 @@ class MySQLResult implements ResultInterface, \IteratorAggregate
      *
      * @return true
      */
-    public function free(): true
+    public function free(): bool
     {
         return $this->finalize();
     }

@@ -37,7 +37,7 @@ class SessionModel extends AbstractModel {
     /**
      * Delete sessions by user ID except current session
      * @param int $user_id
-     * @return bool
+     * @return void
      */
     public function deleteByUserIdExceptCurrent(int $user_id): void {
         $current_session = session_id();
@@ -46,5 +46,75 @@ class SessionModel extends AbstractModel {
             $this->delete($session->id);
         }
         
+    }
+
+    /**
+     * Find active session by current or old PHP session id and IP.
+     */
+    public function findActiveByPhpSessionAndIp(string $phpsessid, string $formattedDateTime, string $ip_address): ?object {
+        if (!$this->db) {
+            return null;
+        }
+
+        $query = 'SELECT * FROM `#__sessions` WHERE (phpsessid = ? OR old_phpsessid = ?) AND `session_date` > ? AND ip_address = ?';
+        $session = $this->db->getRow($query, [$phpsessid, $phpsessid, $formattedDateTime, $ip_address]);
+
+        return is_object($session) ? $session : null;
+    }
+
+    /**
+     * Delete sessions by list of PHP session ids.
+     *
+     * @param array<int, string> $session_ids
+     */
+    public function deleteByPhpSessionIds(array $session_ids): void {
+        if (!$this->db) {
+            return;
+        }
+
+        foreach (array_unique($session_ids) as $session_id) {
+            if (!is_string($session_id) || $session_id === '') {
+                continue;
+            }
+            $this->db->delete($this->table, ['phpsessid' => $session_id]);
+        }
+    }
+
+    /**
+     * Insert a session row.
+     *
+     * @param array<string, mixed> $session_data
+     * @return int|false
+     */
+    public function insertSession(array $session_data) {
+        if (!$this->db) {
+            return false;
+        }
+        return $this->db->insert($this->table, $session_data);
+    }
+
+    /**
+     * Update session by primary id.
+     *
+     * @param array<string, mixed> $session_data
+     */
+    public function updateSessionById(int $id, array $session_data): bool {
+        if (!$this->db || $id <= 0) {
+            return false;
+        }
+        return $this->db->update($this->table, $session_data, ['id' => $id]);
+    }
+
+    /**
+     * Delete sessions older than given datetime.
+     */
+    public function cleanOlderThan(string $formattedDateTime): bool {
+        if (!$this->db) {
+            return false;
+        }
+        return $this->db->query(
+            'DELETE FROM `#__sessions` WHERE session_date < ?',
+            [$formattedDateTime]
+        ) !== false;
     }
 }

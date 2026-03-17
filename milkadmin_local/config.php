@@ -54,7 +54,7 @@ $conf['debug'] = true;
 // default title
 $conf['site-title'] = 'MilkAdmin - Framework';
 
-$conf['secret_key'] = 'e81fe8294734a033738b6c881bab75e110f1f2aedff8b5a16022b1231fae3f23';
-$conf['token_key'] = 'tfbb380c3';
+$conf['secret_key'] = 'bc08ec414a52eba2109bf61fc57a92126de469a43022a73e02faa109628548e5';
+$conf['token_key'] = 't78f4f462';
 
 \App\Config::setAll($conf);

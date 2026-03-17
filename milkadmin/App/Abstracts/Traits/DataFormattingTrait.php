@@ -3,6 +3,7 @@ namespace App\Abstracts\Traits;
 
 use App\Get;
 use App\Config;
+use App\Sanitize;
 
 !defined('MILK_DIR') && die();
 
@@ -110,29 +111,26 @@ trait DataFormattingTrait
             if (isset($rule['options']) && is_array($rule['options'])) {
                 foreach ($raw_value as $value) {
                     if (isset($rule['options'][$value])) {
-                        $selected_options[] = _r($rule['options'][$value]);
+                        $selected_options[] = Sanitize::input($rule['options'][$value], 'string');
                     }
                 }
             } else {
                 $selected_options = $raw_value;
             }
 
-            if (is_array($selected_options)) {
-                $flat_values = [];
-                array_walk_recursive($selected_options, function($value) use (&$flat_values) {
-                    if (is_string($value) && $value !== '') {
-                        $flat_values[] = $value;
-                    }
-                });
-                return implode(', ', $flat_values);
-            }
-            return null;
+            $flat_values = [];
+            array_walk_recursive($selected_options, function($value) use (&$flat_values) {
+                if (is_string($value) && $value !== '') {
+                    $flat_values[] = $value;
+                }
+            });
+            return implode(', ', $flat_values);
         }
 
         // Handle list/enum formatting
         if (in_array($rule['type'], ['list', 'enum'])) {
             if (isset($rule['options'][$raw_value])) {
-                return _r($rule['options'][$raw_value]);
+                return Sanitize::input($rule['options'][$raw_value], 'string');
             }
             return $raw_value;
         }
@@ -175,7 +173,7 @@ trait DataFormattingTrait
                     $old_value = $old_record->$field_name;
                     if (is_a($old_value, \DateTime::class)) {
                         return $old_value->format('Y-m-d H:i:s');
-                    } elseif (!is_null($old_value)) {
+                    } else {
                         return $old_value;
                     }
                 }
@@ -203,7 +201,7 @@ trait DataFormattingTrait
                 $old_record = $this->getById($current_record->$id_field);
                 if ($old_record && isset($old_record->$field_name)) {
                     $old_value = $old_record->$field_name;
-                    if (!is_null($old_value) && $old_value !== '') {
+                    if ($old_value !== '') {
                         return $old_value;
                     }
                 }
@@ -516,7 +514,7 @@ trait DataFormattingTrait
         // Relationship data (hasOne/belongsTo) needs to be stored even without a direct field rule
         if (!$rule) {
             // Check if this is a relationship alias
-            if (method_exists($this, 'hasRelationship') && $this->hasRelationship($name)) {
+            if ($this->getRelationshipDefinitionService()->hasRelationship($this->getRuleBuilder(), $name)) {
                 // It's a relationship - return the value directly without conversion
                 return $value;
             }
@@ -645,29 +643,59 @@ trait DataFormattingTrait
             // Creane uno nuovo
             $this->records_objects[] = [];
             $this->current_index = array_key_last($this->records_objects);
-            $this->records_objects[$this->current_index]['___action'] = 'insert';
+            $this->records_objects[$this->current_index]['___action'] = null;
+            $this->markRecordAsNew($this->current_index, true);
+            $this->initializeRecordState($this->current_index);
         }
+
+        $this->ensureRecordState($this->current_index);
 
 
         // Controlla se è una relazione - le relazioni contengono Model instances in records_objects
-        if (method_exists($this, 'hasRelationship') && $this->hasRelationship($name)) {
+        if ($this->getRelationshipDefinitionService()->hasRelationship($this->getRuleBuilder(), $name)) {
             // Non sovrascrivere le relazioni (che sono Model instances)
             // Le relazioni vengono gestite da loadMissingRelationships
         } else {
+            $current_record = $this->records_objects[$this->current_index];
+            $had_value = array_key_exists($name, $current_record);
+            $previous_value = $had_value ? $current_record[$name] : null;
+            $value_changed = !$had_value || !$this->rawValuesAreEquivalent($previous_value, $value);
+
             // Per i campi normali, aggiorna il valore
-            $this->records_objects[$this->current_index][$name] = $value;
+            if ($value_changed) {
+                $this->records_objects[$this->current_index][$name] = $value;
+            }
+
+            $tracked_value = $value_changed
+                ? ($this->records_objects[$this->current_index][$name] ?? $value)
+                : $previous_value;
+
+            $this->trackAssignedFieldState($this->current_index, $name, $tracked_value);
+
+            if ($this->suspend_action_tracking) {
+                return;
+            }
+
+            if ($name === $this->getPrimaryKey() && !empty($value)) {
+                $this->markRecordAsNew($this->current_index, false);
+            }
+
+            $this->syncRecordActionFromState($this->current_index);
         }
 
+    }
 
-        if ($name === $this->getPrimaryKey() && ($this->records_objects[$this->current_index]['___action'] ?? null) === 'insert' && !empty($value)) {
-            // Se stiamo inserendo un nuovo record e stiamo impostando la chiave primaria, cambiamo lo stato in 'edit'
-            $this->records_objects[$this->current_index]['___action'] = 'edit';
+    private function rawValuesAreEquivalent(mixed $current, mixed $next): bool
+    {
+        if ($current === $next) {
+            return true;
         }
-        // Segna il record come modificato (solo se era 'original')
-        //if ($this->records_objects[$this->current_index]['___action'] === null) {
-        //    $this->records_objects[$this->current_index]['___action'] = 'edit';
-        //}
 
+        if ($current instanceof \DateTimeInterface && $next instanceof \DateTimeInterface) {
+            return $current->format('Y-m-d H:i:s.uP') === $next->format('Y-m-d H:i:s.uP');
+        }
+
+        return false;
     }
 
     /**
@@ -679,7 +707,7 @@ trait DataFormattingTrait
     public function __get(string $name)
     {
         // Check if this is a relationship alias
-        if ( $this->hasRelationship($name)) {
+        if ($this->getRelationshipDefinitionService()->hasRelationship($this->getRuleBuilder(), $name)) {
 
             // NEW: Check if we have the relationship as Model in records_objects
             if (isset($this->records_objects[$this->current_index][$name])) {
@@ -692,7 +720,13 @@ trait DataFormattingTrait
             }
 
             // Trigger lazy loading
-            $related = $this->getRelatedModel($name);
+            [$this->records_objects, $this->meta_loaded, $related] = $this->getRelationshipRuntimeService()->getRelatedModel(
+                $this,
+                $name,
+                $this->records_objects,
+                $this->current_index,
+                $this->meta_loaded
+            );
 
             // NEW: After lazy loading, check if records_objects was populated
             if (isset($this->records_objects[$this->current_index][$name])) {
@@ -705,8 +739,9 @@ trait DataFormattingTrait
             }
 
             // Fallback: Apply relationship formatters if we have a related model
-            if ($related !== null && method_exists($this, 'applyRelationshipFormattersToModel')) {
-                return $this->applyRelationshipFormattersToModel($related, $name, $this->output_mode);
+            if ($related !== null) {
+                return $this->getRelationshipRuntimeService()
+                    ->applyRelationshipFormattersToModel($this, $related, $name, $this->output_mode);
             }
 
             return $related;
@@ -756,7 +791,7 @@ trait DataFormattingTrait
     public function __isset(string $name): bool
     {
         // Check if it's a defined relationship (can be lazy loaded)
-        if (method_exists($this, 'hasRelationship') && $this->hasRelationship($name)) {
+        if ($this->getRelationshipDefinitionService()->hasRelationship($this->getRuleBuilder(), $name)) {
             return true;
         }
 
@@ -797,6 +832,7 @@ trait DataFormattingTrait
                         foreach ($record_obj as $field_name => $field_value) {
                             // Skip metadata and normal fields (handled below)
                             if ($field_name === '___action' || in_array($field_name, $accepted_fields)) {
+                                
                                 continue;
                             }
 
@@ -1141,8 +1177,14 @@ trait DataFormattingTrait
         }
     }
 
-    public function getRecordAction($record_index = null) {
-        return $this->records_objects[$record_index ?? $this->current_index]['___action'] ?? null;
+    public function getRecordAction(?int $record_index = null): ?string
+    {
+        $index = $record_index ?? $this->current_index;
+        if ($this->hasRecordState($index)) {
+            return $this->syncRecordActionFromState($index);
+        }
+
+        return $this->records_objects[$index]['___action'] ?? null;
     }
 
     /**

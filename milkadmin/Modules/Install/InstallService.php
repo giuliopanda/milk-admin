@@ -54,7 +54,7 @@ class InstallService
      * Enable a module by renaming from .module to module
      * 
      * @param string $module Module name
-     * @return bool Success status
+     * @return array{success: bool, message: string} Success status and message
      */
     public static function enableModule($module)
     {
@@ -66,12 +66,12 @@ class InstallService
             if (rename($disabled_path, $enabled_path)) {
                 // Save enable action to settings
                 self::saveModuleAction($module, 'enabled');
-                return ['success' => true, 'message' => sprintf(_r('Module %s enabled successfully'), $module)];
+                return ['success' => true, 'message' => sprintf(\_r('Module %s enabled successfully'), $module)];
             } else {
-                return ['success' => false, 'message' => sprintf(_r('Error enabling module %s'), $module)];
+                return ['success' => false, 'message' => sprintf(\_r('Error enabling module %s'), $module)];
             }
         } else {
-            return ['success' => false, 'message' => sprintf(_r("Module %s not found or already enabled"), $module)];
+            return ['success' => false, 'message' => sprintf(\_r("Module %s not found or already enabled"), $module)];
         }
     }
     
@@ -79,23 +79,23 @@ class InstallService
      * Disable a module by renaming from module to .module
      *
      * @param string $module Module name
-     * @return bool Success status
+     * @return array{success: bool, message: string} Success status and message
      */
     public static function disableModule($module)
     {
         $module_data = Config::get('modules_active');
 
         if (!isset($module_data[$module])) {
-            return ['success' => false, 'message' => sprintf(_r('Module %s not found'), $module)];
+            return ['success' => false, 'message' => sprintf(\_r('Module %s not found'), $module)];
         }
 
         if (!isset($module_data[$module]['folder'])) {
-            return ['success' => false, 'message' => sprintf(_r('Module %s folder not found'), $module)];
+            return ['success' => false, 'message' => sprintf(\_r('Module %s folder not found'), $module)];
         }
 
         // Check if module is a core module - prevent disabling
         if (self::isModuleCoreByFolder($module_data[$module]['folder'])) {
-            return ['success' => false, 'message' => sprintf(_r('Cannot disable core module %s'), $module)];
+            return ['success' => false, 'message' => sprintf(\_r('Cannot disable core module %s'), $module)];
         }
         
         $enabled_path = MILK_DIR . '/Modules/' . $module_data[$module]['folder'];
@@ -105,12 +105,12 @@ class InstallService
             if (rename($enabled_path, $disabled_path)) {
                 // Save disable action to settings
                 self::saveModuleAction($module, 'disabled');
-                return ['success' => true, 'message' => sprintf(_r('Module %s disabled successfully'), $module)];
+                return ['success' => true, 'message' => sprintf(\_r('Module %s disabled successfully'), $module)];
             } else {
-                return ['success' => false, 'message' => sprintf(_r('Error disabling module %s'), $module)];
+                return ['success' => false, 'message' => sprintf(\_r('Error disabling module %s'), $module)];
             }
         } else {
-            return ['success' => false, 'message' => sprintf(_r("An error occurred while disabling module %s"), $module)];
+            return ['success' => false, 'message' => sprintf(\_r("An error occurred while disabling module %s"), $module)];
         }
     }
     
@@ -126,16 +126,16 @@ class InstallService
         $module_data = Config::get('modules_active');
 
         if (!isset($module_data[$module])) {
-            return ['success' => false, 'message' => sprintf(_r('Module %s not found'), $module)];
+            return ['success' => false, 'message' => sprintf(\_r('Module %s not found'), $module)];
         }
 
         if (!isset($module_data[$module]['folder'])) {
-            return ['success' => false, 'message' => sprintf(_r('Module %s folder not found'), $module)];
+            return ['success' => false, 'message' => sprintf(\_r('Module %s folder not found'), $module)];
         }
 
         // Check if module is a core module - prevent uninstalling
         if (self::isModuleCoreByFolder($module_data[$module]['folder'])) {
-            return ['success' => false, 'message' => sprintf(_r('Cannot uninstall core module %s'), $module)];
+            return ['success' => false, 'message' => sprintf(\_r('Cannot uninstall core module %s'), $module)];
         }
         $messages = [];
         $module_path = MILK_DIR . '/Modules/' . $module_data[$module]['folder'];
@@ -143,7 +143,7 @@ class InstallService
         $module_path_exists = is_dir($module_path) || is_file($module_path);
         $module2_path_exists = is_dir($module2_path) || is_file($module2_path);
         if (!$module_path_exists && !$module2_path_exists) {
-            return ['success' => false, 'message' => sprintf(_r('Module %s files not found: %s or %s'), $module, $module_path, $module2_path)];
+            return ['success' => false, 'message' => sprintf(\_r('Module %s files not found: %s or %s'), $module, $module_path, $module2_path)];
         }
 
         // Call the module's uninstall function using Cli::callFunction
@@ -157,12 +157,12 @@ class InstallService
         if ($module_path_exists) {
             if (is_dir($module_path)) {
                 if (!self::removeDirectory($module_path)) {
-                    $messages[] = sprintf(_r('Error removing module %s'), $module);
+                    $messages[] = sprintf(\_r('Error removing module %s'), $module);
                     return ['success' => false, 'message' => implode("\n", $messages)];
                 }
             } else if (is_file($module_path)) {
                 if (!unlink($module_path)) {
-                    $messages[] = sprintf(_r('Error removing module %s'), $module);
+                    $messages[] = sprintf(\_r('Error removing module %s'), $module);
                     return ['success' => false, 'message' => implode("\n", $messages)];
                 }
             }
@@ -170,12 +170,12 @@ class InstallService
         if ($module2_path_exists) {
             if (is_dir($module2_path)) {
                 if (!self::removeDirectory($module2_path)) {
-                    $messages[] = sprintf(_r('Error removing module %s'), $module);
+                    $messages[] = sprintf(\_r('Error removing module %s'), $module);
                     return ['success' => false, 'message' => implode("\n", $messages)];
                 }
             } else if (is_file($module2_path)) {
                 if (!unlink($module2_path)) {
-                    $messages[] = sprintf(_r('Error removing module %s'), $module);
+                    $messages[] = sprintf(\_r('Error removing module %s'), $module);
                     return ['success' => false, 'message' => implode("\n", $messages)];
                 }
             }
@@ -190,7 +190,7 @@ class InstallService
 
         // Save uninstall action to settings (only last action, not a log)
         self::saveModuleAction($module, 'uninstalled');
-        $messages[] = sprintf(_r('Module %s uninstalled successfully'), $module);
+        $messages[] = sprintf(\_r('Module %s uninstalled successfully'), $module);
         return ['success' => true, 'message' => implode ("\n ", $messages)];
 
     }
@@ -206,7 +206,7 @@ class InstallService
     {
        
         if (!isset($files['update_file']) || $files['update_file']['error'] !== UPLOAD_ERR_OK) {
-            $msg_error = MessagesHandler::hasErrors() ? MessagesHandler::errorsToString() : _r('No file uploaded or upload error!.');
+            $msg_error = MessagesHandler::hasErrors() ? MessagesHandler::errorsToString() : \_r('No file uploaded or upload error!.');
             return ['success' => false, 'redirect' => ['page' => 'install'], 'message' => $msg_error];
         }
         
@@ -214,14 +214,15 @@ class InstallService
         $file_name = $files['update_file']['name'];
         
         // Check that it is a ZIP file
-        $file_info = pathinfo($file_name);
-        if (strtolower($file_info['extension']) !== 'zip') {
-            return ['success' => false, 'redirect' => ['page' => 'install'], 'message' => _r('The uploaded file must be in ZIP format.')];
+        $file_info = pathinfo((string) $file_name);
+        $file_extension = strtolower((string) ($file_info['extension'] ?? ''));
+        if ($file_extension !== 'zip') {
+            return ['success' => false, 'redirect' => ['page' => 'install'], 'message' => \_r('The uploaded file must be in ZIP format.')];
         }
         
         // Check backup confirmation
         if (!isset($post['confirm_backup']) || $post['confirm_backup'] != '1') {
-            return ['success' => false, 'redirect' => ['page' => 'install'], 'message' => _r('You must confirm you have made a backup before proceeding.')];
+            return ['success' => false, 'redirect' => ['page' => 'install'], 'message' => \_r('You must confirm you have made a backup before proceeding.')];
         }
         
         $temp_dir = Get::tempDir();
@@ -229,7 +230,7 @@ class InstallService
         
         // Move the file to the temporary directory
         if (!move_uploaded_file($uploaded_file, $update_file)) {
-            return ['success' => false, 'redirect' => ['page' => 'install'], 'message' => _r('Error during update file upload.')];
+            return ['success' => false, 'redirect' => ['page' => 'install'], 'message' => \_r('Error during update file upload.')];
         }
 
         // Save core_only preference flag
@@ -295,7 +296,7 @@ class InstallService
                 
                 // Update settings data structure
                 if (is_array($settings_data)) {
-                    $settings_versions[$module]['folder'] = $current_data['folder'];
+                    $settings_versions[$module] = array_merge($settings_data, ['folder' => $current_data['folder']]);
                 } else {
                     // Convert legacy format
                     $settings_versions[$module] = [
@@ -354,6 +355,9 @@ class InstallService
         
         if (is_dir($modules_dir)) {
             $items = scandir($modules_dir);
+            if ($items === false) {
+                return $disabled_modules;
+            }
             foreach ($items as $item) {
                 if ($item[0] === '.' && $item !== '..' && $item !== '.') {
                     $module_name = substr($item, 1);
@@ -402,10 +406,13 @@ class InstallService
         
         // Check that files were extracted
         $files = scandir($update_dir);
+        if ($files === false) {
+            return 'Cannot read extracted update directory.';
+        }
         $files = array_diff($files, ['.', '..']);
         
         if (count($files) === 0) {
-            return _r('The ZIP file is empty.');
+            return \_r('The ZIP file is empty.');
         }
         
         // If there is only one main directory, enter it
@@ -428,7 +435,7 @@ class InstallService
         }
         
         if (!empty($missing_files)) {
-            return sprintf(_r('The update file is not valid. Missing: %s'), implode(', ', $missing_files));
+            return sprintf(\_r('The update file is not valid. Missing: %s'), implode(', ', $missing_files));
         }
         
         try {
@@ -487,6 +494,7 @@ class InstallService
         foreach ($modules_to_update as $module => $versions) {
           
             $success = false;
+            $action = 'updated';
             try {
                 if (Version::isEmpty($versions['previous'])) {
                     Cli::callFunction($module.":install");
@@ -500,7 +508,7 @@ class InstallService
                 }
                 $success = true;
             } catch (\Exception $e) {
-                MessagesHandler::addError(sprintf(_r('Error updating module %s: %s'), $module, $e->getMessage()));
+                MessagesHandler::addError(sprintf(\_r('Error updating module %s: %s'), $module, $e->getMessage()));
             } 
             if ($success) {
                 $updated_modules[] = $module;
@@ -515,7 +523,7 @@ class InstallService
         Settings::set('module_version', $current_versions);
         
         if (!empty($updated_modules)) {
-            MessagesHandler::addSuccess(sprintf(_r('Successfully updated modules: %s'), implode(', ', $updated_modules)));
+            MessagesHandler::addSuccess(sprintf(\_r('Successfully updated modules: %s'), implode(', ', $updated_modules)));
         }
         
         return $updated_modules;
@@ -534,7 +542,7 @@ class InstallService
 
         // Create a normalized (lowercase) version of current_modules keys for comparison
         $normalized_current = [];
-        foreach ($current_modules as $mod_name => $mod_data) {
+        foreach (array_keys($current_modules) as $mod_name) {
             $normalized_current[strtolower($mod_name)] = true;
         }
 
@@ -565,7 +573,7 @@ class InstallService
         if (!empty($module_data['modules_to_update'])) {
             // Check if there are any "Not installed" modules
             $has_not_installed = false;
-            foreach ($module_data['modules_to_update'] as $module => $versions) {
+            foreach ($module_data['modules_to_update'] as $versions) {
                 if (Version::isEmpty($versions['previous'])) {
                     $has_not_installed = true;
                     break;
@@ -573,7 +581,7 @@ class InstallService
             }
             
             $html .= '<div class="alert alert-info">';
-            $html .= '<h5>'._r('Modules requiring updates:').'</h5>';
+            $html .= '<h5>'.\_r('Modules requiring updates:').'</h5>';
             
             if ($has_not_installed) {
                 // Show preloader and auto-update for "Not installed" modules
@@ -582,7 +590,7 @@ class InstallService
                 $html .= '<div class="spinner-border text-primary" role="status">';
                 $html .= '<span class="visually-hidden">Loading...</span>';
                 $html .= '</div>';
-                $html .= '<p class="mt-3">'._r('Please wait while we complete the installation').'...</p>';
+                $html .= '<p class="mt-3">'.\_r('Please wait while we complete the installation').'...</p>';
                 $html .= '</div>';
                 $html .= '<div id="module-result" class="d-none">';
                 $html .= '<div id="result-message"></div>';
@@ -592,15 +600,15 @@ class InstallService
                 // Show regular form for updates
                 $html .= '<form method="post">';
                 $html .= '<table class="table table-striped">';
-                $html .= '<thead><tr><th>'._r('Module').'</th><th>'._r('Previous Version').'</th><th>'._r('Current Version').'</th><th>'._r('Status').'</th></tr></thead>';
+                $html .= '<thead><tr><th>'.\_r('Module').'</th><th>'.\_r('Previous Version').'</th><th>'.\_r('Current Version').'</th><th>'.\_r('Status').'</th></tr></thead>';
                 $html .= '<tbody>';
                 
                 foreach ($module_data['modules_to_update'] as $module => $versions) {
                     $html .= '<tr>';
                     $html .= '<td><strong>'.htmlspecialchars($module).'</strong></td>';
-                    $html .= '<td>'.htmlspecialchars(Version::isEmpty($versions['previous']) ? _r('Not installed') : $versions['previous']).'</td>';
+                    $html .= '<td>'.htmlspecialchars(Version::isEmpty($versions['previous']) ? \_r('Not installed') : $versions['previous']).'</td>';
                     $html .= '<td>'.htmlspecialchars($versions['current']).'</td>';
-                    $html .= '<td><span class="badge bg-warning">'._r('Needs Update').'</span></td>';
+                    $html .= '<td><span class="badge bg-warning">'.\_r('Needs Update').'</span></td>';
                     $html .= '</tr>';
                 }
                 $html .= '</tbody></table>';
@@ -608,7 +616,7 @@ class InstallService
                 // Show form button only if no "Not installed" modules
                 $html .= '<div class="form-group mb-3">';
                 $html .= '<button type="submit" class="btn btn-primary" name="update_modules" value="1">';
-                $html .= '<i class="bi bi-arrow-up-circle"></i> '._r('Update All Modules');
+                $html .= '<i class="bi bi-arrow-up-circle"></i> '.\_r('Update All Modules');
                 $html .= '</button>';
                 $html .= '</div>';
                 $html .= '</form>';
@@ -620,27 +628,27 @@ class InstallService
         // Module upload section
         $html .= '<div class="card mb-4">';
         $html .= '<div class="card-header">';
-        $html .= '<h5 class="mb-0">'._r('Upload New Module').'</h5>';
+        $html .= '<h5 class="mb-0">'.\_r('Upload New Module').'</h5>';
         $html .= '</div>';
         $html .= '<div class="card-body">';
-        $html .= '<p class="text-body-secondary mb-3">'._r('Upload a ZIP file containing a new module. The module will be extracted and installed automatically.').'</p>';
+        $html .= '<p class="text-body-secondary mb-3">'.\_r('Upload a ZIP file containing a new module. The module will be extracted and installed automatically.').'</p>';
         $html .= '<form id="module-upload-form" method="post" action="'.Route::url('?page=install&action=upload-module').'" enctype="multipart/form-data">';
         $html .= '<div class="mb-3">';
-        $html .= '<label for="module_file" class="form-label">'._r('Module ZIP file').'</label>';
+        $html .= '<label for="module_file" class="form-label">'.\_r('Module ZIP file').'</label>';
         $html .= '<input type="file" class="form-control" name="module_file" id="module_file" accept=".zip" required>';
-        $html .= '<div class="form-text">'._r('Accepted format: ZIP containing module files with _module.php or Module.php').'</div>';
+        $html .= '<div class="form-text">'.\_r('Accepted format: ZIP containing module files with _module.php or Module.php').'</div>';
         $html .= '</div>';
         $html .= '<button type="submit" class="btn btn-primary" id="module-upload-btn">';
-        $html .= '<i class="bi bi-upload"></i> '._r('Upload Module');
+        $html .= '<i class="bi bi-upload"></i> '.\_r('Upload Module');
         $html .= '</button>';
         $html .= '</form>';
         $html .= '</div>';
         $html .= '</div>';
         
         // All modules status section
-        $html .= '<h5>'._r('All Modules Status:').'</h5>';
+        $html .= '<h5>'.\_r('All Modules Status:').'</h5>';
         $html .= '<table class="table table-striped">';
-        $html .= '<thead><tr><th>'._r('Module').'</th><th>'._r('Version').'</th><th>'._r('Status').'</th><th>'._r('Last Action').'</th><th>'._r('Actions').'</th></tr></thead>';
+        $html .= '<thead><tr><th>'.\_r('Module').'</th><th>'.\_r('Version').'</th><th>'.\_r('Status').'</th><th>'.\_r('Last Action').'</th><th>'.\_r('Actions').'</th></tr></thead>';
         $html .= '<tbody>';
         
         // Show enabled modules
@@ -651,7 +659,7 @@ class InstallService
                 $html .= '<tr>';
                 $html .= '<td>'.htmlspecialchars($module).'</td>';
                 $html .= '<td>-</td>';
-                $html .= '<td><span class="badge bg-danger">'._r('Error: Missing folder info').'</span></td>';
+                $html .= '<td><span class="badge bg-danger">'.\_r('Error: Missing folder info').'</span></td>';
                 $html .= '<td>-</td>';
                 $html .= '<td>-</td>';
                 $html .= '</tr>';
@@ -678,18 +686,18 @@ class InstallService
             
             // Apply hook for additional status checks
             $status_badge = $needs_update ? 
-                '<span class="badge bg-warning">'._r('Needs Update').'</span>' : 
-                '<span class="badge bg-success">'._r('Up to Date').'</span>';
+                '<span class="badge bg-warning">'.\_r('Needs Update').'</span>' : 
+                '<span class="badge bg-success">'.\_r('Up to Date').'</span>';
                 
             if ($has_write_permission === false) {
-                $status_badge = '<span class="badge bg-danger">'._r('Permission Issue').'</span>';
+                $status_badge = '<span class="badge bg-danger">'.\_r('Permission Issue').'</span>';
             } elseif ($module_path === null) {
-                $status_badge = '<span class="badge bg-danger">'._r('Missing Module Path').'</span>';
+                $status_badge = '<span class="badge bg-danger">'.\_r('Missing Module Path').'</span>';
             }
             
-            $disable_button = '<button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleModule(\''.$module.'\', \'disable-module\')">'._r('Disable!').'</button>';
-            $download_button = '<a href="'.Route::url(['page' => 'install', 'action' => 'download-module', 'module' => $module]).'" class="btn btn-sm btn-outline-info ms-1"><i class="bi bi-download"></i> '._r('Download').'</a>';
-            $uninstall_button = '<button type="button" class="btn btn-sm btn-outline-danger ms-1" onclick="uninstallModule(\''.$module.'\')">'._r('Uninstall').'</button>';
+            $disable_button = '<button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleModule(\''.$module.'\', \'disable-module\')">'.\_r('Disable!').'</button>';
+            $download_button = '<a href="'.Route::url(['page' => 'install', 'action' => 'download-module', 'module' => $module]).'" class="btn btn-sm btn-outline-info ms-1"><i class="bi bi-download"></i> '.\_r('Download').'</a>';
+            $uninstall_button = '<button type="button" class="btn btn-sm btn-outline-danger ms-1" onclick="uninstallModule(\''.$module.'\')">'.\_r('Uninstall').'</button>';
 
             // Get last action info for this module
             $last_action_info = self::getLastModuleActionInfo($module);
@@ -705,8 +713,8 @@ class InstallService
         
         // Show disabled modules
         foreach ($module_data['disabled_modules'] as $module => $info) {
-            $status_badge = '<span class="badge bg-secondary">'._r('Disabled').'</span>';
-            $enable_button = '<button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleModule(\''.$info['folder'].'\', \'enable-module\')">'._r('Enable').'</button>';
+            $status_badge = '<span class="badge bg-secondary">'.\_r('Disabled').'</span>';
+            $enable_button = '<button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleModule(\''.$info['folder'].'\', \'enable-module\')">'.\_r('Enable').'</button>';
 
             // Get last action info for this module
             $last_action_info = self::getLastModuleActionInfo($module);
@@ -724,7 +732,7 @@ class InstallService
         
         if (empty($module_data['modules_to_update'])) {
             $html .= '<div class="alert alert-success">';
-            $html .= '<i class="bi bi-check-circle"></i> '._r('All modules are up to date.');
+            $html .= '<i class="bi bi-check-circle"></i> '.\_r('All modules are up to date.');
             $html .= '</div>';
         }
         
@@ -734,7 +742,7 @@ class InstallService
         
         if (!empty($removed_modules)) {
             $html .= '<div class="mt-4">';
-            $html .= '<h6 class="text-body-secondary">'._r('Removed Modules:').'</h6>';
+            $html .= '<h6 class="text-body-secondary">'.\_r('Removed Modules:').'</h6>';
             $html .= '<div class="table-responsive">';
             $html .= '<table class="table table-sm table-bordered">';
             $html .= '<tbody>';
@@ -777,6 +785,9 @@ class InstallService
                 try {
                     // Read the module file and check for disable_cli property
                     $content = file_get_contents($module_file);
+                    if (!is_string($content)) {
+                        continue;
+                    }
 
                     // Look for protected $disable_cli = true
                     if (preg_match('/protected\s+\$disable_cli\s*=\s*true/i', $content)) {
@@ -814,6 +825,9 @@ class InstallService
                 try {
                     // Read the module file and check for is_core_module property
                     $content = file_get_contents($module_file);
+                    if (!is_string($content)) {
+                        continue;
+                    }
 
                     // Look for protected $is_core_module = true
                     if (preg_match('/protected\s+\$is_core_module\s*=\s*true/i', $content)) {
@@ -849,12 +863,24 @@ class InstallService
         
         // Update the version in the config
         $config_content = file_get_contents(LOCAL_DIR.'/config.php');
+        if (!is_string($config_content)) {
+            return [
+                'success' => false,
+                'html' => '<p class="alert alert-danger">Failed to read config.php</p>'
+            ];
+        }
         
         $config_content = preg_replace(
             "/^\s*\\\$conf\['version'\]\s*=\s*'[^']*';\s*$/m",
             " \$conf['version'] = '".$normalized_version."';",
             $config_content
         );
+        if (!is_string($config_content)) {
+            return [
+                'success' => false,
+                'html' => '<p class="alert alert-danger">Failed to update config.php content</p>'
+            ];
+        }
 
         try {
             File::putContents(LOCAL_DIR.'/config.php', $config_content);
@@ -868,7 +894,7 @@ class InstallService
 
         return [
             'success' => true,
-            'html' => '<p class="alert alert-success">'._r('Update completed successfully.').'</p>'
+            'html' => '<p class="alert alert-success">'.\_r('Update completed successfully.').'</p>'
         ];
     }
     
@@ -978,9 +1004,15 @@ class InstallService
             
             // Fallback: try to get from database directly
             $db = Get::db();
-            $result = $db->query("SELECT username FROM " . $db->prefix . "users WHERE id = ?", [$user_id]);
-            if ($result && count($result) > 0) {
-                return $result[0]['username'];
+            if (is_object($db)) {
+                $db_prefix = isset($db->prefix) ? (string) $db->prefix : '';
+                $result = $db->query("SELECT username FROM " . $db_prefix . "users WHERE id = ?", [$user_id]);
+                if (is_object($result)) {
+                    $row = $result->fetch_assoc();
+                    if (is_array($row) && isset($row['username'])) {
+                        return (string) $row['username'];
+                    }
+                }
             }
         } catch (\Exception) {
             // Ignore errors and return fallback
@@ -998,17 +1030,19 @@ class InstallService
      */
     public static function handleModuleUpload($files, $post = [])
     {
+        unset($post);
         if (!isset($files['module_file']) || $files['module_file']['error'] !== UPLOAD_ERR_OK) {
-            return ['success' => false, 'message' => _r('No file uploaded or upload error.')];
+            return ['success' => false, 'message' => \_r('No file uploaded or upload error.')];
         }
 
         $uploaded_file = $files['module_file']['tmp_name'];
         $file_name = $files['module_file']['name'];
         
         // Check that it is a ZIP file
-        $file_info = pathinfo($file_name);
-        if (strtolower($file_info['extension']) !== 'zip') {
-            return ['success' => false, 'message' => _r('The uploaded file must be in ZIP format.')];
+        $file_info = pathinfo((string) $file_name);
+        $file_extension = strtolower((string) ($file_info['extension'] ?? ''));
+        if ($file_extension !== 'zip') {
+            return ['success' => false, 'message' => \_r('The uploaded file must be in ZIP format.')];
         }
         
         $temp_dir = Get::tempDir();
@@ -1018,7 +1052,7 @@ class InstallService
         try {
             // Move uploaded file to temp directory
             if (!move_uploaded_file($uploaded_file, $module_upload_file)) {
-                return ['success' => false, 'message' => _r('Error during module file upload.')];
+                return ['success' => false, 'message' => \_r('Error during module file upload.')];
             }
             
             // Extract the module
@@ -1041,7 +1075,7 @@ class InstallService
             if ($copy_result['success']) {
                 return [
                     'success' => true, 
-                    'message' => sprintf(_r('Module %s uploaded successfully.'), $copy_result['module_name']),
+                    'message' => sprintf(\_r('Module %s uploaded successfully.'), $copy_result['module_name']),
                     'module_name' => $copy_result['module_name'],
                     'needs_installation' => true
                 ];
@@ -1055,7 +1089,7 @@ class InstallService
             if (is_dir($module_extract_dir)) {
                 self::removeDirectory($module_extract_dir);
             }
-            return ['success' => false, 'message' => _r('Error during module upload: ') . $e->getMessage()];
+            return ['success' => false, 'message' => \_r('Error during module upload: ') . $e->getMessage()];
         }
     }
     
@@ -1069,28 +1103,28 @@ class InstallService
     private static function extractModuleZip($zip_file, $extract_dir)
     {
         if (!class_exists('ZipArchive')) {
-            return _r('ZipArchive class not available. Please install php-zip extension.');
+            return \_r('ZipArchive class not available. Please install php-zip extension.');
         }
         
         $zip = new \ZipArchive();
         $result = $zip->open($zip_file);
         
         if ($result !== TRUE) {
-            return _r('Cannot open ZIP file: ') . $result;
+            return \_r('Cannot open ZIP file: ') . $result;
         }
         
         // Create extraction directory
         if (!is_dir($extract_dir)) {
             if (!mkdir($extract_dir, 0755, true)) {
                 $zip->close();
-                return _r('Cannot create extraction directory.');
+                return \_r('Cannot create extraction directory.');
             }
         }
         
         // Extract ZIP contents
         if (!$zip->extractTo($extract_dir)) {
             $zip->close();
-            return _r('Cannot extract ZIP contents.');
+            return \_r('Cannot extract ZIP contents.');
         }
         
         $zip->close();
@@ -1138,10 +1172,13 @@ class InstallService
     {
         // Check extracted contents
         $items = scandir($extract_dir);
+        if ($items === false) {
+            return ['success' => false, 'message' => 'Cannot read extracted module directory.'];
+        }
         $items = array_diff($items, ['.', '..']);
 
         if (count($items) === 0) {
-            return ['success' => false, 'message' => _r('The ZIP file is empty.')];
+            return ['success' => false, 'message' => \_r('The ZIP file is empty.')];
         }
 
         $source_dir = $extract_dir;
@@ -1157,6 +1194,9 @@ class InstallService
 
                 // Re-scan the contents of the inner directory
                 $subitems = scandir($first_item_path);
+                if ($subitems === false) {
+                    return ['success' => false, 'message' => 'Cannot read module inner directory.'];
+                }
                 $subitems = array_diff($subitems, ['.', '..']);
                 foreach ($subitems as $item) {
                     if (is_file($first_item_path . '/' . $item) && self::isValidModuleFile($item)) {
@@ -1176,12 +1216,12 @@ class InstallService
                 $module_name = $zip_name;
             }
         } else {
-            return ['success' => false, 'message' => _r('The ZIP file must contain exactly one directory or a module file (_module.php, Module.php).')];
+            return ['success' => false, 'message' => \_r('The ZIP file must contain exactly one directory or a module file (_module.php, Module.php).')];
         }
 
         // Look for valid module file to identify/validate module
         if (!$module_file) {
-            return ['success' => false, 'message' => _r('No valid module file found. Module must contain a _module.php or Module.php file.')];
+            return ['success' => false, 'message' => \_r('No valid module file found. Module must contain a _module.php or Module.php file.')];
         }
 
         // If we still don't have a module name, use the ZIP filename
@@ -1190,7 +1230,7 @@ class InstallService
         }
 
         // Detect module namespace to determine target directory
-        $namespace = self::detectModuleNamespace($module_file_path);
+        $namespace = $module_file_path !== null ? self::detectModuleNamespace($module_file_path) : null;
         $is_local_module = ($namespace && strpos($namespace, 'Local\\Modules') === 0);
 
         // Choose target directory based on namespace
@@ -1199,7 +1239,7 @@ class InstallService
         // Ensure target modules directory exists
         if (!is_dir(rtrim($modules_base_dir, '/'))) {
             if (!mkdir(rtrim($modules_base_dir, '/'), 0755, true)) {
-                return ['success' => false, 'message' => sprintf(_r('Cannot create modules directory: %s'), $modules_base_dir)];
+                return ['success' => false, 'message' => sprintf(\_r('Cannot create modules directory: %s'), $modules_base_dir)];
             }
         }
 
@@ -1217,14 +1257,14 @@ class InstallService
                 if (is_writable($target_dir)) {
                     $can_overwrite = true;
                 } else {
-                    $permission_error = sprintf(_r('Cannot overwrite module %s: insufficient permissions on directory %s'), $module_name, $target_dir);
+                    $permission_error = sprintf(\_r('Cannot overwrite module %s: insufficient permissions on directory %s'), $module_name, $target_dir);
                 }
             } else if (is_file($target_file)) {
                 // Check file permissions
                 if (is_writable($target_file) && is_writable(dirname($target_file))) {
                     $can_overwrite = true;
                 } else {
-                    $permission_error = sprintf(_r('Cannot overwrite module %s: insufficient permissions on file %s'), $module_name, $target_file);
+                    $permission_error = sprintf(\_r('Cannot overwrite module %s: insufficient permissions on file %s'), $module_name, $target_file);
                 }
             }
 
@@ -1240,24 +1280,25 @@ class InstallService
                     unlink($target_file);
                 }
             } catch (\Exception $e) {
-                return ['success' => false, 'message' => sprintf(_r('Cannot remove existing module %s: %s'), $module_name, $e->getMessage())];
+                return ['success' => false, 'message' => sprintf(\_r('Cannot remove existing module %s: %s'), $module_name, $e->getMessage())];
             }
         }
 
         // Copy module files to modules directory
-        if (count($items) > 1 || is_dir($source_dir . '/' . reset($items))) {
+        $first_item = reset($items);
+        if ($first_item !== false && is_dir($source_dir . '/' . $first_item)) {
             // Multiple files or contains directories - create module directory
             self::copyDirectory($source_dir, $modules_base_dir);
         } else {
             // Single module file - copy directly
             if (!copy($source_dir . '/' . $module_file, $modules_base_dir . $module_file)) {
-                return ['success' => false, 'message' => _r('Failed to copy module file.')];
+                return ['success' => false, 'message' => \_r('Failed to copy module file.')];
             }
         }
 
         return [
             'success' => true,
-            'message' => sprintf(_r('Module %s copied successfully to %s.'), $module_name, $is_local_module ? 'milkadmin_local/Modules' : 'milkadmin/Modules'),
+            'message' => sprintf(\_r('Module %s copied successfully to %s.'), $module_name, $is_local_module ? 'milkadmin_local/Modules' : 'milkadmin/Modules'),
             'module_name' => $module_name
         ];
 
@@ -1281,7 +1322,7 @@ class InstallService
         );
         
         foreach ($iterator as $item) {
-            $relative_path = str_replace($source . DIRECTORY_SEPARATOR, '', $item->getPathname());
+            $relative_path = str_replace($source . DIRECTORY_SEPARATOR, '', (string) $item->getPathname());
             $target = $destination . DIRECTORY_SEPARATOR . $relative_path;
 
             if ($item->isDir()) {
@@ -1289,7 +1330,7 @@ class InstallService
                     mkdir($target, 0755, true);
                 }
             } else {
-                copy($item, $target);
+                copy((string) $item->getPathname(), $target);
             }
         }
     }
@@ -1297,7 +1338,7 @@ class InstallService
     /**
      * Remove directory recursively
      *
-     * @param string $directory Directory to remove
+     * @param string $dir Directory to remove
      */
      private static function removeDirectory($dir) {
         if (!is_dir($dir)) {
@@ -1309,7 +1350,7 @@ class InstallService
         $localModulesPath = realpath(LOCAL_DIR . '/Modules');
         $targetPath = realpath($dir);
 
-        $isInModules = ($targetPath !== false && strpos($targetPath, $modulesPath) === 0 && $targetPath != $modulesPath);
+        $isInModules = ($modulesPath !== false && $targetPath !== false && strpos($targetPath, $modulesPath) === 0 && $targetPath != $modulesPath);
         $isInLocalModules = ($localModulesPath !== false && $targetPath !== false && strpos($targetPath, $localModulesPath) === 0 && $targetPath != $localModulesPath);
 
         if (!$isInModules && !$isInLocalModules) {
@@ -1319,7 +1360,11 @@ class InstallService
             return false;
         }
 
-        $files = array_diff(scandir($dir), array('.', '..'));
+        $scan = scandir($dir);
+        if ($scan === false) {
+            return false;
+        }
+        $files = array_diff($scan, array('.', '..'));
         foreach ($files as $file) {
             $path = $dir . DIRECTORY_SEPARATOR . $file;
             if (is_dir($path)) {
@@ -1352,28 +1397,20 @@ class InstallService
     {
         Hooks::run('cli-init');
         try {
-            $install_result = Cli::callFunction($module_name . ":install", function() use ($module_name) {
+            Cli::callFunction($module_name . ":install", function() use ($module_name) {
                 return $module_name;
             });
 
-            if ($install_result !== false) {
-                return [
-                    'success' => true,
-                    'message' => sprintf(_r('Module %s installed successfully.'), $module_name),
-                    'module_name' => $module_name
-                ];
-            } else {
-                return [
-                    'success' => true,
-                    'message' => sprintf(_r('Module %s uploaded successfully. Installation function not available or failed, but this is normal for modules without installation procedures.'), $module_name),
-                    'module_name' => $module_name
-                ];
-            }
+            return [
+                'success' => true,
+                'message' => sprintf(\_r('Module %s installed successfully.'), $module_name),
+                'module_name' => $module_name
+            ];
         } catch (\Exception) {
             // Module uploaded but installation failed - this is OK for open source modules
             return [
                 'success' => true,
-                'message' => sprintf(_r('Module %s uploaded successfully. Installation failed but this is normal for modules without installation procedures.'), $module_name),
+                'message' => sprintf(\_r('Module %s uploaded successfully. Installation failed but this is normal for modules without installation procedures.'), $module_name),
                 'module_name' => $module_name
             ];
         }
@@ -1389,15 +1426,13 @@ class InstallService
         $module_data = Config::get('modules_active');
 
         if (!isset($module_data[$module_name])) {
-            MessagesHandler::addError(sprintf(_r('Module %s not found'), $module_name));
+            MessagesHandler::addError(sprintf(\_r('Module %s not found'), $module_name));
             Route::redirect(['page' => 'install', 'action' => 'update-modules']);
-            return;
         }
 
         if (!isset($module_data[$module_name]['folder'])) {
-            MessagesHandler::addError(sprintf(_r('Module %s folder not found'), $module_name));
+            MessagesHandler::addError(sprintf(\_r('Module %s folder not found'), $module_name));
             Route::redirect(['page' => 'install', 'action' => 'update-modules']);
-            return;
         }
 
         $module_folder = $module_data[$module_name]['folder'];
@@ -1410,9 +1445,8 @@ class InstallService
         } elseif (is_dir($module_local_path) || is_file($module_local_path)) {
             $module_source_path = $module_local_path;
         } else {
-            MessagesHandler::addError(sprintf(_r('Module %s files not found'), $module_name));
+            MessagesHandler::addError(sprintf(\_r('Module %s files not found'), $module_name));
             Route::redirect(['page' => 'install', 'action' => 'update-modules']);
-            return;
         }
 
         // Create ZIP file
@@ -1421,16 +1455,14 @@ class InstallService
         $zip_path = $temp_dir . '/' . $zip_filename;
 
         if (!class_exists('ZipArchive')) {
-            MessagesHandler::addError(_r('ZipArchive class not available. Please install php-zip extension.'));
+            MessagesHandler::addError(\_r('ZipArchive class not available. Please install php-zip extension.'));
             Route::redirect(['page' => 'install', 'action' => 'update-modules']);
-            return;
         }
 
         $zip = new \ZipArchive();
         if ($zip->open($zip_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== TRUE) {
-            MessagesHandler::addError(_r('Cannot create ZIP file.'));
+            MessagesHandler::addError(\_r('Cannot create ZIP file.'));
             Route::redirect(['page' => 'install', 'action' => 'update-modules']);
-            return;
         }
 
         // Add files to ZIP
@@ -1448,7 +1480,10 @@ class InstallService
         if (file_exists($zip_path)) {
             header('Content-Type: application/zip');
             header('Content-Disposition: attachment; filename="' . $zip_filename . '"');
-            header('Content-Length: ' . filesize($zip_path));
+            $zip_size = filesize($zip_path);
+            if ($zip_size !== false) {
+                header('Content-Length: ' . $zip_size);
+            }
             header('Cache-Control: no-cache, must-revalidate');
             header('Expires: 0');
 
@@ -1458,7 +1493,7 @@ class InstallService
             unlink($zip_path);
             exit;
         } else {
-            MessagesHandler::addError(_r('Error creating module ZIP file.'));
+            MessagesHandler::addError(\_r('Error creating module ZIP file.'));
             Route::redirect(['page' => 'install', 'action' => 'update-modules']);
         }
     }

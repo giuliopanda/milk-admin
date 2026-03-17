@@ -5,6 +5,9 @@ use App\{Route, Token};
 use Modules\Auth\AuthService;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
+$success = (bool) ($success ?? false);
+$msg_error = isset($msg_error) ? (string) $msg_error : '';
+$key = isset($key) ? (string) $key : '';
 
 ?>
 <div class="center-login">

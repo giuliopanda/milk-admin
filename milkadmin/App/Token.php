@@ -64,6 +64,9 @@ class Token {
      * @var int
      */
     static private $jwt_expiration = 3600;
+    private const CSRF_SESSION_STORE = '__milk_csrf_tokens';
+    private const CSRF_DEFAULT_CONTEXT = '__csrf_global';
+    private const CSRF_TTL_SECONDS = 43200; // 12 hours
     /**
      * Configure keys for CSRF token generation
      * 
@@ -74,6 +77,11 @@ class Token {
     public static function config($secret_key, $token_key) {
         self::$secret_key = $secret_key;
         self::$token_key = $token_key;
+    }
+
+    public static function getConfiguredTokenKey(): ?string
+    {
+        return self::$token_key;
     }
     
     /**
@@ -132,68 +140,120 @@ class Token {
     }
 
     /**
-     * Generate a hidden input element for the CSRF token
-     * 
-     * @param string $name Form name
+     * Generate a hidden input element for the CSRF token.
+     *
+     * @param string|null $name Optional token context
      * @return string HTML input element
      */
-    public static function input($name) {
+    public static function input($name = null) {
         return '<input type="hidden" name="'.self::getTokenName($name).'" value="'.self::get($name).'">';
     }
 
     /**
-     * Generates a CSRF token for authenticating browser calls.
-     * The token is formed by encrypting a JSON array containing:
-     * [timestamp, token_key, user_id, session_id].
-     * 
-     * @param string $name Form name used to generate the token
-     * @return string Encrypted token
+     * Forces generation of a fresh CSRF token for the given context.
+     *
+     * @param string|null $name Optional token context
+     * @return string Token value
      */
-    public static function get($name) {
-        $payload = [
-            time(),
-            self::getTokenKey($name),
-            self::getCurrentUserId(),
-            self::getCurrentSessionId()
+    public static function generate($name = null): string
+    {
+        self::$last_error = '';
+        $context = self::getTokenKey($name);
+
+        if (!self::ensureCsrfStore()) {
+            throw new \RuntimeException('CSRF session store is not available.');
+        }
+
+        $token = self::createRandomToken();
+        $_SESSION[self::CSRF_SESSION_STORE][$context] = [
+            'token' => $token,
+            'issued_at' => time(),
+            'user_id' => self::getCurrentUserId(),
         ];
-        return self::encrypt(json_encode($payload));
+
+        return $token;
     }
 
     /**
-     * Returns a token key based on the form name
-     * 
-     * @param string $name Form name
-     * @return string Token key
+     * Returns the CSRF token for the given context, generating it when missing/expired.
+     *
+     * @param string|null $name Optional token context
+     * @return string Token value
      */
-    public static function getTokenKey($name) {
+    public static function get($name = null) {
+        self::$last_error = '';
+        $context = self::getTokenKey($name);
+
+        if (!self::ensureCsrfStore()) {
+            throw new \RuntimeException('CSRF session store is not available.');
+        }
+
+        $entry = $_SESSION[self::CSRF_SESSION_STORE][$context] ?? null;
+        if (!is_array($entry)) {
+            return self::generate($name);
+        }
+
+        $token = (string) ($entry['token'] ?? '');
+        if ($token === '') {
+            return self::generate($name);
+        }
+        if (!self::isValidTokenFormat($token)) {
+            return self::generate($name);
+        }
+
+        if (self::isCsrfEntryExpired($entry)) {
+            return self::generate($name);
+        }
+
+        if (!self::isCsrfUserContextValid($entry)) {
+            return self::generate($name);
+        }
+
+        return $token;
+    }
+
+    /**
+     * Returns a deterministic context key for a token.
+     *
+     * @param string|null $name Optional token context
+     * @return string Token context key
+     */
+    public static function getTokenKey($name = null) {
+        if (!is_string($name) || trim($name) === '') {
+            return self::CSRF_DEFAULT_CONTEXT;
+        }
         return $name;
     }
 
     /**
-     * Returns the name of the variable in which the token is stored.
-     * Generates a unique name based on the user agent and form name.
-     * 
-     * @param string $name Form name
+     * Returns the request variable name used to carry the token.
+     *
+     * @param string|null $name Optional token context
      * @return string Generated token variable name
      */
-    public static function getTokenName($name) {
-        $md5Name = md5($name);
-        $user_agent = substr(md5(($_SERVER['HTTP_USER_AGENT'] ?? '') . $md5Name), 0, 6);
-        // If the first character is a number, add a letter
-        if (is_numeric(substr($user_agent, 0, 1))) {
-            $user_agent = 't' . $user_agent;
+    public static function getTokenName($name = null) {
+        $context = self::getTokenKey($name);
+        if ($context === self::CSRF_DEFAULT_CONTEXT) {
+            return 'csrf_token';
         }
-        return $user_agent;
+        $salt = trim((string) self::$token_key);
+        if ($salt === '') {
+            $salt = trim((string) self::$secret_key);
+        }
+        if ($salt === '') {
+            $salt = 'csrf_token';
+        }
+        return 'csrf_' . substr(hash_hmac('sha256', $context, $salt), 0, 12);
     }
 
     /**
      * Verifies if the CSRF token is correct by finding the variable name in the request
      * and checking its value.
-     * 
-     * @param string $name Form name
-     * @return boolean True if the token is valid, false otherwise
+     *
+     * @param string|null $name Optional token context
+     * @return bool True if the token is valid, false otherwise
      */
-    public static function check($name) {
+    public static function check($name = null) {
         self::$last_error = '';
         $input_name = self::getTokenName($name);
         if (!isset($_REQUEST[$input_name])) {
@@ -207,64 +267,47 @@ class Token {
     /**
      * Verifies if the CSRF token value is correct.
      * Useful for AJAX requests where the token is passed directly.
-     * 
-     * @param string $token Token value to verify
-     * @param string $name Form name
-     * @return boolean True if the token is valid, false otherwise
+     *
+     * @param string|null $token Token value to verify
+     * @param string|null $name Optional token context
+     * @return bool True if the token is valid, false otherwise
      */
-    public static function checkValue($token, $name) {
+    public static function checkValue($token, $name = null) {
         self::$last_error = '';
-        $time_to_expire = 86400 / 2; // 12 hours
-    
-        if ($token === null) {
+        $context = self::getTokenKey($name);
+        $token = is_string($token) ? trim($token) : '';
+
+        if ($token === '') {
             self::$last_error = 'invalid_token';
             return false;
         }
-        $token_array = self::decrypt($token);
-    
-        if (is_array($token_array) && count($token_array) > 0) {
-            if (!array_key_exists(1, $token_array) || self::getTokenKey($name) !== $token_array[1]) {
-                self::$last_error = 'invalid_token';
-                return false;
-            }
-            $time = $token_array[0] ?? null;
-            if (!is_numeric($time)) {
-                self::$last_error = 'invalid_token';
-                return false;
-            }
-            if ($time + $time_to_expire < time()) {
+        if (!self::isValidTokenFormat($token)) {
+            self::$last_error = 'invalid_token_format';
+            return false;
+        }
+        if (!self::ensureCsrfStore()) {
+            return false;
+        }
+
+        $entry = $_SESSION[self::CSRF_SESSION_STORE][$context] ?? null;
+        if (is_array($entry)) {
+            if (self::isCsrfEntryExpired($entry)) {
+                unset($_SESSION[self::CSRF_SESSION_STORE][$context]);
                 self::$last_error = 'expired_token';
                 return false;
             }
 
-            // Enforce context binding to current user and current session.
-            if (!array_key_exists(2, $token_array) || !array_key_exists(3, $token_array)) {
-                self::$last_error = 'invalid_token_context';
-                return false;
-            }
-
-            $token_user_id = is_numeric($token_array[2]) ? (int) $token_array[2] : null;
-            $token_session_id = (string) $token_array[3];
-
-            if ($token_user_id === null || $token_session_id === '') {
-                self::$last_error = 'invalid_token_context';
-                return false;
-            }
-
-            $current_user_id = self::getCurrentUserId();
-            $current_session_id = self::getCurrentSessionId();
-
-            if ($token_user_id !== $current_user_id) {
+            if (!self::isCsrfUserContextValid($entry)) {
                 self::$last_error = 'invalid_user_context';
                 return false;
             }
 
-            if ($current_session_id === '' || !hash_equals($token_session_id, $current_session_id)) {
-                self::$last_error = 'invalid_session_context';
-                return false;
+            $expected = (string) ($entry['token'] ?? '');
+            if ($expected !== '' && self::isValidTokenFormat($expected) && hash_equals($expected, $token)) {
+                return true;
             }
-            return true;
         }
+
         self::$last_error = 'invalid_token';
         return false;
     }
@@ -287,63 +330,66 @@ class Token {
     }
 
     /**
-     * Get current PHP session id for token context binding.
+     * Ensures the CSRF token store exists in session.
      */
-    private static function getCurrentSessionId(): string {
-        return (string) session_id();
-    }
-
-    /**
-     * Encrypts a string using AES-128-CBC cipher with HMAC authentication.
-     * 
-     * @param string $string String to encrypt
-     * @return string Encrypted string, URL-safe base64 encoded
-     */
-    private static function encrypt($string) {
-        if (!self::$secret_key) {
-            Logs::set('SECURITY', 'Token::encrypt() called without secret_key configured. Call Token::config() first.', 'ERROR');
-            throw new \RuntimeException('Token secret_key not configured. Call Token::config() before using CSRF tokens.');
-        }
-        $ivlen = openssl_cipher_iv_length($cipher = "AES-128-CBC");
-        $iv = openssl_random_pseudo_bytes($ivlen);
-        $ciphertext_raw = openssl_encrypt($string, $cipher, self::$secret_key, OPENSSL_RAW_DATA, $iv);
-        $hmac = hash_hmac('sha256', $ciphertext_raw, self::$secret_key, true);
-        return Route::urlsafeB64Encode($iv . $hmac . $ciphertext_raw);
-    }
-
-    /**
-     * Decrypts a string previously encrypted with the encrypt method.
-     * Includes HMAC verification to ensure data integrity.
-     * 
-     * @param string $string Encrypted string to decrypt
-     * @return array|false Decrypted data as an array, or false on failure
-     */
-    private static function decrypt($string) {
-        self::$last_error = '';
-        if (!self::$secret_key) {
-            self::$secret_key = 'DFca324';
-        }
-        $c = Route::urlsafeB64Decode($string);
-        $ivlen = openssl_cipher_iv_length($cipher = "AES-128-CBC");
-        $iv = substr($c, 0, $ivlen);
-        $hmac = substr($c, $ivlen, $sha2len = 32);
-        $ciphertext_raw = substr($c, $ivlen + $sha2len);
-        if (strlen($iv) !== $ivlen || strlen($hmac) !== $sha2len) {
-            self::$last_error = 'invalid_string';
+    private static function ensureCsrfStore(): bool
+    {
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            self::$last_error = 'session_not_active';
             return false;
         }
-        $original_plaintext = openssl_decrypt($ciphertext_raw, $cipher, self::$secret_key, OPENSSL_RAW_DATA, $iv);
-      
-        $calcmac = hash_hmac('sha256', $ciphertext_raw, self::$secret_key, true);
-        if (!hash_equals($hmac, $calcmac)) { // timing attack safe comparison
-            $original_plaintext = false;
+
+        if (!isset($_SESSION[self::CSRF_SESSION_STORE]) || !is_array($_SESSION[self::CSRF_SESSION_STORE])) {
+            $_SESSION[self::CSRF_SESSION_STORE] = [];
         }
-        if ($original_plaintext !== false) {
-            $original_plaintext = json_decode($original_plaintext);
-        }
-        return $original_plaintext;
+
+        return true;
     }
-    
+
+    /**
+     * Returns true when the stored CSRF entry is expired.
+     */
+    private static function isCsrfEntryExpired(array $entry): bool
+    {
+        $issuedAt = isset($entry['issued_at']) && is_numeric($entry['issued_at'])
+            ? (int) $entry['issued_at']
+            : 0;
+
+        if ($issuedAt <= 0) {
+            return true;
+        }
+
+        return ($issuedAt + self::CSRF_TTL_SECONDS) < time();
+    }
+
+    /**
+     * Validates token user context against current user.
+     */
+    private static function isCsrfUserContextValid(array $entry): bool
+    {
+        if (!array_key_exists('user_id', $entry) || !is_numeric($entry['user_id'])) {
+            return false;
+        }
+
+        return (int) $entry['user_id'] === self::getCurrentUserId();
+    }
+
+    /**
+     * Create a cryptographically secure random token.
+     */
+    private static function createRandomToken(): string
+    {
+        return bin2hex(random_bytes(32));
+    }
+
+    /**
+     * Validate CSRF token format (64 hex chars).
+     */
+    private static function isValidTokenFormat(string $token): bool
+    {
+        return (bool) preg_match('/^[a-f0-9]{64}$/', $token);
+    }
+
     /**
      * Generates a public/private key pair for JWT
      * 

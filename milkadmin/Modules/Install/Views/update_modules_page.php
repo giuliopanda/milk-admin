@@ -4,6 +4,8 @@ namespace Modules\Install\Views;
 use App\{MessagesHandler, Route};
 
 if (!defined('MILK_DIR')) die();
+
+$html = is_string($html ?? null) ? $html : '';
 ?>
 
 <div class="bg-white p-4">
@@ -20,4 +22,3 @@ if (!defined('MILK_DIR')) die();
         </a>
     </div>
 </div>
-

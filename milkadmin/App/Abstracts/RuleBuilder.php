@@ -128,6 +128,15 @@ class RuleBuilder
         return $this;
     }
 
+    /**
+     * Normalized key for the current field.
+     * PHP converts null array keys to empty string; keep the same behavior explicitly.
+     */
+    protected function currentFieldKey(): string
+    {
+        return (string) $this->current_field;
+    }
+
     // ========================================
     // Table and database configuration
     // ========================================

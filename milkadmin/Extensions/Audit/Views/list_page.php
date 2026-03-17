@@ -5,6 +5,10 @@ use Builders\TitleBuilder;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
 
+$title = isset($title) ? (string) $title : '';
+$table_id = isset($table_id) ? (string) $table_id : '';
+$html = isset($html) ? (string) $html : '';
+
 ?>
 <div class="card">
     <div class="card-header">

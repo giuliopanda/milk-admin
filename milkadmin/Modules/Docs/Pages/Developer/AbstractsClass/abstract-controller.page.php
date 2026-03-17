@@ -12,7 +12,7 @@ use App\Route;
 <div class="bg-white p-4">
     <h1>Abstract class router</h1>
 
-    <p>The router class manages the module pages. The choice of the class to display is linked to the action parameter. <code>?page=basemodule&action=my_custom_page</code> will try to call the corresponding method.</p><p> The action parameter must contain only numbers 0-9, lowercase letters a-z and underscore. If action=My Custom-Page, it will be converted to mycustom_page.</p>
+    <p>The router class manages module pages. The requested action (for example <code>?page=basemodule&action=my_custom_page</code>) is first matched against methods declared with <code>#[RequestAction]</code>.</p><p>If no attribute route is found, the legacy fallback (<code>actionXxx</code> methods) is used, and only in that fallback path the action string is normalized to alphanumeric/underscore.</p>
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
 namespace Modules\BaseModule;
@@ -60,12 +60,12 @@ class BaseModuleController extends AbstractController
     <p>The <code>#[RequestAction]</code> attribute accepts the following parameters:</p>
     <ul>
         <li><code>action</code>: (string) The action name that will be matched in the URL</li>
-        <li><code>url</code>: (string, optional) Custom URL pattern (defaults to action name)</li>
+        <li><code>url</code>: (string, optional) Secondary metadata value. Current HTTP routing matches by <code>action</code>.</li>
     </ul>
 
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">#[RequestAction('custom-name', 'different-url')]
 protected function myMethod() {
-    // This method responds to ?page=module&action=different-url
+    // Current HTTP routing resolves this with ?page=module&action=custom-name
 }</code></pre>
 
     <h5 class="mt-3">The home page</h5>
@@ -118,6 +118,15 @@ class Controller extends AbstractControllerExtension
         When a dedicated Controller exists, calling <code>registerRequestAction()</code> from Module/extension is forwarded
         to the active Controller automatically.
     </p>
+
+    <h5 class="mt-3">Scope and Priority (Module vs Controller)</h5>
+    <ul>
+        <li>If a dedicated Controller exists, the HTTP route handler is the Controller.</li>
+        <li>In that flow, <code>#[RequestAction]</code> attributes are scanned from Controller and loaded Controller extensions.</li>
+        <li>Attributes declared only on Module methods are not resolved by the active Controller route map.</li>
+        <li>Module/extension code can still expose actions at runtime via <code>registerRequestAction()</code>, which is forwarded to the active Controller.</li>
+        <li>If no dedicated Controller exists, the Module handles routes directly and its own <code>#[RequestAction]</code> methods are used.</li>
+    </ul>
 
     <h2 class="mt-4">AbstractController Overview</h2>
 
@@ -192,7 +201,7 @@ class Controller extends AbstractControllerExtension
                 <tr>
                     <td><code>registerRequestAction()</code></td>
                     <td>Register actions programmatically without attributes</td>
-                    <td><span class="badge bg-secondary">void</span></td>
+                    <td><span class="badge bg-info">bool</span></td>
                     <td><code>$this->registerRequestAction('sync', 'syncAction')</code></td>
                 </tr>
                 <tr>
@@ -609,6 +618,9 @@ if ($module) {
                          </ul>
                      </li>
                  </ul>
+                <p class="text-muted">
+                    Registration also returns <code>false</code> if the target class already declares the same action via <code>#[RequestAction]</code>.
+                </p>
 
             <h3 class="mt-3">Action Methods with Attributes</h3>
             <p>Methods with <code>#[RequestAction]</code> attributes handle specific URL actions. The method with <code>#[RequestAction('home')]</code> is called when no action parameter is passed.</p>
@@ -778,38 +790,40 @@ protected function home() {
                    </li>
                 </ul>
     
-                <h3 class="mt-3"><code>callTableAction($table_id, $action, $function)</code></h3>
+                <h3 class="mt-3"><code>callTableAction($table_id, $actions)</code></h3>
             <p>Handles table group actions, such as deleting multiple records simultaneously</p>
 <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
 /**
  * @param string $table_id The table id
- * @param string $action The action to execute
- * @param string $function The function to call
+ * @param array $actions ['request_action' => 'handlerMethodName']
  * @return void
  */
-protected function callTableAction($table_id, $action, $function);
+protected function callTableAction(string $table_id, array $actions): void;
 
 // Usage example in a child class
 #[RequestAction('home')]
 protected function home() {
      $table_id = 'table_posts';
     $request = $this->getRequestParams($table_id);
-    $this->callTableAction($table_id, 'delete', 'table_action_delete');
+    $this->callTableAction($table_id, [
+        'delete' => 'tableActionDelete',
+        'archive' => 'tableActionArchive',
+    ]);
     // ...
 }
 
 // Method to call dynamically
-protected function tableActionDelete($id, $request) {
-    $this->model->delete($id);
-    return true;
+protected function tableActionDelete(array $ids, array $request): void {
+    foreach ($ids as $id) {
+        $this->model->delete((int) $id);
+    }
 }
 </code></pre>
         <ul>
             <li><strong>Input parameters:</strong>
                 <ul>
                     <li><code>$table_id</code>: (string) The table identifier.</li>
-                    <li><code>$action</code>: (string) The action to execute (eg: "delete").</li>
-                    <li><code>$function</code>: (string) The name of the function that must be called dynamically.</li>
+                    <li><code>$actions</code>: (array) Map of request actions to handler methods (example: <code>['delete' =&gt; 'tableActionDelete']</code>).</li>
                 </ul>
             </li>
             <li><strong>Return value:</strong>
@@ -823,6 +837,6 @@ protected function tableActionDelete($id, $request) {
     <p>The following methods make dynamic calls to functions defined in the child class:</p>
     <ul>
         <li><code>handleRoutes()</code>: Calls the method with the corresponding #[RequestAction] attribute for the requested action.</li>
-        <li><code>callTableAction()</code>: Dynamically calls the <code>$function</code> function passed as a parameter.</li>
+        <li><code>callTableAction()</code>: Dynamically calls the handler mapped in the <code>$actions</code> array.</li>
     </ul>
 </div>

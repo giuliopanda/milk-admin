@@ -57,8 +57,6 @@ abstract class AbstractApi {
 
     /**
      * Constructor
-     *
-     * @param array|null $extensions Optional array of extensions to load
      */
     public function __construct() {
         $this->setupAttributeApiTraitHooks();
@@ -140,7 +138,7 @@ abstract class AbstractApi {
      * Helper method to create error response
      *
      * @param string $message Error message
-     * @param mixed $errors Additional error details
+     * @param array|null $errors Additional error details
      * @return array
      */
     protected function error(string $message = '', ?array $errors = null): array {

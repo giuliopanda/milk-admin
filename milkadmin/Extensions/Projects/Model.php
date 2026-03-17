@@ -356,11 +356,11 @@ class Model extends AbstractModelExtension
     {
         $parts = explode('\\', trim($namespace, '\\'));
 
-        if (($parts[0] ?? '') === 'Local' && ($parts[1] ?? '') === 'Modules' && isset($parts[2])) {
+        if ($parts[0] === 'Local' && ($parts[1] ?? '') === 'Modules' && isset($parts[2])) {
             return implode('\\', array_slice($parts, 0, 3));
         }
 
-        if (($parts[0] ?? '') === 'Modules' && isset($parts[1])) {
+        if ($parts[0] === 'Modules' && isset($parts[1])) {
             return implode('\\', array_slice($parts, 0, 2));
         }
 

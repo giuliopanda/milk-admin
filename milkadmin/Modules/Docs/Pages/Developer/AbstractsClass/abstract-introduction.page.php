@@ -68,6 +68,7 @@ use App\Route;
 
    <h5 class="mt-3">#[RequestAction('name')]</h5>
    <p>Creates a page accessible via <code>?page=module&action=name</code>. Can be applied to Module or Controller.</p>
+   <p class="text-muted mb-2">Scope note: if a dedicated Controller exists, HTTP routing uses the Controller route map. Module-only <code>#[RequestAction]</code> methods are not resolved in that flow unless registered programmatically via <code>registerRequestAction()</code>.</p>
    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">#[RequestAction('edit')]
 public function edit() { /* ... */ }</code></pre>
 

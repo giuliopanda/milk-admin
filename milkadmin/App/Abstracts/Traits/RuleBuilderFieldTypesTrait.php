@@ -56,7 +56,7 @@ trait RuleBuilderFieldTypesTrait
     public function string(string $name, int $length = 255): self
     {
         $this->field($name, 'string');
-        $this->rules[$this->current_field]['length'] = $length;
+        $this->rules[$this->currentFieldKey()]['length'] = $length;
         $this->label($this->createLabel($name));
         return $this;
     }
@@ -71,9 +71,9 @@ trait RuleBuilderFieldTypesTrait
     public function title(string $name = 'title', int $length = 255): self
     {
         $this->field($name, 'string');
-        $this->rules[$this->current_field]['length'] = $length;
-        $this->rules[$this->current_field]['_is_title_field'] = true;
-        $this->rules[$this->current_field]['form-params']['required'] = true;
+        $this->rules[$this->currentFieldKey()]['length'] = $length;
+        $this->rules[$this->currentFieldKey()]['_is_title_field'] = true;
+        $this->rules[$this->currentFieldKey()]['form-params']['required'] = true;
         $this->label($this->createLabel($name));
         return $this;
     }
@@ -126,7 +126,7 @@ trait RuleBuilderFieldTypesTrait
     public function noTimezoneConversion(): self
     {
         if ($this->current_field !== null) {
-            $this->rules[$this->current_field]['timezone_conversion'] = false;
+            $this->rules[$this->currentFieldKey()]['timezone_conversion'] = false;
         }
         return $this;
     }
@@ -140,7 +140,7 @@ trait RuleBuilderFieldTypesTrait
     public function created_at(string $name = 'created_at'): self
     {
         $this->field($name, 'datetime');
-        $this->rules[$this->current_field]['_auto_created_at'] = true;
+        $this->rules[$this->currentFieldKey()]['_auto_created_at'] = true;
         $this->label($this->createLabel($name));
         $this->hideFromEdit();
         return $this;
@@ -155,7 +155,7 @@ trait RuleBuilderFieldTypesTrait
     public function updated_at(string $name = 'updated_at'): self
     {
         $this->field($name, 'datetime');
-        $this->rules[$this->current_field]['_auto_updated_at'] = true;
+        $this->rules[$this->currentFieldKey()]['_auto_updated_at'] = true;
         $this->label($this->createLabel($name));
         $this->hideFromEdit();
         return $this;
@@ -170,7 +170,7 @@ trait RuleBuilderFieldTypesTrait
     public function created_by(string $name = 'created_by'): self
     {
         $this->field($name, 'int');
-        $this->rules[$this->current_field]['_auto_created_by'] = true;
+        $this->rules[$this->currentFieldKey()]['_auto_created_by'] = true;
         $this->label($this->createLabel($name));
         $this->hideFromEdit();
         return $this;
@@ -185,7 +185,7 @@ trait RuleBuilderFieldTypesTrait
     public function updated_by(string $name = 'updated_by'): self
     {
         $this->field($name, 'int');
-        $this->rules[$this->current_field]['_auto_updated_by'] = true;
+        $this->rules[$this->currentFieldKey()]['_auto_updated_by'] = true;
         $this->label($this->createLabel($name));
         $this->hideFromEdit();
         return $this;
@@ -244,15 +244,15 @@ trait RuleBuilderFieldTypesTrait
         if ($length < $precision) {
             $length = $precision + 1;
         }
-        $this->rules[$this->current_field]['length'] = $length;
-        $this->rules[$this->current_field]['precision'] = $precision;
+        $this->rules[$this->currentFieldKey()]['length'] = $length;
+        $this->rules[$this->currentFieldKey()]['precision'] = $precision;
         $integer_digits = $length - $precision;
 
-        if (!isset($this->rules[$this->current_field]['form-params'])) {
-            $this->rules[$this->current_field]['form-params'] = [];
+        if (!isset($this->rules[$this->currentFieldKey()]['form-params'])) {
+            $this->rules[$this->currentFieldKey()]['form-params'] = [];
         }
-        $this->rules[$this->current_field]['form-params']['pattern'] = "^-?\\d{1,$integer_digits}(\\.\\d{0,$precision})?$";
-        $this->rules[$this->current_field]['form-params']['step'] = $precision > 0
+        $this->rules[$this->currentFieldKey()]['form-params']['pattern'] = "^-?\\d{1,$integer_digits}(\\.\\d{0,$precision})?$";
+        $this->rules[$this->currentFieldKey()]['form-params']['step'] = $precision > 0
             ? '0.' . str_repeat('0', $precision - 1) . '1'
             : '1';
 
@@ -271,7 +271,7 @@ trait RuleBuilderFieldTypesTrait
     public function email(string $name): self
     {
         $this->field($name, 'string');
-        $this->rules[$this->current_field]['length'] = 255;
+        $this->rules[$this->currentFieldKey()]['length'] = 255;
         $this->formType('email');
         $this->label($this->createLabel($name));
         return $this;
@@ -286,7 +286,7 @@ trait RuleBuilderFieldTypesTrait
     public function tel(string $name): self
     {
         $this->field($name, 'string');
-        $this->rules[$this->current_field]['length'] = 25;
+        $this->rules[$this->currentFieldKey()]['length'] = 25;
         $this->formType('tel');
         $this->label($this->createLabel($name));
         return $this;
@@ -301,7 +301,7 @@ trait RuleBuilderFieldTypesTrait
     public function url(string $name): self
     {
         $this->field($name, 'string');
-        $this->rules[$this->current_field]['length'] = 255;
+        $this->rules[$this->currentFieldKey()]['length'] = 255;
         $this->formType('url');
         $this->label($this->createLabel($name));
         return $this;
@@ -339,7 +339,7 @@ trait RuleBuilderFieldTypesTrait
     public function checkboxes(string $name, array $options): self
     {
         $this->field($name, 'array');
-        $this->rules[$this->current_field]['options'] = $options;
+        $this->rules[$this->currentFieldKey()]['options'] = $options;
         $this->formType('checkboxes');
         $this->label($this->createLabel($name));
         return $this;
@@ -355,7 +355,7 @@ trait RuleBuilderFieldTypesTrait
     public function radio(string $name, array $options): self
     {
         $this->field($name, 'radio');
-        $this->rules[$this->current_field]['options'] = $options;
+        $this->rules[$this->currentFieldKey()]['options'] = $options;
         $this->label($this->createLabel($name));
         return $this;
     }
@@ -370,7 +370,7 @@ trait RuleBuilderFieldTypesTrait
     public function list(string $name, array $options): self
     {
         $this->field($name, 'list');
-        $this->rules[$this->current_field]['options'] = $options;
+        $this->rules[$this->currentFieldKey()]['options'] = $options;
         $this->label($this->createLabel($name));
         return $this;
     }
@@ -393,7 +393,7 @@ trait RuleBuilderFieldTypesTrait
     public function enum(string $name, array $options): self
     {
         $this->field($name, 'enum');
-        $this->rules[$this->current_field]['options'] = $options;
+        $this->rules[$this->currentFieldKey()]['options'] = $options;
         $this->label($this->createLabel($name));
         return $this;
     }

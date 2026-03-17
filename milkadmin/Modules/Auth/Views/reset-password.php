@@ -5,6 +5,8 @@ use App\{Sanitize, Token};
 use Theme\Template;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
+$msg_error = isset($msg_error) ? (string) $msg_error : '';
+$success = (bool) ($success ?? false);
 ?>
 <div class="center-login">
     <div class="text-center mb-3">

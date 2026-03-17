@@ -10,6 +10,10 @@ use App\{Form, Hooks, Token};
 
 // Get upload options from field configuration
 $upload_options = $options ?? [];
+$upload_name = isset($upload_name) ? (string) $upload_name : '';
+$label = isset($label) ? (string) $label : '';
+$name = isset($name) ? (string) $name : '';
+$value = isset($value) ? $value : [];
 
 // Normalize truthy/falsy values coming from JSON/form params.
 $normalize_bool = static function ($value): bool {
@@ -50,7 +54,7 @@ if (array_key_exists('multiple', $upload_options)) {
 if (array_key_exists('max-size', $upload_options)) {
     $max_size = $upload_options['max-size'];
 } else {
-    $max_size = $upload_options['max-size'] ?? 0;
+    $max_size = 0;
 }
 $max_size = Hooks::run("upload_maxsize_".$upload_name, $max_size);
 if ($max_size > 0) {
@@ -61,7 +65,7 @@ if ($max_size > 0) {
 if (array_key_exists('accept', $upload_options)) {
     $accept = $upload_options['accept'];
 } else {
-    $accept = $upload_options['accept'] ?? 'image/*';
+    $accept = 'image/*';
 }
 $accept = Hooks::run("upload_accept_".$upload_name, $accept);
 if ($accept == '') {
@@ -114,7 +118,7 @@ $preview_size = $upload_options['preview-size'] ?? 150;
                     if (strpos($name, '[') !== false) {
                         $new_file_name = str_replace(']', '_files]', $name);
                     } else {
-                        $new_file_name = $name+"_files";
+                        $new_file_name = $name . "_files";
                     }
                     // Build full URL for image preview
                     $image_url = $file_data['url'];
@@ -163,7 +167,7 @@ $preview_size = $upload_options['preview-size'] ?? 150;
     <?php Form::input('file', $name, '', '', $upload_options); ?>
     <input type="hidden" class="js-uploader-readonly" value="<?php echo $is_readonly ? '1' : '0'; ?>">
     <?php
-    if (!isset($upload_name)) {
+    if ($upload_name === '') {
         // il nome è importante per poter controllare i permessi, il max file size, e il tipo di file accettato
         ?><div class="alert alert-danger"><?php _pt('$upload_name not set! Name is important to control upload, check permissions, max file size, and accepted file type'); ?></div><?php
     } else {

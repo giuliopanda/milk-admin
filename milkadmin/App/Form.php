@@ -70,7 +70,7 @@ class Form
      * @param string $type The input type (text, email, password, number, etc.)
      * @param string $name The name attribute of the input field
      * @param string $label The label text for the input field
-     * @param string $value The default value of the input field
+     * @param mixed $value The default value of the input field
      * @param array $options Additional HTML attributes and options liks:
      *   - 'id' => string Custom ID (auto-generated if not provided)
      *   - 'class' => string Additional CSS classes
@@ -97,7 +97,7 @@ class Form
         } else {
             $floating = true;
         }
-        if (is_a($value, 'DateTime')) {
+        if ($value instanceof \DateTimeInterface) {
             switch($type) {
                 case 'date':
                     $value = $value->format('Y-m-d');
@@ -124,23 +124,24 @@ class Form
 
         $id = self::id($options, $name);
         $placeholer = ($options['placeholder'] ?? ($floating ? $label : ''));
-        $label_html = ($label != '' && $type != "hidden") ? '<label for="'.$id.'"'.self::attr(self::getLabelOptions($options)).'>'. _rh($label).'</label>' : '';
+        $label_html = ($label != '' && $type != "hidden") ? '<label for="'.$id.'"'.self::attr(self::getLabelOptions($options)).'>'. self::rh($label).'</label>' : '';
         $field = ($floating) ? '<div class="form-floating">' : (($label != '') ? $label_html  : '');
-        $field .= '<input type="'.$type.'" name="'._r($name).'" placeholder="'._r($placeholer).'"'.($value != '' ? ' value="'._r($value).'"' : '').' ';
+        $field .= '<input type="'.$type.'" name="'.self::r($name).'" placeholder="'.self::r($placeholer).'"'.($value != '' ? ' value="'.self::r($value).'"' : '').' ';
 
         $field .= ' id="'.$id.'"';
 
         // Add data-error-message attribute if invalid-feedback is set
         if (array_key_exists('invalid-feedback', $options)) {
-            $field .= ' data-error-message="'._r($options['invalid-feedback']).'"';
+            $field .= ' data-error-message="'.self::r($options['invalid-feedback']).'"';
         }
 
         $field .= self::attr($options);
         /**
          * The list attribute refers to a datalist element that contains pre-defined options for an input element.
          */
+        $id_list = '';
         if (array_key_exists('list', $options)) {
-            $id_list = _r('_list'.$id);
+            $id_list = self::r('_list'.$id);
             $field .= ' list="'.$id_list.'"';
         }
 
@@ -149,7 +150,7 @@ class Form
         if (array_key_exists('list', $options)) {
             $field .= '<datalist id="'.$id_list.'">';
             foreach ($options['list'] as $option) {
-                $field .= '<option value="'._r($option).'">';
+                $field .= '<option value="'.self::r($option).'">';
             }
             $field .= '</datalist>';
         }
@@ -158,11 +159,11 @@ class Form
         }
 
         if (array_key_exists('invalid-feedback', $options)) {
-            $field .= '<div class="invalid-feedback">'._rh($options['invalid-feedback']).'</div>';
+            $field .= '<div class="invalid-feedback">'.self::rh($options['invalid-feedback']).'</div>';
         }
 
         if (array_key_exists('help-text', $options)) {
-            $field .= '<div class="form-text">'._rh($options['help-text']).'</div>';
+            $field .= '<div class="form-text">'.self::rh($options['help-text']).'</div>';
         }
 
         $field .=  ($floating) ? '</div>' : '';
@@ -218,42 +219,42 @@ class Form
         }
         $id = self::id($options, $name);
 
-        $noFloatingLabel = ($label != '') ? '<label for="'.$id.'">'._rh($label).'</label>' : '';
+        $noFloatingLabel = ($label != '') ? '<label for="'.$id.'">'.self::rh($label).'</label>' : '';
         $field = ($floating) ? '<div class="form-floating">' : $noFloatingLabel;
         $placeholer = ($options['placeholder'] ?? $label);
-        $field .= '<textarea name="'._r($name).'" placeholder="'._rh($placeholer).'"';
+        $field .= '<textarea name="'.self::r($name).'" placeholder="'.self::rh($placeholer).'"';
 
         $field .= ' id="'.$id.'"';
 
         // Add data-error-message attribute if invalid-feedback is set
         if (array_key_exists('invalid-feedback', $options)) {
-            $field .= ' data-error-message="'._r($options['invalid-feedback']).'"';
+            $field .= ' data-error-message="'.self::r($options['invalid-feedback']).'"';
         }
 
         // To set a custom height on your <textarea>, do not use the rows attribute. Instead, set an explicit height (either inline or via custom CSS).
         
-        $rows = _absint(((int)$rows > 20) ? 20 : $rows);
+        $rows = self::absint(((int)$rows > 20) ? 20 : $rows);
         $options['class']  = (array_key_exists('class', $options)) ? $options['class']." ".'textarea-rows-'.$rows : 'textarea-rows-'.$rows;
-        //$field .= ' rows="'._absint($rows).'"';
+        //$field .= ' rows="'.self::absint($rows).'"';
        
         $field .= self::attr($options);
 
         $field .= '>';
 
         if ($value != '') {
-           $field .=_r($value);
+           $field .=self::r($value);
         }
         $field .= '</textarea>';
         
         if ($label != '') {
-            $field .= '<label for="'.$id.'">'._rh($label).'</label>';
+            $field .= '<label for="'.$id.'">'.self::rh($label).'</label>';
         }
         if (array_key_exists('invalid-feedback', $options)) {
-            $field .= '<div class="invalid-feedback">'._rh($options['invalid-feedback']).'</div>';
+            $field .= '<div class="invalid-feedback">'.self::rh($options['invalid-feedback']).'</div>';
         }
 
         if (array_key_exists('help-text', $options)) {
-            $field .= '<div class="form-text">'._rh($options['help-text']).'</div>';
+            $field .= '<div class="form-text">'.self::rh($options['help-text']).'</div>';
         }
 
         $field .=  ($floating) ? '</div>' : '';
@@ -329,7 +330,7 @@ class Form
 
         $options['class'] = (array_key_exists('class', $options)) ? $options['class']." ".'form-check-input' : 'form-check-input';
        $field = '<div class="d-flex align-items-center w-100 h-100 no-form-check-mt">';
-        $field .= '<input type="checkbox" value="'._r($value).'" name="'._r($name).'"';
+        $field .= '<input type="checkbox" value="'.self::r($value).'" name="'.self::r($name).'"';
         if ($is_checked) {
             $field .= ' checked';
         }
@@ -337,9 +338,9 @@ class Form
         $field .= ' id="'.$id.'"';
         $field .= self::attr($options);
         $field .= '>';
-        $field .= '<label class="form-check-label ms-2" for="'.$id.'">'._rh($label).'</label>';
+        $field .= '<label class="form-check-label ms-2" for="'.$id.'">'.self::rh($label).'</label>';
         if (array_key_exists('invalid-feedback', $options)) {
-            $field .= '<div class="invalid-feedback">'._rh($options['invalid-feedback']).'</div>';
+            $field .= '<div class="invalid-feedback">'.self::rh($options['invalid-feedback']).'</div>';
         }
         // invalid 
         if (strpos($name, '[]') === false && $invalid_class != '') {
@@ -416,17 +417,17 @@ class Form
                 $temp_field .= ' col';
             }
             if (array_key_exists('form-check-class', $options_group)) {
-                $temp_field .= ' '._r($options_group['form-check-class']).'';
+                $temp_field .= ' '.self::r($options_group['form-check-class']).'';
             }
             $temp_field .= '">';
 
-            $options_field['id'] = $base_id.'_'. str_pad($count++, 2, '0', STR_PAD_LEFT);
+            $options_field['id'] = $base_id.'_'. str_pad((string) $count++, 2, '0', STR_PAD_LEFT);
             $selected = (is_array($selected_value) && in_array($value, $selected_value)) ? true : false;
             $temp_field .= self::checkbox($name."[]", $label, $value, $selected, $options_field, true);
 
-            // se è l'ultimo campo e c'è un invalid-feedback
+            // if it's the last field and there's an invalid-feedback
             if ($count == count($list_of_radio) && array_key_exists('invalid-feedback', $options_group)) {
-                $temp_field .= '<div class="invalid-feedback">'._rh($options_group['invalid-feedback']).'</div>';
+                $temp_field .= '<div class="invalid-feedback">'.self::rh($options_group['invalid-feedback']).'</div>';
             }
 
             $temp_field .= '</div>';
@@ -435,9 +436,9 @@ class Form
             
         }
         //   https://stackoverflow.com/questions/47546087/display-invalid-feedback-text-for-radio-button-group-in-bootstrap-4
-        $classes_field = (array_key_exists('form-group-class', $options_group)) ? ' '._r($options_group['form-group-class']).'' : '';
+        $classes_field = (array_key_exists('form-group-class', $options_group)) ? ' '.self::r($options_group['form-group-class']).'' : '';
         if ($options_group['class'] ?? '') {
-            $classes_field .= ' '._r($options_group['class']).'';
+            $classes_field .= ' '.self::r($options_group['class']).'';
         }
         if (stripos($classes_field, 'is-invalid') !== false) {
             $classes_field .= ' js-checkbox-remove-is-invalid';
@@ -450,7 +451,7 @@ class Form
         if ($group_required) {
             $field .= ' data-required-group="checkboxes" aria-required="true"';
             if (array_key_exists('invalid-feedback', $options_group) && trim((string) $options_group['invalid-feedback']) !== '') {
-                $field .= ' data-required-message="' . _r($options_group['invalid-feedback']) . '"';
+                $field .= ' data-required-message="' . self::r($options_group['invalid-feedback']) . '"';
             }
         }
         $field .= '>';
@@ -468,10 +469,10 @@ class Form
         if (array_key_exists('label', $options_group)) {
             if ($options_group['label'] != '') {
                 if ($label_left) {
-                    $label_width = _r($options_group['label-width'] ?? '8rem');
-                    $field .= '<label class="label-checkboxes flex-shrink-0 pt-1 me-3 fw-bold" style="min-width:'.$label_width.'">'._rt($options_group['label']).'</label>';
+                    $label_width = self::r($options_group['label-width'] ?? '8rem');
+                    $field .= '<label class="label-checkboxes flex-shrink-0 pt-1 me-3 fw-bold" style="min-width:'.$label_width.'">'.self::rt($options_group['label']).'</label>';
                 } else {
-                    $field .= '<label class="label-checkboxes me-4 fw-bold">'._rt($options_group['label']).'</label>';
+                    $field .= '<label class="label-checkboxes me-4 fw-bold">'.self::rt($options_group['label']).'</label>';
                 }
             }
         }
@@ -523,7 +524,7 @@ class Form
         $options['class'] = (array_key_exists('class', $options)) ? $options['class']." ".'form-control' : 'form-control';
         self::applyInvalidClass($options, $name);
         $field = '<div class="d-flex align-items-center w-100 h-100 no-form-check-mt">';
-        $field .= '<input class="form-check-input" type="radio" value="'._r($value).'" name="'._r($name).'"';
+        $field .= '<input class="form-check-input" type="radio" value="'.self::r($value).'" name="'.self::r($name).'"';
         if ($selected_value == $value) {
             $field .= ' checked';
         }
@@ -531,9 +532,9 @@ class Form
         $field .= ' id="'.$id.'"';
         $field .= self::attr($options);
         $field .= '>';
-        $field .= '<label class="form-check-label ms-2" for="'.$id.'">'._rt($label).'</label>';
+        $field .= '<label class="form-check-label ms-2" for="'.$id.'">'.self::rt($label).'</label>';
         if (array_key_exists('invalid-feedback', $options)) {
-            $field .= '<div class="invalid-feedback">'._rt($options['invalid-feedback']).'</div>';
+            $field .= '<div class="invalid-feedback">'.self::rt($options['invalid-feedback']).'</div>';
         }
         // invalid-feedback is not supported on single radio buttons (It will be supported on radio groups!)
         $field .= "</div>";
@@ -609,16 +610,16 @@ class Form
                 $temp_field .= ' col';
             }
             if (array_key_exists('form-check-class', $options_group)) {
-                $temp_field .= ' '._r($options_group['form-check-class']).'';
+                $temp_field .= ' '.self::r($options_group['form-check-class']).'';
             }
             $temp_field .= '">';
            
-            $options_field['id'] = $base_id.'_'. str_pad($count++, 2, '0', STR_PAD_LEFT);
+            $options_field['id'] = $base_id.'_'. str_pad((string) $count++, 2, '0', STR_PAD_LEFT);
             $temp_field .= self::radio($name, $label, $value, $selected_value, $options_field, true);
            
-            // se è l'ultimo campo e c'è un invalid-feedback
+            // if it's the last field and there's an invalid-feedback
             if ($count == count($list_of_radio) && array_key_exists('invalid-feedback', $options_group)) {
-                $temp_field .= '<div class="invalid-feedback">'._rt($options_group['invalid-feedback']).'</div>';
+                $temp_field .= '<div class="invalid-feedback">'.self::rt($options_group['invalid-feedback']).'</div>';
             }
 
             $temp_field .= '</div>';
@@ -626,9 +627,9 @@ class Form
             
         }
         //   https://stackoverflow.com/questions/47546087/display-invalid-feedback-text-for-radio-button-group-in-bootstrap-4
-        $classes_field = (array_key_exists('form-group-class', $options_group)) ? ' '._r($options_group['form-group-class']).'' : '';
+        $classes_field = (array_key_exists('form-group-class', $options_group)) ? ' '.self::r($options_group['form-group-class']).'' : '';
         if ($options_group['class'] ?? '') {
-            $classes_field .= ' '._r($options_group['class']).'';
+            $classes_field .= ' '.self::r($options_group['class']).'';
         }
         if (stripos($classes_field, 'is-invalid') !== false) {
             $classes_field .= ' js-radio-remove-is-invalid';
@@ -651,10 +652,10 @@ class Form
 
         if (array_key_exists('label', $options_group)) {
             if ($label_left) {
-                $label_width = _r($options_group['label-width'] ?? '8rem');
-                $field .= '<label class="label-radios flex-shrink-0 pt-1 me-3 text-body-secondary" style="min-width:'.$label_width.'">'._rt($options_group['label']).'</label>';
+                $label_width = self::r($options_group['label-width'] ?? '8rem');
+                $field .= '<label class="label-radios flex-shrink-0 pt-1 me-3 text-body-secondary" style="min-width:'.$label_width.'">'.self::rt($options_group['label']).'</label>';
             } else {
-                $field .= '<label class="label-radios me-4 text-body-secondary">'._rt($options_group['label']).'</label>';
+                $field .= '<label class="label-radios me-4 text-body-secondary">'.self::rt($options_group['label']).'</label>';
             }
         }
         if ($has_items_wrap) {
@@ -714,7 +715,7 @@ class Form
      * @param array $select_options Associative array of options or option groups
      *   - Simple array: ['value1' => 'Label 1', 'value2' => 'Label 2']
      *   - With groups: ['Group 1' => ['v1' => 'Label 1'], 'Group 2' => ['v2' => 'Label 2']]
-     * @param string $selected The value of the selected option (optional)
+     * @param mixed $selected The selected option value(s) (optional)
      * @param array $options Additional HTML attributes and options:
      *   - 'class' => string Additional CSS classes
      *   - 'required' => bool Whether the field is required
@@ -754,14 +755,14 @@ class Form
             $floating = true;
         }
         $id = self::id($options, $name);
-        $label_dom = ($label != '') ? '<label for="'.$id.'">'._rt($label).'</label>' : '';
+        $label_dom = ($label != '') ? '<label for="'.$id.'">'.self::rt($label).'</label>' : '';
         $field = ($floating) ? '<div class="form-floating">' : $label_dom;
 
         // Disabled controls are not submitted; mirror their value with hidden input(s).
         if ($isDisabled) {
             $isMultiple = self::normalizeBool($options['multiple'] ?? false);
             $hiddenValues = self::resolveDisabledSelectHiddenValues(
-                is_array($select_options) ? $select_options : [],
+                $select_options,
                 $selected,
                 $isMultiple
             );
@@ -769,20 +770,20 @@ class Form
             if ($isMultiple) {
                 $hiddenName = str_ends_with((string) $name, '[]') ? (string) $name : ((string) $name . '[]');
                 foreach (is_array($hiddenValues) ? $hiddenValues : [] as $selectedValue) {
-                    $field .= '<input type="hidden" name="' . _r($hiddenName) . '" value="' . _r((string) $selectedValue) . '">';
+                    $field .= '<input type="hidden" name="' . self::r($hiddenName) . '" value="' . self::r((string) $selectedValue) . '">';
                 }
             } else {
                 $hiddenValue = is_array($hiddenValues) ? (string) (reset($hiddenValues) ?: '') : (string) $hiddenValues;
-                $field .= '<input type="hidden" name="' . _r($name) . '" value="' . _r($hiddenValue) . '">';
+                $field .= '<input type="hidden" name="' . self::r($name) . '" value="' . self::r($hiddenValue) . '">';
             }
         }
 
-        $field .= '<select name="'._r($name).'"';
-        $field .= ' id="'._r($id).'"';
+        $field .= '<select name="'.self::r($name).'"';
+        $field .= ' id="'.self::r($id).'"';
 
         // Add data-error-message attribute if invalid-feedback is set
         if (array_key_exists('invalid-feedback', $options)) {
-            $field .= ' data-error-message="'._r($options['invalid-feedback']).'"';
+            $field .= ' data-error-message="'.self::r($options['invalid-feedback']).'"';
         }
 
         $field .= self::attr($options);
@@ -800,21 +801,21 @@ class Form
         // select_options is an associative array that accepts option groups
         foreach ($select_options as $key => $value) {
             if (is_array($value)) {
-                $field .= '<optgroup label="'._r($key).'">';
+                $field .= '<optgroup label="'.self::r($key).'">';
                 foreach ($value as $k => $v) {
-                    $field .= '<option value="'._r($k).'"';
+                    $field .= '<option value="'.self::r($k).'"';
                     if (($selectedLookup !== null && isset($selectedLookup[(string) $k])) || ($selectedLookup === null && (string) $selected === (string) $k)) {
                         $field .= ' selected';
                     }
-                    $field .= '>'._rt($v).'</option>';
+                    $field .= '>'.self::rt($v).'</option>';
                 }
                 $field .= '</optgroup>';
             } else {
-                $field .= '<option value="'._r($key).'"';
+                $field .= '<option value="'.self::r($key).'"';
                 if (($selectedLookup !== null && isset($selectedLookup[(string) $key])) || ($selectedLookup === null && (string) $selected === (string) $key)) {
                     $field .= ' selected';
                 }
-                $field .= '>'._rt($value).'</option>';
+                $field .= '>'.self::rt($value).'</option>';
             }
         }
 
@@ -822,11 +823,11 @@ class Form
 
         $field .= ($floating) ? $label_dom : '';
         if (array_key_exists('invalid-feedback', $options)) {
-            $field .= '<div class="invalid-feedback">'._rt($options['invalid-feedback']).'</div>';
+            $field .= '<div class="invalid-feedback">'.self::rt($options['invalid-feedback']).'</div>';
         }
 
         if (array_key_exists('help-text', $options)) {
-            $field .= '<div class="form-text">'._rt($options['help-text']).'</div>';
+            $field .= '<div class="form-text">'.self::rt($options['help-text']).'</div>';
         }
 
         $field .= ($floating) ? '</div>' : '';
@@ -970,11 +971,11 @@ class Form
         }
         
         // Label HTML - render before hidden input like other form elements
-        $label_html = ($label != '') ? '<label for="'.$id.'">'._rh($label).'</label>' : '';
+        $label_html = ($label != '') ? '<label for="'.$id.'">'.self::rh($label).'</label>' : '';
         
         // Hidden input to store the selected value
         $field = $label_html;
-        $field .= '<input type="hidden" name="' . _r($name) . '" value="' . _r($selected) . '"';
+        $field .= '<input type="hidden" name="' . self::r($name) . '" value="' . self::r($selected) . '"';
         
         // Add onchange from main options if provided (for backward compatibility)
         if ($onchange) {
@@ -1000,8 +1001,8 @@ class Form
                 $item_classes .= ' ' . $active_class;
             }
             
-            $field .= '<' . $item_tag . ' class="' . $item_classes . '" data-value="' . _r($value) . '">';
-            $field .= _rh($label);
+            $field .= '<' . $item_tag . ' class="' . $item_classes . '" data-value="' . self::r($value) . '">';
+            $field .= self::rh($label);
             $field .= '</' . $item_tag . '>';
         }
         
@@ -1030,9 +1031,9 @@ class Form
      */
     static private function id($options, $name) {
         if (array_key_exists('id', $options)) {
-            $id = _r($options['id']);
+            $id = self::r($options['id']);
         } else {
-            $id = "form"._raz($name);
+            $id = "form".self::raz($name);
         }
         return $id;
     }
@@ -1067,17 +1068,17 @@ class Form
                 if ($attribute == 'hidden') {
                     $field .= ' hidden aria-hidden="true" tabindex="-1" ';
                 } else if ($options[$attribute] !== false) {
-                    $field .= ' '._rh($attribute);
+                    $field .= ' '.self::rh($attribute);
                 }
             }
         }
 
         // Handle toggle visibility attributes (convert toggle-field to data-togglefield)
         if (array_key_exists('toggle-field', $options)) {
-            $field .= ' data-togglefield="'._r($options['toggle-field']).'"';
+            $field .= ' data-togglefield="'.self::r($options['toggle-field']).'"';
         }
         if (array_key_exists('toggle-value', $options)) {
-            $field .= ' data-togglevalue="'._r($options['toggle-value']).'"';
+            $field .= ' data-togglevalue="'.self::r($options['toggle-value']).'"';
         }
 
         // Process all other attributes
@@ -1085,14 +1086,14 @@ class Form
             // Skip special cases and non-scalar values
             // Skip toggle-* as they're handled above
             // Skip in-container as it's only for internal logic
-            if ($key != _r($key) || in_array($key, $array_attributes) ||
+            if ($key != self::r($key) || in_array($key, $array_attributes) ||
                 $key == 'floating' || $key == 'invalid-feedback' || $key == 'help-text' ||
                 $key == 'toggle-field' || $key == 'toggle-value' ||
                 $key == 'in-container') {
                 continue;
             }
             if (!in_array($key, $array_attributes) && is_scalar($options[$key])) {
-                $field .= ' '.$key.'="'._r($option).'"';
+                $field .= ' '.$key.'="'.self::r($option).'"';
             }
         }
 
@@ -1177,7 +1178,7 @@ class Form
         }
 
         // Build field HTML
-        $label_dom = ($label != '') ? '<label for="'.$id.'">'._rt($label).'</label>' : '';
+        $label_dom = ($label != '') ? '<label for="'.$id.'">'.self::rt($label).'</label>' : '';
 
         // For non-floating, show label before plugin
         $field = ($floating) ? '<div class="form-floating milkselect-floating">' : $label_dom;
@@ -1227,7 +1228,7 @@ class Form
 
         // Add validation feedback
         if ($invalid_feedback) {
-            $field .= '<div class="invalid-feedback">'._rt($invalid_feedback).'</div>';
+            $field .= '<div class="invalid-feedback">'.self::rt($invalid_feedback).'</div>';
         }
 
         $field .= ($floating) ? '</div>' : '';
@@ -1253,6 +1254,46 @@ class Form
 
         $normalized = strtolower(trim((string) $value));
         return in_array($normalized, ['1', 'true', 'yes', 'on'], true);
+    }
+
+    private static function r(mixed $value): string
+    {
+        return Sanitize::input($value, 'string');
+    }
+
+    private static function rh(mixed $value): string
+    {
+        return Sanitize::html($value);
+    }
+
+    private static function rt(mixed $value, mixed ...$args): string
+    {
+        $message = Sanitize::getString($value);
+        $message = Lang::get($message, (string) ($_REQUEST['page'] ?? ''));
+        if ($args !== []) {
+            try {
+                $message = sprintf($message, ...$args);
+            } catch (\ValueError) {
+                // Keep untranslated or untranslated-formatted fallback when placeholders are invalid.
+            }
+        }
+
+        return Sanitize::html($message);
+    }
+
+    private static function absint(mixed $value): int
+    {
+        return abs((int) $value);
+    }
+
+    private static function raz(mixed $value): string
+    {
+        $sanitized = preg_replace('/[^0-9a-zA-Z_]/', '', (string) $value);
+        $sanitized = is_string($sanitized) ? $sanitized : '';
+        if ($sanitized !== '' && is_numeric(substr($sanitized, 0, 1))) {
+            $sanitized = 'a' . $sanitized;
+        }
+        return $sanitized;
     }
 
     /**

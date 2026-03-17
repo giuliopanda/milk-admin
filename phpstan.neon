@@ -1,0 +1,27 @@
+parameters:
+    level: 5
+    paths:
+        - milkadmin/App
+        - milkadmin/Builders
+        - milkadmin/Extensions
+        - milkadmin/Modules/Auth
+        - milkadmin/Modules/Home
+        - milkadmin/Modules/Install
+        - milkadmin/Modules/Docs
+        - milkadmin/Modules/Deny
+        - milkadmin/Theme
+        - public_html
+        - milkadmin_local/functions.php
+        - tests
+    bootstrapFiles:
+        - milkadmin/phpstan-bootstrap.php
+    excludePaths:
+        analyse:
+            - milkadmin/App/Abstracts/Traits/CopyRulesTrait.php
+            - milkadmin/App/Abstracts/Traits/MetaSaveTrait.php
+            - milkadmin/App/Abstracts/Traits/QueryBuilderTrait.php
+            - milkadmin/App/Abstracts/Traits/RelationshipDataHandlerTrait.php
+            - milkadmin/App/Abstracts/Traits/RelationshipsTrait.php
+            - milkadmin/App/Abstracts/Traits/ScopeTrait.php
+            - milkadmin/App/Abstracts/Traits/VirtualTableTrait.php
+    treatPhpDocTypesAsCertain: false

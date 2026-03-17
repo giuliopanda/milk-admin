@@ -356,10 +356,8 @@ HTML;
         }
         
         // Add last group
-        if ($currentGroup !== null) {
-            $currentGroup['total_columns'] = count($currentGroup['appointments']);
-            $groups[] = $currentGroup;
-        }
+        $currentGroup['total_columns'] = count($currentGroup['appointments']);
+        $groups[] = $currentGroup;
         
         return $groups;
     }

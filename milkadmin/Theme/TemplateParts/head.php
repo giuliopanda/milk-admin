@@ -15,8 +15,8 @@ $user = Get::user();
     <meta charset="<?php echo Theme::get('header.charset','utf-8'); ?>">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="generator" content="Milk Admin - https://milkadmin.org">
-    <meta name="csrf-token" content="<?php echo Token::get(session_id()); ?>">
-    <meta name="csrf-token-name" content="<?php echo Token::getTokenName(session_id()); ?>">
+    <meta name="csrf-token" content="<?php echo Token::get(); ?>">
+    <meta name="csrf-token-name" content="<?php echo Token::getTokenName(); ?>">
     <title><?php echo Theme::get('header.title', Config::get('site-title', '')); ?></title>
     <link href="<?php echo THEME_URL; ?>/AssetsExtensions/Bootstrap/Css/bootstrap.min.css?v=<?php echo $version; ?>" rel="stylesheet" crossorigin="anonymous">
     <?php Template::getCss(); ?>

@@ -5,29 +5,29 @@ use App\Route;
 
 if (!defined('MILK_DIR')) die();
 
-// Inizializzo gli array per i differenti tipi di risultati
-$results_name_and_content = []; // Risultati sia nel nome che nel contenuto
-$results_name_only = [];        // Risultati solo nel nome del file
-$results_content_only = [];     // Risultati solo nel contenuto
+// Initialize arrays for different result types
+$results_name_and_content = []; // Matches both in file name and content
+$results_name_only = [];        // Matches only in file name
+$results_content_only = [];     // Matches only in file content
 
 ob_start();
 $array_pages = scandir(MILK_DIR . '/Modules/docs/pages');
 $search = ($_REQUEST['search'] ?? '');
 
-// Se la ricerca è vuota, non proseguire
+// If search is empty, stop here
 if (empty($search)) {
     $content = ob_get_clean();
-    echo json_encode(['html'=> '<div>Inserisci un termine di ricerca</div>']);
+    echo json_encode(['html'=> '<div>Enter a search term</div>']);
     exit;
 }
 
-// Funzione per ottenere il nome del file senza percorso
+// Helper: get file name without path
 function getFileName($path) {
     $parts = explode('/', $path);
     return end($parts);
 }
 
-// Costruzione dell'array delle pagine
+// Build pages array
 foreach ($array_pages as $key => $value) {
     if ($value == '.' || $value == '..') unset($array_pages[$key]);
     if (is_dir(MILK_DIR . '/Modules/Docs/Pages/' . $value)) {
@@ -37,14 +37,14 @@ foreach ($array_pages as $key => $value) {
                 unset($sub_pages[$sub_key]);
                 continue;
             }
-            $array_pages[$key.str_replace("./", "", $sub_key)] = '/Modules/Docs/Pages/' . $value . '/' . str_replace([".php", "./"], "", $sub_value); 
+            $array_pages[(string) $key . str_replace("./", "", (string) $sub_key)] = '/Modules/Docs/Pages/' . $value . '/' . str_replace([".php", "./"], "", $sub_value); 
         }
     } else {
-        $array_pages[str_replace("./", "", $key)] = '/Modules/Docs/Pages/'.str_replace([".php", "./"], "", $value);
+        $array_pages[str_replace("./", "", (string) $key)] = '/Modules/Docs/Pages/'.str_replace([".php", "./"], "", $value);
     }
 }
 
-// Effettua la ricerca e classifica i risultati
+// Run search and classify results
 foreach ($array_pages as $page) {
     if (!is_file(MILK_DIR . $page . ".php")) continue;
     
@@ -56,21 +56,21 @@ foreach ($array_pages as $page) {
     $content_match = stripos($file_content, $search) !== false;
     
     if ($name_match && $content_match) {
-        // Match sia nel nome che nel contenuto
+        // Match in both name and content
         $results_name_and_content[$page] = [
             'name' => $file_name,
             'path' => $page,
             'content' => $file_content
         ];
     } elseif ($name_match) {
-        // Match solo nel nome
+        // Match only in name
         $results_name_only[$page] = [
             'name' => $file_name,
             'path' => $page,
             'content' => $file_content
         ];
     } elseif ($content_match) {
-        // Match solo nel contenuto
+        // Match only in content
         $results_content_only[$page] = [
             'name' => $file_name,
             'path' => $page,
@@ -79,13 +79,13 @@ foreach ($array_pages as $page) {
     }
 }
 
-// Funzione per stampare i risultati trovati
+// Helper: print search result block
 function printResult($page, $file_info, $search) {
     echo '<h6><a href="' . Route::url('?page=docs&action=' . $page) . '">' . str_replace('/Modules/Docs/Pages', '', $page) . '</a></h6>';
     
     $box = [];
     
-    // Trova le righe che contengono la parola di ricerca
+    // Find lines containing the search term
     $lines = explode("\n", $file_info['content']);
     foreach ($lines as $count => $line) {
         if (count($box) > 4) {
@@ -93,7 +93,7 @@ function printResult($page, $file_info, $search) {
             break;
         }
         if (stripos($line, $search) !== false && stripos($line, 'require') === false && stripos($line, 'include') === false) {
-            $box[] = echoLine($line ?? '', $search, $count);
+            $box[] = echoLine($line, $search, $count);
         }
     }
     $box = array_filter($box);
@@ -102,21 +102,21 @@ function printResult($page, $file_info, $search) {
     }
 }
 
-// 1. Risultati sia nel nome che nel contenuto
+// 1) Results matching both name and content
 if (!empty($results_name_and_content)) {
     foreach ($results_name_and_content as $page => $file_info) {
         printResult($page, $file_info, $search);
     }
 }
 
-// 2. Risultati solo nel nome
+// 2) Results matching name only
 if (!empty($results_name_only)) {
     foreach ($results_name_only as $page => $file_info) {
         printResult($page, $file_info, $search);
     }
 }
 
-// 3. Risultati solo nel contenuto
+// 3) Results matching content only
 if (!empty($results_content_only)) {
     foreach ($results_content_only as $page => $file_info) {
         printResult($page, $file_info, $search);
@@ -125,7 +125,7 @@ if (!empty($results_content_only)) {
 
 // Se non ci sono risultati
 if (empty($results_name_and_content) && empty($results_name_only) && empty($results_content_only)) {
-    echo '<div>No results found for "' . _p($search) . '"</div>';
+    echo '<div>No results found for "' . _r($search) . '"</div>';
 }
 
 // Funzione per evidenziare la riga con la parola di ricerca

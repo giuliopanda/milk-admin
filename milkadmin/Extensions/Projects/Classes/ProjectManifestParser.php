@@ -65,10 +65,6 @@ class ProjectManifestParser
      */
     public function parseArray(array $data, string $sourceLabel = 'manifest'): ProjectManifest
     {
-        if (!is_array($data)) {
-            throw new \RuntimeException("Manifest root must be an object: {$sourceLabel}");
-        }
-
         $description = trim((string) ($data['description'] ?? ''));
         $settings = $description !== '' ? ['description' => $description] : [];
 

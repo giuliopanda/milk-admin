@@ -29,7 +29,7 @@ use App\{Sanitize, Lang};
     return Sanitize::input($var, 'string');
  }
 
- /**
+/**
  * Returns sanitized and translated string
  * 
  * This function first translates the string using the current language settings
@@ -37,6 +37,7 @@ use App\{Sanitize, Lang};
  * needs to support multiple languages.
  *
  * @param mixed $var The string to translate and sanitize
+ * @param mixed ...$args Optional sprintf arguments
  * @return string The translated and sanitized string, or empty string if input is not scalar
  */
 function _rt($var, ...$args) {
@@ -64,12 +65,15 @@ function _rt($var, ...$args) {
  }
 
  /**
- * Esegue un preg_replace per eliminare i caratteri speciali
- * Aggiunge un carattere se il primo è un numero
+ * Executes a preg_replace to remove special characters
+ * Adds a character if the first is a number
+ *
+ * @param mixed $var
+ * @return string
  */
 function _raz($var) {
     $var = preg_replace('/[^0-9a-zA-Z_]/', '', $var);
-    // se il primo valore è un numero ci aggiungo una lettera casuale prima
+    // if the first value is a number, add a random letter before it
     if (is_numeric(substr($var, 0, 1))) {
         $rand = substr(str_shuffle('abcdefghijklmnopqrstuvwxyz'), 0, 1);
         $var = $rand.$var;
@@ -97,6 +101,7 @@ function _p($var) {
  * used for user interface text that needs to be both translated and safe to display.
  *
  * @param mixed $var The string to translate and output
+ * @param mixed ...$args Optional sprintf arguments
  * @return void
  */
 
@@ -152,12 +157,11 @@ function _pjs($var) {
  * from user input.
  *
  * @param string $var The string to sanitize
- * @return string The sanitized string with only alphanumeric characters and underscores,
- *                starting with a letter
+ * @return void
  */
-function _paz($var) {
+function _paz($var): void {
     $var = preg_replace('/[^0-9a-zA-Z_]/', '', $var);
-    // se il primo valore è un numero ci aggiungo una lettera casuale prima
+    // if the first value is a number, add a random letter before it
     if (is_numeric(substr($var, 0, 1))) {
         $rand = substr(str_shuffle('abcdefghijklmnopqrstuvwxyz'), 0, 1);
         $var = $rand.$var;
@@ -210,14 +214,12 @@ function getVal($class, $property) {
    
     if ($class instanceof \App\Abstracts\AbstractModel) {
         // Use getFormattedValue for proper date/array/list formatting in tables
-        if (method_exists($class, 'getFormattedValue')) {
-            return $class->getFormattedValue($property);
-        }
-        return $class->$property;
+        return $class->getFormattedValue($property);
     } else if (is_array($class) && array_key_exists($property, $class)) {
         return $class[$property];
-    } else if (property_exists($class, $property)) {
-        return $class->$property;
+    } else if (is_object($class) && property_exists($class, (string) $property)) {
+        $propertyName = (string) $property;
+        return $class->$propertyName;
     } else {
         return null;
     }
@@ -244,8 +246,11 @@ function getVal($class, $property) {
  */
 function toMysqlArray(mixed $obj, array $default_data = []) {
     $array_to_save = $default_data;
-    if (method_exists($obj, 'toMysqlArray')) {
-        $array_to_save = $obj->toMysqlArray();
+    if (is_object($obj) && method_exists($obj, 'toMysqlArray')) {
+        $mysqlArray = call_user_func([$obj, 'toMysqlArray']);
+        if (is_array($mysqlArray)) {
+            $array_to_save = $mysqlArray;
+        }
     } else if (is_object($obj)) {
         $array_to_save = (array) $obj;
     } else if (is_array($obj)) {

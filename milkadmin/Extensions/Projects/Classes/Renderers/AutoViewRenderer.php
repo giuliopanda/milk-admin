@@ -5,7 +5,7 @@ use App\Abstracts\AbstractModule;
 use App\Response;
 use App\Route;
 use Builders\TitleBuilder;
-use Extensions\Projects\Classes\ProjectNaming;
+use Extensions\Projects\Classes\{ProjectJsonStore, ProjectNaming};
 use Extensions\Projects\Classes\View\{ViewPageRenderer, ViewSchema};
 use Extensions\Projects\Classes\Module\{
     ActionContextRegistry,
@@ -226,10 +226,11 @@ class AutoViewRenderer
 
         $chainParams = $this->fkResolver->getChainParams($context);
         $listAction = (string) ($context['list_action'] ?? '');
-        $deleteAction = (string) ($context['delete_action'] ?? '');
         $deleteConfirmAction = (string) ($context['delete_confirm_action'] ?? '');
         $editParams = array_merge(['id' => $id], $chainParams);
         $deleteParams = array_merge(['id' => $id], $chainParams);
+        $allowEdit = ProjectJsonStore::normalizeBool($context['allow_edit'] ?? true);
+        $canDelete = ProjectJsonStore::normalizeBool($context['can_manage_delete_records'] ?? false);
 
         $formattedData = $record->getFormattedData('array', false);
         if (!is_array($formattedData)) {
@@ -238,7 +239,7 @@ class AutoViewRenderer
 
         $mainSectionTitle = $modelTitle !== '' ? $modelTitle : 'Detail';
 
-        $detailsEditButtonHtml = $this->buildDetailsEditButtonHtml($editAction, $editParams);
+        $detailsEditButtonHtml = $this->buildDetailsEditButtonHtml($editAction, $editParams, $allowEdit);
         $mainDetailsHtml = $this->buildMainDetailsHtml($model, $formattedData, $mainSectionTitle, $detailsEditButtonHtml);
         $childTablesHtml = $this->buildChildTablesHtml($context, $id, $rootId);
         $bodyHtml = $mainDetailsHtml . $childTablesHtml;
@@ -252,7 +253,7 @@ class AutoViewRenderer
                 'color' => 'secondary',
             ];
         }
-        if ($deleteConfirmAction !== '') {
+        if ($deleteConfirmAction !== '' && $canDelete) {
             $deleteUrl = Route::url(UrlBuilder::action($modulePage, $deleteConfirmAction, $deleteParams));
             $titleBtns[] = [
                 'label' => 'Delete Entire Record',
@@ -333,9 +334,9 @@ class AutoViewRenderer
             . '</div>';
     }
 
-    protected function buildDetailsEditButtonHtml(string $editAction, array $editParams): string
+    protected function buildDetailsEditButtonHtml(string $editAction, array $editParams, bool $allowEdit): string
     {
-        if ($editAction === '') {
+        if ($editAction === '' || !$allowEdit) {
             return '';
         }
 

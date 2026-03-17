@@ -52,8 +52,7 @@ trait RouteControllerTrait {
         // If called on a Module that has an active Controller, register the route on the Controller
         // so it is effective even when the controller is the active route handler.
         if (
-            property_exists($this, 'controller')
-            && is_object($this->controller)
+            isset($this->controller)
             && $this->controller !== $this
             && method_exists($this->controller, 'registerRequestAction')
         ) {
@@ -124,7 +123,6 @@ trait RouteControllerTrait {
             // Check method-specific access level OR fallback to module access
             if (!$this->checkMethodAccess($attributeMethod)) {
                 Route::redirect('?page=deny');
-                return;
             }
 
             // Support both string (method name) and callable (array with object and method)
@@ -144,14 +142,12 @@ trait RouteControllerTrait {
             // Check method-specific access level OR fallback to module access
             if (!$this->checkMethodAccess($function)) {
                 Route::redirect('?page=deny');
-                return;
             }
             $this->$function();
         } else if ($function == 'actionRelatedSearchField') {
             $this->relatedSearchField();
         } else {
             Route::redirect('?page=404');
-            return;
         }
 
     }
@@ -161,33 +157,34 @@ trait RouteControllerTrait {
      * Used only in MilkSelect single on BelongsTo relationship
      * Please note that it queries another model to get the results.
      *
-     * @param string $search Search term
-     * @param string $field_name Field name that has the apiUrl (e.g., 'doctor_id')
-     * @return array Array of options matching the search
+     * @return void
      */
-    public function relatedSearchField() {
+    public function relatedSearchField(): void {
         if (!isset ($this->model) || !isset($_REQUEST['f']) || !isset($_REQUEST['q'])) {
             \App\Response::json([
                 'success' => 'error',
                 'message' => 'Missing parameters',
                 'options' => []
             ]);
+            return;
         }
         if (strlen($_REQUEST['q']) < 2 ) {
             \App\Response::json([
                 'success' => 'ok',
                 'options' => []
             ]);
+            return;
         }
 
         $search = trim($_REQUEST['q']);
         $field = trim($_REQUEST['f']);
       
 		$options = $this->model->searchRelated($search,  $field);
-		\App\Response::json([
-			'success' => 'ok',
-			'options' => $options
-		]);
+			\App\Response::json([
+				'success' => 'ok',
+				'options' => $options
+			]);
+            return;
     }
 
     private function findRouteMethod(string $action): string|array|null {
@@ -274,7 +271,8 @@ trait RouteControllerTrait {
      * @deprecated Legacy routing fallback. Prefer #[RequestAction] or registerRequestAction().
      */
     private function actionName($action) {
-        $action = strtolower(_raz(str_replace("-","_", $action)));
+        $action = preg_replace('/[^0-9a-zA-Z_]/', '', str_replace("-", "_", $action));
+        $action = strtolower(is_string($action) ? $action : '');
         $action_array = explode("_", $action);
         return 'action' . implode("", array_map('ucfirst', $action_array));
     }
@@ -323,8 +321,7 @@ trait RouteControllerTrait {
             case 'authorized':
                 $permission_name = 'access';
                 if (
-                    property_exists($this, 'module')
-                    && is_object($this->module)
+                    isset($this->module)
                     && method_exists($this->module, 'getPermissionName')
                 ) {
                     $permission_name = $this->module->getPermissionName();
@@ -335,8 +332,7 @@ trait RouteControllerTrait {
                 $permission_group = $this->page ?? null;
                 if (
                     ($permission_group === null || $permission_group === '')
-                    && property_exists($this, 'module')
-                    && is_object($this->module)
+                    && isset($this->module)
                     && method_exists($this->module, 'getPage')
                 ) {
                     $permission_group = $this->module->getPage();
@@ -376,7 +372,7 @@ trait RouteControllerTrait {
             return $handler;
         }
 
-        if (is_array($handler) && count($handler) === 2 && is_object($handler[0]) && is_string($handler[1])) {
+        if (count($handler) === 2 && is_object($handler[0]) && is_string($handler[1])) {
             return [$handler[0], $handler[1]];
         }
 

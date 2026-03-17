@@ -38,11 +38,11 @@ class LinksBuilder {
      * Aggiunge un link
      *
      * @param string $title Titolo del link
-     * @param string $url URL del link
+     * @param string|array $url URL del link o parametri Route::url()
      * @return self
      */
-    public function add(string $title, string $url = '#'): self {
-        if (substr($url, 0, 1) == '?' || is_array($url)) {
+    public function add(string $title, string|array $url = '#'): self {
+        if (is_array($url) || substr($url, 0, 1) == '?') {
             $url = Route::url($url);
         }
         // Leave # URLs as-is for anchors and Bootstrap tabs
@@ -335,7 +335,7 @@ class LinksBuilder {
     }
 
     /**
-     * Verifica se un link è attivo
+     * Check if a link is active
      */
     private function isActive(array $link): bool {
         if (isset($link['active']) && $link['active']) {
@@ -345,10 +345,10 @@ class LinksBuilder {
     }
 
     /**
-     * Sostituisce le variabili %variable% negli attributi con i parametri del link
+     * Replace %variable% variables in attributes with link parameters
      *
-     * @param string $value Valore da processare
-     * @param array $params Parametri del link
+     * @param string $value Value to process
+     * @param array $params Link parameters
      * @return string
      */
     private function replaceVariables(string $value, array $params): string {
@@ -397,14 +397,14 @@ class LinksBuilder {
     }
 
     /**
-     * Ottiene gli attributi per un elemento specifico
+     * Get attributes for a specific element
      *
-     * @param string $element Nome dell'elemento (nav, ul, li, a)
-     * @param array $defaults Attributi di default
-     * @param array $params Parametri per sostituzione variabili
-     * @param bool $isActive Se l'elemento è attivo
-     * @param bool $isDisabled Se l'elemento è disabilitato
-     * @param array|null $link Link completo per accedere a fetch
+     * @param string $element Element name (nav, ul, li, a)
+     * @param array $defaults Default attributes
+     * @param array $params Parameters for variable substitution
+     * @param bool $isActive If the element is active
+     * @param bool $isDisabled If the element is disabled
+     * @param array|null $link Complete link for fetch access
      * @return string
      */
     private function getElementAttributes(string $element, array $defaults = [], array $params = [], bool $isActive = false, bool $isDisabled = false, ?array $link = null): string {
@@ -454,7 +454,7 @@ class LinksBuilder {
                         <span<?php echo $spanAttrs; ?>>
                             <?php if ($link['icon']): ?>
                                 <i class="<?php _p($link['icon']); ?>"></i>
-                                <span class="<?php echo $link['icon'] ? 'd-none d-lg-inline' : ''; ?>"><?php _pt($link['title']); ?></span>
+                                <span class="d-none d-lg-inline"><?php _pt($link['title']); ?></span>
                             <?php else: ?>
                                 <?php _pt($link['title']); ?>
                             <?php endif; ?>
@@ -464,7 +464,7 @@ class LinksBuilder {
                         <span<?php echo $spanAttrs; ?>>
                             <?php if ($link['icon']): ?>
                                 <i class="<?php _p($link['icon']); ?>"></i>
-                                <span class="<?php echo $link['icon'] ? 'd-none d-lg-inline' : ''; ?>"><?php _pt($link['title']); ?></span>
+                                <span class="d-none d-lg-inline"><?php _pt($link['title']); ?></span>
                             <?php else: ?>
                                 <?php _pt($link['title']); ?>
                             <?php endif; ?>
@@ -476,7 +476,7 @@ class LinksBuilder {
                             <a<?php echo $aAttrs; ?>>
                                 <?php if ($link['icon']): ?>
                                     <i class="<?php _p($link['icon']); ?>"></i>
-                                    <span class="<?php echo $link['icon'] ? 'd-none d-lg-inline' : ''; ?>"><?php _pt($link['title']); ?></span>
+                                    <span class="d-none d-lg-inline"><?php _pt($link['title']); ?></span>
                                 <?php else: ?>
                                     <?php _pt($link['title']); ?>
                                 <?php endif; ?>
@@ -551,12 +551,12 @@ class LinksBuilder {
 
         $groupedLinks = $this->getGroupedLinks();
         
-        // Se è un singolo gruppo default, rendere come lista semplice
+        // If it's a single default group, render as simple list
         if (count($groupedLinks) === 1 && isset($groupedLinks['default'])) {
             return $this->renderVerticalSimple($groupedLinks['default']['links']);
         }
         
-        // Render con gruppi multipli
+        // Render with multiple groups
         $html = '';
         foreach ($groupedLinks as $groupName => $group) {
           
@@ -700,7 +700,7 @@ class LinksBuilder {
                         <a<?php echo $aAttrs; ?>>
                             <?php if ($link['icon']): ?>
                                 <i class="<?php _p($link['icon']); ?>"></i>
-                                <span class="<?php echo $link['icon'] ? 'd-none d-lg-inline ms-1' : ''; ?>"><?php _pt($link['title']); ?></span>
+                                <span class="d-none d-lg-inline ms-1"><?php _pt($link['title']); ?></span>
                             <?php else: ?>
                                 <?php _pt($link['title']); ?>
                             <?php endif; ?>
@@ -713,7 +713,7 @@ class LinksBuilder {
                         <a<?php echo $aAttrs; ?>>
                             <?php if ($link['icon']): ?>
                                 <i class="<?php _p($link['icon']); ?>"></i>
-                                <span class="<?php echo $link['icon'] ? 'd-none d-lg-inline ms-1' : ''; ?>"><?php _pt($link['title']); ?></span>
+                                <span class="d-none d-lg-inline ms-1"><?php _pt($link['title']); ?></span>
                             <?php else: ?>
                                 <?php _pt($link['title']); ?>
                             <?php endif; ?>
@@ -727,13 +727,13 @@ class LinksBuilder {
     }
 
     /**
-     * Genera l'HTML
+     * Generate the HTML
      *
-     * @param string $style Stile di rendering: 'navbar', 'breadcrumb', 'tabs', 'pills', 'vertical', 'sidebar'
+     * @param string $style Rendering style: 'navbar', 'breadcrumb', 'tabs', 'pills', 'vertical', 'sidebar'
      * @return string
      */
     public function render(string $style = 'navbar'): string {
-        // Include il JavaScript se ci sono funzionalità di ricerca attive
+        // Include JavaScript if there are active search features
         if ($this->options['show_search']) {
             $this->includeJavaScript();
         }
@@ -749,24 +749,24 @@ class LinksBuilder {
     }
 
     /**
-     * Include il file JavaScript per LinksBuilder se non già incluso
+     * Include the JavaScript file for LinksBuilder if not already included
      */
     private function includeJavaScript(): void {
         static $jsIncluded = false;
         
         if (!$jsIncluded && class_exists('App\\Theme')) {
-            // Usa il sistema Theme di MilkAdmin per includere il JS
+            // Use MilkAdmin's Theme system to include JS
             \App\Theme::set('javascript.linksBuilder', \App\Route::url() . '/theme/assets/linksBuilder.js');
             $jsIncluded = true;
         }
     }
 
     /**
-     * Ottiene tutti i link organizzati per gruppo
+     * Get all links organized by group
      */
     private function getGroupedLinks(): array {
         if (empty($this->groups)) {
-            // Se non ci sono gruppi, restituisci tutti i link in un unico gruppo default
+            // If there are no groups, return all links in a single default group
             return ['default' => ['title' => '', 'links' => $this->links]];
         }
         
@@ -847,11 +847,11 @@ class LinksBuilder {
 
             if ($groupName === 'hidden') continue;
 
-            // Se c'è un titolo di gruppo, aggiungilo (solo per sidebar)
+            // If there's a group title, add it (only for sidebar)
             if (!empty($group['title']) && $groupName !== 'default') {
                 $collapseId = $containerId . '_group_' . $index;
 
-                // Mobile collapsible header - visibile solo su mobile
+                // Mobile collapsible header - visible only on mobile
                 $sidebar .= '<div class="group-section mb-3">';
                 $sidebar .= '<h5 class="group-title d-md-block cursor-pointer" data-bs-toggle="collapse" data-bs-target="#' . $collapseId . '" aria-expanded="false" aria-controls="' . $collapseId . '">';
                 $sidebar .= '<span class="d-md-none">';
@@ -860,18 +860,18 @@ class LinksBuilder {
                 $sidebar .= _rh($group['title']);
                 $sidebar .= '</h5>';
 
-                // Collapsible content - collapsed su mobile, sempre visibile su desktop
+                // Collapsible content - collapsed on mobile, always visible on desktop
                 $sidebar .= '<div class="collapse d-md-block" id="' . $collapseId . '">';
             } else {
                 $sidebar .= '<div class="group-section mb-3">';
-                $sidebar .= '<div>'; // Wrapper per mantenere la struttura
+                $sidebar .= '<div>'; // Wrapper to maintain structure
             }
 
-            // Genera i link del gruppo usando renderVertical
+            // Generate group links using renderVertical
             $groupBuilder = $this->createGroupBuilder($group['links']);
             $sidebar .= $groupBuilder->render('vertical');
-            $sidebar .= '</div>'; // Chiude div collapsible o wrapper
-            $sidebar .= '</div>'; // Chiude group-section
+            $sidebar .= '</div>'; // Close collapsible div or wrapper
+            $sidebar .= '</div>'; // Close group-section
         }
 
         // External links

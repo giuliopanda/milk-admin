@@ -9,12 +9,12 @@ namespace Extensions\Projects\Classes\View;
 class ViewTableConfig
 {
     public function __construct(
-        public readonly string $name,
-        public readonly string $displayAs,     // 'fields' | 'icon' | 'table'
-        public readonly string $title,
-        public readonly string $icon,
-        public readonly bool $hideSideTitle,
-        public readonly string $preHtml,
-        public readonly string $postHtml
+        public string $name,
+        public string $displayAs,     // 'fields' | 'icon' | 'table'
+        public string $title,
+        public string $icon,
+        public bool $hideSideTitle,
+        public string $preHtml,
+        public string $postHtml
     ) {}
 }

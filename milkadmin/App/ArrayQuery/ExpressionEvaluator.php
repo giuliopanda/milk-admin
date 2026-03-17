@@ -239,7 +239,7 @@ class ExpressionEvaluator
      */
     private function evaluateColumn(ColumnExpression $expr, array $row)
     {
-        $column = $expr->columnName ?? $expr->name;
+        $column = $expr->columnName;
 
         // Se c'è un nome di tabella qualificato, cerca prima con qualificazione
         if (isset($expr->tableName) && $expr->tableName) {
@@ -270,10 +270,8 @@ class ExpressionEvaluator
         $args = [];
 
         // Valuta gli argomenti
-        if (isset($expr->args)) {
-            foreach ($expr->args as $arg) {
-                $args[] = $this->evaluate($arg, $row);
-            }
+        foreach ($expr->args as $arg) {
+            $args[] = $this->evaluate($arg, $row);
         }
 
         switch ($func) {

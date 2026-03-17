@@ -124,8 +124,8 @@ class AuthService {
         } else if (isset($_POST['password'])) {
             if (\App\Token::check('new_password') === false) {
                 $msg_error = 'Invalid token';
-            } else if (strlen(trim((string)$_POST['password'])) < AuthContract::PASSWORD_MIN_LENGTH) {
-                $msg_error = _r('Password must be at least 8 characters long');
+            } else if (strlen(trim((string)$_POST['password'])) < UserModel::PASSWORD_MIN_LENGTH) {
+                $msg_error = \_r('Password must be at least 8 characters long');
             } else {
                 if (!Get::make('Auth')->checkExpiresActivationKey($key, 60*24)) {
                     $msg_error = 'The link you entered has expired. Select the entire link from the email you received and try again.';
@@ -155,15 +155,16 @@ class AuthService {
 
     static public function editForm() {
         if (!Permissions::check('auth.manage')) {
-            echo json_encode(['html' => _r('Permission denied'), 'title' => 'Error']);
+            echo json_encode(['html' => \_r('Permission denied'), 'title' => 'Error']);
             return;
         }
+        $user_model = new UserModel();
         $current_user = Get::make('Auth')->getUser();
         ob_start();
         $id = _absint($_REQUEST['id'] ?? 0);
         $user = (object) ['id' => 0, 'username' => '', 'email' => '', 'status' => 1, 'is_admin' => 0, 'permissions' => []];
         if ($id > 0) {
-            $user = Get::make('Auth')->getUser($id);
+            $user = $user_model->getUserById($id);
         }
         if ($user === null) {
             $title = "Error";
@@ -177,8 +178,8 @@ class AuthService {
             <button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="saveUser()"><i class="bi bi-pencil"></i> <?php _pt('Save'); ?></button>
             <?php } elseif ($id > 0 && isset($user->status) && $user->status != -1) { ?>
                 <button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="saveUser()"><i class="bi bi-pencil"></i> <?php _pt('Save'); ?></button>
-                <?php if ($current_user->id != $user->id) { ?>
-                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteUser(<?php ($user->status == -1) ? 'true' : 'false'; ?>)"><i class="bi bi-trash"></i> <?php _pt('Delete'); ?></button>
+                <?php if (_absint(getVal($current_user, 'id')) != _absint(getVal($user, 'id'))) { ?>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteUser(<?php echo ($user->status == -1) ? 'true' : 'false'; ?>)"><i class="bi bi-trash"></i> <?php _pt('Delete'); ?></button>
                 <?php } ?>
             <?php } elseif ($id > 0 && isset($user->status) && $user->status == -1) { ?>
                 <button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="saveUser()">Restore User from Trash</button>
@@ -195,12 +196,14 @@ class AuthService {
     static public function saveUser() {
         header('Content-Type: application/json');
         if (!Permissions::check('auth.manage')) {
-            echo json_encode(['msg' => _r('Permission denied'), 'success' => false]);
+            echo json_encode(['msg' => \_r('Permission denied'), 'success' => false]);
             return;
         }
+        $user_model = new UserModel();
+        $activation_key_service = new ActivationKeyService($user_model);
         $id = _absint($_REQUEST['id'] ?? 0);
         if (Token::check('edit-form-'.$id) === false) {
-            echo json_encode(['msg' => _r('Invalid token'), 'success' => false]);
+            echo json_encode(['msg' => \_r('Invalid token'), 'success' => false]);
             return;
         }
 
@@ -215,11 +218,13 @@ class AuthService {
 
         // if you are not an administrator, you cannot change the user management permissions
         if (!Permissions::check('_user.is_admin') && $id > 0) {
-            $user_to_save = Get::make('Auth')->getUser($id);
-            if (isset($user_to_save->permissions['auth']['manage']) && $user_to_save->permissions['auth']['manage'] == 1) {
-                $permissions['auth']['manage'] = "1";
-            } else if (isset($user_to_save->permissions['auth']['manage'])) {
-               unset($permissions['auth']['manage']);
+            $user_to_save = $user_model->getUserById($id);
+            if (is_object($user_to_save)) {
+                if (isset($user_to_save->permissions['auth']['manage']) && $user_to_save->permissions['auth']['manage'] == 1) {
+                    $permissions['auth']['manage'] = "1";
+                } else if (isset($user_to_save->permissions['auth']['manage'])) {
+                    unset($permissions['auth']['manage']);
+                }
             }
         }
 
@@ -231,20 +236,20 @@ class AuthService {
         $status = _absint($_REQUEST['status'] ?? 1);
         $msg = '';
         $success = false;
+        $user = null;
 
-        if ($password !== '' && strlen($password) < AuthContract::PASSWORD_MIN_LENGTH) {
-            echo json_encode(['msg' => _r('Password must be at least 8 characters long'), 'success' => false]);
+        if ($password !== '' && strlen($password) < UserModel::PASSWORD_MIN_LENGTH) {
+            echo json_encode(['msg' => \_r('Password must be at least 8 characters long'), 'success' => false]);
             return;
         }
 
         // verifico che la username non sia già presente
-        $find_user = Get::db()->getRow('SELECT * FROM `#__users` WHERE username = ? AND id != ?', [$username, $id]);
-        if ($find_user) {
+        if ($user_model->usernameExists((string) $username, (int) $id)) {
             $msg = 'Username already exists';
             $success = false;
 
         } else if ($id > 0) {
-            $find_user = Get::db()->getRow('SELECT * FROM `#__users` WHERE id = ?', [$id]);
+            $find_user = $user_model->getUserById($id);
             if (!$find_user) {
                 $msg = 'Something wrong! User not found. Please reload the page.';
             } else {
@@ -252,35 +257,39 @@ class AuthService {
                     $is_admin = 1;
                 }
                 if ($find_user->is_admin == 1 && !Permissions::check('_user.is_admin')) {
-                    echo json_encode(['msg' => _r('Permission denied: You cannot edit an admin user'), 'success' => false]);
+                    echo json_encode(['msg' => \_r('Permission denied: You cannot edit an admin user'), 'success' => false]);
                     return;
                 }
-                $save_result = Get::make('Auth')->saveUser($id, $username, $email, $password, $status, $is_admin, $permissions, $timezone, $locale);
+                $save_result = $user_model->saveUserData($id, $username, $email, $password, $status, $is_admin, $permissions, $timezone, $locale);
                 if ($save_result === false) {
-                    $msg = Get::make('Auth')->getLastError() ?: 'Error saving user';
+                    $msg = $user_model->last_error ?: 'Error saving user';
                     $success = false;
-                    echo json_encode(['msg' => _r($msg), 'success' => false]);
+                    echo json_encode(['msg' => \_r($msg), 'success' => false]);
                     return;
                 }
 
-                $user = Get::make('Auth')->getUser($id);
-                $activation_key = Get::make('Auth')->createActivationKey($id);
+                $user = $user_model->getUserById($id);
+                $activation_key = $activation_key_service->createActivationKey($id);
                 $url = Route::url(['page'=>'auth', 'action'=>'new-password', 'key'=>$activation_key]);
 
                 Get::mail()->loadTemplate(__DIR__ . '/Mails/admin-reset-password.php', ['user' => $user, 'id' => $id, 'url' => $url]);
                 $success = true;
             }
         } else {
-            $save_result = Get::make('Auth')->saveUser($id, $username, $email, $password, $status, $is_admin, $permissions, $timezone, $locale);
+            $save_result = $user_model->saveUserData($id, $username, $email, $password, $status, $is_admin, $permissions, $timezone, $locale);
             if ($save_result === false) {
-                $msg = Get::make('Auth')->getLastError() ?: 'Error saving user';
-                echo json_encode(['msg' => _r($msg), 'success' => false]);
+                $msg = $user_model->last_error ?: 'Error saving user';
+                echo json_encode(['msg' => \_r($msg), 'success' => false]);
                 return;
             }
-            $id = Get::make('Auth')->getLastInsertId();
+            $id = (int) $save_result;
+            if ($id <= 0) {
+                echo json_encode(['msg' => \_r('Error saving user'), 'success' => false]);
+                return;
+            }
 
-            $user = Get::make('Auth')->getUser($id);
-            $activation_key = Get::make('Auth')->createActivationKey($id);
+            $user = $user_model->getUserById($id);
+            $activation_key = $activation_key_service->createActivationKey($id);
             $url = Route::url(['page'=>'auth', 'action'=>'new-password', 'key'=>$activation_key]);
 
             Get::mail()->loadTemplate(__DIR__ . '/Mails/welcome-user.php', ['user' => $user, 'id' => $id, 'url' => $url]);
@@ -320,42 +329,53 @@ class AuthService {
     static public function editDeleteUser($id) {
         header('Content-Type: application/json');
         if (!Permissions::check('auth.manage')) {
-            echo json_encode(['msg' => _r('Permission denied'), 'success' => false]);
+            echo json_encode(['msg' => \_r('Permission denied'), 'success' => false]);
             return;
         }
+        $user_model = new UserModel();
         if ($id == 0) {
-            echo json_encode(['msg' => _r('Something wrong! User not found. Please reload the page.'), 'success' => false]);
+            echo json_encode(['msg' => \_r('Something wrong! User not found. Please reload the page.'), 'success' => false]);
             return;
         }
         if (Token::check('edit-form-'.$id) === false) {
-            echo json_encode(['msg' => _r('Invalid token'), 'success' => false]);
+            echo json_encode(['msg' => \_r('Invalid token'), 'success' => false]);
             return;
         }
-        $find_user = Get::db()->getRow('SELECT * FROM `#__users` WHERE id = ?', [$id]);
+        $find_user = $user_model->getUserById((int) $id);
         if (!$find_user) {
-            echo json_encode(['msg' => _r('Something wrong! User not found. Please reload the page.'), 'success' => false]);
+            echo json_encode(['msg' => \_r('Something wrong! User not found. Please reload the page.'), 'success' => false]);
             return;
         }
         if ($find_user->is_admin == 1 && !Permissions::check('_user.is_admin')) {
-            echo json_encode(['msg' => _r('Permission denied: You cannot edit an admin user'), 'success' => false]);
+            echo json_encode(['msg' => \_r('Permission denied: You cannot edit an admin user'), 'success' => false]);
             return;
         }
         if ($find_user->status == '-1') {
-            Get::db()->delete('#__users', ['id' => $id], 1);
-            echo json_encode(['msg' =>  _r('User deleted'), 'success' => true]);
+            $deleted = $user_model->hardDeleteById((int) $id);
+            if (!$deleted) {
+                echo json_encode(['msg' => \_r($user_model->last_error ?: 'Error deleting user'), 'success' => false]);
+                return;
+            }
+            echo json_encode(['msg' => \_r('User deleted'), 'success' => true]);
             return;
         } else {
-            Get::db()->update('#__users', ['status' => '-1'], ['id' => $id], 1);
-            echo json_encode(['msg' => _r('User trashed'), 'success' => true]);
+            $updated = $user_model->updateStatusById((int) $id, -1);
+            if (!$updated) {
+                echo json_encode(['msg' => \_r($user_model->last_error ?: 'Error updating user'), 'success' => false]);
+                return;
+            }
+            echo json_encode(['msg' => \_r('User trashed'), 'success' => true]);
             return;
         }
     }
 
     static public function userList() {
         $current_user = Get::make('Auth')->getUser();
+        $msg_json = '';
+        $success = false;
         if (!Permissions::check('auth.manage')) {
             if (($_REQUEST['page-output'] ?? '') == 'json') {
-                Response::json(['permission_denied'=> true, 'html' => '', 'msg' => _r('Please login again'), 'success' => false ]);
+                Response::json(['permission_denied'=> true, 'html' => '', 'msg' => \_r('Please login again'), 'success' => false ]);
             } else {
                 $queryString = Route::getQueryString();
                 Route::redirect('?page=deny&redirect='.Route::urlsafeB64Encode($queryString));
@@ -365,7 +385,7 @@ class AuthService {
         }
 
         $model = new \App\Modellist\ModelList('#__users', 'userList');
-        $model->addFilter('search', function($query, $search) use ($model) {
+        $model->addFilter('search', function($query, $search) {
             $query->where('`username` LIKE ? OR `email` LIKE ? ', ['%'.$search.'%', '%'.$search.'%']);
         });
         $model->addFilter('status', function($query, $status) use ($model) {
@@ -393,16 +413,16 @@ class AuthService {
         $trows = $users->getFormattedData();
         
         // Conteggio totale dei record
-        $total = Get::db()->getVar(...$query->getTotal());
+        $total = (int) (Get::db()->getVar(...$query->getTotal()) ?? 0);
 
         $rows_info = $model->getListStructure()
-            ->setLabel('username', _r('Name'))
-            ->setLabel('email', _r('Email'))
+            ->setLabel('username', \_r('Name'))
+            ->setLabel('email', \_r('Email'))
             ->setColumn('registered', 'Registered', 'date')
-            ->setColumn('status', 'Status', 'select', true, false, ['0' => _r('Suspended'), '1' => _r('Active'), '-1' => _r('Trash')])
-            ->setColumn('is_admin', 'Is Admin', 'select', true, false, ['0' => _r('No'), '1' => _r('Yes')])
+            ->setColumn('status', 'Status', 'select', true, false, ['0' => \_r('Suspended'), '1' => \_r('Active'), '-1' => \_r('Trash')])
+            ->setColumn('is_admin', 'Is Admin', 'select', true, false, ['0' => \_r('No'), '1' => \_r('Yes')])
             ->hideColumn('id')
-            ->setLabel('last_login', _r('Last login'))
+            ->setLabel('last_login', \_r('Last login'))
             ->setPrimary('id')
             ->deleteColumns(['password','activation_key', 'permissions']);
 
@@ -416,17 +436,17 @@ class AuthService {
         
 
         if ($model->page_info['filter_status'] == 'trash') {
-            $rows_info->setAction(['restore' => _r('Restore'), 'delete' => _r('Delete')], _r('Action'));
+            $rows_info->setAction(['restore' => \_r('Restore'), 'delete' => \_r('Delete')], \_r('Action'));
         } else {
-            $rows_info->setAction(['edit' => _r('Edit'),  'trash' => _r('Trash')], _r('Action'));
+            $rows_info->setAction(['edit' => \_r('Edit'),  'trash' => \_r('Trash')], \_r('Action'));
         }
 
         $page_info = $model->getPageInfo($total);
         $page_info->setId('userList');
         if ($model->page_info['filter_status'] == 'trash') {
-            $page_info->setBulkActions(['restore' => _r('Restore'), 'delete' => _r('Delete')]);
+            $page_info->setBulkActions(['restore' => \_r('Restore'), 'delete' => \_r('Delete')]);
         } else {
-            $page_info->setBulkActions(['trash' => _r('Trash'), 'suspended' => _r('status Suspended'),  'active' => _r('status Active')]);
+            $page_info->setBulkActions(['trash' => \_r('Trash'), 'suspended' => \_r('status Suspended'),  'active' => \_r('status Active')]);
         }
         ['rows_info' => $rows_info, 'trows' => $trows, 'page_info' => $page_info] = Hooks::run('auth.user_list', ['rows_info' => $rows_info, 'trows' => $trows, 'page_info' => $page_info]);
         if (($_REQUEST['page-output'] ?? '') == 'json') {
@@ -452,34 +472,49 @@ class AuthService {
             $user_list_actions = $_REQUEST[$table_id]['table_action'] ?? '';
             $user_list_actions = str_replace($table_id . '-', '', $user_list_actions);
             $your_user = Get::make('Auth')->getUser();
-            if ($user_list_actions == 'trash' || $user_list_actions == 'delete' || $user_list_actions == 'delete') {
+            $user_model = new UserModel();
+
+            if (in_array($user_list_actions, ['trash', 'delete'], true)) {
                 if (self::checkTableToken($table_id) === false) {
-                    $msg_json = _r('Invalid token !!!');
+                    $msg_json = \_r('Invalid token !!!');
                     $success = false;
                 } else {
                     $ids = $_REQUEST[$table_id]['table_ids'] ?? '';
                     if ($ids != '') {
                         $ids = explode(',', $ids);
                         foreach ($ids as $id) {
-                            $find_user = Get::db()->getRow('SELECT * FROM `#__users` WHERE id = ?', [$id]);
+                            $id = _absint($id);
+                            if ($id <= 0) {
+                                continue;
+                            }
+                            $find_user = $user_model->getUserById($id);
                             if ($find_user == null) {
                                 $success = false;
-                                $msg_json = _r('Something wrong! User (id: '.$id.') not found. Please reload the page.');
+                                $msg_json = \_r('Something wrong! User (id: '.$id.') not found. Please reload the page.');
+                                continue;
                             }
                             if ($your_user->id == $id) {
                                 $success = false;
-                                $msg_json = _r('Permission denied: You cannot change the status of your own user');
+                                $msg_json = \_r('Permission denied: You cannot change the status of your own user');
                             } elseif ($find_user->is_admin == 1 && !Permissions::check('_user.is_admin')) {
                                 $success = false;
-                                $msg_json = _r('Permission denied: You cannot edit an admin user');
+                                $msg_json = \_r('Permission denied: You cannot edit an admin user');
                             } elseif ($find_user->status == '-1' && $user_list_actions == 'delete') {
-                                Get::db()->delete('#__users', ['id' => $id], 1);
-                                $msg_json = _r('User deleted');
-                                $success = true;
+                                if ($user_model->hardDeleteById($id)) {
+                                    $msg_json = \_r('User deleted');
+                                    $success = true;
+                                } else {
+                                    $success = false;
+                                    $msg_json = \_r($user_model->last_error ?: 'Error deleting user');
+                                }
                             } else {
-                                Get::db()->update('#__users', ['status' => '-1'], ['id' => $id], 1);
-                                $msg_json = _r('User trashed');
-                                $success = true;
+                                if ($user_model->updateStatusById($id, -1)) {
+                                    $msg_json = \_r('User trashed');
+                                    $success = true;
+                                } else {
+                                    $success = false;
+                                    $msg_json = \_r($user_model->last_error ?: 'Error updating user');
+                                }
                             }                                
                         }
                     }
@@ -488,40 +523,53 @@ class AuthService {
 
             if (in_array($user_list_actions, ['suspended', 'active', 'restore'])) {
                 if (self::checkTableToken($table_id) === false) {
-                    $msg_json = _r('Invalid token');
+                    $msg_json = \_r('Invalid token');
                     $success = false;
                 } else {
                     $ids = $_REQUEST[$table_id]['table_ids'] ?? '';
                     if ($ids != '') {
                         $ids = explode(',', $ids);
+                        $status = null;
                         switch ($user_list_actions) {
                             case 'suspended':
-                                $status = '0';
-                                $msg_json = _r('User suspended');
+                                $status = 0;
+                                $msg_json = \_r('User suspended');
                                 break;
                             case 'active':
-                                $status = '1';
-                                $msg_json = _r('User activated');
+                                $status = 1;
+                                $msg_json = \_r('User activated');
                                 break;
                             case 'restore':
-                                $status = '1';
-                                $msg_json = _r('User restored');
+                                $status = 1;
+                                $msg_json = \_r('User restored');
                                 break;
                         }
                         foreach ($ids as $id) {
-                            $find_user = Get::db()->getRow('SELECT * FROM `#__users` WHERE id = ?', [$id]);
+                            $id = _absint($id);
+                            if ($id <= 0) {
+                                continue;
+                            }
+                            $find_user = $user_model->getUserById($id);
                             if ($find_user == null) {
                                 $success = false;
-                                $msg_json = _r('Something wrong! User (id: '.$id.') not found. Please reload the page.');
+                                $msg_json = \_r('Something wrong! User (id: '.$id.') not found. Please reload the page.');
+                                continue;
                             } elseif ($your_user->id == $id) {
                                 $success = false;
-                                $msg_json = _r('Permission denied: You cannot change the status of your own user');
+                                $msg_json = \_r('Permission denied: You cannot change the status of your own user');
                             } elseif ($find_user->is_admin == 1 && !Permissions::check('_user.is_admin')) {
                                 $success = false;
-                                $msg_json = _r('Permission denied: You cannot edit an admin user');
+                                $msg_json = \_r('Permission denied: You cannot edit an admin user');
+                            } elseif ($status === null) {
+                                $success = false;
+                                $msg_json = \_r('Invalid status action');
                             } else {
-                                Get::db()->update('#__users', ['status' => $status], ['id' => $id], 1);
-                                $success = true;
+                                if ($user_model->updateStatusById($id, $status)) {
+                                    $success = true;
+                                } else {
+                                    $success = false;
+                                    $msg_json = \_r($user_model->last_error ?: 'Error updating user');
+                                }
                             }
                         }
                     }
@@ -539,7 +587,6 @@ class AuthService {
         
         if (Permissions::check('_user.is_guest')) {
             Route::redirect('?page=auth&action=login');
-            return;
         }
 
         // Direct echo to bypass Theme system issues
@@ -555,12 +602,12 @@ class AuthService {
         $current_user = Get::make('Auth')->getUser();
         
         if (Permissions::check('_user.is_guest')) {
-            echo json_encode(['msg' => _r('Please login again'), 'success' => false]);
+            echo json_encode(['msg' => \_r('Please login again'), 'success' => false]);
             return;
         }
 
        // if (!\App\Token::check()) {
-       //     echo json_encode(['msg' => _r('Invalid token'), 'success' => false]);
+       //     echo json_encode(['msg' => \_r('Invalid token'), 'success' => false]);
        //     return;
        // }
 
@@ -570,7 +617,7 @@ class AuthService {
 
         // Validate email
         if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            echo json_encode(['msg' => _r('Please provide a valid email address'), 'success' => false]);
+            echo json_encode(['msg' => \_r('Please provide a valid email address'), 'success' => false]);
             return;
         }
 
@@ -581,13 +628,13 @@ class AuthService {
         if (!empty($new_password)) {
           
             // Validate new password
-            if (strlen($new_password) < AuthContract::PASSWORD_MIN_LENGTH) {
-                echo json_encode(['msg' => _r('New password must be at least 8 characters long'), 'success' => false]);
+            if (strlen($new_password) < UserModel::PASSWORD_MIN_LENGTH) {
+                echo json_encode(['msg' => \_r('New password must be at least 8 characters long'), 'success' => false]);
                 return;
             }
 
             if ($new_password !== $confirm_password) {
-                echo json_encode(['msg' => _r('New password and confirm password do not match'), 'success' => false]);
+                echo json_encode(['msg' => \_r('New password and confirm password do not match'), 'success' => false]);
                 return;
             }
 
@@ -599,7 +646,7 @@ class AuthService {
             ], ['id' => $current_user->id]);
 
             if ($update_result === false) {
-                echo json_encode(['msg' => _r('Failed to update profile: ') . Get::db()->last_error, 'success' => false]);
+                echo json_encode(['msg' => \_r('Failed to update profile: ') . Get::db()->last_error, 'success' => false]);
                 return;
             }
 
@@ -610,7 +657,7 @@ class AuthService {
             $remember_me_model = new \Modules\Auth\RememberTokenModel();
             $remember_me_model->revokeAllTokensByUserId($current_user->id);
 
-            $msg = _r('Profile and password updated successfully');
+            $msg = \_r('Profile and password updated successfully');
         } else {
             // Update only email
             $update_result = Get::db()->update('#__users', [
@@ -618,11 +665,11 @@ class AuthService {
             ], ['id' => $current_user->id]);
 
             if ($update_result === false) {
-                echo json_encode(['msg' => _r('Failed to update profile: ') . Get::db()->last_error, 'success' => false]);
+                echo json_encode(['msg' => \_r('Failed to update profile: ') . Get::db()->last_error, 'success' => false]);
                 return;
             }
 
-            $msg = _r('Profile updated successfully');
+            $msg = \_r('Profile updated successfully');
         }
 
         echo json_encode(['msg' => $msg, 'success' => true]);

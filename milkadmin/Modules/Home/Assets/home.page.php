@@ -5,9 +5,10 @@ use App\{Config, Get, Hooks, Permissions, Route};
 
 $phpVersion = phpversion();
 $milkVersion = Config::get('version', '1.0.0');
-$newVersion = defined('NEW_VERSION') ? NEW_VERSION : null;
+$newVersion = defined('NEW_VERSION') ? constant('NEW_VERSION') : null;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
+$main_article = isset($main_article) ? (string) $main_article : '';
 
 // Get database information
 $dbInfo = [];
@@ -76,7 +77,7 @@ foreach ($dbs as $dbKey => $db) {
                     <?php
                     $phpVersion = phpversion();
                     $milkVersion = Config::get('version', '1.0.0');
-                    $newVersion = defined('NEW_VERSION') ? NEW_VERSION : null;
+                    $newVersion = defined('NEW_VERSION') ? constant('NEW_VERSION') : null;
                     ?>
                     
                     <div class="row mb-3">
@@ -104,8 +105,8 @@ foreach ($dbs as $dbKey => $db) {
                         <div class="col-sm-6">
                             <span class="text-dark">
                                 <?php echo htmlspecialchars($milkVersion); ?>
-                                <?php if ($newVersion && version_compare($newVersion, $milkVersion, '>')): ?>
-                                    <span class="badge bg-warning ms-2"><?php _pt('Update available'); ?>: <?php echo htmlspecialchars($newVersion); ?></span>
+                                <?php if ($newVersion !== null && $newVersion !== false && version_compare((string) $newVersion, $milkVersion, '>')): ?>
+                                    <span class="badge bg-warning ms-2"><?php _pt('Update available'); ?>: <?php echo htmlspecialchars((string) $newVersion); ?></span>
                                 <?php endif; ?>
                             </span>
                         </div>

@@ -19,6 +19,7 @@ namespace Builders\Traits\FormBuilder;
  *
  * @package Builders\Traits
  */
+// @phpstan-ignore-next-line trait is kept for backward compatibility and loaded dynamically when needed.
 trait MethodFirstCompatibilityTrait
 {
     /**

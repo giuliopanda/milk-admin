@@ -221,7 +221,7 @@ class AuthController extends AbstractController
             echo json_encode(['success'=>false, 'msg' => 'Log not found']);
             return;
         }
-        $pages_data = $row->pages_activity;
+        $pages_data = $row['pages_activity'] ?? [];
         
         $ris = AccessLogsService::formatPageActivity($pages_data);
         $ris = ["offcanvas_end" => [         // 'xl', 'l', or default
@@ -229,9 +229,6 @@ class AuthController extends AbstractController
             "title" => _rt("Edit item"),
             "body" => $ris['html']
         ]];
-        if (isset($ris['html'])) {
-            unset($ris['html']);
-        }
 
         Response::json($ris);
     }

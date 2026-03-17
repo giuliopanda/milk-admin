@@ -118,7 +118,6 @@ class AutoEditRenderer
         $redirect = (string) ($state['redirect'] ?? '');
         if ($redirect !== '') {
             Route::redirect($redirect);
-            return;
         }
 
         $context = is_array($state['context'] ?? null) ? $state['context'] : [];
@@ -523,7 +522,6 @@ class AutoEditRenderer
                         return ['success' => false, 'message' => ''];
                     }
 
-                    $request = is_array($request) ? $request : [];
                     $model = $builder->getModel();
                     if (is_object($model) && method_exists($model, 'getPrimaryKey')) {
                         $primaryKey = (string) $model->getPrimaryKey();
@@ -539,7 +537,7 @@ class AutoEditRenderer
                     // Reload model to reflect the restored state (no longer soft-deleted)
                     if ($ok) {
                         $model = $builder->getModel();
-                        if (is_object($model) && method_exists($model, 'getPrimaryKey')) {
+                        if (is_object($model) && method_exists($model, 'getPrimaryKey') && method_exists($model, 'getByIdForEdit')) {
                             $primaryKey = (string) $model->getPrimaryKey();
                             $id = _absint($request[$primaryKey] ?? 0);
                             if ($id > 0) {
@@ -610,7 +608,6 @@ class AutoEditRenderer
                             return ['success' => false, 'message' => ''];
                         }
 
-                        $request = is_array($request) ? $request : [];
                         $model = $builder->getModel();
                         if (is_object($model) && method_exists($model, 'getPrimaryKey')) {
                             $primaryKey = (string) $model->getPrimaryKey();
@@ -686,7 +683,6 @@ class AutoEditRenderer
                         return ['success' => false, 'message' => ''];
                     }
 
-                    $request = is_array($request) ? $request : [];
                     $model = $builder->getModel();
                     if (is_object($model) && method_exists($model, 'getPrimaryKey')) {
                         $primaryKey = (string) $model->getPrimaryKey();
@@ -700,7 +696,7 @@ class AutoEditRenderer
                     // Reload model to reflect the deleted state (now soft-deleted)
                     if ($ok) {
                         $model = $builder->getModel();
-                        if (is_object($model) && method_exists($model, 'getPrimaryKey')) {
+                        if (is_object($model) && method_exists($model, 'getPrimaryKey') && method_exists($model, 'getByIdForEdit')) {
                             $primaryKey = (string) $model->getPrimaryKey();
                             $id = _absint($request[$primaryKey] ?? 0);
                             if ($id > 0) {
@@ -1039,7 +1035,7 @@ class AutoEditRenderer
         }
 
         if (is_int($value) || is_float($value)) {
-            return (string) $value !== '';
+            return true;
         }
 
         if (is_object($value)) {
@@ -1088,9 +1084,6 @@ class AutoEditRenderer
         }
 
         $schema = $this->loadSchemaFromPath($schemaPath);
-        if (!is_array($schema)) {
-            return;
-        }
 
         $modelSection = is_array($schema['model'] ?? null) ? $schema['model'] : [];
         $rawContainers = is_array($modelSection['containers'] ?? null) ? $modelSection['containers'] : [];
@@ -1251,7 +1244,7 @@ class AutoEditRenderer
     {
         $normalized = str_replace('\\', '/', $modelFilePath);
         if (preg_match('~^(.*?/Modules/[^/]+)(?:/.*)?$~', $normalized, $matches) === 1) {
-            return (string) ($matches[1] ?? '');
+            return (string) $matches[1];
         }
         return dirname($modelFilePath);
     }
@@ -1750,7 +1743,7 @@ class AutoEditRenderer
         } else {
             $msg = \App\MessagesHandler::getErrors(true);
         }
-        if (is_array($msg) && count($msg) > 0) {
+        if (count($msg) > 0) {
             $response['msg'] = implode("\n<br>", $msg);
         }
 

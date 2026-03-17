@@ -144,7 +144,7 @@ class GetDataBuilder extends AbstractGetDataBuilderExtension
             $builder->field($field_name)
                 ->label('Status')
                 ->fn(function($row) use ($field_name) {
-                    if (isset($row[$field_name]) && $row[$field_name] !== null) {
+                    if (array_key_exists($field_name, $row) && $row[$field_name] !== null) {
                         return '<span class="badge bg-danger">Deleted</span>';
                     }
                     return '<span class="badge bg-success">Active</span>';
@@ -157,9 +157,9 @@ class GetDataBuilder extends AbstractGetDataBuilderExtension
      *
      * @param object $record The record to restore
      * @param array $request The request parameters
-     * @return void
+     * @return array{success: bool, msg: string}
      */
-    public function actionRestoreRow($record, $request) {
+    public function actionRestoreRow($record, $request): array {
         $record->{$this->field_name} = null;
         $record->{$this->deleted_by_field} = null;
         $record->save();

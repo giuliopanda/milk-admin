@@ -154,8 +154,8 @@ abstract class AbstractController {
         if (!in_array($new_request['order_dir'], ['asc', 'desc'])) {
             $new_request['order_dir'] = 'desc';
         }
-        $new_request['limit'] = _absint($request['limit'] ?? 0);
-        $new_request['page'] = _absint($request['page'] ?? 1);
+        $new_request['limit'] = abs((int) ($request['limit'] ?? 0));
+        $new_request['page'] = abs((int) ($request['page'] ?? 1));
         $new_request['filters'] = $request['filters'] ?? '';
         if ($new_request['page'] < 1) {
             $new_request['page'] = 1;

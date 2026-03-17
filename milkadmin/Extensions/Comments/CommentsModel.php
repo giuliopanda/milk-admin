@@ -70,7 +70,7 @@ class CommentsModel extends AbstractModel
             if (isset($current_record->created_by)) {
                 return $current_record->created_by;
             } else {
-                return $record->created_by;
+                return (int) (\getVal($record, 'created_by') ?? 0);
             }
         }
        
@@ -118,7 +118,7 @@ class CommentsModel extends AbstractModel
     #[ToDisplayValue('updated_by')]
     public function getFormattedUpdatedBy($current_record)
     {
-        if (isset($current_record->created_at) && is_a($current_record->updated_at, 'DateTime')) {
+        if (isset($current_record->updated_at) && is_a($current_record->updated_at, 'DateTime')) {
             $date = ' '.Get::formatDate($current_record->updated_at, 'datetime', true);
         } else {
             $date = '';

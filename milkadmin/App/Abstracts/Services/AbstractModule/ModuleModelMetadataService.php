@@ -108,11 +108,7 @@ class ModuleModelMetadataService
      */
     private static function resolveConventionalModelClassName(object $module): string
     {
-        try {
-            $moduleReflection = new \ReflectionClass($module);
-        } catch (\ReflectionException $e) {
-            return '';
-        }
+        $moduleReflection = new \ReflectionClass($module);
 
         $moduleShortName = $moduleReflection->getShortName();
         $moduleBaseName = str_replace('Module', '', $moduleShortName);
@@ -134,11 +130,7 @@ class ModuleModelMetadataService
             return null;
         }
 
-        try {
-            $reflection = new \ReflectionClass($className);
-        } catch (\ReflectionException $e) {
-            return null;
-        }
+        $reflection = new \ReflectionClass($className);
 
         if (!$reflection->isInstantiable()) {
             return null;

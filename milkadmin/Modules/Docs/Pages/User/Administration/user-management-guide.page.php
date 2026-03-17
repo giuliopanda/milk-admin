@@ -1,6 +1,6 @@
 <?php
 namespace Modules\Docs\Pages;
-use App\{theme, Route};
+use App\Route;
 /**
  * @title User Management Guide
  * @guide user

@@ -63,7 +63,7 @@ namespace App\Database;
         }
 
         // Position (AFTER/FIRST)
-        if ($this->after != null && $this->after != '' && $this->after != false && $this->after != '{}') {
+        if ($this->after !== null && $this->after !== '' && $this->after !== '{}') {
             $sql .= " AFTER " . $this->db->qn($this->after);
         } elseif ($this->first) {
             $sql .= " FIRST";

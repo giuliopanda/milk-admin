@@ -278,9 +278,13 @@ class ListResponseBuilder
         $p->allowDeleteRecordEnabled = !array_key_exists('allow_delete_record', $context)
             ? true
             : $this->normalizeBool($context['allow_delete_record']);
-        $p->canManageDeleteRecords = $this->isCurrentUserAdministrator()
-            || $p->softDeleteEnabled
-            || $p->allowDeleteRecordEnabled;
+        if (array_key_exists('can_manage_delete_records', $context)) {
+            $p->canManageDeleteRecords = $this->normalizeBool($context['can_manage_delete_records']);
+        } else {
+            $p->canManageDeleteRecords = $this->isCurrentUserAdministrator()
+                || $p->softDeleteEnabled
+                || $p->allowDeleteRecordEnabled;
+        }
         $p->allowEditEnabled = !array_key_exists('allow_edit', $context)
             ? true
             : $this->normalizeBool($context['allow_edit']);
@@ -723,9 +727,7 @@ class ListResponseBuilder
                 $canCreateNew = ($existingCount < $finiteMaxRecords);
             }
         }
-        $context = $this->registry->resolveForCurrentRequest();
-        $allowEdit =  (($context['allow_edit'] ?? true) == true);
-        if ($canCreateNew && $p->editAction !== '' && $allowEdit) {
+        if ($canCreateNew && $p->editAction !== '' && $p->allowEditEnabled) {
             $newParams = array_merge($p->fkChainParams, $p->urlFilterParams);
             if ($p->tableId !== '') {
                 $newParams[$p->reloadListIdParamKey] = $p->tableId;

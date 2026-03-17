@@ -634,26 +634,24 @@ trait RelationshipsTrait
         };
 
         // Get handlers registered for this relationship (e.g., "doctor.name")
-        if (method_exists($this, 'getRelationshipHandlers')) {
-            $handlers = $this->getRelationshipHandlers($alias, $handler_type);
+        $handlers = $this->getRelationshipHandlers($alias, $handler_type);
 
-            // Apply each handler to the corresponding field
-            foreach ($handlers as $field_name => $handler) {
-                if (array_key_exists($field_name, $data) && is_callable($handler)) {
-                    // Create a temporary object to pass to the handler
-                    $temp_obj = (object)[$alias => (object)$data];
+        // Apply each handler to the corresponding field
+        foreach ($handlers as $field_name => $handler) {
+            if (array_key_exists($field_name, $data) && is_callable($handler)) {
+                // Create a temporary object to pass to the handler
+                $temp_obj = (object)[$alias => (object)$data];
 
-                    // DEBUG: Uncomment to debug formatter issues
-                    // echo "<pre>DEBUG applyRelationshipFormatters:\n";
-                    // echo "Alias: $alias, Field: $field_name, Mode: $output_mode\n";
-                    // echo "Temp obj: "; var_dump($temp_obj);
-                    // echo "Handler result: ";
+                // DEBUG: Uncomment to debug formatter issues
+                // echo "<pre>DEBUG applyRelationshipFormatters:\n";
+                // echo "Alias: $alias, Field: $field_name, Mode: $output_mode\n";
+                // echo "Temp obj: "; var_dump($temp_obj);
+                // echo "Handler result: ";
 
-                    $data[$field_name] = $handler($temp_obj);
+                $data[$field_name] = $handler($temp_obj);
 
-                    // echo var_dump($data[$field_name]);
-                    // echo "</pre>";
-                }
+                // echo var_dump($data[$field_name]);
+                // echo "</pre>";
             }
         }
 

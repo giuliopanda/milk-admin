@@ -38,7 +38,7 @@ abstract class AbstractInstallExtension
 {
     /**
      * The Module instance being extended
-     * @var AbstractModule
+     * @var \WeakReference<AbstractModule>
      */
     protected \WeakReference $module;
 

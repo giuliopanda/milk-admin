@@ -135,8 +135,8 @@ class QueryExecutor
     {
         $tableName = $query->table;
         $table = $this->database->getTable($tableName);
-        $columns = $query->insertColumns ?? [];
-        $values = $query->values ?? [];
+        $columns = $query->insertColumns;
+        $values = $query->values;
 
         $insertedRows = 0;
         $autoIncrementCol = $this->database->getAutoIncrementColumn($tableName);
@@ -190,6 +190,10 @@ class QueryExecutor
             // Applica le modifiche
             // setClause è un array di BinaryOperatorExpression con operator '='
             foreach ($query->setClause as $assignment) {
+                if (!$assignment instanceof BinaryOperatorExpression || !$assignment->left instanceof ColumnExpression) {
+                    continue;
+                }
+
                 $column = $assignment->left->columnName;
                 $value = $this->evaluator->evaluate($assignment->right, $row);
                 $row[$column] = $value;
@@ -551,7 +555,7 @@ class QueryExecutor
         }
 
         if ($expression instanceof FunctionExpression) {
-            $args = $expression->args ?? [];
+            $args = $expression->args;
             foreach ($args as $arg) {
                 $this->collectExpressionTables($arg, $tables, $hasUnqualified, $hasUnsupported);
             }

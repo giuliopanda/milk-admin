@@ -11,8 +11,13 @@ use App\Route;
 ?>
 <div class="bg-white p-4">
     <h1>Abstract Model - Overview</h1>
-    <p class="text-muted">Revision: 2025/12/01</p>
+    <p class="text-muted">Revision: 2026/03/15</p>
     <p class="lead">The <code>AbstractModel</code> class is the foundation for all data models in MilkAdmin. It provides a powerful and intuitive interface for interacting with database tables using a fluent query builder and comprehensive CRUD operations.</p>
+
+    <div class="alert alert-secondary">
+        <strong>Documentation structure:</strong>
+        This page is the high-level overview of the abstract base class. The detailed operational documentation lives in the <code>Developer/Model</code> section because that area documents the public Model API and its workflows.
+    </div>
 
     <div class="alert alert-info">
         <strong>Table Structure Documentation:</strong>
@@ -236,13 +241,11 @@ if ($product->validate()) {
     <h2 class="mt-4">Next Steps</h2>
 
      <div class="alert alert-info">
-        <strong>💡 New Architecture:</strong> The Model has been completely refactored using traits for better organization and maintainability:
+        <strong>💡 Current Architecture:</strong> <code>AbstractModel</code> is no longer just a large trait-based class. It keeps the public API and record state, while bootstrapping, query orchestration, scopes, relationships, and utilities are delegated to dedicated services.
         <ul class="mb-0">
-            <li><strong>QueryBuilderTrait:</strong> Query building (<code>where</code>, <code>whereIn</code>, <code>whereHas</code>, <code>order</code>, <code>limit</code>)</li>
-            <li><strong>CrudOperationsTrait:</strong> CRUD operations (<code>getById</code>, <code>store</code>, <code>delete</code>)</li>
-            <li><strong>SchemaAndValidationTrait:</strong> Schema and validation (<code>buildTable</code>, <code>validate</code>)</li>
-            <li><strong>RelationshipsTrait:</strong> Relationships (<code>hasOne</code>, <code>belongsTo</code>, <code>hasMany</code>)</li>
-            <li><strong>CollectionTrait:</strong> Result set navigation and iteration</li>
+            <li><strong>Traits mixed into AbstractModel:</strong> <code>CrudOperationsTrait</code>, <code>SchemaAndValidationTrait</code>, <code>DataFormattingTrait</code>, <code>CollectionTrait</code>, <code>CascadeSaveTrait</code>, <code>RecordStateTrait</code></li>
+            <li><strong>Dedicated services:</strong> <code>ModelBootstrapService</code>, <code>QueryBuilderService</code>, <code>ModelScopeService</code>, <code>RelationshipRuntimeService</code>, <code>RelationshipDataService</code>, <code>ModelUtilityService</code>, and related support services</li>
+            <li><strong>Why detailed docs are under Developer/Model:</strong> those pages document the concrete API surface developers use every day; this page stays focused on the abstract base class and its architecture</li>
         </ul>
    
         <strong>📚 Explore More:</strong>

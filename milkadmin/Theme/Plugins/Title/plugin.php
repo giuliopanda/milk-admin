@@ -8,10 +8,8 @@ use App\Hooks;
  * @var array $btns L'elenco dei bottoni da visualizzare accanto al titolo ['title'=>'Add New', 'color'=>'primary', 'click'=>'create_new()']
  */
 
-$title_text = (!isset($title_text)) ? '' : $title_text;
-if (!isset($btns) || !is_array($btns)) {
-    $btns = [];
-}
+$title_txt = isset($title_txt) ? (string) $title_txt : '';
+$btns = is_array($btns) ? $btns : [];
 $title_txt = Hooks::run('plugin_title.title_txt', $title_txt);
 $btns = Hooks::run('plugin_title.btns', $btns, $title_txt);
 ?>

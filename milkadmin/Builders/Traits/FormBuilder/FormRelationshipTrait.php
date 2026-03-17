@@ -105,19 +105,19 @@ trait FormRelationshipTrait {
             ]
         ];
 
-        // Aggiungi attributi dal rule
+        // Add attributes from rule
         if (isset($fieldRule['form-params'])) {
             foreach ($fieldRule['form-params'] as $param => $value) {
                 $fieldConfig[$param] = $value;
             }
         }
 
-        // Gestisci campi con opzioni (select, list, ecc.)
+        // Handle fields with options (select, list, etc.)
         if (isset($fieldRule['options'])) {
             $fieldConfig['options'] = $fieldRule['options'];
         }
 
-        // Aggiungi validazioni comuni
+        // Add common validations
         if (isset($fieldRule['nullable']) && !$fieldRule['nullable']) {
             $fieldConfig['required'] = true;
         }
@@ -125,20 +125,20 @@ trait FormRelationshipTrait {
             $fieldConfig['maxlength'] = $fieldRule['length'];
         }
 
-        // STEP 6.5: Se è la prima volta che aggiungiamo un campo da questa relazione hasOne
-        // aggiungi campi hidden per tutti i campi required che non sono già stati aggiunti
+        // STEP 6.5: If it's the first time we add a field from this hasOne relationship
+        // add hidden fields for all required fields that haven't been added yet
         if (!isset($this->addedRelationships[$relationship_alias])) {
             $this->addedRelationships[$relationship_alias] = true;
 
-            // Solo per hasOne (non belongsTo) aggiungiamo i campi hidden
+            // Only for hasOne (not belongsTo) we add hidden fields
             if ($relation['type'] === 'hasOne') {
                 $this->addHiddenRequiredFields($relationship_alias, $relatedRules, $relatedObject, $position_before);
             }
         }
 
-        // STEP 7: Inserisci il campo nella posizione corretta
+        // STEP 7: Insert the field in the correct position
         if (!empty($position_before) && isset($this->fields[$position_before])) {
-            // Inserisci prima del campo specificato
+            // Insert before the specified field
             $newFields = [];
             foreach ($this->fields as $key => $value) {
                 if ($key === $position_before) {
@@ -148,7 +148,7 @@ trait FormRelationshipTrait {
             }
             $this->fields = $newFields;
         } else {
-            // Aggiungi in fondo
+            // Add at the bottom
             $this->fields[$formFieldName] = $fieldConfig;
         }
 
@@ -156,37 +156,37 @@ trait FormRelationshipTrait {
     }
 
     /**
-     * Aggiunge campi hidden per tutti i campi required della relazione hasOne
-     * che non sono già stati aggiunti manualmente
+     * Add hidden fields for all required fields of the hasOne relationship
+     * that haven't been added manually
      *
-     * @param string $relationship_alias Alias della relazione (es. 'badge')
-     * @param array $relatedRules Rules del modello correlato
-     * @param mixed $relatedObject Oggetto correlato con i valori correnti
-     * @param string $position_before Posizione dove inserire i campi
+     * @param string $relationship_alias Relationship alias (e.g., 'badge')
+     * @param array $relatedRules Rules of the related model
+     * @param mixed $relatedObject Related object with current values
+     * @param string $position_before Position where to insert the fields
      */
     private function addHiddenRequiredFields(string $relationship_alias, array $relatedRules, $relatedObject, string $position_before): void {
 
         foreach ($relatedRules as $fieldName => $fieldRule) {
-            // Salta campi speciali
+            // Skip special fields
             if ($fieldName === 'id' || strpos($fieldName, '___') === 0) {
                 continue;
             }
 
-            // Salta campi che sono già stati aggiunti esplicitamente
+            // Skip fields that have already been explicitly added
             $formFieldName = "{$relationship_alias}[{$fieldName}]";
             if (isset($this->fields[$formFieldName])) {
                 continue;
             }
 
-            // Salta campi non required (nullable o con default)
+            // Skip non-required fields (nullable or with default)
             $isRequired = isset($fieldRule['form-params']['required']) && $fieldRule['form-params']['required'];
-            $hasDefault = isset($fieldRule['default']) && $fieldRule['default'] !== null && $fieldRule['default'] !== '';
+            $hasDefault = array_key_exists('default', $fieldRule) && $fieldRule['default'] !== null && $fieldRule['default'] !== '';
 
             if (!$isRequired && !$hasDefault) {
                 continue;
             }
 
-            // Estrai il valore corrente
+            // Extract the current value
             $currentValue = '';
             if (is_array($relatedObject)) {
                 $currentValue = $relatedObject[$fieldName] ?? ($fieldRule['default'] ?? '');
@@ -196,20 +196,20 @@ trait FormRelationshipTrait {
                 $currentValue = $fieldRule['default'] ?? '';
             }
 
-            // Crea campo hidden
+            // Create hidden field
             $hiddenFieldConfig = [
                 'name' => $formFieldName,
-                'label' => '', // Hidden fields non hanno label visibile
+                'label' => '', // Hidden fields don't have visible label
                 'type' => 'hidden',
                 'row_value' => $currentValue,
                 'relationship_context' => [
                     'alias' => $relationship_alias,
                     'field' => $fieldName,
-                    'auto_added' => true // Flag per indicare che è stato aggiunto automaticamente
+                    'auto_added' => true // Flag to indicate it was added automatically
                 ]
             ];
 
-            // Aggiungi il campo hidden
+            // Add the hidden field
             if (!empty($position_before) && isset($this->fields[$position_before])) {
                 $newFields = [];
                 foreach ($this->fields as $key => $value) {

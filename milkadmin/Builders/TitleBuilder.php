@@ -632,6 +632,11 @@ class TitleBuilder {
         return $this->render();
     }
 
+    public function getSearchFilterId(): string
+    {
+        return $this->search_filter_id;
+    }
+
     /**
      * Factory method to create TitleBuilder instance
      * 

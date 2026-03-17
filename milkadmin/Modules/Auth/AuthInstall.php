@@ -29,7 +29,7 @@ class AuthInstall extends AbstractInstall {
             } else {
                 MessagesHandler::addError($message);
             }
-            return;
+            return $data;
         }
 
         $auth = Get::make('Auth');
@@ -40,7 +40,7 @@ class AuthInstall extends AbstractInstall {
             } else {
                 MessagesHandler::addError($message);
             }
-            return;
+            return $data;
         }
 
         $result = $auth->saveUser(
@@ -63,6 +63,7 @@ class AuthInstall extends AbstractInstall {
                 MessagesHandler::addError("Install Auth: SAVE USER ERROR: ". $last_error);
             }
         }
+        return $data;
     }
 
     public function installUpdate($html) {

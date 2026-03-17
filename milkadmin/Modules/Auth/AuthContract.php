@@ -27,7 +27,7 @@ class AuthContract implements AuthContractInterface
      * 
      * @var int
      */
-    public $expired_session = null;
+    public $expired_session = 0;
 
     /**
      * Current session object
@@ -59,13 +59,6 @@ class AuthContract implements AuthContractInterface
     private $max_attempts = 5;
 
     /**
-     * Lockout time in minutes after max attempts reached
-     * 
-     * @var int
-     */
-    private $lockout_time = 30;
-
-    /**
      * Time window in minutes for counting attempts
      * 
      * @var int
@@ -82,14 +75,39 @@ class AuthContract implements AuthContractInterface
     /**
      * Singleton instance
      * 
-     * @var Auth|null
+     * @var AuthContract|null
      */
     private static $instance = null;
 
     /**
+     * @var UserModel
+     */
+    private $user_model;
+
+    /**
+     * @var SessionModel
+     */
+    private $session_model;
+
+    /**
+     * @var LoginAttemptsModel
+     */
+    private $login_attempts_model;
+
+    /**
+     * @var ActivationKeyService
+     */
+    private $activation_key_service;
+
+    /**
+     * @var SecurityNotificationService
+     */
+    private $security_notification_service;
+
+    /**
      * Get singleton instance of Auth class
      * 
-     * @return Auth
+     * @return AuthContract
      */
     public static function getInstance() {
         if (self::$instance == null) {
@@ -106,10 +124,14 @@ class AuthContract implements AuthContractInterface
         $this->last_error = '';
         $this->session = new \stdClass();
         $this->expired_session = Config::get('auth_expires_session', 15);
+        $this->user_model = new UserModel();
+        $this->session_model = new SessionModel();
+        $this->login_attempts_model = new LoginAttemptsModel();
+        $this->activation_key_service = new ActivationKeyService($this->user_model);
+        $this->security_notification_service = new SecurityNotificationService();
 
         // Load anti-brute force configurations
         $this->max_attempts = Config::get('auth_max_attempts', 5);
-        $this->lockout_time = Config::get('auth_lockout_time', 15);
         $this->attempts_window = Config::get('auth_attempts_window', 5);
         $this->system_lockdown_multiplier = Config::get('auth_system_lockdown_multiplier', 15);
 
@@ -121,17 +143,9 @@ class AuthContract implements AuthContractInterface
             $currentDateTime = new \DateTime();
             $currentDateTime->modify('-' . ($this->expired_session - 2) . ' minutes');
             $formattedDateTime = $currentDateTime->format('Y-m-d H:i:s');
-            if (Get::db() && Get::db()->checkConnection()) {
-                /*
-                $session = Get::db()->getRow(
-                    'SELECT * FROM `#__sessions` WHERE (phpsessid = ? OR old_phpsessid = ?) AND `session_date` > ? AND ip_address = ? AND user_agent = ?',
-                    [$phpsessid, $phpsessid, $formattedDateTime, Get::clientIp(), $_SERVER['HTTP_USER_AGENT'] ?? '']
-                );
-                */
-                $session = Get::db()->getRow(
-                    'SELECT * FROM `#__sessions` WHERE (phpsessid = ? OR old_phpsessid = ?) AND `session_date` > ? AND ip_address = ? ',
-                    [$phpsessid, $phpsessid, $formattedDateTime, Get::clientIp()]
-                );
+            $db = Get::db();
+            if ($db && $db->checkConnection()) {
+                $session = $this->session_model->findActiveByPhpSessionAndIp($phpsessid, $formattedDateTime, Get::clientIp());
                 if ($session) {
                     $this->session = $session;
                     // Use global secret key for CSRF tokens (not session-specific)
@@ -246,17 +260,18 @@ class AuthContract implements AuthContractInterface
         Token::config(Config::get('secret_key'), Config::get('token_key'));
 
         // Remove any duplicate sessions
-        Get::db()->delete('#__sessions', ['phpsessid' => $this->session->phpsessid]);
+        $session_ids_to_delete = [(string) ($this->session->phpsessid ?? '')];
         if (isset($this->session->old_phpsessid)) {
-            Get::db()->delete('#__sessions', ['phpsessid' => $this->session->old_phpsessid]);
+            $session_ids_to_delete[] = (string) $this->session->old_phpsessid;
         }
-        
-        $id = Get::db()->insert('#__sessions', $session_array);
+        $this->session_model->deleteByPhpSessionIds($session_ids_to_delete);
+
+        $id = $this->session_model->insertSession($session_array);
         if ($id !== false) {
             $this->session->id = $id;
         } else {
-            $this->last_error = 'Unable to create guest session: ' . Get::db()->last_error;
-            echo "<p>" . Get::db()->last_error . "</p>";
+            $this->last_error = 'Unable to create guest session: ' . $this->session_model->last_error;
+            echo "<p>" . $this->session_model->last_error . "</p>";
             die('Unable to create guest session');
         }
     }
@@ -273,42 +288,11 @@ class AuthContract implements AuthContractInterface
         if ($id == 0) {
             return $this->current_user;
         }
-        
-        $user = Get::db()->getRow('SELECT * FROM `#__users` WHERE id = ?', [$id]);
-        if (!$user) {
-            $this->last_error = 'User not found';
+
+        $user = $this->user_model->getUserById((int) $id);
+        if (!is_object($user)) {
+            $this->last_error = $this->user_model->last_error ?: 'User not found';
             return null;
-        } else {
-            $user->is_guest = 0;
-        }
-        
-        $temp_perm = json_decode($user->permissions, true);
-        if (!is_array($temp_perm)) {
-            $temp_perm = [];
-        }
-        
-        $user->permissions = [];
-        $user->permissions['_user'] = [
-            'is_admin' => ($user->is_admin == 1), 
-            'is_guest' => ($user->is_guest == 1)
-        ];
-        
-        foreach ($temp_perm as $group => $permission) {
-            if (!array_key_exists($group, $user->permissions)) {
-                $user->permissions[$group] = $permission;
-            }
-            
-            foreach ($permission as $permission_name => $value) {
-                if ($user->status != 1) {
-                    $user->permissions[$group][$permission_name] = false;
-                    continue;
-                }
-                if ($user->is_admin == 1) {
-                    $user->permissions[$group][$permission_name] = true;
-                    continue;
-                }
-                $user->permissions[$group][$permission_name] = ($value === 1 || $value === true || $value === '1' || $value === 'true' || $value === 't');
-            }
         }
 
         return $user;
@@ -354,23 +338,11 @@ class AuthContract implements AuthContractInterface
      * @return int Number of failed attempts
      */
     private function countFailedAttempts($identifier, $type = 'ip') {
-        $currentDateTime = new \DateTime();
-        $currentDateTime->modify('-' . $this->attempts_window . ' minutes');
-        $formattedDateTime = $currentDateTime->format('Y-m-d H:i:s');
-        
-        if ($type === 'ip') {
-            $query = 'SELECT COUNT(*) as count FROM `#__login_attempts` WHERE ip_address = ? AND attempt_time > ?';
-            $params = [$identifier, $formattedDateTime];
-        } else if ($type === 'session') {
-            $query = 'SELECT COUNT(*) as count FROM `#__login_attempts` WHERE session_id = ? AND attempt_time > ?';
-            $params = [$identifier, $formattedDateTime];
-        } else {
-            $query = 'SELECT COUNT(*) as count FROM `#__login_attempts` WHERE username_email = ? AND attempt_time > ?';
-            $params = [$identifier, $formattedDateTime];
-        }
-        
-        $result = Get::db()->getRow($query, $params);
-        return $result ? $result->count : 0;
+        return $this->login_attempts_model->countRecentAttempts(
+            (string) $identifier,
+            (string) $type,
+            (int) $this->attempts_window
+        );
     }
 
     /**
@@ -379,63 +351,20 @@ class AuthContract implements AuthContractInterface
      * @return int Total number of system-wide failed attempts
      */
     private function countSystemFailedAttempts() {
-        $currentDateTime = new \DateTime();
-        $currentDateTime->modify('-' . $this->attempts_window . ' minutes');
-        $formattedDateTime = $currentDateTime->format('Y-m-d H:i:s');
-        
-        $result = Get::db()->getRow(
-            'SELECT COUNT(*) as count FROM `#__login_attempts` WHERE attempt_time > ?',
-            [$formattedDateTime]
-        );
-        
-        return $result ? $result->count : 0;
+        return $this->login_attempts_model->countSystemRecentAttempts((int) $this->attempts_window);
     }
 
     /**
      * Send email notification to all administrators about security issues
      */
-    private function notifyAdministrators() {
-        /*
-        // Avoid sending too many notifications - maximum one every 15 minutes
-        $cache_key = 'last_system_lockdown_notification';
-        $last_notification = Config::get_cache($cache_key, 0);
-        
-        if (time() - $last_notification < 900) { // 900 seconds = 15 minutes
-            return;
+    private function notifyAdministrators(int $attempts_count = 0): void {
+        if ($attempts_count <= 0) {
+            $attempts_count = $this->countSystemFailedAttempts();
         }
-        
-        // Save timestamp of last notification
-        Config::set_cache($cache_key, time());
-
-        // Get all administrators
-        $admins = Get::db()->getResults('SELECT * FROM `#__users` WHERE is_admin = 1 AND status = 1');
-        
-        if (!$admins) {
-            return;
-        }
-        
-        $attempts_count = $this->countSystemFailedAttempts();
-        $subject = '[SECURITY ALERT] Login system under attack';
-        $message = sprintf(
-            "The login system is experiencing a possible brute force attack.\n\n" .
-            "Detected %d failed login attempts in the last %d minutes.\n" .
-            "Date and time: %s\n" .
-            "Most active IPs:\n%s\n\n" .
-            "The system has automatically blocked all login attempts.\n" .
-            "Access will be restored automatically when attempts decrease.",
+        $this->security_notification_service->notifySystemLockdown(
             $attempts_count,
-            $this->attempts_window,
-            date('Y-m-d H:i:s'),
-            $this->get_top_attacking_ips()
+            (int) $this->attempts_window
         );
-        
-        foreach ($admins as $admin) {
-            if ($admin->email) {
-                // Use mail() function or framework's email system
-                mail($admin->email, $subject, $message, "From: noreply@" . $_SERVER['HTTP_HOST'] . "\r\n");
-            }
-        }
-        */
     }
 
     /**
@@ -446,14 +375,11 @@ class AuthContract implements AuthContractInterface
      * @param string $session_id Session ID of the attempt
      */
     private function logFailedAttempt($username, $ip_address, $session_id) {
-        $data = [
-            'username_email' => $username,
-            'ip_address' => $ip_address,
-            'session_id' => $session_id,
-            'attempt_time' => date('Y-m-d H:i:s')
-        ];
-        
-        Get::db()->insert('#__login_attempts', $data);
+        $this->login_attempts_model->logFailedAttempt(
+            (string) $username,
+            (string) $ip_address,
+            (string) $session_id
+        );
     }
 
     /**
@@ -464,10 +390,11 @@ class AuthContract implements AuthContractInterface
      * @param string $session_id Session ID
      */
     private function clearFailedAttempts($username, $ip_address, $session_id) {
-        // Remove failed attempts for this username, IP and session
-        Get::db()->delete('#__login_attempts', ['username_email' => $username]);
-        Get::db()->delete('#__login_attempts', ['ip_address' => $ip_address]);
-        Get::db()->delete('#__login_attempts', ['session_id' => $session_id]);
+        $this->login_attempts_model->clearFailedAttempts(
+            (string) $username,
+            (string) $ip_address,
+            (string) $session_id
+        );
     }
 
     /**
@@ -479,29 +406,12 @@ class AuthContract implements AuthContractInterface
      */
     public function verifyCredentials($username, $password) {
         $this->last_error = '';
-        
-        if (empty($username) || empty($password)) {
-            $this->last_error = 'Username/email and password are required';
+        $user = $this->user_model->verifyActiveCredentials((string) $username, (string) $password);
+        if (!is_object($user)) {
+            $this->last_error = $this->user_model->last_error;
             return false;
         }
-        
-        // First try to find user by username
-        $user_db = Get::db()->getRow("SELECT * FROM " . Get::db()->qn('#__users') . " WHERE username = ? AND status = 1", [$username]);
-
-        if (!is_object($user_db)) {
-            password_verify($password, '$2y$10$dummy.hash.to.prevent.timing.attacks');
-            $this->last_error = 'User not found or inactive';
-            return false;
-        }
-        
-        // Verify password
-        if (!password_verify($password, $user_db->password)) {
-            $this->last_error = 'Invalid password';
-            return false;
-        }
-        
-        // Return the complete user object with permissions
-        return $this->getUser($user_db->id);
+        return $user;
     }
 
     /**
@@ -513,42 +423,31 @@ class AuthContract implements AuthContractInterface
      */
     public function findUser($username, $include_inactive = false) {
         $this->last_error = '';
-        
-        if (empty($username)) {
-            $this->last_error = 'Username is required';
+        $user = $this->user_model->findByUsername((string) $username, (bool) $include_inactive);
+        if (!is_object($user)) {
+            $this->last_error = $this->user_model->last_error;
             return false;
         }
-        
-        $status_condition = $include_inactive ? '' : ' AND status = 1;';
-        
-        // First try to find user by username
-        $user_db = Get::db()->getRow("SELECT * FROM " . Get::db()->qn('#__users') . " WHERE username = ?" . $status_condition, [$username]);
-
-        if (!is_object($user_db)) {
-            $this->last_error = $include_inactive ? 'User not found' : 'User not found or inactive';
-            return false;
-        }
-        
-        // Return the complete user object with permissions
-        return $this->getUser($user_db->id);
+        return $user;
     }
 
     /**
      * Verify credentials and login user if correct
      * 
-     * @param string $username
+     * @param string $username_email Username or email
      * @param string $password Password
      * @param bool $save_sessions Whether to save session data (default: true)
      * @param bool $save_user_last_login Whether to save user last login (default: true)
      * @return bool True if login successful, false otherwise
      */
-    public function login($username = '', $password = '', $save_sessions = true, $save_user_last_login = true) {
+    public function login($username_email = '', $password = '', $save_sessions = true, $save_user_last_login = true) {
         $this->last_error = '';
+        $username = $username_email;
        
         if ($username != '') {
           
             $ip_address = Get::clientIp();
-            $session_id = session_id();
+            $session_id = (string) session_id();
           
             // First check if there are too many total attempts in the system
             $system_attempts = $this->countSystemFailedAttempts();
@@ -558,7 +457,7 @@ class AuthContract implements AuthContractInterface
                 $this->last_error = 'Access temporarily blocked due to too many failed login attempts.';
                 MessagesHandler::addError($this->last_error);
                 // Send notification to administrators if not already sent recently
-                $this->notifyAdministrators();
+                $this->notifyAdministrators($system_attempts);
                 return false;
             }
           
@@ -597,9 +496,7 @@ class AuthContract implements AuthContractInterface
                     $this->setCurrentUserPermissions();
                     $this->updateUserSession($this->current_user->id);
                     if ($save_user_last_login) {
-                        Get::db()->update('#__users', [
-                            'last_login' => date('Y-m-d H:i:s')
-                        ], ['id' => $this->current_user->id]);
+                        $this->user_model->updateLastLogin((int) ($this->current_user->id ?? 0));
                     }
 
                     // Handle "Remember Me" if enabled and checkbox selected
@@ -616,7 +513,7 @@ class AuthContract implements AuthContractInterface
                 $this->clearFailedAttempts($username, $ip_address, $session_id);
 
                 // Log successful login to access logs
-                $this->logAccessLogin($this->current_user->id, session_id(), $ip_address, $_SERVER['HTTP_USER_AGENT'] ?? '', $this->current_user->username ?? '');
+                $this->logAccessLogin($this->current_user->id, (string) session_id(), $ip_address, $_SERVER['HTTP_USER_AGENT'] ?? '', $this->current_user->username ?? '');
 
                 return true;
             } else {
@@ -649,15 +546,16 @@ class AuthContract implements AuthContractInterface
      */
     public function logout() {
         $this->last_error = '';
+        $is_guest = !is_object($this->current_user) || (($this->current_user->is_guest ?? 1) == 1);
 
         // Log logout before clearing session
-        $current_session_id = session_id();
-        if (!$this->current_user->is_guest) {
+        $current_session_id = (string) session_id();
+        if (!$is_guest) {
             $this->logAccessLogout($current_session_id);
         }
 
         // Delete remember me cookie and tokens for CURRENT DEVICE ONLY if user was authenticated
-        if (!$this->current_user->is_guest && Config::get('auth_remember_me_duration')) {
+        if (!$is_guest && Config::get('auth_remember_me_duration')) {
             try {
                 $rememberMeService = new RememberMeService();
 
@@ -665,7 +563,10 @@ class AuthContract implements AuthContractInterface
                 $rememberMeService->deleteCookie();
 
                 // Delete tokens ONLY for current device (using fingerprint)
-                $rememberMeService->deleteTokensForCurrentDevice($this->current_user->id);
+                $user_id = $this->current_user->id ?? null;
+                if ($user_id !== null) {
+                    $rememberMeService->deleteTokensForCurrentDevice($user_id);
+                }
 
             } catch (\Exception $e) {
                 error_log('Remember me cleanup error during logout: ' . $e->getMessage());
@@ -684,6 +585,7 @@ class AuthContract implements AuthContractInterface
             'permissions' => [],
             'is_guest' => 1
         ];
+        return true;
     }
 
     /**
@@ -693,26 +595,8 @@ class AuthContract implements AuthContractInterface
      * @return string Encrypted activation key
      */
     public function createActivationKey($user_id) {
-        $this->last_error = '';
-        $secret_key = Config::get('secret_key');
-        $ivlen = openssl_cipher_iv_length($cipher = "AES-128-CBC");
-        
-        $randomBytes = random_bytes(256) . uniqid(rand(), true);
-        $hash = substr(md5($randomBytes), 0, 8);
-        $string = json_encode([$user_id, $hash, time()]);
-    
-        $ivlen = openssl_cipher_iv_length($cipher = "AES-128-CBC");
-        $iv = openssl_random_pseudo_bytes($ivlen);
-        $ciphertext_raw = openssl_encrypt($string, $cipher, $secret_key, OPENSSL_RAW_DATA, $iv);
-        $hmac = hash_hmac('sha256', $ciphertext_raw, $secret_key, true);
-        $result = $iv . $hmac . $ciphertext_raw;
-        $result = str_replace('=', '', strtr(base64_encode($result), '+/', '-_'));
-
-        $update_result = Get::db()->update('#__users', ['activation_key' => $result], ['id' => $user_id]);
-        if ($update_result === false) {
-            $this->last_error = 'Failed to update activation key: ' . Get::db()->last_error;
-        }
-        
+        $result = $this->activation_key_service->createActivationKey((int) $user_id);
+        $this->last_error = $this->activation_key_service->getLastError();
         return $result;
     }
 
@@ -725,31 +609,13 @@ class AuthContract implements AuthContractInterface
      * @return bool True if key meets time criteria, false otherwise
      */
     public function checkExpiresActivationKey($activation_key, $time_min, $op = '<') {
-        $this->last_error = '';
-        $decrypted = $this->decryptActivationKey($activation_key);
-        
-        if (is_array($decrypted) && count($decrypted) >= 3) {
-            // Key creation time
-            $created_time = new \DateTime();
-            $created_time->setTimestamp($decrypted[2]);
-            
-            // Current time
-            $now = new \DateTime();
-            
-            // Calculate total minutes elapsed since creation
-            $diff_minutes = ($now->getTimestamp() - $created_time->getTimestamp()) / 60;
-            
-            // Check based on operator
-            if ($op == '<' && $diff_minutes < $time_min) {
-                return true;  // Key was created less than $time_min minutes ago
-            } else if ($op == '>' && $diff_minutes > $time_min) {
-                return true;  // Key was created more than $time_min minutes ago
-            }
-        } else {
-            $this->last_error = 'Invalid activation key';
-        }
-        
-        return false;
+        $result = $this->activation_key_service->checkExpiresActivationKey(
+            (string) $activation_key,
+            (int) $time_min,
+            (string) $op
+        );
+        $this->last_error = $this->activation_key_service->getLastError();
+        return $result;
     }
 
     /**
@@ -780,70 +646,31 @@ class AuthContract implements AuthContractInterface
     public function saveUser($id, $username, $email, $password = '', $status = 1, $is_admin = 0, $permissions = [], $timezone = 'UTC', $locale = '', $allow_weak_password = false) {
         $this->last_error = '';
         $this->last_insert_id = 0;
-        $save_permissions = [];
-        $password = trim($password);
+        $result = $this->user_model->saveUserData(
+            $id,
+            $username,
+            $email,
+            $password,
+            $status,
+            $is_admin,
+            $permissions,
+            $timezone,
+            $locale,
+            $allow_weak_password
+        );
 
-        if (!$allow_weak_password && $password !== '' && strlen($password) < self::PASSWORD_MIN_LENGTH) {
-            $this->last_error = 'Password must be at least ' . self::PASSWORD_MIN_LENGTH . ' characters long';
+        if ($result === false) {
+            $this->last_error = $this->user_model->last_error;
             return false;
         }
 
-        $permissions_groups = Permissions::getGroups();
-        foreach ($permissions_groups as $group => $_) {
-            $list_of_permissions = Permissions::get($group);
-            foreach ($list_of_permissions as $permission_name => $_) {
-                if (!isset($permissions[$group][$permission_name])) {
-                    $save_permissions[$group][$permission_name] = 0;
-                } else {
-                    $save_permissions[$group][$permission_name] = ($permissions[$group][$permission_name] == 1) ? 1 : 0;
-                }
-            }
-        }
-        // add any $permissions not present in $permissions_groups
-        foreach ($permissions as $group => $permissions_group) {
-            if (!isset($save_permissions[$group])) {
-                $save_permissions[$group] = [];
-            }
-            foreach ($permissions_group as $permission_name => $permission_value) {
-                $save_permissions[$group][$permission_name] = (int)$permission_value;
-            }
-        }
-        if ($locale == '') {
-            $locale = Config::get('locale', 'en_US');
+        if ((int) $id > 0) {
+            $this->last_insert_id = (int) $id;
+            return (bool) $result;
         }
 
-        $data = [
-            'username' => $username,
-            'email' => $email,
-            'status' => $status,
-            'is_admin' => _absint($is_admin),
-            'permissions' => json_encode($save_permissions),
-            'registered' => date('Y-m-d H:i:s'),
-            'timezone' => $timezone,
-            'locale' => $locale
-        ];
-
-        if ($password != '') {
-            $data['password'] = $this->hashPassword($password);
-        }
-
-        if ($id > 0) {
-            $result = Get::db()->update('#__users', $data, ['id' => _absint($id)]);
-            if ($result === false) {
-                $this->last_error = 'Failed to update user: ' . Get::db()->last_error;
-            }
-            $this->last_insert_id = $id;
-            return $result;
-        } else {
-            $result = Get::db()->insert('#__users', $data);
-
-            if ($result === false) {
-                $this->last_error = 'Failed to create user: ' . Get::db()->last_error;
-            } else {
-                $this->last_insert_id = Get::db()->insertId();
-            }
-            return $result;
-        }
+        $this->last_insert_id = (int) $result;
+        return $result;
     }
 
     public function getLastInsertId() {
@@ -856,7 +683,7 @@ class AuthContract implements AuthContractInterface
      * @param int $user_id User ID to associate with session (0 for guest)
      */
     private function updateUserSession($user_id = 0) {
-        if (!Get::db() || !Get::db()->checkConnection()) {
+        if (!$this->session_model) {
             return;
         }
 
@@ -875,15 +702,15 @@ class AuthContract implements AuthContractInterface
             ];
 
             // Remove any duplicate sessions
-            Get::db()->delete('#__sessions', ['phpsessid' => $current_phpsessid]);
+            $this->session_model->deleteByPhpSessionIds([$current_phpsessid]);
 
-            $id = Get::db()->insert('#__sessions', $session_array);
+            $id = $this->session_model->insertSession($session_array);
             if ($id !== false) {
                 $this->session->id = $id;
                 $this->session->user_id = $user_id;
                 $this->session->phpsessid = $current_phpsessid;
             } else {
-                $this->last_error = 'Failed to create session: ' . Get::db()->last_error;
+                $this->last_error = 'Failed to create session: ' . $this->session_model->last_error;
             }
             return;
         }
@@ -893,69 +720,46 @@ class AuthContract implements AuthContractInterface
             'user_id' => $user_id,
             'phpsessid' => $current_phpsessid,
         ];
-        $this->session->user_id = $user_id;
-        if ($this->session->phpsessid != $current_phpsessid) {
-            $this->session->old_phpsessid = $this->session->phpsessid;
-            $udate_array['old_phpsessid'] = $this->session->phpsessid;
+        $session_data = (array) $this->session;
+        $session_data['user_id'] = $user_id;
+        $session_phpsessid = (string) ($session_data['phpsessid'] ?? '');
+        if ($session_phpsessid != $current_phpsessid) {
+            $session_data['old_phpsessid'] = $session_phpsessid;
+            $udate_array['old_phpsessid'] = $session_phpsessid;
         }
         // Also update phpsessid if it has changed
-        $this->session->phpsessid = $current_phpsessid;
+        $session_data['phpsessid'] = $current_phpsessid;
+        $this->session = (object) $session_data;
 
-        $result = Get::db()->update('#__sessions', $udate_array, ['id' => $this->session->id]);
+        $result = $this->session_model->updateSessionById(_absint($session_data['id'] ?? 0), $udate_array);
 
         if ($result === false) {
-            $this->last_error = 'Failed to update session: ' . Get::db()->last_error;
+            $this->last_error = 'Failed to update session: ' . $this->session_model->last_error;
         }
-    }
-
-    /**
-     * Decrypt activation key - used for password reset and internal data
-     * Returns array with user id [0] and timestamp [2]
-     * 
-     * @param string $activation_key Encrypted activation key
-     * @return array|null Decrypted data array or null on failure
-     */
-    private function decryptActivationKey($activation_key) {
-    
-        $secret_key = Config::get('secret_key');
-        $c = \strtr($activation_key, '-_', '+/');
-        $c = \base64_decode($c);
-        $ivlen = openssl_cipher_iv_length($cipher="AES-128-CBC");
-        $iv = substr($c, 0, $ivlen);
-        $hmac = substr($c, $ivlen, $sha2len=32);
-        $ciphertext_raw = substr($c, $ivlen+$sha2len);
-        $original_plaintext = openssl_decrypt($ciphertext_raw, $cipher, $secret_key, OPENSSL_RAW_DATA, $iv);
-        $calcmac = hash_hmac('sha256', $ciphertext_raw, $secret_key, true);
-        if (hash_equals($hmac, $calcmac)) {
-            $data = json_decode($original_plaintext);
-            if (is_array($data) && count($data) == 3) {
-                return $data;
-            }
-        }
-        return null;
     }
 
     /**
      * Cancella tutte le sessioni scadute
      */
     private function cleanSessions() {
+        if (!$this->session_model) {
+            return;
+        }
         $currentDateTime = new \DateTime();
         $currentDateTime->modify('-' . ( $this->expired_session * 2 ) . ' minutes');
         $formattedDateTime = $currentDateTime->format('Y-m-d H:i:s');
-        $sql = 'DELETE FROM `#__sessions` WHERE session_date < "'.$formattedDateTime.'"';
-        Get::db()->query($sql);
+        $this->session_model->cleanOlderThan($formattedDateTime);
     }
 
     /**
      * Pulisce i vecchi tentativi di login
      */
     public function cleanLoginAttempts() {
+        if (!$this->login_attempts_model) {
+            return;
+        }
         // Rimuovi i tentativi più vecchi del periodo di finestra
-        $currentDateTime = new \DateTime();
-        $currentDateTime->modify('-' . ($this->attempts_window * 2) . ' minutes');
-        $formattedDateTime = $currentDateTime->format('Y-m-d H:i:s');
-        
-        Get::db()->query('DELETE FROM `#__login_attempts` WHERE attempt_time < ?', [$formattedDateTime]);
+        $this->login_attempts_model->cleanOlderThanMinutes((int) ($this->attempts_window * 2));
     }
 
     /**
@@ -1037,17 +841,15 @@ class AuthContract implements AuthContractInterface
             $this->updateUserSession($this->current_user->id);
 
             // Update last login
-            Get::db()->update('#__users', [
-                'last_login' => date('Y-m-d H:i:s')
-            ], ['id' => $this->current_user->id]);
+            $this->user_model->updateLastLogin((int) ($this->current_user->id ?? 0));
 
             // Log access
-            $this->logAccessLogin(
-                $this->current_user->id,
-                session_id(),
-                Get::clientIp(),
-                $_SERVER['HTTP_USER_AGENT'] ?? '',
-                $this->current_user->username ?? ''
+                $this->logAccessLogin(
+                    $this->current_user->id,
+                    (string) session_id(),
+                    Get::clientIp(),
+                    $_SERVER['HTTP_USER_AGENT'] ?? '',
+                    $this->current_user->username ?? ''
             );
 
             return true;

@@ -82,15 +82,17 @@ class Response {
             ob_start();
             require Get::dirPath($content);
             Theme::set('content', ob_get_clean());
-       
-        } elseif (($content == "" || is_null($content)) && is_scalar($variables)) {
-            // questo per accettare questa particolare sintassi Response::themePage('theme_page', '', 'Es: 404 - Page not found');
-            Theme::set('content', $variables);
-        } else if (($content == "" || is_null($content)) && is_array($variables)) {
-            // sintassi Response::themePage('theme_page', '', ['content'=>'Es: 404 - Page not found', 'success' => false]);
-            // pagine in cui gli passi direttamente le variabili ad esempio per le pagine json
-            extract($variables);
-        } else if (is_string($content) && $content != '') {
+
+        } elseif ($content === '' || $content === null) {
+            if (is_scalar($variables)) {
+                // questo per accettare questa particolare sintassi Response::themePage('theme_page', '', 'Es: 404 - Page not found');
+                Theme::set('content', $variables);
+            } else {
+                // sintassi Response::themePage('theme_page', '', ['content'=>'Es: 404 - Page not found', 'success' => false]);
+                // pagine in cui gli passi direttamente le variabili ad esempio per le pagine json
+                extract($variables);
+            }
+        } else {
             Theme::set('content', $content);
         }
         $page = str_replace(['.page', '.php', '..', '/', '\\'], '', $___page);
@@ -265,13 +267,13 @@ class Response {
             $row = $row->getFormattedData('array');
         } else if (is_null($row) || !is_array($row)) {
             return [];
-        } else if (is_countable($row)) {
+        } else {
             foreach ($row as &$value) {
                 if (is_a($value, 'DateTime')) {
                     $value = $value->format('Y-m-d H:i:s');
                 } else if (is_object($value) || is_array($value)) {
                     $value = self::jsonEncode($value);
-                } 
+                }
             }
         }
         return $row;

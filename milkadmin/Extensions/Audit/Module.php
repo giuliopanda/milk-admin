@@ -18,8 +18,6 @@ use App\{Theme, Route, Hooks, Permissions, Get};
  */
 class Module extends AbstractModuleExtension
 {
-
-    private $model = null;
     /**
      * Hook called during module configuration
      * Extends module configuration by adding header links to audit pages

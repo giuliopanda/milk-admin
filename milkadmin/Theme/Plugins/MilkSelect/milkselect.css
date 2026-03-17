@@ -189,7 +189,8 @@
   border: 1px solid #dee2e6;
   border-radius: 0.375rem;
   margin-top: 4px;
-  max-height: 300px;
+  max-height: min(300px, 50vh);
+  overflow-x: hidden;
   overflow-y: auto;
   z-index: 1050;
   box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
@@ -223,6 +224,18 @@
   padding: 8px 12px;
   cursor: pointer;
   transition: background-color 0.15s;
+}
+
+.cs-autocomplete-group-label {
+  padding: 8px 12px 6px;
+  font-weight: 700;
+  color: #212529;
+  background: #f8f9fa;
+  border-top: 1px solid #e9ecef;
+}
+
+.cs-autocomplete-dropdown > .cs-autocomplete-group-label:first-child {
+  border-top: none;
 }
 
 .cs-autocomplete-item:hover {

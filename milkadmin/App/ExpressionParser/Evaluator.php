@@ -11,6 +11,12 @@ class Evaluator
     private array $variables = [];
     private array $parameters = [];
     private BuiltinFunctions $functions;
+    private int $maxExecutionSteps = 0;
+    private int $executionSteps = 0;
+    private int $maxParameterPathSegments = 0;
+    private bool $allowObjectArrayAccess = true;
+    private bool $allowObjectGetterMethods = true;
+    private bool $allowObjectMagicAccess = true;
 
     public function __construct(?BuiltinFunctions $functions = null)
     {
@@ -23,6 +29,35 @@ class Evaluator
     public function getBuiltinFunctions(): BuiltinFunctions
     {
         return $this->functions;
+    }
+
+    /**
+     * Configura policy di sicurezza runtime per l'evaluatore.
+     *
+     * Opzioni supportate:
+     * - max_execution_steps: int (0 = nessun limite)
+     * - max_parameter_path_segments: int (0 = nessun limite)
+     * - allow_object_array_access: bool
+     * - allow_object_getter_methods: bool
+     * - allow_object_magic_access: bool
+     */
+    public function configureSecurityPolicy(array $policy): void
+    {
+        if (array_key_exists('max_execution_steps', $policy)) {
+            $this->maxExecutionSteps = max(0, (int)$policy['max_execution_steps']);
+        }
+        if (array_key_exists('max_parameter_path_segments', $policy)) {
+            $this->maxParameterPathSegments = max(0, (int)$policy['max_parameter_path_segments']);
+        }
+        if (array_key_exists('allow_object_array_access', $policy)) {
+            $this->allowObjectArrayAccess = (bool)$policy['allow_object_array_access'];
+        }
+        if (array_key_exists('allow_object_getter_methods', $policy)) {
+            $this->allowObjectGetterMethods = (bool)$policy['allow_object_getter_methods'];
+        }
+        if (array_key_exists('allow_object_magic_access', $policy)) {
+            $this->allowObjectMagicAccess = (bool)$policy['allow_object_magic_access'];
+        }
     }
 
     // ==================== GESTIONE STATO ====================
@@ -67,8 +102,11 @@ class Evaluator
      */
     public function execute(array $ast): mixed
     {
+        $this->executionSteps = 0;
+
         $exec = function (array $node) use (&$exec): mixed {
             if (empty($node)) return null;
+            $this->assertExecutionStepLimit();
 
             switch ($node['type']) {
                 case TokenType::NODE_PROGRAM:
@@ -172,6 +210,13 @@ class Evaluator
      */
     private function resolveParameter(string $path): mixed
     {
+        if ($this->maxParameterPathSegments > 0) {
+            $segmentCount = substr_count($path, '.') + 1;
+            if ($segmentCount > $this->maxParameterPathSegments) {
+                throw new \Exception("Parametro [{$path}] supera il limite di segmenti consentiti ({$this->maxParameterPathSegments})");
+            }
+        }
+
         // Nessun punto → parametro semplice (fast path, retrocompatibile)
         if (strpos($path, '.') === false) {
             if (!array_key_exists($path, $this->parameters)) {
@@ -215,41 +260,53 @@ class Evaluator
 
         // Oggetto → prova proprietà, poi metodo getter, poi accesso array (ArrayAccess)
         if (is_object($current)) {
-            // Proprietà pubblica o __get magic
-            if (isset($current->$segment) || property_exists($current, $segment)) {
-                return $current->$segment;
+            // Accesso solo a proprietà pubbliche già materializzate.
+            $publicProps = get_object_vars($current);
+            if (array_key_exists($segment, $publicProps)) {
+                return $publicProps[$segment];
             }
 
             // Accesso tramite offsetGet (ArrayAccess) — utile per molti ORM/Model
-            if ($current instanceof \ArrayAccess && $current->offsetExists($segment)) {
+            if ($this->allowObjectArrayAccess && $current instanceof \ArrayAccess && $current->offsetExists($segment)) {
                 return $current->offsetGet($segment);
             }
 
             // Indice numerico su oggetto ArrayAccess (es. comments.0)
-            if (ctype_digit($segment) && $current instanceof \ArrayAccess && $current->offsetExists((int)$segment)) {
+            if (
+                $this->allowObjectArrayAccess &&
+                ctype_digit($segment) &&
+                $current instanceof \ArrayAccess &&
+                $current->offsetExists((int)$segment)
+            ) {
                 return $current->offsetGet((int)$segment);
             }
 
             // Prova getter method: getSegment()
-            $getter = 'get' . ucfirst($segment);
-            if (method_exists($current, $getter)) {
-                return $current->$getter();
+            if ($this->allowObjectGetterMethods) {
+                $getter = 'get' . ucfirst($segment);
+                if (method_exists($current, $getter)) {
+                    return $current->$getter();
+                }
             }
 
             // Ultimo tentativo: accesso diretto (potrebbe avere __get)
-            try {
-                $val = @$current->$segment;
-                // Per stdClass o oggetti senza __get, la proprietà inesistente dà null + warning
-                // Verifichiamo che esista davvero
-                if ($val === null && !isset($current->$segment) && !property_exists($current, $segment)) {
-                    throw new \Exception("Proprietà '{$segment}' non trovata sull'oggetto " . get_class($current) . " (in [{$fullPath}], a [{$traversed}])");
+            if ($this->allowObjectMagicAccess) {
+                try {
+                    $val = @$current->$segment;
+                    // Per stdClass o oggetti senza __get, la proprietà inesistente dà null + warning
+                    // Verifichiamo che esista davvero
+                    if ($val !== null) {
+                        return $val;
+                    }
+                    if (method_exists($current, '__isset') && isset($current->$segment)) {
+                        return $val;
+                    }
+                } catch (\Throwable) {
+                    // Fallback all'errore finale sotto
                 }
-                return $val;
-            } catch (\Exception $e) {
-                throw $e;
-            } catch (\Throwable) {
-                throw new \Exception("Proprietà '{$segment}' non trovata sull'oggetto " . get_class($current) . " (in [{$fullPath}], a [{$traversed}])");
             }
+
+            throw new \Exception("Proprietà '{$segment}' non trovata sull'oggetto " . get_class($current) . " (in [{$fullPath}], a [{$traversed}])");
         }
 
         // Array → accesso per chiave stringa o indice numerico
@@ -436,6 +493,14 @@ class Evaluator
                 return !$operand;
             default:
                 throw new \Exception("Operatore unario non supportato: {$op}");
+        }
+    }
+
+    private function assertExecutionStepLimit(): void
+    {
+        $this->executionSteps++;
+        if ($this->maxExecutionSteps > 0 && $this->executionSteps > $this->maxExecutionSteps) {
+            throw new \Exception("Limite di esecuzione superato ({$this->maxExecutionSteps} step)");
         }
     }
 }

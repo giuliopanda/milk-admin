@@ -26,6 +26,7 @@ Hooks::set('set_last_error', function($error, $from) {
 });
 
 if (Cli::isCli()) {
+    $argv = $argv ?? ($_SERVER['argv'] ?? []);
 
     if (!Cli::run($argv)) {
         // If run() returns false and we have arguments, show similar commands or help

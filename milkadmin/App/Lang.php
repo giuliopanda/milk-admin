@@ -55,7 +55,7 @@ class Lang
      *
      * @param string $string The original string to translate
      * @param string $translation The translated string
-     * @param string $area The area to limit this translation to (default: 'all')
+     * @param mixed $area The area to limit this translation to (default: 'all')
      * @return void
      */
     public static function set(string $string, string $translation, $area = 'all'):void {
@@ -85,7 +85,7 @@ class Lang
      * ```
      *
      * @param string $string The original string to translate
-     * @param string $area The area to look for the translation in (default: 'all')
+     * @param mixed $area The area to look for the translation in (default: 'all')
      * @return string The translated string or the original if no translation is found
      */
     public static function get(string $string, $area = 'all'):string {
@@ -117,7 +117,6 @@ class Lang
             $strings = include $file;
         } catch (\Exception $e) {
             die($e->getMessage());
-            return false;
         }
         if (!is_array($strings)) {
             return false;
@@ -132,7 +131,7 @@ class Lang
     /**
      * Costruisce il contenuto JavaScript
      * 
-     * @param array $translations Le traduzioni da includere
+     * @param string $page Pagina/area da includere
      * @param bool $minify Se minificare l'output
      * @return string Il codice JavaScript
      */

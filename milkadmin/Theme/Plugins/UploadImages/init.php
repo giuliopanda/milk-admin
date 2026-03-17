@@ -18,4 +18,4 @@ class UploadImages
     }
 }
 
-new UploadImages();
+$GLOBALS['__milk_upload_images_bootstrap'] = new UploadImages();

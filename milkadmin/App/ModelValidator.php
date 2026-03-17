@@ -109,7 +109,7 @@ class ModelValidator
             $required_expr = $rule['required_expr'] ?? null;
             if (is_string($required_expr) && trim($required_expr) !== '') {
                 try {
-                    $parser = new ExpressionParser();
+                    $parser = (new ExpressionParser())->useUntrustedMode();
                     $parser->setParameters($parameters);
                     $required_result = $parser->execute($required_expr);
                     $required = (bool) $required_result;
@@ -167,7 +167,8 @@ class ModelValidator
                 $is_numeric_type = in_array($rule_type, $numeric_rule_types, true) || in_array($form_type, $numeric_form_types, true);
                 if ($is_numeric_type) {
                     $handled = true;
-                    if (($rule['primary'] === true && ($value === null || $value === ''))) {
+                    $numeric_value = 0.0;
+                    if (($rule['primary'] === true && $value === '')) {
                         $handled = true;
                         $skip_expression = true;
                     } else {
@@ -211,6 +212,7 @@ class ModelValidator
                                 );
                             }
 
+                            $field_has_error = MessagesHandler::getInvalidClass($field_name) !== '';
                             if (!$field_has_error) {
                                 $max = $form_params['max'] ?? null;
                                 $max_label = $max;
@@ -229,6 +231,7 @@ class ModelValidator
                                 }
                             }
 
+                            $field_has_error = $field_has_error || MessagesHandler::getInvalidClass($field_name) !== '';
                             if (!$field_has_error) {
                                 $step = $form_params['step'] ?? null;
                                 if ($step !== null && $step !== '' && $step !== 'any' && is_numeric($step)) {
@@ -402,7 +405,7 @@ class ModelValidator
     }
 
     /**
-     * Valida più record
+     * Validates multiple records
      *
      * @param array $records
      * @return bool
@@ -431,7 +434,7 @@ class ModelValidator
         }
 
         try {
-            $parser = new ExpressionParser();
+            $parser = (new ExpressionParser())->useUntrustedMode();
             $parser->setParameters($parameters);
             $result = $parser->execute($expression);
         } catch (\Throwable $e) {

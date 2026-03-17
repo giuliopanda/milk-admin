@@ -79,8 +79,6 @@ class Install
                     } else {
                         if ($value == 'true' || $value == 'false') {
                             $conf[] = " \$conf['"._r($key)."'] = ".($value == 'true' ? 'true' : 'false').";";
-                        } else if ($value === true || $value === false) {
-                            $conf[] = " \$conf['"._r($key)."'] = ".($value ? 'true' : 'false').";";
                         } else {
                             $conf[] = " \$conf['"._r($key)."'] = '".$value."';";
                         }
@@ -104,6 +102,77 @@ class Install
         }
         // TODO verificare se il file funziona?!?!
 
+    }
+
+    /**
+     * Rollback install state by forcing version=null in local config.php.
+     * Returns true when config.php is updated successfully.
+     */
+    public static function rollbackInstallVersion(): bool
+    {
+        $config_path = LOCAL_DIR.'/config.php';
+        if (!is_file($config_path)) {
+            Config::set('version', null);
+            if (isset($_SESSION['installation_params']) && is_array($_SESSION['installation_params'])) {
+                $_SESSION['installation_params']['version'] = null;
+            }
+            return false;
+        }
+
+        $config_content = @file_get_contents($config_path);
+        if (!is_string($config_content)) {
+            Config::set('version', null);
+            if (isset($_SESSION['installation_params']) && is_array($_SESSION['installation_params'])) {
+                $_SESSION['installation_params']['version'] = null;
+            }
+            return false;
+        }
+
+        $updated_config = preg_replace(
+            '#^\s*\$conf\[\'version\'\]\s*=\s*(?:\'[^\']*\'|"[^"]*"|null);\s*$#m',
+            ' $conf[\'version\'] = null;',
+            $config_content,
+            1,
+            $replacements
+        );
+
+        if (!is_string($updated_config)) {
+            Config::set('version', null);
+            if (isset($_SESSION['installation_params']) && is_array($_SESSION['installation_params'])) {
+                $_SESSION['installation_params']['version'] = null;
+            }
+            return false;
+        }
+
+        if ($replacements === 0) {
+            $insert_count = 0;
+            $updated_config = str_replace(
+                "Config::setAll(\$conf);",
+                " \$conf['version'] = null;\nConfig::setAll(\$conf);",
+                $updated_config,
+                $insert_count
+            );
+            if ($insert_count === 0) {
+                $updated_config .= "\n\$conf['version'] = null;\n";
+            }
+        }
+
+        try {
+            File::putContents($config_path, $updated_config);
+        } catch (\App\Exceptions\FileException $e) {
+            Config::set('version', null);
+            if (isset($_SESSION['installation_params']) && is_array($_SESSION['installation_params'])) {
+                $_SESSION['installation_params']['version'] = null;
+            }
+            return false;
+        }
+
+        Config::set('version', null);
+        if (isset($_SESSION['installation_params']) && is_array($_SESSION['installation_params'])) {
+            $_SESSION['installation_params']['version'] = null;
+        }
+
+        return true;
     }
 
     /**

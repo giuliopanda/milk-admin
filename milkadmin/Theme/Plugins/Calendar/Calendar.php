@@ -50,7 +50,6 @@ class Calendar {
             case 'daily':
                 // To be implemented
                 throw new Exception("Daily view not yet implemented");
-                break;
             default:
                 throw new Exception("Invalid view type: {$view_type}");
         }

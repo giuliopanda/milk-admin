@@ -25,8 +25,8 @@ class FormBuilder {
     use ExtensionManagementTrait;
 
     private $page = '';
-    private $url_success = null;
-    private $url_error = null;
+    private ?string $url_success = null;
+    private ?string $url_error = null;
     private $current_action = 'edit';
     private $form_attributes = [];
     private $fields = [];
@@ -303,8 +303,6 @@ class FormBuilder {
     /**
      * Create a save action callback
      *
-     * @param string|null $redirect_success Success redirect URL
-     * @param string|null $redirect_error Error redirect URL
      * @return callable Callback function for save action
      *
      * @example 'action' => FormBuilder::saveAction()
@@ -417,11 +415,11 @@ class FormBuilder {
             }
 
             // Evaluate condition based on operator
-            switch ($operator) {
-                case 'empty':
-                   return ($field_value === null ||   $field_value === '' || $field_value === 0 || is_null($field_value) )  ;
-                case 'not_empty':
-                    return ($field_value !== null &&   $field_value !== '' && $field_value !== 0 && !is_null($field_value) )  ;
+                switch ($operator) {
+                    case 'empty':
+                        return ($field_value === null || $field_value === '' || $field_value === 0);
+                    case 'not_empty':
+                        return ($field_value !== null && $field_value !== '' && $field_value !== 0);
                 case '=':
                 case '==':
                     return $field_value == $value;
@@ -501,7 +499,7 @@ class FormBuilder {
      *
      * @param object $model Model instance
      * @param string $page Page identifier
-     * @param ?string $url_success Success redirect URL or false to return json
+     * @param string|false|null $url_success_or_json Success redirect URL or false to return json
      * @param ?string $url_error Error redirect URL
      * @return self New FormBuilder instance
      *
@@ -710,7 +708,7 @@ class FormBuilder {
         } else {
             $msg = MessagesHandler::getErrors(true);
         }
-        if (is_array($msg) && count($msg) > 0) {
+        if (count($msg) > 0) {
              $response['msg'] = implode("\n<br>", $msg);
         }
 

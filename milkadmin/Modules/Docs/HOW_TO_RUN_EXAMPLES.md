@@ -1,16 +1,16 @@
-# Come Eseguire gli Esempi di Codice della Documentazione
+# How to Run Documentation Code Examples
 
-Guida rapida per testare gli esempi presenti nella documentazione.
+Quick guide to test the examples used in the documentation.
 
 ## 🚀 Quick Start
 
-### 1. Crea un modulo di test
+### 1. Create a test module
 
 ```
 milkadmin_local/Modules/Playground/PlaygroundModule.php
 ```
 
-### 2. Copia questo template
+### 2. Copy this template
 
 ```php
 <?php
@@ -34,7 +34,7 @@ class PlaygroundModule extends AbstractModule {
 
     #[RequestAction('home')]
     public function index() {
-        // INCOLLA QUI IL CODICE DI ESEMPIO
+        // PASTE EXAMPLE CODE HERE
 
         Response::render('<div class="p-4"><h1>Test</h1></div>');
     }
@@ -51,35 +51,35 @@ class PlaygroundModel extends AbstractModel {
 }
 ```
 
-### 3. Installa/Aggiorna
+### 3. Install/Update
 
 ```bash
 # Con database
 php milkadmin/cli.php module:install
 
-# Senza database
+# Without database
 php milkadmin/cli.php module:update
 ```
 
-### 4. Testa
+### 4. Test
 
 Visita: `?page=playground`
 
 ---
 
-## 📝 Esempi Comuni
+## 📝 Common Examples
 
 ### TableBuilder
 
 ```php
 $table = TableBuilder::create($this->model, 'test')
     ->resetFields()
-    ->field('name')->label('Nome')
+    ->field('name')->label('Name')
     // Conditionally print a field (evaluated before custom formatter)
     ->field('email')
         ->label('Email')
         ->type('html')
-        ->showIf('[active] == 1', '<span class="text-muted">Nascosta</span>')
+        ->showIf('[active] == 1', '<span class="text-muted">Hidden</span>')
     ->render();
 
 Response::render('<div class="p-4">' . $table . '</div>');
@@ -89,7 +89,7 @@ Response::render('<div class="p-4">' . $table . '</div>');
 
 ```php
 $form = FormBuilder::create($this->model)
-    ->text('name')->label('Nome')
+    ->text('name')->label('Name')
     ->getForm();
 
 Response::render('<div class="p-4">' . $form . '</div>');
@@ -109,7 +109,7 @@ Response::render('<div class="p-4">' . $schedule . '</div>');
 
 ---
 
-## 🧪 Test con Dati Fake (ArrayDB)
+## 🧪 Test with Fake Data (ArrayDB)
 
 ```php
 use App\Get;
@@ -128,16 +128,16 @@ Response::render($table);
 
 ## ⚡ Tips
 
-- **Usa `milkadmin_local/Modules/`** per i test
-- **Menu order alto** (`999`) per metterlo in fondo
-- **Access public** per test veloci senza login
-- **Cancella il modulo** quando hai finito
+- **Use `milkadmin_local/Modules/`** for tests
+- **Set a high menu order** (`999`) to place it at the bottom
+- **Use public access** for quick testing without login
+- **Remove the module** when you are done
 
 ## 🐛 Troubleshooting
 
-| Problema | Soluzione |
+| Problem | Solution |
 |----------|-----------|
-| Modulo non appare | `php milkadmin/cli.php module:update` |
-| 404 | Verifica il nome in `page()` |
-| Pagina bianca | Controlla `milkadmin_local/storage/error.log` |
-| Tabella non creata | Usa `module:install` non `module:update` |
+| Module not visible | `php milkadmin/cli.php module:update` |
+| 404 | Check the value used in `page()` |
+| Blank page | Check `milkadmin_local/storage/error.log` |
+| Table not created | Use `module:install` instead of `module:update` |

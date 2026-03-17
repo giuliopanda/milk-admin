@@ -167,6 +167,10 @@ class Model extends AbstractModelExtension
 
             $newId = $auditModel->getLastInsertId();
             $N = $auditModel->where('audit_id = ?', [$newId])->getRow();
+            $NData = is_object($N) ? (array) $N : (is_array($N) ? $N : []);
+            if ($NData === []) {
+                continue;
+            }
 
             // ----- STEP 3: Verifica se N è IDENTICA ad A -----
             if ($A) {
@@ -176,7 +180,7 @@ class Model extends AbstractModelExtension
                 $changesFound = false;
 
                 foreach ($fieldsToCheck as $field) {
-                    $nVal = $N->$field ?? null;
+                    $nVal = $NData[$field] ?? null;
                     $aVal = $A->$field ?? null;
 
                     if ($nVal != $aVal) {
@@ -186,13 +190,15 @@ class Model extends AbstractModelExtension
                 }
 
                 // Se NON ci sono cambiamenti → cancella N (ma solo se stessa sessione)
-                $sameUser = ($N->audit_user_id == $A->audit_user_id);
-                $timeDiff = $N->audit_timestamp - $A->audit_timestamp;
+                $sameUser = (($NData['audit_user_id'] ?? null) == ($A->audit_user_id ?? null));
+                $timeDiff = (int) ($NData['audit_timestamp'] ?? 0) - (int) ($A->audit_timestamp ?? 0);
 
                 if (!$changesFound && $sameUser && $timeDiff < self::$sessionTimeWindow) {
 
                     $del = new AuditModel();
-                    $del->delete($N->audit_id);
+                    if (isset($NData['audit_id'])) {
+                        $del->delete($NData['audit_id']);
+                    }
 
                     // Vai al prossimo record
                     continue;
@@ -202,12 +208,12 @@ class Model extends AbstractModelExtension
             // ----- STEP 4: Consolidamento sessione A + B -----
             if ($A && $B) {
 
-                $sameUser = ($N->audit_user_id == $A->audit_user_id &&
-                            $N->audit_user_id == $B->audit_user_id);
+                $sameUser = (($NData['audit_user_id'] ?? null) == ($A->audit_user_id ?? null) &&
+                            ($NData['audit_user_id'] ?? null) == ($B->audit_user_id ?? null));
 
                 if ($sameUser) {
 
-                    $timeDiff = $N->audit_timestamp - $B->audit_timestamp;
+                    $timeDiff = (int) ($NData['audit_timestamp'] ?? 0) - (int) ($B->audit_timestamp ?? 0);
 
                     if ($timeDiff < self::$sessionTimeWindow) {
 

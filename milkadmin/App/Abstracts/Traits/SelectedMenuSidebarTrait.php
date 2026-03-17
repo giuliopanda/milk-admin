@@ -35,7 +35,7 @@ trait SelectedMenuSidebarTrait
         }
 
         $selectedMenuData = ModuleMenuRegistryService::getSelectedMenu($selectedMenu);
-        $submenus = is_array($selectedMenuData['submenus'] ?? null) ? $selectedMenuData['submenus'] : [];
+        $submenus = $selectedMenuData['submenus'];
         $mainEntry = $this->buildSelectedMenuMainEntry($selectedMenu);
         if (empty($submenus) && $mainEntry === null) {
             return null;
@@ -55,7 +55,7 @@ trait SelectedMenuSidebarTrait
         }
 
         foreach ($entries as $submenu) {
-            $submenuPage = trim((string) ($submenu['module_page'] ?? ''));
+            $submenuPage = trim((string) $submenu['module_page']);
             if ($submenuPage !== '') {
                 if (isset($seenModulePages[$submenuPage])) {
                     continue;
@@ -67,17 +67,17 @@ trait SelectedMenuSidebarTrait
                 continue;
             }
 
-            $label = trim((string) ($submenu['name'] ?? ''));
+            $label = trim((string) $submenu['name']);
             if ($label === '') {
                 continue;
             }
 
-            $url = (string) ($submenu['url'] ?? ('?page=' . (string) ($submenu['module_page'] ?? '')));
-            $icon = (string) ($submenu['icon'] ?? 'bi bi-circle');
+            $url = (string) $submenu['url'];
+            $icon = (string) $submenu['icon'];
 
             $sidebarLinks->add($label, $url)->icon($icon);
 
-            if ((string) ($submenu['module_page'] ?? '') === $currentPage) {
+            if ((string) $submenu['module_page'] === $currentPage) {
                 $sidebarLinks->active();
             }
 
@@ -96,7 +96,7 @@ trait SelectedMenuSidebarTrait
             return $this;
         }
 
-        if (property_exists($this, 'module') && $this->module instanceof AbstractModule) {
+        if ($this->module instanceof AbstractModule) {
             return $this->module;
         }
 
@@ -133,10 +133,10 @@ trait SelectedMenuSidebarTrait
         if ($first !== null) {
             return [
                 'module_page' => $selectedMenu,
-                'name' => (string) ($first['name'] ?? $selectedMenu),
-                'icon' => (string) ($first['icon'] ?? 'bi bi-circle'),
-                'url' => (string) ($first['url'] ?? ('?page=' . $selectedMenu)),
-                'order' => (int) ($first['order'] ?? -10000),
+                'name' => (string) $first['name'],
+                'icon' => (string) $first['icon'],
+                'url' => (string) $first['url'],
+                'order' => (int) $first['order'],
             ];
         }
 

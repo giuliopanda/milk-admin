@@ -111,7 +111,7 @@ class AccessLogsService
     public static function getSearchBuilder($table_id, $users_options) {
         if (!Permissions::check('auth.manage')) {
             echo json_encode(['html' => _r('Permission denied'), 'title' => 'Error']);
-            return;
+            return SearchBuilder::create((string) $table_id);
         }
 
         return SearchBuilder::create($table_id)
@@ -130,7 +130,7 @@ class AccessLogsService
     public static function getUsersOptions() {
         if (!Permissions::check('auth.manage')) {
             echo json_encode(['html' => _r('Permission denied'), 'title' => 'Error']);
-            return;
+            return [];
         }
 
         $users = Get::db()->getResults('SELECT id, username FROM `#__users` WHERE status = 1 ORDER BY username');
@@ -150,7 +150,7 @@ class AccessLogsService
     public static function getTitleBuilder($search_html) {
         if (!Permissions::check('auth.manage')) {
             echo json_encode(['html' => _r('Permission denied'), 'title' => 'Error']);
-            return;
+            return TitleBuilder::create('Access Logs');
         }
 
         return TitleBuilder::create('Access Logs')
@@ -275,13 +275,13 @@ class AccessLogsService
     /**
      * Format page activity data for display in offcanvas
      *
-     * @param string $pages_data JSON string containing page activity data
+     * @param array $pages_activity Page activity data
      * @return array Response with success status and HTML content or error
      */
     public static function formatPageActivity($pages_activity) {
         if (!Permissions::check('auth.manage')) {
             echo json_encode(['success' => false, 'error' => 'No page data provided']);
-            return;
+            return ['success' => false, 'error' => 'Permission denied', 'html' => ''];
         }
         if (!is_array($pages_activity)) {
             return ['success' => false, 'error' => 'No page data provided'];

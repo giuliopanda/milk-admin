@@ -3,6 +3,8 @@ namespace App\Database;
 
 /**
  * Result wrapper for in-memory ArrayEngine queries.
+ *
+ * @implements \IteratorAggregate<int, object>
  */
 class ArrayResult implements ResultInterface, \IteratorAggregate
 {
@@ -44,7 +46,7 @@ class ArrayResult implements ResultInterface, \IteratorAggregate
         return isset($this->column_names[$column]) ? 3 : false; // 3 = SQLITE3_TEXT
     }
 
-    public function fetch_array(): array|false
+    public function fetch_array(?int $mode = null): array|false
     {
         if ($this->current_position >= $this->cached_row_count) {
             $this->at_end = true;
@@ -102,7 +104,7 @@ class ArrayResult implements ResultInterface, \IteratorAggregate
         return true;
     }
 
-    public function finalize(): true
+    public function finalize(): bool
     {
         $this->rows = [];
         $this->column_names = [];
@@ -111,6 +113,11 @@ class ArrayResult implements ResultInterface, \IteratorAggregate
         $this->at_end = true;
 
         return true;
+    }
+
+    public function is_at_end(): bool
+    {
+        return $this->at_end;
     }
 
     public function get_fields(): array

@@ -9,7 +9,7 @@ use App\{Cli, Config, File, Hooks, MessagesHandler, Permissions, Response, Route
 
 /**
  * Install Module
- * OOrganizes the installation and update process of the system and its modules.
+ * Organizes the installation and update process of the system and its modules.
  *
  * @package     Modules
  * @subpackage  Install
@@ -24,7 +24,7 @@ class InstallModule extends AbstractModule
         $rule->page('install')
              ->title('Installation')
              ->access('admin')
-             ->disableCli() // Disabilita install/update/uninstall automatici
+             ->disableCli() // Disable automatic install/update/uninstall
              ->setJs('/Assets/install.js')
              ->isCoreModule()
              ->addHeaderLink('Install', '?page=install', 'bi bi-gear-fill')
@@ -33,11 +33,11 @@ class InstallModule extends AbstractModule
     }
 
     /**
-     * Bootstrap - carica i file installer
+     * Bootstrap - loads installer files
      */
     public function bootstrap()
     {
-        // Carica i file installer solo se necessario
+        // Load installer files only when needed
         if (isset($_REQUEST['page']) && $_REQUEST['page'] === 'install') {
             $files = glob($this->getChildClassPath().'/Installer/*.php');
             foreach ($files as $file) {
@@ -48,7 +48,7 @@ class InstallModule extends AbstractModule
 
 
     /**
-     * Hook per aggiungere link nella sidebar con badge per updates
+     * Hook to add links in sidebar with badge for updates
      */
     public function hookInit()
     {
@@ -62,13 +62,13 @@ class InstallModule extends AbstractModule
         $current_versions = Config::get('modules_active');
         $settings_versions = Settings::get('module_version');
 
-        // Verifica se ci sono moduli da aggiornare
+        // Check if there are modules to update
         $modules_need_update = $this->checkModulesNeedUpdate(
             $current_versions,
             $settings_versions
         );
 
-        // Link nella sidebar
+        // Link in sidebar
         $link_url = ($system_needs_update || $modules_need_update) ?
             ($system_needs_update ?
                 Route::url(['page' => 'install']) :
@@ -83,7 +83,7 @@ class InstallModule extends AbstractModule
             'order' => 95
         ];
 
-        // Badge se ci sono update
+        // Badge if there are updates
         if ($system_needs_update || $modules_need_update) {
             $sidebar_link['badge'] = '!';
             $sidebar_link['badge_color'] = 'danger';
@@ -93,7 +93,7 @@ class InstallModule extends AbstractModule
     }
 
     /**
-     * Home - gestisce prima installazione o update
+     * Home - handles first installation or update
      */
     #[AccessLevel('public')]
     #[RequestAction('home')]
@@ -102,11 +102,13 @@ class InstallModule extends AbstractModule
         $version = Config::get('version');
         $action = $_REQUEST['action'] ?? '';
 
-        // Carica i file installer
+        // Load installer files
         Hooks::run('install.init');
 
         // Check: if version doesn't exist, it's a new installation; otherwise, it's an update
         if ($version == null) {
+           // $this->ensureInstallWritableEnvironment();
+
             // FIRST installation
            
             // set the page title
@@ -130,15 +132,11 @@ class InstallModule extends AbstractModule
     #[AccessLevel('public')]
     public function actionSaveConfig() {  
         if (Permissions::check('_user.is_admin') || Config::get('version') === null) {
+            //if (Config::get('version') === null) {
+            //    $this->ensureInstallWritableEnvironment();
+            //}
+
             Hooks::run('install.init');
-
-            // If CSRF middleware invalidated the POST, show install page with global error.
-            if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_POST) && MessagesHandler::hasErrors()) {
-                $html = $this->model->getHtmlModules();
-                Response::themePage('empty', __DIR__."/Views/install_page.php", ['html' => $html]);
-                return;
-            }
-
             if ($this->model->checkData($_REQUEST)) {
                 $_SESSION['installation_admin'] = [
                     'admin-username' => trim((string)($_REQUEST['admin-username'] ?? '')),
@@ -151,7 +149,7 @@ class InstallModule extends AbstractModule
                 Install::saveConfigFile();
                 // save file for protect install-execute
                 file_put_contents(MILK_DIR.'/install-execute', time());
-                // Reset cache per config.php
+                // Reset cache for config.php
                 opcache_reset();
                 // redirect to install-execute
                 Response::themePage('empty', __DIR__."/Views/install_loading_page.php");
@@ -165,8 +163,8 @@ class InstallModule extends AbstractModule
     }
 
     /**
-    
-     * Gestisce lista moduli e aggiornamenti
+     * 
+     * Handles module list and updates
      */
     #[RequestAction('update-modules')]
     public function actionUpdateModules()
@@ -174,7 +172,6 @@ class InstallModule extends AbstractModule
         if (!Permissions::check('_user.is_admin')) {
             $queryString = Route::getQueryString();
             Route::redirect('?page=deny&redirect='.Route::urlsafeB64Encode($queryString));
-            return;
         }
 
         $module_data = InstallService::getModuleStatusData();
@@ -194,7 +191,7 @@ class InstallModule extends AbstractModule
     }
 
     /**
-     * JSON API per update moduli
+     * JSON API for module updates
      */
     #[RequestAction('update-modules-json')]
     public function actionUpdateModulesJson()
@@ -253,7 +250,7 @@ class InstallModule extends AbstractModule
     }
 
     /**
-     * Abilita un modulo
+     * Enables a module
      */
     #[RequestAction('enable-module')]
     public function actionEnableModule()
@@ -265,7 +262,7 @@ class InstallModule extends AbstractModule
     }
 
     /**
-     * Disabilita un modulo
+     * Disables a module
      */
     #[RequestAction('disable-module')]
     public function actionDisableModule()
@@ -277,7 +274,7 @@ class InstallModule extends AbstractModule
     }
 
     /**
-     * Disinstalla un modulo
+     * Uninstalls a module
      */
     #[RequestAction('uninstall-module')]
     public function actionUninstallModule()
@@ -291,7 +288,7 @@ class InstallModule extends AbstractModule
     }
 
     /**
-     * Disinstalla un modulo attivo (con redirect)
+     * Uninstalls an active module (with redirect)
      */
     #[RequestAction('uninstall-active-module')]
     public function actionUninstallActiveModule()
@@ -311,7 +308,7 @@ class InstallModule extends AbstractModule
     }
 
     /**
-     * Scarica un modulo in formato ZIP
+     * Downloads a module in ZIP format
      */
     #[RequestAction('download-module')]
     public function actionDownloadModule()
@@ -319,7 +316,6 @@ class InstallModule extends AbstractModule
         if (!Permissions::check('_user.is_admin')) {
             $queryString = Route::getQueryString();
             Route::redirect('?page=deny&redirect='.Route::urlsafeB64Encode($queryString));
-            return;
         }
 
         if (isset($_REQUEST['module'])) {
@@ -330,7 +326,7 @@ class InstallModule extends AbstractModule
     }
 
     /**
-     * Upload update del sistema
+     * Upload system update
      */
     #[RequestAction('upload-update')]
     public function actionUploadUpdate()
@@ -343,7 +339,7 @@ class InstallModule extends AbstractModule
     }
 
     /**
-     * Upload nuovo modulo
+     * Upload new module
      */
     #[RequestAction('upload-module')]
     public function actionUploadModule()
@@ -362,7 +358,7 @@ class InstallModule extends AbstractModule
     }
 
     /**
-     * Installa un modulo
+     * Installs a module
      */
     #[RequestAction('install-module')]
     public function actionInstallModule()
@@ -376,7 +372,7 @@ class InstallModule extends AbstractModule
     }
 
     /**
-     * Step 3 dell'update
+     * Step 3 of update
      */
     #[RequestAction('update-step3')]
     public function actionUpdateStep3()
@@ -402,7 +398,7 @@ class InstallModule extends AbstractModule
     }
 
     /**
-     * Step 4 dell'update
+     * Step 4 of update
      */
     #[RequestAction('update-step4')]
     public function actionUpdateStep4()
@@ -427,7 +423,7 @@ class InstallModule extends AbstractModule
     }
 
     /**
-     * Comando CLI per build version
+     * CLI command for build version
      */
     #[Shell('build-version', system: true)]
     public function buildVersion($custom_version = '', $zip_param = '')
@@ -455,7 +451,7 @@ class InstallModule extends AbstractModule
 
         if (is_dir($version_dir)) {
             Cli::echo('Version already exists. I remove it and continue');
-            // Verifico che non sia la cartella attuale
+            // Check that it's not the current directory
             if ($version_dir == MILK_DIR) {
                 Cli::error('Error: cannot remove current directory');
                 return;
@@ -505,7 +501,7 @@ class InstallModule extends AbstractModule
             copy(MILK_DIR.'/../public_html/.htaccess', $version_dir.'/public_html/.htaccess');
         }
 
-        // milkadmin_local Questa è strutturata di default
+        // milkadmin_local This is structured by default
         mkdir($version_dir.'/milkadmin_local');
         mkdir($version_dir.'/milkadmin_local/storage');
         mkdir($version_dir.'/milkadmin_local/media');
@@ -547,10 +543,10 @@ class InstallModule extends AbstractModule
 
             // Insert missing keys before final setAll call
             $missing_lines = [];
-            if (($secret_replaced ?? 0) === 0 && strpos($new_config, '$conf[\'secret_key\']') === false) {
+            if ($secret_replaced === 0 && strpos($new_config, '$conf[\'secret_key\']') === false) {
                 $missing_lines[] = $secret_line;
             }
-            if (($token_replaced ?? 0) === 0 && strpos($new_config, '$conf[\'token_key\']') === false) {
+            if ($token_replaced === 0 && strpos($new_config, '$conf[\'token_key\']') === false) {
                 $missing_lines[] = $token_line;
             }
             if (!empty($missing_lines)) {
@@ -649,7 +645,7 @@ class InstallModule extends AbstractModule
     }
 
     /**
-     * Crea un pacchetto ZIP per l'installazione
+     * Creates a ZIP package for installation
      */
     private function createZipPackage($new_version)
     {
@@ -727,7 +723,7 @@ class InstallModule extends AbstractModule
     }
 
     /**
-     * Aggiunge ricorsivamente una directory al file ZIP
+     * Recursively adds a directory to the ZIP file
      */
     private function addDirectoryToZip($zip, $dir, $zip_dir)
     {
@@ -924,7 +920,7 @@ class InstallModule extends AbstractModule
     }
 
     /**
-     * Verifica se ci sono moduli che necessitano aggiornamento
+     * Checks if there are modules that need updating
      */
     private function checkModulesNeedUpdate($current_versions, $settings_versions): bool
     {
@@ -964,7 +960,7 @@ class InstallModule extends AbstractModule
     }
 
     /**
-     * Gestisce l'update del sistema
+     * Handles system update
      */
     private function handleSystemUpdate($version)
     {
@@ -1000,9 +996,7 @@ class InstallModule extends AbstractModule
                 MessagesHandler::addError(_r('Error during update: ') . $update_result);
 
                 // Remove update files in case of error
-                if (file_exists($update_file)) {
-                    unlink($update_file);
-                }
+                @unlink($update_file);
                 if (is_dir($update_dir)) {
                     try {
                         Install::removeDirectory($update_dir);
@@ -1031,22 +1025,25 @@ class InstallModule extends AbstractModule
 
 
 
-// blocco la versione per evitare il login e completare l'installazione
+// block version to avoid login and complete installation
 if (($_REQUEST['page'] ?? '') == "install" && ( $_REQUEST['action'] ?? '') == 'install-execute' && is_file(MILK_DIR.'/install-execute')) {
         Config::set('version', null);
 }
-// Hook per eseguire l'installazione
+// Hook to execute installation
 Hooks::set('after_modules_loaded', function() {
     if (($_REQUEST['page'] ?? '') == "install" && ( $_REQUEST['action'] ?? '') == 'install-execute' && is_file(MILK_DIR.'/install-execute')) {
         Hooks::run('install.init');
-
-        if (is_file(MILK_DIR.'/install-execute')) {
-            unlink(MILK_DIR.'/install-execute');
-        } else {
+        if (!@unlink(MILK_DIR.'/install-execute')) {
             die('Security check failed, please try again and check the directory permissions');
         }
         $model = new InstallModel();
         $model->executeInstall();
+        if (MessagesHandler::hasErrors()) {
+            $rollback_ok = Install::rollbackInstallVersion();
+            if (!$rollback_ok) {
+                MessagesHandler::addError('Install rollback warning: unable to persist version=null in config.php.');
+            }
+        }
         Response::themePage('empty', __DIR__."/Views/install_done_page.php");
         
     }

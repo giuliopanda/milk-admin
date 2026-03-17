@@ -66,13 +66,30 @@ class Parser
             }
         };
 
+        // Inizializza i parser di precedenza per mantenere callable non-null
+        // durante i riferimenti reciproci tra closure.
+        $emptyParser = static function (): array {
+            return [];
+        };
+        $parseExpression = $emptyParser;
+        $parseOr = $emptyParser;
+        $parseAnd = $emptyParser;
+        $parseComparison = $emptyParser;
+        $parseAdditive = $emptyParser;
+        $parseMultiplicative = $emptyParser;
+        $parsePower = $emptyParser;
+        $parseUnary = $emptyParser;
+        $parsePrimary = $emptyParser;
+        $parseStatement = $emptyParser;
+        $parseAssignment = $emptyParser;
+        $parseIfStatement = $emptyParser;
+
         // Funzioni di parsing con precedenza
         $parseExpression = function () use (&$parseOr): array {
             return $parseOr();
         };
 
-        $parseOr = function () use (&$parseAnd, $peek, $advance, &$parseOr): array {
-            $parseAnd = $parseAnd ?? function () { return []; };
+        $parseOr = function () use (&$parseAnd, $peek, $advance): array {
             $left = $parseAnd();
 
             while ($peek()['type'] === TokenType::TOKEN_OR) {
@@ -169,7 +186,7 @@ class Parser
             return $parsePrimary();
         };
 
-        $parsePrimary = function () use ($peek, $advance, $expect, &$parseExpression): array {
+        $parsePrimary = function () use ($peek, $advance, $expect, &$parseExpression, &$pos, $tokens): array {
             $token = $peek();
 
             if ($token['type'] === TokenType::TOKEN_NUMBER) {
@@ -188,14 +205,15 @@ class Parser
                 $idToken = $advance();
 
                 // Controlla se è una funzione
-                if ($peek()['type'] === TokenType::TOKEN_LPAREN) {
-                    $advance(); // (
+                if (($tokens[$pos]['type'] ?? TokenType::TOKEN_EOF) === TokenType::TOKEN_LPAREN) {
+                    $pos++; // consume "("
 
                     $args = [];
-                    if ($peek()['type'] !== TokenType::TOKEN_RPAREN) {
+                    if (($tokens[$pos]['type'] ?? TokenType::TOKEN_EOF) !== TokenType::TOKEN_RPAREN) {
                         $args[] = $parseExpression();
-                        while ($peek()['type'] === TokenType::TOKEN_COMMA) {
-                            $advance(); // ,
+
+                        while (($tokens[$pos]['type'] ?? TokenType::TOKEN_EOF) === TokenType::TOKEN_COMMA) {
+                            $pos++; // consume ","
                             $args[] = $parseExpression();
                         }
                     }
@@ -223,7 +241,7 @@ class Parser
             throw new \Exception("Token inatteso: {$token['type']} alla riga {$token['line']}");
         };
 
-        $parseStatement = function () use ($peek, $advance, $expect, &$parseExpression, &$parseIfStatement, &$parseAssignment, $tokens, &$pos): array {
+        $parseStatement = function () use ($peek, &$parseExpression, &$parseIfStatement, &$parseAssignment, $tokens, &$pos): array {
             $token = $peek();
 
             if ($token['type'] === TokenType::TOKEN_IF) {
@@ -288,9 +306,12 @@ class Parser
 
         // Parse programma
         $statements = [];
-        while ($peek()['type'] !== TokenType::TOKEN_EOF) {
+        while (true) {
             $skipNewlines();
-            if ($peek()['type'] === TokenType::TOKEN_EOF) break;
+            $current = $peek();
+            if (($current['type'] ?? TokenType::TOKEN_EOF) === TokenType::TOKEN_EOF) {
+                break;
+            }
             $statements[] = $parseStatement();
         }
 

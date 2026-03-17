@@ -317,8 +317,12 @@ class RememberMeService
         // Delete expired tokens using direct database access
         $query = "DELETE FROM milk_remember_tokens
                   WHERE expires_at < ? OR is_revoked = 1";
-
-       return Get::db()->query($query, [$now]);
+        $db = Get::db();
+        $result = $db->query($query, [$now]);
+        if ($result === false) {
+            return 0;
+        }
+        return $db->affectedRows();
 
     }
 

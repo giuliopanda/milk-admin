@@ -15,6 +15,7 @@ use Builders\TitleBuilder;
  */
 
 
+$html = isset($html) ? (string) $html : '';
 ?>
 
  <div class="row">

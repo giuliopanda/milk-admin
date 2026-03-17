@@ -2,7 +2,7 @@
 namespace App\Abstracts;
 
 use App\Interfaces\ModelExtensionInterface;
-use App\Attributes\{ToDisplayValue, SetValue, Validate, ToDatabaseValue};
+use App\Attributes\{GetRawValue, SetValue, ToDatabaseValue, ToDisplayValue, Validate};
 use ReflectionClass;
 use ReflectionMethod;
 
@@ -109,6 +109,7 @@ abstract class AbstractModelExtension
      * Supported attributes:
      * - #[ToDisplayValue(field_name)] - For formatting field values for display
      * - #[ToDatabaseValue(field_name)] - For processing values before saving to database
+     * - #[GetRawValue(field_name)] - For transforming raw field values before relationship export
      * - #[SetValue(field_name)] - For setting field values
      * - #[Validate(field_name)] - For custom field validation
      *
@@ -146,6 +147,13 @@ abstract class AbstractModelExtension
             foreach ($attributes as $attribute) {
                 $instance = $attribute->newInstance();
                 $model->registerMethodHandler($instance->field_name, 'get_sql', [$this, $method->getName()]);
+            }
+
+            // Check for GetRawValue attribute #[GetRawValue(field_name)]
+            $attributes = $method->getAttributes(GetRawValue::class);
+            foreach ($attributes as $attribute) {
+                $instance = $attribute->newInstance();
+                $model->registerMethodHandler($instance->field_name, 'get_raw', [$this, $method->getName()]);
             }
 
             // Check for SetValue attribute #[SetValue(field_name)]

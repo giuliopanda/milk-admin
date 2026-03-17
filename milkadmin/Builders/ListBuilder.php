@@ -98,15 +98,15 @@ class ListBuilder extends GetDataBuilder
      * @return static For method chaining
      */
     public function boxClass($classes): static {
-        // Preserva sempre le classi essenziali per funzionalità
+        // Always preserve essential classes for functionality
         $essential_classes = ['js-box-item'];
 
-        // Aggiungi 'card' se non presente nelle classi fornite
+        // Add 'card' if not present in provided classes
         if (strpos($classes, 'card') === false) {
             $essential_classes[] = 'card';
         }
 
-        // Combina classi essenziali con quelle fornite
+        // Combine essential classes with provided ones
         $full_classes = implode(' ', $essential_classes) . ' ' . $classes;
         $this->box_attrs['box']['class'] = trim($full_classes);
         return $this;
@@ -220,7 +220,6 @@ class ListBuilder extends GetDataBuilder
 
     /**
      * Apply CSS class to a specific field based on its own value
-     * @param string $field_name Field to style and check
      * @param mixed $value Value to compare
      * @param string $classes CSS classes to apply when condition matches
      * @param string $comparison Comparison operator (==, !=, >, <, >=, <=, contains)
@@ -230,13 +229,11 @@ class ListBuilder extends GetDataBuilder
      * @example ->classByValue('stock', 100, 'text-danger', '<')
      */
     public function classByValue($value, $classes, $comparison = '=='): static {
-        if ($this->current_field === null) {
-            throw \Builders\Exceptions\BuilderException::noCurrentField('class');
-        }
+        $field_name = $this->columns->requireCurrentField('class');
         $this->field_conditions[] = [
             'type' => 'value',
-            'field' => $this->current_field,
-            'check_field' => $this->current_field, // Controlla lo stesso campo
+            'field' => $field_name,
+            'check_field' => $field_name, // Controlla lo stesso campo
             'value' => $value,
             'classes' => $classes,
             'comparison' => $comparison
@@ -263,7 +260,7 @@ class ListBuilder extends GetDataBuilder
             'light' => 'border-light',
             'dark' => 'border-dark',
 
-            // Aliases più semplici
+            // Simpler aliases
             'blue' => 'border-primary',
             'gray' => 'border-secondary',
             'grey' => 'border-secondary',
@@ -376,15 +373,11 @@ class ListBuilder extends GetDataBuilder
      * @param string $classes CSS classes to apply
      * @return static For method chaining
      *
-     * @throws BuilderException if field() was not called first
+     * @throws \Builders\Exceptions\BuilderException if field() was not called first
      * @example ->field('status')->class('fw-bold text-uppercase')
      */
     public function class(string $classes): static {
-        if ($this->current_field === null) {
-            throw \Builders\Exceptions\BuilderException::noCurrentField('class');
-        }
-
-        $field_name = $this->current_field;
+        $field_name = $this->columns->requireCurrentField('class');
         $key = 'field.' . str_replace(' ', '_', $field_name);
         $this->box_attrs[$key]['class'] = $classes;
         return $this;
@@ -399,16 +392,12 @@ class ListBuilder extends GetDataBuilder
      * @param string $comparison Comparison operator (==, !=, >, <, >=, <=, contains)
      * @return static For method chaining
      *
-     * @throws BuilderException if field() was not called first
+     * @throws \Builders\Exceptions\BuilderException if field() was not called first
      * @example ->field('status')->classValue('active', 'text-success fw-bold')
      * @example ->field('stock')->classValue(10, 'text-danger', '<')
      */
     public function classValue($value, string $classes, string $comparison = '=='): static {
-        if ($this->current_field === null) {
-            throw \Builders\Exceptions\BuilderException::noCurrentField('classValue');
-        }
-
-        $field_name = $this->current_field;
+        $field_name = $this->columns->requireCurrentField('classValue');
         $this->field_conditions[] = [
             'type' => 'value',
             'field' => $field_name,
@@ -430,15 +419,11 @@ class ListBuilder extends GetDataBuilder
      * @param string $comparison Comparison operator (==, !=, >, <, >=, <=, contains)
      * @return static For method chaining
      *
-     * @throws BuilderException if field() was not called first
+     * @throws \Builders\Exceptions\BuilderException if field() was not called first
      * @example ->field('price')->classOtherValue('status', 'discount', 'text-success fw-bold')
      */
     public function classOtherValue(string $check_field, $value, string $classes, string $comparison = '=='): static {
-        if ($this->current_field === null) {
-            throw \Builders\Exceptions\BuilderException::noCurrentField('classOtherValue');
-        }
-
-        $field_name = $this->current_field;
+        $field_name = $this->columns->requireCurrentField('classOtherValue');
         $this->field_conditions[] = [
             'type' => 'value',
             'field' => $field_name,
