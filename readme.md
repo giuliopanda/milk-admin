@@ -13,89 +13,88 @@
 
 ---
 
-**Milk Admin** is a PHP admin panel framework designed for building backoffice administration systems.
+**Milk Admin** is a PHP framework for building backoffice and internal management tools — without framework lock-in, SaaS dependencies, or vendor tie-ins.
 
-It focuses on **explicit control**, **relational CRUD flows**, and **long-term maintainability**, avoiding heavy abstractions and rigid architectures.
+> **No Laravel. No framework required. Runs on any shared hosting with PHP 8+ and MySQL or SQLite.**
 
-Milk Admin provides a stable backend core, modern PHP 8+ code, and minimal dependencies — allowing developers to focus on real business logic.
+Unlike Filament or Laravel Nova, Milk Admin is framework-agnostic: install it anywhere, extend it with plain PHP, and keep full control over your data and your code.
 
-> **Project Status**  
-> Milk Admin is currently in **Beta**.  
-> The core architecture is stable and actively evolving.
+> **Project Status: Beta**
+> The core architecture is stable. Actively developed toward a 1.0 release in mid-2026.
 
-**Official links:**  
-[Website](https://www.milkadmin.org/) ·  
-[Documentation](https://milkadmin.org/milk-admin/?page=docs&action=Developer/GettingStarted/introduction) ·  
+**Official links:**
+[Website](https://www.milkadmin.org/) ·
+[Documentation](https://milkadmin.org/milk-admin/?page=docs&action=Developer/GettingStarted/introduction) ·
 [Live Demo](https://milkadmin.org/demo/?page=auth&action=login)
 
 ---
 
-##  What's New in 0.9.7
+## Why Milk Admin?
 
-- Codebase validated with **PHPStan Level 5**
--  Added **official PHPUnit test suite**
--  Improved internal consistency and validation coverage
+Most PHP admin frameworks are either tied to a specific framework (Laravel, Symfony) or generate runtime interfaces from database-stored configuration. Milk Admin takes a different approach:
 
----
+- **Framework-agnostic** — no Laravel, no Symfony required
+- **Generates real PHP code** — the visual form builder creates actual PHP modules, not database configs
+- **Relational data, not EAV** — every field maps to a real database column, keeping queries simple and data portable
+- **Explicit over magic** — controllers describe business flows in plain PHP you can read, modify, and own
 
-## Static Analysis (PHPStan Level 5)
-
-Milk Admin is validated using **PHPStan Level 5**, a strict static analysis level that ensures:
-
-- Detection of **invalid types and method calls**
-- Validation of **function signatures and return types**
-- Prevention of **undefined variables and properties**
-- Early detection of **logical inconsistencies**
-
-Level 5 strikes a balance between **strictness and flexibility**, making the codebase more robust without slowing down development.
+> *If you stop using Milk Admin, your code should still make sense.*
 
 ---
 
-### Official Tests (`tests/`)
+## The Form Builder That Generates Code
 
-Milk Admin includes a structured testing system to ensure reliability and long-term stability.
+Most form builders store their configuration in the database and generate forms at runtime. Milk Admin is different.
 
-The official PHPUnit suite validates the **core framework and stable contracts**:
+The **Projects module** lets you design modules visually — tables, forms, field types, relations — and generates real PHP modules that you own completely.
 
-- **App/Core**  Helpers, config, container, hooks, routing, request/response
-- **Security**  CSRF, permissions, sanitization, filesystem protection
-- **Database** Model layer, query builder, relations, persistence, special fields
-- **Expression Parser**  Expression parsing and validation engine
-- **Builders**  RuleBuilder, field definitions, TableBuilder
-- **Extensions**  Extension loading system
-- **Modules / Theme**  Module components and theming system
+![Form Builder Demo](https://www.milkadmin.org/assets/art-09-095.gif)
 
- These tests guarantee **framework stability and backward compatibility**
+**How it works:**
+
+- The builder generates PHP modules extended by JSON configuration files
+- The JSON layer handles the builder's configuration updates
+- The PHP code is always the final authority — modify, extend, or rewrite freely
+- Both layers coexist: you can start with the builder and continue with code
+
+This means you can **prototype rapidly** without losing the ability to add custom business logic later.
+
+---
+
+## Real Columns, Not EAV
+
+Many admin frameworks and form builders use the EAV (Entity-Attribute-Value) pattern to store form data:
+
+| entity_id | field | value |
+|-----------|-------|-------|
+| 10 | name | Mario |
+| 10 | age | 42 |
+
+This is flexible but creates complex queries, poor performance at scale, and difficult integrations.
+
+Milk Admin stores each field as a **real database column**:
+
+| id | name | age |
+|----|------|-----|
+| 10 | Mario | 42 |
+
+The result: simpler SQL, better performance, and data you can query and export without decoding.
 
 ---
 
 ## When Milk Admin is a good fit
 
-- You are building an **admin panel or internal backoffice**
+- You are building an **internal backoffice or management tool**
 - Your data model is **relational and nested**
-- You want **full control over the admin flow**
-- You prefer writing **plain PHP**
+- You want **full control** over every part of the admin flow
+- You need something that runs on **shared hosting** without a full framework stack
 - You care about **long-term maintainability**
-
----
 
 ## When it might not be a good fit
 
 - You need a public-facing website
-- You want a full frontend framework
-- You rely heavily on SPA-style interactivity
-
----
-
-## Philosophy
-
-Milk Admin embraces **explicit code over configuration**.
-
-- Controllers describe business flows  
-- Models enforce validation and integrity  
-- Builders handle presentation  
-
-If you stop using Milk Admin, your code should still make sense.
+- You want a full SPA-style frontend
+- You are already deep in a Laravel or Symfony project (use Filament or EasyAdmin instead)
 
 ---
 
@@ -103,43 +102,38 @@ If you stop using Milk Admin, your code should still make sense.
 
 ### Builder Classes
 
-Create CRUD interfaces using structured builders:
+Generate CRUD interfaces from a single model definition:
 
-- Tables, forms, lists
-- Filters, search, custom views
-- Charts and dashboards (in progress)
+- Tables with pagination, sorting, search
+- Forms with validation and automatic persistence
+- Filters, custom views, offcanvas editing
+- Charts and dashboards *(in progress)*
 
-Minimal boilerplate, full control.
+### Visual Module Generator
 
----
+Design and scaffold complete modules from the UI. Edit the generated PHP freely — the builder and your code coexist without conflicts.
 
 ### Modular Architecture
 
-- Independent modules
-- Install / disable / extend easily
-- Encapsulated logic (models, controllers, views)
-
----
+- Independent, encapsulated modules
+- Install, disable, or extend easily
+- Each module owns its models, controllers, and views
 
 ### Extensions System
 
 - Local extensions (module-scoped)
 - Global extensions (system-wide)
-
-Clean separation of concerns without over-engineering.
-
----
+- Clean separation of concerns without over-engineering
 
 ### Ready-to-Use Admin UI
 
-Includes:
+Built with **Bootstrap 5 + Vanilla JS**:
 
-- Authentication system
-- User management
+- Authentication system with brute-force protection
+- User management and access control
+- Role-based permissions with DAG support
+- Session management and access logs
 - Navigation and menus
-- Access control
-
-Built with **Bootstrap 5 + Vanilla JS**
 
 ---
 
@@ -147,55 +141,47 @@ Built with **Bootstrap 5 + Vanilla JS**
 
 - **Backend**: PHP 8+, Composer
 - **Database**: MySQL / SQLite
-- **Frontend**: Bootstrap 5
+- **Frontend**: Bootstrap 5, Vanilla JS
 - **Template Engine**: Pure PHP
 
-### Built-in Features
+### Built-in Security
 
 - CSRF protection
 - SQL injection prevention
 - XSS escaping helpers
 - Brute-force protection
-- Web installer (WordPress-style)
+- Session hardening
+- Granular access control
 - API support (Token / JWT)
-- Cron jobs
-- CLI tools
 
 ---
 
 ## Quick Start
 
-1. **Clone the repository**
+**1. Clone the repository**
 ```bash
 git clone https://github.com/giuliopanda/milk-admin
 ```
 
-2. **Install dependencies**
-
+**2. Install dependencies**
 ```bash
 composer install
 ```
-Or for production:
-```bash
-composer install --no-dev
-```
 
-3. **Open your browser**
-
+**3. Open your browser**
 ```
 http://localhost/milk-admin/public_html/
 ```
 
-4. **Follow the installation wizard** (2 minutes)
+**4. Follow the installation wizard** — takes about 2 minutes
 
-5. **Start building your first module**
-
+**5. Start building your first module**
 
 ---
 
-## Example: Personal Recipe Manager
+## Example: Recipe Manager
 
-Define a model:
+Define the data model:
 
 ```php
 namespace Local\Modules\Recipe;
@@ -214,7 +200,7 @@ class RecipeModel extends AbstractModel
 }
 ```
 
-Define the module and controller logic:
+Define the module and controllers:
 
 ```php
 namespace Local\Modules\Recipe;
@@ -260,107 +246,76 @@ class RecipeModule extends AbstractModule
 }
 ```
 
-This gives you pagination, full CRUD, search, validation, and automatic persistence.
-Add features incrementally as your project grows.
+This gives you a paginated table, full CRUD, search, validation, and automatic persistence — with the database table created and updated automatically.
 
 ### See it in Action
 
 ![Recipe Manager Demo](https://www.milkadmin.org/assets/art-05-anim-recipes03.gif)
 
-The animation above demonstrates the Recipe Manager in action. With just a few lines of code, you get a fully functional admin interface with table display, offcanvas editing forms, instant CRUD operations, and automatic data validation.
+---
+
+## Code Quality
+
+Milk Admin is validated with **PHPStan Level 5** and includes a structured **PHPUnit test suite** covering:
+
+- Core: helpers, config, container, hooks, routing, request/response
+- Security: CSRF, permissions, sanitization, filesystem protection
+- Database: model layer, query builder, relations, persistence
+- Builders: RuleBuilder, field definitions, TableBuilder
+- Extensions: extension loading system
+- Modules and theming
 
 ---
 
-## Modules
+## Ready-Made Modules
 
-Several ready-made modules are available for download:
-[https://www.milkadmin.org/download-modules/](https://www.milkadmin.org/download-modules/)
-
----
-
-## Security Built-in
-
-Milk Admin includes security features suitable even for personal and internal projects:
-
-* CSRF protection
-* SQL injection prevention
-* XSS escaping helpers
-* Brute-force protection
-* Session hardening
-* Granular access control
+Several modules are available for download:
+[milkadmin.org/download-modules/](https://www.milkadmin.org/download-modules/)
 
 ---
 
-## Designed for long-lived admin systems
+## Designed for Long-Lived Systems
 
-Milk Admin separates the framework core from project-specific code.
+Milk Admin separates the framework core from your project code.
 
-- The core system can be updated independently
-- Custom modules, uploads, and configuration remain untouched
-- Projects stay maintainable for years
-
-This design is inspired by real-world systems that evolve over time, not throwaway applications.
-
-
-## Current Status
-
-**Alpha Release**
-
-**What works well:**
-
-* Stable core architecture
-* Productive builder system
-* Integrated security
-* Active documentation
-
-**Ideal for:** Personal projects, experimentation, learning
-**Not yet recommended for:** Production or mission-critical systems
+- The core updates independently
+- Your modules, uploads, and configuration remain untouched
+- Projects stay maintainable for years without rewrites
 
 ---
 
 ## Roadmap
 
-Milk Admin aims to become a solid foundation for professional admin interfaces and internal tools.
+**Target: stable 1.0 release by mid-2026**
 
-**Focus areas:**
+- Improved stability and test coverage
+- Advanced builders: charts, dashboards, reports
+- Enhanced notification and email systems
+- Two-factor authentication
 
-* Improved stability and test coverage
-* Advanced builders (charts, dashboards, reports)
-* Enhanced notification and email systems
-* Two-factor authentication
-
-**Target:** Stable 1.0 release by mid-2026.
+See [changelog.md](./changelog.md) for recent changes.
 
 ---
 
-## Notes
-
-### Testing
-- Unit tests and integration tests are not published in the project's Git, but used in development to ensure code quality.
-
-### Vendor
-- the vendor folder is included in git to allow installation even without shell access
-
 ## Join the Project
 
-If you enjoy building your own tools and value control over convenience:
+If you value control over convenience:
 
-* Star the repository
-* Report bugs via GitHub Issues
-* Share your use cases
-* Contribute improvements
-* Spread the word
+- ⭐ Star the repository
+- Report bugs via [GitHub Issues](https://github.com/giuliopanda/milk-admin/issues)
+- Share your use case
+- Contribute improvements
 
 ---
 
 ## License
 
-Milk Admin is released under the **MIT License**.
-Use it freely for personal or commercial projects.
+Released under the **MIT License** — free for personal and commercial use.
 
 ---
 
 ## Resources
 
-* Website: [https://www.milkadmin.org/](https://www.milkadmin.org/)
-* Documentation: [https://milkadmin.org/milk-admin/?page=docs](https://milkadmin.org/milk-admin/?page=docs&action=Developer/GettingStarted/introduction)
+- Website: [milkadmin.org](https://www.milkadmin.org/)
+- Documentation: [milkadmin.org/milk-admin](https://milkadmin.org/milk-admin/?page=docs&action=Developer/GettingStarted/introduction)
+- Live Demo: [milkadmin.org/demo](https://milkadmin.org/demo/?page=auth&action=login)
