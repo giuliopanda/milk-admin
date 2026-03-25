@@ -15,10 +15,6 @@
 
 **Milk Admin** is a PHP framework for building backoffice and internal management tools — without framework lock-in, SaaS dependencies, or vendor tie-ins.
 
-> **No Laravel. No framework required. Runs on any shared hosting with PHP 8+ and MySQL or SQLite.**
-
-Unlike Filament or Laravel Nova, Milk Admin is framework-agnostic: install it anywhere, extend it with plain PHP, and keep full control over your data and your code.
-
 > **Project Status: Beta**
 > The core architecture is stable. Actively developed toward a 1.0 release in mid-2026.
 
@@ -26,19 +22,6 @@ Unlike Filament or Laravel Nova, Milk Admin is framework-agnostic: install it an
 [Website](https://www.milkadmin.org/) ·
 [Documentation](https://milkadmin.org/milk-admin/?page=docs&action=Developer/GettingStarted/introduction) ·
 [Live Demo](https://milkadmin.org/demo/?page=auth&action=login)
-
----
-
-## Why Milk Admin?
-
-Most PHP admin frameworks are either tied to a specific framework (Laravel, Symfony) or generate runtime interfaces from database-stored configuration. Milk Admin takes a different approach:
-
-- **Framework-agnostic** — no Laravel, no Symfony required
-- **Generates real PHP code** — the visual form builder creates actual PHP modules, not database configs
-- **Relational data, not EAV** — every field maps to a real database column, keeping queries simple and data portable
-- **Explicit over magic** — controllers describe business flows in plain PHP you can read, modify, and own
-
-> *If you stop using Milk Admin, your code should still make sense.*
 
 ---
 
