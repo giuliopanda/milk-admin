@@ -204,6 +204,11 @@ add_filter('post_content', function($content) {
     </thead>
     <tbody>
         <tr>
+            <td><code>$conf['environment']</code></td>
+            <td>Application environment switch. Use <code>development</code> locally and <code>production</code> on server.</td>
+            <td><code>$conf['environment'] = 'development'; // development | production</code></td>
+        </tr>
+        <tr>
             <td><code>$conf['page_info_limit']</code></td>
             <td>Default number of rows per page for all tables created with TableBuilder</td>
             <td><code>$conf['page_info_limit'] = 50;</code></td>
@@ -220,6 +225,9 @@ $conf['db_type'] = 'sqlite';
 $conf['db_host'] = '';
 $conf['db_name'] = 'storage/milk_conf_01b0eb8b68.db';
 
+// Environment
+$conf['environment'] = 'development'; // development | production
+
 // Table defaults
 $conf['page_info_limit'] = 50;  // Default rows per page for TableBuilder
 
@@ -230,6 +238,10 @@ $conf['timezone'] = 'Europe/Rome';
 
 <div class="alert alert-info">
     <strong>Note:</strong> Configuration parameters defined here are globally accessible throughout your application via the <code>$conf</code> array.
+</div>
+
+<div class="alert alert-warning">
+    <strong>Production tip:</strong> set <code>$conf['environment'] = 'production'</code> on live servers to enable production asset behavior (bundles and direct public asset serving).
 </div>
 
 <h2>Storage Directory</h2>

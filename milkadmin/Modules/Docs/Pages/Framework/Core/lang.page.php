@@ -3,8 +3,8 @@ namespace Modules\Docs\Pages;
 /**
  * @title Multi Language support 
  * @guide framework
- * @order 
- * @tags language, translation, localization, multi-language, _pt, _rt, Lang 
+  * @order 140
+ * @tags lang, language, translations, translation, localization, internationalization, i18n, multi-language, multi-lingual, locale, dictionary, language-files, _pt, _rt, translate-text
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access

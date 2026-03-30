@@ -2,8 +2,10 @@
 namespace Extensions\Projects\Classes\Renderers;
 
 use App\Get;
+use App\Hooks;
 use App\Response;
 use Builders\TitleBuilder;
+use Extensions\Projects\Classes\ProjectJsonStore;
 use Extensions\Projects\Classes\Module\{
     ActionContextRegistry,
     FkChainResolver,
@@ -23,6 +25,9 @@ use Extensions\Projects\Classes\Module\{
  */
 class ListPresenterHelper
 {
+    protected const SPECIAL_PERMISSION_MAIN_TABLE_SOFT_DELETE = 'main_table_soft_delete';
+    protected const SPECIAL_PERMISSION_MAIN_TABLE_HARD_DELETE = 'main_table_hard_delete';
+
     // ------------------------------------------------------------------
     // Title rendering
     // ------------------------------------------------------------------
@@ -233,9 +238,26 @@ class ListPresenterHelper
         // Resolve which record IDs to delete.
         $ids = $this->resolveDeleteTargetIds($request, $records, $primaryKey);
         $requestedRootId = $fkResolver->getRootIdFromRequest($context);
+        $hookPayload = $this->runRecordMutationHook(
+            'projects.record.delete.before-action',
+            $context,
+            $ids,
+            $request + ['root_id' => $requestedRootId]
+        );
+        if (($hookPayload['allowed'] ?? true) !== true) {
+            \App\MessagesHandler::addError(trim((string) ($hookPayload['message'] ?? 'You are not allowed to delete this record.')));
+            return false;
+        }
 
         if ($this->normalizeBool($context['soft_delete'] ?? false)) {
+            if (!$this->ensureMainTableSoftDeletePermission($context, 'You are not allowed to move records to trash.')) {
+                return false;
+            }
             return $this->softDeleteMany($model, $ids);
+        }
+
+        if (!$this->ensureMainTableHardDeletePermission($context, 'You are not allowed to permanently delete records.')) {
+            return false;
         }
 
         // Delegate to RecordTreeDeleter for cascading delete.
@@ -270,6 +292,9 @@ class ListPresenterHelper
             \App\MessagesHandler::addError('You are not allowed to delete or restore records.');
             return false;
         }
+        if (!$this->ensureMainTableSoftDeletePermission($context, 'You are not allowed to restore records.')) {
+            return false;
+        }
 
         $modelClass = (string) ($context['model_class'] ?? '');
         if ($modelClass === '' || !class_exists($modelClass)) {
@@ -298,6 +323,16 @@ class ListPresenterHelper
         $ids = $this->resolveDeleteTargetIds($request, $records, $primaryKey);
         if (empty($ids)) {
             \App\MessagesHandler::addError('No items selected.');
+            return false;
+        }
+        $hookPayload = $this->runRecordMutationHook(
+            'projects.record.restore.before-action',
+            $context,
+            $ids,
+            $request
+        );
+        if (($hookPayload['allowed'] ?? true) !== true) {
+            \App\MessagesHandler::addError(trim((string) ($hookPayload['message'] ?? 'You are not allowed to restore this record.')));
             return false;
         }
 
@@ -370,6 +405,9 @@ class ListPresenterHelper
             \App\MessagesHandler::addError('You are not allowed to delete or restore records.');
             return false;
         }
+        if (!$this->ensureMainTableHardDeletePermission($context, 'You are not allowed to permanently delete records.')) {
+            return false;
+        }
         if (!$this->isHardDeleteAllowedByConfig($context)) {
             \App\MessagesHandler::addError('You cannot permanently delete this record: hard delete is disabled in the form configuration.');
             return false;
@@ -395,6 +433,16 @@ class ListPresenterHelper
         $ids = $this->resolveDeleteTargetIds($request, $records, $primaryKey);
         if (empty($ids)) {
             \App\MessagesHandler::addError('No items selected.');
+            return false;
+        }
+        $hookPayload = $this->runRecordMutationHook(
+            'projects.record.hard-delete.before-action',
+            $context,
+            $ids,
+            $request + ['root_id' => $fkResolver->getRootIdFromRequest($context)]
+        );
+        if (($hookPayload['allowed'] ?? true) !== true) {
+            \App\MessagesHandler::addError(trim((string) ($hookPayload['message'] ?? 'You are not allowed to permanently delete this record.')));
             return false;
         }
 
@@ -551,6 +599,28 @@ class ListPresenterHelper
         return array_values(array_unique($ids));
     }
 
+    /**
+     * @param array<string,mixed> $context
+     * @param array<int,int> $ids
+     * @param array<string,mixed> $request
+     * @return array<string,mixed>
+     */
+    protected function runRecordMutationHook(string $hook, array $context, array $ids, array $request = []): array
+    {
+        $payload = [
+            'hook' => $hook,
+            'page' => trim((string) ($_REQUEST['page'] ?? '')),
+            'context' => $context,
+            'request' => $request,
+            'record_ids' => array_values(array_unique(array_map('_absint', $ids))),
+            'root_id' => _absint($request['root_id'] ?? 0),
+            'allowed' => true,
+        ];
+
+        $result = Hooks::run($hook, $payload);
+        return is_array($result) ? $result : $payload;
+    }
+
     // ------------------------------------------------------------------
     // Shared normalization utilities
     // ------------------------------------------------------------------
@@ -661,30 +731,84 @@ class ListPresenterHelper
     /**
      * @param array<string,mixed> $context
      */
+    protected function ensureMainTableSoftDeletePermission(array $context, string $errorMessage): bool
+    {
+        if ($this->hasMainTableSpecialPermission($context, self::SPECIAL_PERMISSION_MAIN_TABLE_SOFT_DELETE)) {
+            return true;
+        }
+
+        \App\MessagesHandler::addError($errorMessage);
+        return false;
+    }
+
+    /**
+     * @param array<string,mixed> $context
+     */
+    protected function ensureMainTableHardDeletePermission(array $context, string $errorMessage): bool
+    {
+        if ($this->hasMainTableSpecialPermission($context, self::SPECIAL_PERMISSION_MAIN_TABLE_HARD_DELETE)) {
+            return true;
+        }
+
+        \App\MessagesHandler::addError($errorMessage);
+        return false;
+    }
+
+    /**
+     * @param array<string,mixed> $context
+     */
+    protected function hasMainTableSpecialPermission(array $context, string $permissionKey): bool
+    {
+        $permissionKey = strtolower(trim($permissionKey));
+        if ($permissionKey === '') {
+            return true;
+        }
+
+        $specialPermissions = is_array($context['special_permissions'] ?? null) ? $context['special_permissions'] : [];
+        $permissionName = trim((string) ($specialPermissions[$permissionKey] ?? ''));
+        if ($permissionName === '') {
+            return true;
+        }
+
+        return \App\Hooks::run('projects.check_special_permission', true, 'project.' . $permissionName);
+    }
+
+    /**
+     * @param array<string,mixed> $context
+     */
     protected function canManageDeleteRecordsForContext(array $context): bool
     {
         if (array_key_exists('can_manage_delete_records', $context)) {
             return $this->normalizeBool($context['can_manage_delete_records']);
         }
 
-        if ($this->isCurrentUserAdministrator()) {
-            return true;
-        }
-
         $softDeleteEnabled = $this->normalizeBool($context['soft_delete'] ?? ($context['softDelete'] ?? false));
-        if ($softDeleteEnabled) {
-            return true;
-        }
+        $allowDeleteRecord = true;
 
         if (array_key_exists('allow_delete_record', $context)) {
-            return $this->normalizeBool($context['allow_delete_record']);
+            $allowDeleteRecord = $this->normalizeBool($context['allow_delete_record']);
         }
 
         if (array_key_exists('allowDeleteRecord', $context)) {
-            return $this->normalizeBool($context['allowDeleteRecord']);
+            $allowDeleteRecord = $this->normalizeBool($context['allowDeleteRecord']);
         }
 
-        return true;
+        $canSoftDelete = !$softDeleteEnabled
+            || $this->hasMainTableSpecialPermission($context, self::SPECIAL_PERMISSION_MAIN_TABLE_SOFT_DELETE);
+        $canHardDelete = !$allowDeleteRecord
+            || $this->hasMainTableSpecialPermission($context, self::SPECIAL_PERMISSION_MAIN_TABLE_HARD_DELETE);
+
+        if ($softDeleteEnabled && $allowDeleteRecord) {
+            return $canSoftDelete || $canHardDelete;
+        }
+        if ($softDeleteEnabled) {
+            return $canSoftDelete;
+        }
+        if ($allowDeleteRecord) {
+            return $canHardDelete;
+        }
+
+        return false;
     }
 
     /**

@@ -216,16 +216,34 @@ class Get
     {
         if (self::$mail_class == null) {
             self::$mail_class = new Mail();
+            $smtpSetting = Config::get('smtp_mail', null);
+            if (is_bool($smtpSetting)) {
+                $smtpEnabled = $smtpSetting;
+            } elseif ($smtpSetting === null || $smtpSetting === '') {
+                $smtpEnabled = null;
+            } else {
+                $smtpEnabled = filter_var((string) $smtpSetting, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            }
             $username = Config::get('smtp_mail_username', '');
             $password = Config::get('smtp_mail_password', '');
             $host = Config::get('smtp_mail_host', 'localhost');
             $port = Config::get('smtp_mail_port', 465);
-            if ($username == '' || $password == '' || $host == '') {
+
+            $useSmtp = $smtpEnabled;
+            if ($useSmtp === null) {
+                $useSmtp = !($username == '' || $password == '' || $host == '');
+            }
+
+            if (!$useSmtp || $username == '' || $password == '' || $host == '') {
                 self::$mail_class->config(false);
             } else {
                 self::$mail_class->config(true, $username, $password, $host, $port);
             }
-            self::$mail_class->from(Config::get('mail_from', 'no-reply@' . self::getDomainForEmail()), Config::get('mail_from_name', 'Milk Admin'));
+
+            $mailFrom = Config::get('mail_from', 'no-reply@' . self::getDomainForEmail());
+            $mailFromName = Config::get('mail_from_name', 'Milk Admin');
+
+            self::$mail_class->from($mailFrom, $mailFromName);
         }
         return self::$mail_class;
     }
@@ -336,9 +354,10 @@ class Get
                     }  
 
                     Hooks::set('module_file_loaded', function () use ($fullClass, $class) {
-                        if (class_exists($fullClass)) {
+                        // Avoid autoload side effects: the module file has just been required_once.
+                        if (class_exists($fullClass, false)) {
                             new $fullClass();
-                        } elseif (class_exists($class)) {
+                        } elseif (class_exists($class, false)) {
                             // Fallback for classes without namespace
                             new $class();
                         } else {

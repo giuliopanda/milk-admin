@@ -129,9 +129,6 @@ foreach ($dbs as $dbKey => $db) {
                         </div>
                     </div>
                     <?php endforeach; ?>
-                    <div class="mb-3">
-                    <a href="<?php echo Route::url('?page=install'); ?>" class="link-action"><?php _pt('Install a new version'); ?></a>
-                    </div>
                 </div>
 
             </div>
@@ -148,4 +145,3 @@ $charts_block = Hooks::run('home.dashboard', '');
 if (is_string($charts_block) && $charts_block !== '') {
     echo $charts_block;
 }
-?>

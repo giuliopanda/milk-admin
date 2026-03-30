@@ -52,13 +52,14 @@ class ChildCountConfigurator
         $childFkField = (string) ($meta['parent_fk_field'] ?? '');
         $childListDisplay = (string) ($meta['list_display'] ?? 'page');
         $childEditDisplay = (string) ($meta['edit_display'] ?? 'page');
+        $childAllowView = !array_key_exists('allow_view', $meta) || (bool) $meta['allow_view'];
         $showIfEvaluator = $this->showIfEvaluator;
         $registry = $this->registry;
 
         $tb
             ->field((string) $field)
             ->type('html')
-            ->fn(function ($result) use ($modulePage, $primaryKey, $field, $childFkField, $childListAction, $childEditAction, $childMaxRecords, $childHasChildren, $childShowIf, $childShowIfMessage, $childListDisplay, $childEditDisplay, $showIfEvaluator, $registry, $currentChainParams, $tableId) {
+            ->fn(function ($result) use ($modulePage, $primaryKey, $field, $childFkField, $childListAction, $childEditAction, $childMaxRecords, $childHasChildren, $childShowIf, $childShowIfMessage, $childListDisplay, $childEditDisplay, $childAllowView, $showIfEvaluator, $registry, $currentChainParams, $tableId) {
                 $row = $result->getRawData('array', false);
                 $parentId = _absint($row[$primaryKey] ?? 0);
                 $count = (int) ($row[$field] ?? 0);
@@ -85,13 +86,16 @@ class ChildCountConfigurator
                 if ($childMaxRecords === '1') {
                     return $this->renderSingleRecordChildCell(
                         $modulePage, $primaryKey, $childFkField, $childListAction, $childEditAction,
-                        $childHasChildren, $childListDisplay, $childEditDisplay,
+                        $childHasChildren, $childListDisplay, $childEditDisplay, $childAllowView,
                         $registry, $baseParams, $tableId, $parentId, $count
                     );
                 }
 
                 $finiteChildMax = UrlBuilder::getFiniteMaxRecords($childMaxRecords);
                 if ($finiteChildMax > 1 && $count >= $finiteChildMax) {
+                    if (!$childAllowView) {
+                        return '<span class="badge text-bg-dark">' . (int) $count . '/' . (int) $finiteChildMax . '</span>';
+                    }
                     $href = UrlBuilder::action($modulePage, $childListAction, $baseParams);
                     $fetch = DisplayModeHelper::buildFetchAttribute($childListDisplay);
                     return '<a class="text-decoration-none" href="' . _r(Route::url($href)) . '"' . $fetch . ' title="Limit reached">'
@@ -100,7 +104,7 @@ class ChildCountConfigurator
 
                 return $this->renderMultiRecordChildCell(
                     $modulePage, $childListAction, $childEditAction,
-                    $childListDisplay, $childEditDisplay,
+                    $childListDisplay, $childEditDisplay, $childAllowView,
                     $baseParams, $tableId, $count
                 );
             });
@@ -115,6 +119,7 @@ class ChildCountConfigurator
         bool $childHasChildren,
         string $childListDisplay,
         string $childEditDisplay,
+        bool $childAllowView,
         ActionContextRegistry $registry,
         array $baseParams,
         string $tableId,
@@ -129,6 +134,9 @@ class ChildCountConfigurator
         }
         if ($targetAction === '') {
             return (string) $count;
+        }
+        if ($targetAction === $childListAction && !$childAllowView) {
+            return '<span class="badge text-bg-secondary">' . (int) $count . '</span>';
         }
 
         $targetParams = $baseParams;
@@ -160,16 +168,20 @@ class ChildCountConfigurator
         string $childEditAction,
         string $childListDisplay,
         string $childEditDisplay,
+        bool $childAllowView,
         array $baseParams,
         string $tableId,
         int $count
     ): string {
         if ($count <= 0) {
-            if ($childListAction !== '' && $childListDisplay !== 'page') {
+            if ($childAllowView && $childListAction !== '' && $childListDisplay !== 'page') {
                 $href = UrlBuilder::action($modulePage, $childListAction, $baseParams);
                 $fetch = DisplayModeHelper::buildFetchAttribute($childListDisplay);
                 return '<a class="text-decoration-none" href="' . _r(Route::url($href)) . '"' . $fetch . ' title="Open list">'
                     . '<span class="badge text-bg-secondary">0</span></a>';
+            }
+            if ($childEditAction === '') {
+                return '<span class="badge text-bg-secondary">0</span>';
             }
 
             $targetParams = $baseParams;
@@ -182,6 +194,9 @@ class ChildCountConfigurator
                 . '<i class="bi bi-plus-circle text-primary"></i></a>';
         }
 
+        if (!$childAllowView) {
+            return '<span class="badge text-bg-secondary">' . (int) $count . '</span>';
+        }
         $href = UrlBuilder::action($modulePage, $childListAction, $baseParams);
         $fetch = DisplayModeHelper::buildFetchAttribute($childListDisplay);
         return '<a class="text-decoration-none" href="' . _r(Route::url($href)) . '"' . $fetch . ' title="Open list">'

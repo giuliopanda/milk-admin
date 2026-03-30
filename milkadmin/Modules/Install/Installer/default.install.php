@@ -74,6 +74,7 @@ Hooks::set('install.execute_config', function($data) {
         'admin-email' => _r($data['admin-email']),
         'from-email' => _r($data['admin-email']),
         'debug' => 'true',
+        'environment' => ['value' => 'development', 'comment' => 'development | production'],
         'home_page' => '?page=home',
         'page_not_found' => '404',
         'secret_key' => bin2hex(random_bytes(32)),

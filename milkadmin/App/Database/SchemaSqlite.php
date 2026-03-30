@@ -340,12 +340,17 @@ class SchemaSqlite {
      * Ricostruisce completamente la tabella per modifiche complesse
      */
     private function reconstructTable(array $current_fields, array $current_indices): bool {
-        $temp_table = $this->table . '_temp_' . uniqid();
+        $temp_table = $this->buildTempTableName();
+        $attempts = 0;
+        while ($this->tableExistsInSqlite($temp_table) && $attempts < 5) {
+            $temp_table = $this->buildTempTableName();
+            $attempts++;
+        }
+
         if (empty($this->fields)) {
             return true;
         }
-            
-            
+
         $this->last_error = "";
         try {
             // 1. Crea tabella temporanea con la nuova struttura
@@ -362,7 +367,35 @@ class SchemaSqlite {
             $this->db->query("DROP TABLE " . $this->db->qn($this->table));
             
             // 4. Rinomina la tabella temporanea
-            $this->db->query("ALTER TABLE " . $this->db->qn($temp_table) . " RENAME TO " . $this->db->qn($this->table));
+            try {
+                $this->db->query("ALTER TABLE " . $this->db->qn($temp_table) . " RENAME TO " . $this->db->qn($this->table));
+            } catch (\Throwable $renameError) {
+                $mainExistsAfterFailure = $this->tableExistsInSqlite($this->table);
+                $tempExistsAfterFailure = $this->tableExistsInSqlite($temp_table);
+
+                // Defensive path for rare SQLite driver inconsistencies:
+                // if temp table disappeared and destination exists, treat RENAME as effectively applied.
+                if ($mainExistsAfterFailure && !$tempExistsAfterFailure) {
+                    // Consider rename applied and continue with index recreation.
+                } else {
+                    $renameDebug = [
+                        'step' => 'rename_failed',
+                        'table_raw' => $this->table,
+                        'temp_table_raw' => $temp_table,
+                        'main_exists_after_failure' => $mainExistsAfterFailure,
+                        'temp_exists_after_failure' => $tempExistsAfterFailure,
+                        'db_last_query' => property_exists($this->db, 'last_query') ? (string) ($this->db->last_query ?? '') : '',
+                        'db_last_error' => property_exists($this->db, 'last_error') ? (string) ($this->db->last_error ?? '') : '',
+                        'db_name' => property_exists($this->db, 'dbname') ? (string) ($this->db->dbname ?? '') : '',
+                    ];
+
+                    throw new \Exception(
+                        $renameError->getMessage() . ' | rename_debug=' . json_encode($renameDebug, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+                        0,
+                        $renameError
+                    );
+                }
+            }
             
             // 5. Ricrea gli indici
             foreach ($this->indices as $index) {
@@ -372,10 +405,57 @@ class SchemaSqlite {
             
             return true;
             
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // Cleanup in caso di errore
-            $this->db->query("DROP TABLE IF EXISTS " . $this->db->qn($temp_table));
+            try {
+                $this->db->query("DROP TABLE IF EXISTS " . $this->db->qn($temp_table));
+            } catch (\Throwable $cleanupError) {
+                // keep original error message
+            }
+
             $this->last_error = $e->getMessage();
+            return false;
+        }
+    }
+
+    /**
+     * Build a collision-resistant temporary table name for SQLite migrations.
+     */
+    private function buildTempTableName(): string
+    {
+        try {
+            $suffix = bin2hex(random_bytes(10));
+        } catch (\Throwable $e) {
+            $suffix = str_replace('.', '', uniqid('', true));
+        }
+        $pid = function_exists('getmypid') ? (string) getmypid() : '';
+        if ($pid !== '') {
+            $suffix = $pid . '_' . $suffix;
+        }
+
+        return $this->table . '_temp_' . $suffix;
+    }
+
+    /**
+     * Check whether a table name already exists in sqlite_master.
+     */
+    private function tableExistsInSqlite(string $tableName): bool
+    {
+        $resolved = str_replace(
+            '#__',
+            (property_exists($this->db, 'prefix') ? (string) ($this->db->prefix ?? '') : '') . '_',
+            $tableName
+        );
+        $resolved = trim($resolved);
+        if ($resolved === '') {
+            return false;
+        }
+
+        try {
+            $sql = "SELECT name FROM sqlite_master WHERE type='table' AND name=" . $this->db->quote($resolved) . " LIMIT 1";
+            $result = $this->db->query($sql);
+            return is_object($result) && $result->fetch_array() !== false;
+        } catch (\Throwable $e) {
             return false;
         }
     }

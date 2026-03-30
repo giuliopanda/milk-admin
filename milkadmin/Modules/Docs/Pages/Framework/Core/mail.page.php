@@ -3,8 +3,8 @@ namespace Modules\Docs\Pages;
 /**
  * @title Mails
  * @guide framework
- * @order 
- * @tags send, mail, email, smtp, templates, PHPMailer, attachments 
+  * @order 150
+ * @tags mail, email, send-email, smtp, phpmailer, mailer, email-template, html-email, attachments, cc, bcc, reply-to, mail-configuration, transactional-email, notifications
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

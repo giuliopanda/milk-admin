@@ -1,7 +1,7 @@
 <?php
 namespace Modules\Auth\Views;
 
-use App\{Token, Route, Config};
+use App\{Token, Route, Config, Hooks};
 use Modules\Auth\RememberMeService;
 use Theme\Template;
 
@@ -12,6 +12,16 @@ $redirect = isset($redirect) ? (string) $redirect : '';
 $username = isset($username) ? (string) $username : '';
 
 ?>
+<style>
+.mk-hp-field {
+    position: absolute !important;
+    left: -10000px !important;
+    top: auto !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+}
+</style>
 <div class="center-login">
     <div class="text-center mb-3">
         <?php Template::getLogo(); ?>
@@ -34,6 +44,7 @@ $username = isset($username) ? (string) $username : '';
    
     <?php //AuthService::tmplTitle(); ?>
     <div class="card">
+        <?php Hooks::run('auth.login.before_form'); ?>
         <div class="card-header text-bg-primary">
             <div class="d-flex">
                 <div class="p-1 flex-shrink-1">
@@ -43,11 +54,20 @@ $username = isset($username) ? (string) $username : '';
             </div>
         </div>
         <div class="card-body">
+          
             <form class="js-needs-validation" novalidate method="post">
                 <input type="hidden" name="page" value="auth">
                 <input type="hidden" name="action" value="login">
                 <input type="hidden" name="redirect" value="<?php _p($redirect); ?>">
                 <?php echo Token::input('login'); ?>
+                <div class="mk-hp-field" aria-hidden="true">
+                    <label for="username_contact"><?php _pt('Username'); ?></label>
+                    <input type="text" name="username_contact" id="username_contact" tabindex="-1" autocomplete="off">
+                </div>
+                <div class="mk-hp-field" aria-hidden="true">
+                    <label for="password_repeat"><?php _pt('Password'); ?></label>
+                    <input type="text" name="password_repeat" id="password_repeat" tabindex="-1" autocomplete="off">
+                </div>
                 <div class="mb-3">
                 <div class="form-floating">
                         <input type="text" name="username" class="form-control" id="floatingUserName" placeholder="Password" value="<?php _p($username); ?>" required>
@@ -74,4 +94,5 @@ $username = isset($username) ? (string) $username : '';
         </div>
     </div>
     <a href="<?php _ph(Route::url(['page'=>'auth','action'=>'forgot_password'])); ?>"><?php _pt('Forgot your password?'); ?></a>
+    <?php Hooks::run('auth.login.after_form'); ?>
 </div>

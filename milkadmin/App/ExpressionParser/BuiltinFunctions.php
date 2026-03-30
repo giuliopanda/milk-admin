@@ -9,7 +9,7 @@ class BuiltinFunctions
     /** @var string[] Lista delle funzioni disponibili */
     private array $registry = [
         'NOW', 'AGE', 'ROUND', 'ABS', 'IFNULL',
-        'UPPER', 'LOWER', 'CONCAT', 'TRIM', 'ISEMPTY',
+        'UPPER', 'LOWER', 'CONCAT', 'TRIM', 'LENGTH', 'SUBSTR', 'REPLACE', 'SLUG', 'ISEMPTY',
         'PRECISION', 'DATEONLY', 'TIMEADD', 'ADDMINUTES',
         'USERID',
         'COUNT', 'SUM', 'MIN', 'MAX',
@@ -218,6 +218,83 @@ class BuiltinFunctions
     }
 
     /**
+     * LENGTH(str) - Restituisce la lunghezza della stringa
+     */
+    protected function func_LENGTH(array $args): int
+    {
+        if (count($args) !== 1) {
+            throw new \Exception("LENGTH() richiede esattamente 1 argomento");
+        }
+
+        return mb_strlen($this->stringifyValue($args[0]), 'UTF-8');
+    }
+
+    /**
+     * SUBSTR(str, start, length?) - Sottostringa stile PHP
+     */
+    protected function func_SUBSTR(array $args): string
+    {
+        if (count($args) < 2 || count($args) > 3) {
+            throw new \Exception("SUBSTR() richiede 2 o 3 argomenti (stringa, start, length opzionale)");
+        }
+
+        if (!is_numeric($args[1])) {
+            throw new \Exception("SUBSTR() richiede start numerico come secondo argomento");
+        }
+
+        $str = $this->stringifyValue($args[0]);
+        $start = (int)$args[1];
+
+        if (count($args) === 2) {
+            $result = mb_substr($str, $start, null, 'UTF-8');
+            return $result === false ? '' : $result;
+        }
+
+        if (!is_numeric($args[2])) {
+            throw new \Exception("SUBSTR() richiede length numerico come terzo argomento");
+        }
+
+        $length = (int)$args[2];
+        $result = mb_substr($str, $start, $length, 'UTF-8');
+        return $result === false ? '' : $result;
+    }
+
+    /**
+     * REPLACE(search, replace, subject) - Compatibile con str_replace PHP
+     * search e replace possono essere stringa o array.
+     * subject può essere stringa o array.
+     */
+    protected function func_REPLACE(array $args): mixed
+    {
+        if (count($args) !== 3) {
+            throw new \Exception("REPLACE() richiede esattamente 3 argomenti (search, replace, subject)");
+        }
+
+        $search = $this->normalizeReplaceInput($args[0]);
+        $replace = $this->normalizeReplaceInput($args[1]);
+        $subject = $this->normalizeReplaceInput($args[2]);
+
+        return str_replace($search, $replace, $subject);
+    }
+
+    /**
+     * SLUG(text, maxLength?) - Genera uno slug stile WordPress
+     */
+    protected function func_SLUG(array $args): string
+    {
+        if (count($args) < 1 || count($args) > 2) {
+            throw new \Exception("SLUG() richiede 1 o 2 argomenti (testo, lunghezza opzionale)");
+        }
+
+        $maxLength = isset($args[1]) ? (int)$args[1] : 200;
+        if ($maxLength <= 0) {
+            return '';
+        }
+
+        return $this->slugifyWordPressStyle($args[0], $maxLength);
+    }
+
+    /**
      * ISEMPTY(value) - Verifica se vuoto o null
      */
     protected function func_ISEMPTY(array $args): bool
@@ -393,6 +470,112 @@ class BuiltinFunctions
             return sprintf('%02d:%02d:%02d', $hours, $minutes, $seconds);
         }
         return sprintf('%02d:%02d', $hours, $minutes);
+    }
+
+    /**
+     * Genera uno slug "WordPress-like":
+     * - minuscolo
+     * - rimozione accenti/caratteri speciali
+     * - separatore "-"
+     * - limite lunghezza
+     */
+    private function slugifyWordPressStyle(mixed $value, int $maxLength = 200): string
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            $slug = $value->format('Y-m-d H:i:s');
+        } else {
+            $slug = (string)$value;
+        }
+
+        $slug = trim(mb_strtolower($slug, 'UTF-8'));
+        if ($slug === '') {
+            return '';
+        }
+
+        $slug = strtr($slug, [
+            'ß' => 'ss',
+            'æ' => 'ae',
+            'œ' => 'oe',
+            'ø' => 'o',
+            'ð' => 'd',
+            'þ' => 'th',
+            'đ' => 'd',
+            'ł' => 'l',
+            'ı' => 'i'
+        ]);
+
+        if (class_exists('\Normalizer')) {
+            $normalized = \Normalizer::normalize($slug, \Normalizer::FORM_KD);
+            if (is_string($normalized)) {
+                $slug = $normalized;
+            }
+            $withoutMarks = preg_replace('/\p{Mn}+/u', '', $slug);
+            if (is_string($withoutMarks)) {
+                $slug = $withoutMarks;
+            }
+        } elseif (function_exists('iconv')) {
+            $transliterated = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $slug);
+            if (is_string($transliterated)) {
+                $slug = $transliterated;
+            }
+        }
+
+        $slug = preg_replace('/[\'"`’]/u', '', $slug) ?? $slug;
+        $slug = str_replace('&', ' and ', $slug);
+        $slug = preg_replace('/[^a-z0-9]+/i', '-', $slug) ?? '';
+        $slug = strtolower($slug);
+        $slug = preg_replace('/-+/', '-', $slug) ?? $slug;
+        $slug = trim($slug, '-');
+
+        if ($maxLength < strlen($slug)) {
+            $slug = substr($slug, 0, $maxLength);
+            $slug = rtrim($slug, '-');
+        }
+
+        return $slug;
+    }
+
+    /**
+     * Normalizza input per REPLACE in modo compatibile con JS:
+     * - null -> ""
+     * - DateTime -> "Y-m-d H:i:s"
+     * - array -> normalizzazione ricorsiva degli elementi
+     */
+    private function normalizeReplaceInput(mixed $value): mixed
+    {
+        if (is_array($value)) {
+            return array_map(fn ($item) => $this->normalizeReplaceInput($item), $value);
+        }
+
+        return $this->stringifyValue($value);
+    }
+
+    /**
+     * Converte un valore in stringa in modo sicuro e coerente.
+     */
+    private function stringifyValue(mixed $value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d H:i:s');
+        }
+
+        if (is_array($value)) {
+            return implode(',', array_map(fn ($item) => $this->stringifyValue($item), $value));
+        }
+
+        if ($value instanceof \Stringable || is_scalar($value)) {
+            return (string)$value;
+        }
+
+        return '';
     }
 
     // ==================== ARRAY FUNCTIONS ====================

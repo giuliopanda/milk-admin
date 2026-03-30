@@ -140,7 +140,7 @@ class GetDataBuilder
         if ($this->cached_data !== null) {
             return $this->cached_data;
         }
-
+        
         $this->callExtensionHook('beforeGetData');
 
         $data = $this->dataProcessor->process(
@@ -212,6 +212,48 @@ class GetDataBuilder
     public function getModel(): AbstractModel
     {
         return $this->context->getModel();
+    }
+
+    /**
+     * Stable runtime context exposed to GetDataBuilder extensions.
+     *
+     * Extensions should prefer this contract instead of probing builder methods
+     * individually with method_exists().
+     *
+     * @return array{
+     *   query: Query,
+     *   page: string,
+     *   table_id: string,
+     *   request: array<string,mixed>,
+     *   model: AbstractModel,
+     *   model_columns: array<int,string>,
+     *   context?: array<string,mixed>,
+     *   root_id?: int
+     * }
+     */
+    public function getHookContext(): array
+    {
+        $model = $this->context->getModel();
+        $modelColumns = [];
+        $customData = $this->context->getCustomData();
+
+        if (method_exists($model, 'getColumns')) {
+            $columns = $model->getColumns();
+            if (is_array($columns)) {
+                $modelColumns = array_values(array_filter($columns, static fn ($value): bool => is_string($value) && $value !== ''));
+            }
+        }
+
+        return [
+            'query' => $this->context->getQuery(),
+            'page' => $this->context->getPage(),
+            'table_id' => $this->context->getTableId(),
+            'request' => $this->context->getRequest(),
+            'model' => $model,
+            'model_columns' => $modelColumns,
+            'context' => is_array($customData['projects_context'] ?? null) ? $customData['projects_context'] : [],
+            'root_id' => _absint($customData['root_id'] ?? 0),
+        ];
     }
 
     public function getFilters(): array
@@ -366,13 +408,19 @@ class GetDataBuilder
             return;
         }
 
-        // IMPORTANT: Pass the MODEL as target, not $this (the builder)
-        // This ensures extensions are loaded from the Module directory, not the Builder directory
+        // Load using model as discovery target to keep local-module extension lookup.
         $this->loaded_extensions = ExtensionLoader::load(
             $this->extensions,
             'GetDataBuilder',
-            $this->model  // <-- Changed from $this to $this->model
+            $this->model
         );
+
+        // Rebind extension runtime target to the real builder instance.
+        foreach ($this->loaded_extensions as $extension) {
+            if (is_object($extension) && method_exists($extension, 'setBuilder')) {
+                $extension->setBuilder($this);
+            }
+        }
     }
 
     protected function callExtensionHook(string $hook, array $params = []): void

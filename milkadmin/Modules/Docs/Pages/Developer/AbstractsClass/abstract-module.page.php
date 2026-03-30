@@ -417,6 +417,15 @@ class PostsModule extends AbstractModule
         <li><code>authorized</code>: Only users with specific permissions can access (requires <code>permission</code> configuration)</li>
         <li><code>admin</code>: Only administrators can access</li>
     </ul>
+    <p>You can also override <code>public function access(): bool</code> in your module to implement custom rules (for example project-based checks) without changing every action method.</p>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">public function access(): bool
+{
+    if (Permissions::check('_user.is_admin')) {
+        return true;
+    }
+
+    return Permissions::check('projects.access');
+}</code></pre>
 
     <h3 class="mt-3">Permissions for Authorized Access</h3>
     <p>When using <code>access('authorized')</code>, you must define permissions:</p>

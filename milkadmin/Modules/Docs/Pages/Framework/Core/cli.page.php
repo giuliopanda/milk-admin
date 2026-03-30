@@ -3,8 +3,8 @@ namespace Modules\Docs\Pages;
 /**
  * @title Cli
  * @guide framework
- * @order 
- * @tags cli, command line, shell, console, php cli.php, functions, echo, success, error, Cli::set, Cli::run, Cli::echo, drawTable, shell functions, update-paths, build-version, create-administrator
+  * @order 110
+ * @tags cli, command-line, terminal, console, php-cli, cli.php, command-runner, script-execution, cli-arguments, shell, automation, maintenance-commands, cli-output, cli-success, cli-error, cli-table, drawtable, cli::set, cli::run, cli::echo, update-paths, build-version, create-administrator
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access

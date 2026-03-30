@@ -3,8 +3,8 @@ namespace Modules\Docs\Pages;
 /**
  * @title Create/modify db tables
  * @guide framework
- * @order 
- * @tags schema, database-schema, table-creation, table-modification, database-migration, field-definition, index-management, MySQL-tables, fluent-syntax, table-structure, database-design
+  * @order 190
+ * @tags schema, database-schema, migration, table-creation, create-table, alter-table, table-modification, field-definition, columns, index-management, indexes, constraints, mysql-tables, sqlite-tables, fluent-syntax, table-structure, database-design
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

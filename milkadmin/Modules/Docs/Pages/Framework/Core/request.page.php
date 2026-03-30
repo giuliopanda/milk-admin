@@ -3,8 +3,8 @@ namespace Modules\Docs\Pages;
 /**
  * @title Request
  * @guide framework
- * @order
- * @tags Request, http, input, query, post, headers, json, sanitization, validation
+  * @order 40
+ * @tags request, http-request, input, query-params, get-params, post-data, body, headers, cookies, json-body, files-upload, sanitization, validation, client-ip, request-method
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access

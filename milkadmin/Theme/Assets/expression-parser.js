@@ -13,6 +13,7 @@
  * - IF statements: IF condizione THEN ... ELSE ... ENDIF
  * - Funzioni: NOW(), AGE(date), ROUND(n, decimals), ABS(n), IFNULL(val, default),
  *             UPPER(str), LOWER(str), CONCAT(str1, str2, ...), TRIM(str),
+ *             LENGTH(str), SUBSTR(str, start, length?), REPLACE(search, replace, subject), SLUG(str, maxLength?),
  *             ISEMPTY(val), PRECISION(n, decimals), DATEONLY(datetime),
  *             TIMEADD(time, minutes), ADDMINUTES(time, minutes), USERID()
  */
@@ -76,7 +77,7 @@ class ExpressionParser {
         // Funzioni builtin disponibili
         this._builtinFunctions = [
             'NOW', 'AGE', 'ROUND', 'ABS', 'IFNULL',
-            'UPPER', 'LOWER', 'CONCAT', 'TRIM', 'ISEMPTY',
+            'UPPER', 'LOWER', 'CONCAT', 'TRIM', 'LENGTH', 'SUBSTR', 'REPLACE', 'SLUG', 'ISEMPTY',
             'PRECISION', 'DATEONLY', 'TIMEADD', 'ADDMINUTES', 'USERID',
             'COUNT', 'SUM', 'MIN', 'MAX',
             'FIND', 'CONTAINS', 'FIRST', 'LAST'
@@ -237,6 +238,96 @@ class ExpressionParser {
             seconds,
             hasSeconds: time.hasSeconds
         };
+    }
+
+    /**
+     * Genera uno slug "WordPress-like":
+     * - minuscolo
+     * - rimozione accenti/caratteri speciali
+     * - separatore "-"
+     * - limite lunghezza
+     */
+    _slugifyWordPressStyle(value, maxLength = 200) {
+        let slug = this._toString(value).trim().toLowerCase();
+        if (slug === '') return '';
+
+        const translitMap = {
+            'ß': 'ss',
+            'æ': 'ae',
+            'œ': 'oe',
+            'ø': 'o',
+            'ð': 'd',
+            'þ': 'th',
+            'đ': 'd',
+            'ł': 'l',
+            'ı': 'i'
+        };
+
+        slug = slug.replace(/[ßæœøðþđłı]/g, (ch) => translitMap[ch] || ch);
+
+        if (typeof slug.normalize === 'function') {
+            slug = slug.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+        }
+
+        slug = slug
+            .replace(/['"`’]/g, '')
+            .replace(/&/g, ' and ')
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-+|-+$/g, '');
+
+        if (maxLength < slug.length) {
+            slug = slug.slice(0, maxLength).replace(/-+$/g, '');
+        }
+
+        return slug;
+    }
+
+    _replacePhpStyleSubject(subject, searchTerms, replaceTerms, replaceIsArray) {
+        let out = this._toString(subject);
+
+        for (let i = 0; i < searchTerms.length; i++) {
+            const search = searchTerms[i];
+            if (search === '') continue;
+
+            const replacement = replaceIsArray
+                ? (i < replaceTerms.length ? replaceTerms[i] : '')
+                : replaceTerms[0];
+
+            out = out.split(search).join(replacement);
+        }
+
+        return out;
+    }
+
+    _substrPhpStyle(input, start, hasLength, length = 0) {
+        const chars = Array.from(input);
+        const total = chars.length;
+
+        let from = start >= 0 ? start : total + start;
+        if (from < 0) from = 0;
+        if (from > total) from = total;
+
+        if (!hasLength) {
+            return chars.slice(from).join('');
+        }
+
+        if (length === 0) {
+            return '';
+        }
+
+        if (length > 0) {
+            return chars.slice(from, from + length).join('');
+        }
+
+        let end = total + length;
+        if (end < 0) end = 0;
+
+        if (end <= from) {
+            return '';
+        }
+
+        return chars.slice(from, end).join('');
     }
 
     // ==================== RISOLUZIONE PARAMETRI CON DOT-NOTATION ====================
@@ -464,6 +555,86 @@ class ExpressionParser {
         }
 
         return this._toString(args[0]).trim();
+    }
+
+    /**
+     * LENGTH(str) - Restituisce la lunghezza della stringa
+     */
+    _func_LENGTH(args) {
+        if (args.length !== 1) {
+            throw new Error('LENGTH() richiede esattamente 1 argomento');
+        }
+
+        return Array.from(this._toString(args[0])).length;
+    }
+
+    /**
+     * SUBSTR(str, start, length?) - Sottostringa stile PHP
+     */
+    _func_SUBSTR(args) {
+        if (args.length < 2 || args.length > 3) {
+            throw new Error('SUBSTR() richiede 2 o 3 argomenti (stringa, start, length opzionale)');
+        }
+
+        const text = this._toString(args[0]);
+        const start = Math.trunc(this._toNumber(args[1]));
+
+        if (args.length === 2) {
+            return this._substrPhpStyle(text, start, false);
+        }
+
+        const length = Math.trunc(this._toNumber(args[2]));
+        return this._substrPhpStyle(text, start, true, length);
+    }
+
+    /**
+     * REPLACE(search, replace, subject) - Compatibile con str_replace PHP
+     * search e replace possono essere stringa o array.
+     * subject può essere stringa o array.
+     */
+    _func_REPLACE(args) {
+        if (args.length !== 3) {
+            throw new Error('REPLACE() richiede esattamente 3 argomenti (search, replace, subject)');
+        }
+
+        const search = args[0];
+        const replace = args[1];
+        const subject = args[2];
+
+        const searchTerms = Array.isArray(search)
+            ? search.map((v) => this._toString(v))
+            : [this._toString(search)];
+
+        const replaceIsArray = Array.isArray(replace);
+        const replaceTerms = replaceIsArray
+            ? replace.map((v) => this._toString(v))
+            : [this._toString(replace)];
+
+        if (Array.isArray(subject)) {
+            return subject.map((item) =>
+                this._replacePhpStyleSubject(item, searchTerms, replaceTerms, replaceIsArray)
+            );
+        }
+
+        return this._replacePhpStyleSubject(subject, searchTerms, replaceTerms, replaceIsArray);
+    }
+
+    /**
+     * SLUG(text, maxLength?) - Genera uno slug stile WordPress
+     */
+    _func_SLUG(args) {
+        if (args.length < 1 || args.length > 2) {
+            throw new Error('SLUG() richiede 1 o 2 argomenti (testo, lunghezza opzionale)');
+        }
+
+        const text = this._toString(args[0]);
+        const maxLength = args.length === 2 ? this._toInt(args[1]) : 200;
+
+        if (maxLength <= 0) {
+            return '';
+        }
+
+        return this._slugifyWordPressStyle(text, maxLength);
     }
 
     /**

@@ -8,7 +8,11 @@ class AuthInstall extends AbstractInstall {
 
     public function installExecuteConfig($data = []) {
         $auth_data = [
-            'auth_expires_session' => ['value'=>'120','type'=>'number','comment' => 'Session duration in minutes']
+            'auth_expires_session' => ['value'=>'120','type'=>'number','comment' => 'Session duration in minutes'],
+            'auth_password_reset_window_minutes' => ['value'=>'15','type'=>'number','comment' => 'Password reset rate-limit window in minutes'],
+            'auth_password_reset_max_attempts_ip' => ['value'=>'3','type'=>'number','comment' => 'Max password reset requests per IP in the configured window'],
+            'auth_password_reset_max_attempts_username' => ['value'=>'2','type'=>'number','comment' => 'Max password reset requests per username in the configured window'],
+            'auth_password_reset_min_delay_ms' => ['value'=>'2000','type'=>'number','comment' => 'Minimum response delay in ms for forgot-password requests']
         ];
         
         Install::setConfigFile('AUTH', $auth_data);
@@ -128,6 +132,14 @@ class AuthInstall extends AbstractInstall {
             $error = $model5->getLastError();
             $success = false;
             $errors[] = "Remember tokens table: " . ($error ?: 'Unknown error - buildTable returned false');
+        }
+
+        $model6 = new PasswordResetAttemptsModel();
+        $result = $model6->buildTable();
+        if (!$result) {
+            $error = $model6->getLastError();
+            $success = false;
+            $errors[] = "Password reset attempts table: " . ($error ?: 'Unknown error - buildTable returned false');
         }
 
         if ($success && Cli::isCli()) {

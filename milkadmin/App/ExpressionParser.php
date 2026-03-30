@@ -28,6 +28,7 @@ use App\ExpressionParser\ValueHelper;
  * - Dates: 2025-01-29 or 29/01/2025
  * - Functions: NOW(), AGE(date), ROUND(n, decimals), ABS(n), IFNULL(val, default),
  *             UPPER(str), LOWER(str), CONCAT(str1, str2, ...), TRIM(str),
+ *             LENGTH(str), SUBSTR(str, start, length?), REPLACE(search, replace, subject), SLUG(str, maxLength?),
  *             ISEMPTY(val), PRECISION(n, decimals), DATEONLY(datetime),
  *             TIMEADD(time, minutes), ADDMINUTES(time, minutes), USERID()
  */

@@ -3,8 +3,8 @@ namespace Modules\Docs\Pages;
 /**
  * @title Route
  * @guide framework
- * @order 
- * @tags routing, URL-management, page-routing, redirects, query-strings, route-registration, navigation, URL-building, request-handling, page-handlers, URL-parameters, route-functions
+  * @order 30
+ * @tags route, routing, router, url-management, page-routing, route-registration, route-matching, route-parameters, url-parameters, query-strings, redirects, navigation, request-handling, page-handlers, http-routes
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

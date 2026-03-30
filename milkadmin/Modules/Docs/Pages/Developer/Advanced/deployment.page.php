@@ -4,7 +4,7 @@ namespace Modules\Docs\Pages;
  * @title Server Deployment
  * @category Advanced
  * @order 3
- * @tags deployment, server, installation, zip, security
+ * @tags deployment, server, installation, zip, security, config
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access
@@ -140,6 +140,17 @@ if (!defined('LOCAL_DIR')) {
     <li>Configure database and create necessary tables</li>
     <li>Complete the initial setup</li>
 </ul>
+
+<h3>5. Switch to Production Environment</h3>
+
+<p>
+    In <code>milkadmin_local/config.php</code>, set:
+</p>
+<pre><code class="language-php">$conf['environment'] = 'production'; // development | production</code></pre>
+
+<p>
+    This enables production asset flow (bundle generation and direct serving from <code>public_html/Theme</code>), reducing PHP asset-loader overhead.
+</p>
 
 <hr>
 

@@ -3,8 +3,8 @@ namespace Modules\Docs\Pages;
 /**
  * @title Database (MySQL/SQLite/ArrayDB)
  * @guide framework
- * @order
- * @tags Database, SQL, MySQL, SQLite, ArrayDB, ArrayQuery, ArrayEngine, query, getResults, getRow, getVar, insert, update, delete, save, transaction, DatabaseException
+  * @order 170
+ * @tags database, sql, mysql, sqlite, arraydb, arrayquery, arrayengine, db-driver, db-abstraction, connection, query, raw-query, getresults, getrow, getvar, insert, update, delete, save, transaction, rollback, commit, prepared-statements, databaseexception
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access

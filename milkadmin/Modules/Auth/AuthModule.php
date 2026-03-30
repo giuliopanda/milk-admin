@@ -93,17 +93,14 @@ class AuthModule extends AbstractModule
     public function init() {   
         Theme::set('javascript', Route::url().'/Modules/Auth/Assets/auth.js');
         
-        // Get current action to determine active breadcrumb
-        $current_action = $_REQUEST['action'] ?? 'user-list';
-        
-        // Build breadcrumb based on current action
-        $links = LinksBuilder::create()
-            ->add('User list', '?page=auth&action=user-list')->icon('bi bi-people-fill')
-            ->add('Access logs', '?page=auth&action=access-logs')->icon('bi bi-lock-fill')
-            ->add('Help', '?page=docs&action=User/Administration/user-management-guide')->icon('bi bi-question-circle-fill');
-           
-        
-        Theme::set('header.top-left', $links->render());
+        if (Permissions::check('auth.manage')) {
+            $links = LinksBuilder::create()
+                ->add('User list', '?page=auth&action=user-list')->icon('bi bi-people-fill')
+                ->add('Access logs', '?page=auth&action=access-logs')->icon('bi bi-lock-fill')
+                ->add('Help', '?page=docs&action=User/Administration/user-management-guide')->icon('bi bi-question-circle-fill');
+
+            Theme::set('header.top-left', $links->render());
+        }
 
         // Setting a hook here to modify table actions for admin users
         Hooks::set('table_actions_row', function($header_options, $row, $table_id) {

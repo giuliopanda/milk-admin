@@ -5,10 +5,10 @@ use App\{Config, Get, Theme};
 
 !defined('MILK_DIR') && die(); // Avoid direct access
 /**
- * La classe template si occupa di gestire il template del sito
- * L'idea è che tramite parametri si sceglierà su ogni pagina 
- * osa visualizzare tra header, footer, menu e sidebar
- * è richiesta la costante THEME_DIR
+ * The Template class is responsible for rendering the site layout.
+ * The idea is to control, per page, what to show among
+ * header, footer, menu and sidebar through parameters.
+ * The THEME_DIR constant is required.
  */
 
 class Template
@@ -45,17 +45,43 @@ class Template
     }
 
     /**
-     * Carica tutti i css del tema inclusi gli assets e moduli e 
-     * tutti i css da un hooks add-css
+     * Loads all theme CSS files, including assets, plugins,
+     * and CSS entries registered through add-css hooks.
      */
     public static function getCss() {
+        AssetsBundle::cleanupIfDevelopment();
         $version = Config::get('version');
-        // carico tutti i css della cartella assets
+        $bundleRendered = false;
+
+        if (AssetsBundle::isProduction()) {
+            try {
+                AssetsBundle::ensureCompiled();
+                _ph('<link href="'.Get::uriPath(AssetsBundle::getCssBundleUrl()).'?v='.$version.'" rel="stylesheet" crossorigin="anonymous">'."\n");
+                $bundleRendered = true;
+            } catch (\Throwable $e) {
+                error_log('Template::getCss bundle failed: ' . $e->getMessage());
+            }
+        }
+
+        if ($bundleRendered) {
+            foreach (Theme::for('styles') as $css) {
+                if (!AssetsBundle::isCssUrlBundled((string) $css)) {
+                    _ph('<link href="'.$css.'?v='.$version.'" rel="stylesheet" crossorigin="anonymous">'."\n");
+                }
+            }
+            return;
+        }
+
+        foreach (AssetsExtensionsManifest::getCssBeforeThemeUrls() as $cssUrl) {
+            _ph('<link href="'.Get::uriPath($cssUrl).'?v='.$version.'" rel="stylesheet" crossorigin="anonymous">'."\n");
+        }
+
+        // Load all CSS files from the assets folder
         $css_files = glob(THEME_DIR.'/Assets/*.css');
         foreach ($css_files as $css) {
             _ph('<link href="'.Get::uriPath(THEME_URL.'/Assets/'.basename($css)).'?v='.$version.'" rel="stylesheet" crossorigin="anonymous">'."\n");
         }
-        // carico tutti i css dei moduli
+        // Load all CSS files from plugin folders
         $css_files = glob(THEME_DIR.'/Plugins/*/*.css');
         foreach ($css_files as $css) {
             _ph('<link href="'.Get::uriPath(THEME_URL.'/Plugins/'.basename(dirname($css)).'/'.basename($css)).'?v='.$version.'" rel="stylesheet" crossorigin="anonymous">'."\n");
@@ -63,16 +89,46 @@ class Template
         foreach (Theme::for('styles') as $css) {
             _ph('<link href="'.$css.'?v='.$version.'" rel="stylesheet" crossorigin="anonymous">'."\n");
         }
+
+        foreach (AssetsExtensionsManifest::getCssAfterThemeUrls() as $cssUrl) {
+            _ph('<link href="'.Get::uriPath($cssUrl).'?v='.$version.'" rel="stylesheet" crossorigin="anonymous">'."\n");
+        }
     }
 
     public static function getJs() {
+        AssetsBundle::cleanupIfDevelopment();
         $version = Config::get('version');
-        // carico tutti i js della cartella assets
+        $bundleRendered = false;
+
+        if (AssetsBundle::isProduction()) {
+            try {
+                AssetsBundle::ensureCompiled();
+                echo '<script src="'.Get::uriPath(AssetsBundle::getJsBundleUrl()).'?v='.$version.'"  crossorigin="anonymous"></script>'."\n";
+                $bundleRendered = true;
+            } catch (\Throwable $e) {
+                error_log('Template::getJs bundle failed: ' . $e->getMessage());
+            }
+        }
+
+        if ($bundleRendered) {
+            foreach (Theme::for('javascript') as $js) {
+                if (!AssetsBundle::isJsUrlBundled((string) $js)) {
+                    echo '<script src="'.$js.'?v='.$version.'"  crossorigin="anonymous"></script>'."\n";
+                }
+            }
+            return;
+        }
+
+        foreach (AssetsExtensionsManifest::getJsBeforeThemeUrls() as $jsUrl) {
+            echo '<script src="'.Get::uriPath($jsUrl).'?v='.$version.'"  crossorigin="anonymous"></script>'."\n";
+        }
+
+        // Load all JS files from the assets folder
         $js_files = glob(THEME_DIR.'/Assets/*.js');
         foreach ($js_files as $js) {
             echo '<script src="'.Get::uriPath(THEME_URL.'/Assets/'.basename($js)).'?v='.$version.'"  crossorigin="anonymous"></script>'."\n";
         }
-        // carico tutti i js dei moduli
+        // Load all JS files from plugin folders
         $js_files = glob(THEME_DIR.'/Plugins/*/*.js');
         foreach ($js_files as $js) {
             echo '<script src="'.Get::uriPath(THEME_URL.'/Plugins/'.basename(dirname($js)).'/'.basename($js)).'?v='.$version.'"  crossorigin="anonymous"></script>'."\n";
@@ -83,11 +139,11 @@ class Template
     }
 
     /**
-     * Aggiunge attributi html da usare sempre nei plugin!!!!
-     * @param $attrs array di attributi es. ['table' => ['class' => 'table table-hover'], 'all_els' => ['class' => 'custom_el']
-     * @param $key chiave dell'array da cui prendere gli attributi es. 'table'
-     * @param $default_key chiave di default da cui prendere gli attributi 
-     * se non esiste $key o per farne il merge es. 'all_els'
+     * Adds HTML attributes intended for plugin templates.
+     * @param $attrs attributes array, e.g. ['table' => ['class' => 'table table-hover'], 'all_els' => ['class' => 'custom_el']]
+     * @param $key array key from which to read attributes, e.g. 'table'
+     * @param $default_key default key used to read/merge fallback attributes
+     * when $key is missing, or to merge with a generic key such as 'all_els'
      */
     public static function addAttrs($attrs, $key, $default_key = null, $other_attrs = []) {
         if (!is_array($attrs) && $default_key == null && count($other_attrs) == 0) return;
@@ -136,18 +192,18 @@ class Template
     }
 
     public static function getMaxUploadSizeMB() {
-        // Funzione per convertire la notazione PHP in bytes
+        // Converts shorthand PHP size notation to bytes
        
         
-        // Recupera i valori di configurazione
+        // Read configuration values
         $upload_max_bytes = self::convertToBytes(ini_get('upload_max_filesize'));
         $post_max_bytes = self::convertToBytes(ini_get('post_max_size'));
         $memory_limit_bytes = self::convertToBytes(ini_get('memory_limit'));
         
-        // Calcola il minimo tra upload_max_filesize e post_max_size
+        // Take the minimum between upload_max_filesize and post_max_size
         $effective_max_size = min($upload_max_bytes, $post_max_bytes);
         
-        // Se memory_limit è impostato, consideralo (lascia 2MB per l'elaborazione)
+        // If memory_limit is set, include it (reserve 2MB for processing)
         if ($memory_limit_bytes > 0) {
             $memory_available = $memory_limit_bytes - (2 * 1024 * 1024);
             if ($memory_available > 0) {
@@ -155,7 +211,7 @@ class Template
             }
         }
         
-        // Converti in MB
+        // Convert to MB
         return round($effective_max_size / (1024 * 1024), 2);
     }
 

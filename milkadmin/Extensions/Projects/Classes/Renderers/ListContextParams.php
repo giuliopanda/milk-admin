@@ -88,6 +88,9 @@ class ListContextParams
     /** @var bool Whether edit action is allowed for this form. */
     public bool $allowEditEnabled;
 
+    /** @var bool Whether list/table view is allowed for this form. */
+    public bool $allowViewEnabled;
+
     /** @var bool Whether delete/restore operations are enabled by configuration. */
     public bool $allowDeleteRecordEnabled;
 

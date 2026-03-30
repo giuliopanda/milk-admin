@@ -2,6 +2,7 @@
 namespace Extensions\Projects\Classes\Renderers;
 
 use App\Abstracts\AbstractModule;
+use App\Hooks;
 use App\Response;
 use App\Route;
 use Builders\FormBuilder;
@@ -149,6 +150,21 @@ class AutoEditRenderer
             $this->renderErrorResponse('Failed to initialize form builder.');
             return;
         }
+
+        Hooks::run('projects.record.edit.before-render', [
+            'hook' => 'projects.record.edit.before-render',
+            'stage' => 'before_render',
+            'page' => $modulePage,
+            'context' => $context,
+            'request' => $_REQUEST,
+            'record_id' => $id,
+            'root_id' => $rootId,
+            'is_root' => $isRoot,
+            'model_name' => $modelName,
+            'model_title' => $modelTitle,
+            'edit_display' => $editDisplay,
+            'requested_reload_list_id' => $requestedReloadListId,
+        ]);
 
         $response = $this->module->getCommonData();
         $response['title'] = ($id > 0 ? 'Edit ' : 'New ') . $modelTitle;
@@ -439,12 +455,20 @@ class AutoEditRenderer
 
         // Keep Projects FormBuilder extension active for all forms (root + child).
         // This allows extension-driven field rendering enrichments (e.g. download links).
+        $manifestForHooks = ProjectJsonStore::getCurrentManifestData($modulePage);
+        if (!is_array($manifestForHooks)) {
+            $manifestForHooks = null;
+        }
+
         $formBuilder->extensions([
             'Projects' => [
                 'fkField' => $isRoot ? '' : $fkField,
                 'maxRecords' => $maxRecords,
                 'rootField' => $rootIdField,
                 'rootId' => $rootId,
+                'projectsContext' => $context,
+                'projectsManifest' => $manifestForHooks,
+                'projectsModulePage' => $modulePage,
             ],
         ]);
 

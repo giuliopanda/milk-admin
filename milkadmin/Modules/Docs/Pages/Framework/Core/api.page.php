@@ -4,8 +4,8 @@ use App\Route;
 /**
  * @title API
  * @guide framework
- * @order 10
- * @tags API, REST, JWT, token, authentication, endpoints, success, error, response, request, Bearer, authorization, HTTP-methods, GET, POST, PUT, DELETE, JSON, CORS, AbstractApi, ApiEndpoint, ApiDoc, documentation, permissions
+  * @order 60
+ * @tags api, rest-api, jwt, bearer-token, token-authentication, authentication, authorization, endpoints, route-endpoint, abstractapi, apiendpoint, apidoc, api-documentation, http-methods, get, post, put, patch, delete, request, response, json-response, cors, permissions, status-codes, error-handling
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access

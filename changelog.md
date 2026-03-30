@@ -1,5 +1,21 @@
 ## Changelog
 
+### v0.9.8 - 26/03/31
+- New: Introduced a complete password reset flow in `Modules/Auth` (reset attempts tracking, dedicated reset views, and related service/install updates).
+- Improved: Refactored `Extensions/Projects` permission and manifest pipeline (`ProjectPermissionService`, manifest parser/index, route config) and list/view renderers.
+- Improved: Enhanced `Modules/Projects` access-control behavior (`ProjectAdditionalAccessService`, unauthorized page flow, menu/catalog/table updates).
+- Improved: Added explicit environment configuration support (`development | production`) with installer/theme integration updates.
+- Security: Hardened redirects in `App/Route` with target sanitization (open-redirect/CRLF protections, host allowlist for absolute URLs) and stricter `urlsafeB64Decode()` handling.
+- Security: Strengthened remember-me authentication in `Modules/Auth` with token rotation on login, replay-theft invalidation strategy, session ID regeneration on auto-login, and normalized `#__remember_tokens` queries.
+- Improved: Refined login throttling in `LoginAttemptsModel` so username/session counters restart from last successful login time while IP limits remain time-window based.
+- Improved: Simplified installer redirect in `install_from_zip.php` to a local relative target (`public_html`) to avoid host-header based redirect risks.
+- Improved: Increased SQLite migration resilience (`SQLite` + `SchemaSqlite`) with safer error handling for `ALTER TABLE ... RENAME TO`, collision-resistant temp table names, and defensive table-existence checks.
+- Improved: Updated Projects schema safeguards in `ProjectTableService` to allow only numeric-family cross-conversions (`string/int/decimal`) and log allowed/blocked transitions.
+- Improved: Updated Projects draft review save flow (`review_form_fields_draft.page.php` + `ProjectsModule`) to submit via POST (`module/ref/draft`), with safer request resolution and submit-button lock on send.
+- Fix: Resolved auth menu regression and corrected `buildTable` integer default handling in validation/schema flow.
+- Updated: Aligned MySQL/SQLite schema boolean/default and field-diff comparison behavior used during schema update checks.
+- Updated: Expanded framework/admin documentation (core docs, deployment/config notes, and UserRights guides).
+
 ### v0.9.7 - 26/03/17
 - New: Added a new analytics layer in `milkadmin/App/Analytics` (`DataSet`, `DataSeries`, `AggregationEngine`, `AggregationPrimitives`, `GroupingPrimitives`) and a new `Request` class API.
 - Improved: Refactored the Model/ORM save flow (`AbstractModel`, `CrudOperationsTrait`, `DataFormattingTrait`, `SchemaAndValidationTrait`, `QueryBuilderTrait`) with the new `RecordStateTrait` and explicit per-record `dirty/stale/original` tracking.

@@ -108,35 +108,11 @@ class ListResponseBuilder
      */
     public function build(array $context, array $options = []): array
     {
-        // Step 1: Resolve all parameters into a value object.
-        $p = $this->resolveParams($context, $options);
-        if ($p === null) {
-            return $this->errorResult(
-                !empty($context['error']) ? (string) $context['error'] : 'Model class not found for this form.'
-            );
+        $preparation = $this->prepareListBuild($context, $options);
+        if (!$preparation->isReady()) {
+            return $preparation->result ?? $this->errorResult('Unable to prepare list response.');
         }
-
-        // Step 2: Validate non-root FK chain and parent constraints.
-        $validationResult = $this->validateNonRootConstraints($p);
-        if ($validationResult !== null) {
-            return $validationResult;
-        }
-
-        // Step 3: Check for special-case redirects (root view, single-record child).
-        $redirectResult = $this->resolveRedirects($p);
-        if ($redirectResult !== null) {
-            return $redirectResult;
-        }
-
-        // Step 3.5: Required URL params failed -> do not render filters/table.
-        if ($p->urlFilterRequiredFailed) {
-            return $this->buildUrlParamAccessDeniedResponse($p);
-        }
-
-        // Step 3.6: suspended/close projects show only status alert, no table/actions.
-        if ($p->projectBlocksTables) {
-            return $this->buildProjectStatusBlockedResponse($p);
-        }
+        $p = $preparation->params;
 
         // Step 4: Configure the TableBuilder with actions, fields, and filters.
         $tableBuilder = $this->tableConfigurator->configure($p);
@@ -154,26 +130,11 @@ class ListResponseBuilder
      */
     public function buildTableBuilder(array $context, array $options = []): ?\Builders\TableBuilder
     {
-        $p = $this->resolveParams($context, $options);
-        if ($p === null) {
+        $preparation = $this->prepareListBuild($context, $options);
+        if (!$preparation->isReady()) {
             return null;
         }
-
-        if ($this->validateNonRootConstraints($p) !== null) {
-            return null;
-        }
-
-        if ($this->resolveRedirects($p) !== null) {
-            return null;
-        }
-
-        if ($p->urlFilterRequiredFailed) {
-            return null;
-        }
-
-        if ($p->projectBlocksTables) {
-            return null;
-        }
+        $p = $preparation->params;
 
         $tableBuilder = $this->tableConfigurator->configure($p);
         $this->searchFiltersConfigurator->configure($tableBuilder, $p);
@@ -189,26 +150,11 @@ class ListResponseBuilder
      */
     public function buildSearchBuilder(array $context, array $options = []): ?\Builders\SearchBuilder
     {
-        $p = $this->resolveParams($context, $options);
-        if ($p === null) {
+        $preparation = $this->prepareListBuild($context, $options);
+        if (!$preparation->isReady()) {
             return null;
         }
-
-        if ($this->validateNonRootConstraints($p) !== null) {
-            return null;
-        }
-
-        if ($this->resolveRedirects($p) !== null) {
-            return null;
-        }
-
-        if ($p->urlFilterRequiredFailed) {
-            return null;
-        }
-
-        if ($p->projectBlocksTables) {
-            return null;
-        }
+        $p = $preparation->params;
 
         $tableBuilder = $this->tableConfigurator->configure($p);
         return $this->searchFiltersConfigurator->buildSearchBuilder($tableBuilder, $p);
@@ -217,6 +163,48 @@ class ListResponseBuilder
     // ------------------------------------------------------------------
     // Step 1: Parameter resolution
     // ------------------------------------------------------------------
+
+    /**
+     * Run the shared preparation pipeline for all list outputs.
+     *
+     * The full page response, bare TableBuilder and SearchBuilder must all
+     * agree on the same gating rules. Centralizing the pipeline avoids
+     * behavioral drift between these entrypoints.
+     */
+    protected function prepareListBuild(array $context, array $options): ListPreparationResult
+    {
+        $p = $this->resolveParams($context, $options);
+        if ($p === null) {
+            return ListPreparationResult::terminal(
+                $this->errorResult(
+                    !empty($context['error']) ? (string) $context['error'] : 'Model class not found for this form.'
+                )
+            );
+        }
+        if (!$p->allowViewEnabled) {
+            return ListPreparationResult::terminal($this->buildListPermissionDeniedResponse($p));
+        }
+
+        $validationResult = $this->validateNonRootConstraints($p);
+        if ($validationResult !== null) {
+            return ListPreparationResult::terminal($validationResult);
+        }
+
+        $redirectResult = $this->resolveRedirects($p);
+        if ($redirectResult !== null) {
+            return ListPreparationResult::terminal($redirectResult);
+        }
+
+        if ($p->urlFilterRequiredFailed) {
+            return ListPreparationResult::terminal($this->buildUrlParamAccessDeniedResponse($p));
+        }
+
+        if ($p->projectBlocksTables) {
+            return ListPreparationResult::terminal($this->buildProjectStatusBlockedResponse($p));
+        }
+
+        return ListPreparationResult::ready($p);
+    }
 
     /**
      * Resolve all context and options into a ListContextParams value object.
@@ -288,6 +276,9 @@ class ListResponseBuilder
         $p->allowEditEnabled = !array_key_exists('allow_edit', $context)
             ? true
             : $this->normalizeBool($context['allow_edit']);
+        $p->allowViewEnabled = !array_key_exists('allow_view', $context)
+            ? true
+            : $this->normalizeBool($context['allow_view']);
         $p->showSearch = (bool) ($context['show_search'] ?? false);
         $p->defaultOrderEnabled = $this->normalizeBool($context['default_order_enabled'] ?? false);
         $p->defaultOrderField = trim((string) ($context['default_order_field'] ?? ''));
@@ -409,7 +400,7 @@ class ListResponseBuilder
     protected function isCurrentUserAdministrator(): bool
     {
         try {
-            return \App\Permissions::check('_user.is_admin');
+            return (bool) \App\Permissions::check('_user.is_admin');
         } catch (\Throwable) {
             return false;
         }
@@ -627,6 +618,35 @@ class ListResponseBuilder
         $response['search_html'] = '';
         $response['bottom_content'] = '';
         $response['html'] = '<div class="alert alert-danger mb-0" role="alert">You cannot access this content.</div>';
+
+        $this->applyAjaxTitleUpdate($response, $p);
+
+        return [
+            'error' => '',
+            'redirect' => '',
+            'response' => $response,
+            'table_id' => $p->tableId,
+            'list_display' => $p->listDisplay,
+        ];
+    }
+
+    protected function buildListPermissionDeniedResponse(ListContextParams $p): array
+    {
+        $includeCommonData = !isset($p->options['include_common_data']) || (bool) $p->options['include_common_data'];
+        $response = [];
+        if ($includeCommonData) {
+            $response = $this->module->getCommonData();
+        }
+
+        $response['table_id'] = $p->tableId;
+        $response['title'] = $p->isEmbeddedViewTable ? $p->modelTitle : ($p->modelTitle . ' List');
+        $response['title_heading_size'] = $this->resolveHeadingSize($p);
+        $response['title_small_buttons'] = $p->isEmbeddedViewTable;
+        $response['title_btns'] = [];
+        $response['show_search'] = false;
+        $response['search_html'] = '';
+        $response['bottom_content'] = '';
+        $response['html'] = '<div class="alert alert-danger mb-0" role="alert">You do not have permission to view this table.</div>';
 
         $this->applyAjaxTitleUpdate($response, $p);
 

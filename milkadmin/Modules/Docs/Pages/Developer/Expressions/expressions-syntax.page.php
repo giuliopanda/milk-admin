@@ -89,6 +89,10 @@ IF [type] == "company" THEN "Y" ELSE "N" ENDIF</code></pre>
         <li><code>LOWER(str)</code></li>
         <li><code>CONCAT(str1, str2, ...)</code></li>
         <li><code>TRIM(str)</code></li>
+        <li><code>LENGTH(str)</code></li>
+        <li><code>SUBSTR(str, start, length?)</code></li>
+        <li><code>REPLACE(search, replace, subject)</code></li>
+        <li><code>SLUG(str, maxLength?)</code></li>
         <li><code>ISEMPTY(val)</code></li>
         <li><code>PRECISION(n, decimals)</code></li>
         <li><code>DATEONLY(datetime)</code></li>
@@ -109,6 +113,38 @@ IF [type] == "company" THEN "Y" ELSE "N" ENDIF</code></pre>
     <p>They are aliases. Input can be a time string (<code>HH:MM</code> or <code>HH:MM:SS</code>) or a Date/DateTime. The output keeps the same format as the input (if seconds were present, they are preserved). Minutes can be negative and the result wraps on 24h.</p>
     <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-text">TIMEADD([start_time], 45)
 ADDMINUTES([start_time], -30)</code></pre>
+
+    <h3>String helpers</h3>
+    <table class="table table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>Function</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>LENGTH(str)</code></td>
+                <td>Returns string length (UTF-8 aware)</td>
+            </tr>
+            <tr>
+                <td><code>SUBSTR(str, start, length?)</code></td>
+                <td>Returns a substring. Supports negative <code>start</code> and negative optional <code>length</code></td>
+            </tr>
+            <tr>
+                <td><code>REPLACE(search, replace, subject)</code></td>
+                <td>PHP-like replace. <code>search</code>, <code>replace</code> and <code>subject</code> can be string or array</td>
+            </tr>
+            <tr>
+                <td><code>SLUG(str, maxLength?)</code></td>
+                <td>Builds a lowercase URL slug (removes accents/special chars, trims and applies optional max length)</td>
+            </tr>
+        </tbody>
+    </table>
+    <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-text">LENGTH("Milk Admin")
+SUBSTR("abcdef", 2, 3)
+REPLACE(" ", "-", "Milk Admin")
+SLUG("Crème brûlée & Co.", 20)</code></pre>
 
     <h3>Array / Object helpers</h3>
     <p>These functions are designed to work with arrays of objects/arrays. The <code>"field"</code> parameter supports dot-notation too (e.g. <code>"customer.id"</code>).</p>

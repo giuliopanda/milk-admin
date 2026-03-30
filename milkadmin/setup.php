@@ -90,7 +90,7 @@ define('THEME_URL', Route::url() . "/" . (Config::get('theme_dir') ?? 'Theme'));
 
 define('STORAGE_DIR', realpath(LOCAL_DIR . '/' . Config::get('storage_dir', 'storage')));
 
-define('NEW_VERSION', '0.9.7');
+define('NEW_VERSION', '0.9.8');
 
 
 $current_version = Config::get('version');

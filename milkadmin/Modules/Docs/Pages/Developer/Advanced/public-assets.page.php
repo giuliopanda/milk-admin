@@ -1,34 +1,79 @@
 <?php
 namespace Modules\Docs\Pages;
 /**
- * @title Public Assets and asset_loader
+ * @title Asset Delivery Modes: Development Proxy vs Production Bundles
  * @category Advanced
  * @order 6
- * @tags assets, asset_loader, public_html, override, production
+ * @tags assets, static-assets, css, javascript, js, stylesheets, scripts, images, fonts, media, downloads, asset_loader, asset-loader, resource-proxy, php-streaming, file-streaming, rewrite, rewrite-rule, htaccess, fallback, direct-serving, web-server, public_html, theme, theme-assets, assets-bundle, bundles, bundle-theme.css, bundle-theme.js, environment, development, production, deploy, deployment, performance, cache, caching, regenerate, rebuild, cleanup, sync, override, milkadmin_local, config.php
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>
 <div class="bg-white p-4">
 
-<h1>Public Assets and asset_loader</h1>
+<h1>Asset Delivery Modes: Development Proxy vs Production Bundles</h1>
 
 <p class="lead">
-    Assets normally loaded through <code>public_html/asset_loader.php</code> can be served directly by the web server when they exist inside <code>public_html</code>.
+    MilkAdmin uses two asset delivery modes controlled by <code>$conf['environment']</code>: a development proxy flow and a production bundle flow.
 </p>
 
 <hr>
 
-<h2>How it works</h2>
+<h2>How request resolution works</h2>
 
 <p>
-    Normally, assets are resolved by <code>asset_loader.php</code>, which looks for files in the <code>milkadmin</code> and <code>milkadmin_local</code> folders.
-    If the same asset is placed inside <code>public_html</code>, the web server serves it directly, bypassing the loader.
+    Asset URLs are requested under <code>public_html</code>. The web server first checks whether the file exists physically.
+    If it exists, it is returned directly. If it does not exist, <code>public_html/.htaccess</code> rewrites the request to <code>asset_loader.php</code>.
+    The loader then resolves and streams the file from <code>milkadmin</code> or <code>milkadmin_local</code>.
 </p>
 
+<p>
+    This is why development can work even when assets are not pre-copied inside <code>public_html</code>.
+</p>
+
+<hr>
+
+<h2>Environment modes</h2>
+
+<p>
+    Behavior is tied to <code>$conf['environment']</code> in <code>milkadmin_local/config.php</code>:
+</p>
+<ul>
+    <li>
+        <code>development</code>: CSS and JS are loaded as separate files (theme assets, plugin assets, extension assets). Missing files are served by <code>asset_loader.php</code>.
+        This is effectively a <strong>resource proxy</strong> / <strong>PHP file streaming</strong> flow.
+    </li>
+    <li>
+        <code>production</code>: CSS and JS are compiled into two bundle files (<code>bundle-theme.css</code> and <code>bundle-theme.js</code>) and written under
+        <code>public_html/Theme/Assets</code>. Theme static assets are also synchronized under <code>public_html/Theme</code>, so most requests are served directly by the web server.
+    </li>
+</ul>
+
 <div class="alert alert-info">
-    <strong>Why use it:</strong> in production this reduces the PHP hop and is useful for quick overrides (for example project logos or images).
+    <strong>Why this matters:</strong> production mode reduces PHP overhead for static assets and improves delivery by relying on direct web-server responses.
 </div>
+
+<hr>
+
+<h2>How to rebuild production assets safely</h2>
+
+<p>
+    If a source CSS/JS file changes and you want to force a clean rebuild of production assets, use this workflow:
+</p>
+<ol>
+    <li>Set <code>$conf['environment'] = 'development'</code> in <code>milkadmin_local/config.php</code>.</li>
+    <li>Load any application page.</li>
+    <li>
+        In development mode, the system automatically cleans previously auto-generated production asset files under <code>public_html/Theme</code>
+        (tracked managed files and bundle metadata).
+    </li>
+    <li>Set <code>$conf['environment'] = 'production'</code> again.</li>
+    <li>Load a page again to trigger bundle and static asset regeneration.</li>
+</ol>
+
+<p>
+    In short: switch to development to clear generated production assets, then switch back to production to regenerate them.
+</p>
 
 <hr>
 

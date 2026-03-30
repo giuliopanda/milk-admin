@@ -3,8 +3,8 @@ namespace Modules\Docs\Pages;
 /**
  * @title Permissions Class
  * @guide framework
- * @order 
- * @tags permissions, access-control, authorization, user-groups, permission-groups, exclusive-groups, security, role-management, user-permissions, access-levels, authentication, group-management
+  * @order 90
+ * @tags permissions, acl, access-control, authorization, roles, role-management, user-permissions, permission-groups, user-groups, group-management, exclusive-groups, access-levels, security, auth-rules
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

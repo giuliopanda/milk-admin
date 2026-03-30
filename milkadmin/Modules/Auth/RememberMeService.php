@@ -120,16 +120,21 @@ class RememberMeService
     }
 
     /**
-     * Validate a remember me token (NO rotation, just update last_used_at)
+     * Validate and rotate a remember me token.
+     *
+     * Rotation strategy:
+     * - Keep selector stable
+     * - Rotate validator at every successful remember-me login
+     * - If an old validator is replayed for the same selector, treat it as compromise
      *
      * @param string $selector Public token identifier
      * @param string $validator Secret token to verify
-     * @return int|false User ID if valid, false otherwise
+     * @return array|false ['user_id' => int, 'selector' => string, 'validator' => string] or false
      */
     public function validateToken(string $selector, string $validator)
     {
-        // Find token by selector using SQL query
-        $query = "SELECT * FROM milk_remember_tokens WHERE selector = ? LIMIT 1";
+        // Find token by selector
+        $query = "SELECT * FROM `#__remember_tokens` WHERE selector = ? LIMIT 1";
         $token = Get::db()->getRow($query, [$selector]);
 
         if (!$token) {
@@ -149,15 +154,32 @@ class RememberMeService
 
         // Verify validator against hash
         if (!password_verify($validator, $token->token_hash)) {
-            // Invalid token - possible attack, revoke it
-            $this->revokeToken($token->id);
+            // Old/invalid validator for known selector => probable token theft.
+            // Invalidate all persistent logins and active sessions for that user.
+            $this->invalidateUserPersistentAuth((int) ($token->user_id ?? 0), (int) ($token->id ?? 0));
             return false;
         }
 
-        // Token is valid - just update last_used_at (NO rotation)
-        $this->updateLastUsed($token->id);
+        // Token is valid: rotate validator immediately.
+        $rotated_validator = bin2hex(random_bytes(self::TOKEN_BYTES));
+        $rotated_hash = password_hash($rotated_validator, PASSWORD_DEFAULT, ['cost' => 12]);
+        if (!is_string($rotated_hash) || $rotated_hash === '') {
+            $this->revokeToken((int) ($token->id ?? 0));
+            return false;
+        }
 
-        return (int)$token->user_id;
+        $rotated = $this->rotateTokenValidator((int) ($token->id ?? 0), $rotated_hash);
+        if (!$rotated) {
+            // Fail closed: token can no longer be reused if rotation failed.
+            $this->revokeToken((int) ($token->id ?? 0));
+            return false;
+        }
+
+        return [
+            'user_id' => (int) ($token->user_id ?? 0),
+            'selector' => (string) ($token->selector ?? ''),
+            'validator' => $rotated_validator
+        ];
     }
 
     /**
@@ -168,10 +190,49 @@ class RememberMeService
      */
     private function updateLastUsed(int $token_id): bool
     {
-        $query = "UPDATE milk_remember_tokens
+        $query = "UPDATE `#__remember_tokens`
                   SET last_used_at = ?
                   WHERE id = ?";
         return Get::db()->query($query, [date('Y-m-d H:i:s'), $token_id]);
+    }
+
+    /**
+     * Rotate validator hash and refresh device metadata for a token.
+     */
+    private function rotateTokenValidator(int $token_id, string $token_hash): bool
+    {
+        $query = "UPDATE `#__remember_tokens`
+                  SET token_hash = ?,
+                      last_used_at = ?,
+                      ip_address = ?,
+                      user_agent = ?,
+                      device_fingerprint = ?
+                  WHERE id = ? AND is_revoked = 0";
+
+        return Get::db()->query($query, [
+            $token_hash,
+            date('Y-m-d H:i:s'),
+            $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+            $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
+            $this->generateDeviceFingerprint(),
+            $token_id
+        ]) !== false;
+    }
+
+    /**
+     * Invalidate all persistent auth artifacts for a user after suspected token replay.
+     */
+    private function invalidateUserPersistentAuth(int $user_id, int $fallback_token_id): void
+    {
+        if ($user_id > 0) {
+            $this->deleteAllUserTokens($user_id);
+            Get::db()->delete('#__sessions', ['user_id' => $user_id]);
+            return;
+        }
+
+        if ($fallback_token_id > 0) {
+            $this->revokeToken($fallback_token_id);
+        }
     }
 
     /**
@@ -286,7 +347,7 @@ class RememberMeService
      */
     public function revokeToken(int $token_id): bool
     {
-        $query = "UPDATE milk_remember_tokens
+        $query = "UPDATE `#__remember_tokens`
                   SET is_revoked = 1
                   WHERE id = ?";
         return Get::db()->query($query, [$token_id]);
@@ -300,7 +361,7 @@ class RememberMeService
      */
     private function deleteToken(int $token_id): bool
     {
-        $query = "DELETE FROM milk_remember_tokens
+        $query = "DELETE FROM `#__remember_tokens`
                   WHERE id = ?";
         return Get::db()->query($query, [$token_id]);
     }
@@ -315,7 +376,7 @@ class RememberMeService
         $now = date('Y-m-d H:i:s');
 
         // Delete expired tokens using direct database access
-        $query = "DELETE FROM milk_remember_tokens
+        $query = "DELETE FROM `#__remember_tokens`
                   WHERE expires_at < ? OR is_revoked = 1";
         $db = Get::db();
         $result = $db->query($query, [$now]);
@@ -334,7 +395,7 @@ class RememberMeService
     private function enforceMaxDevices(int $user_id): void
     {
         // Count active tokens for this user
-        $query = "SELECT * FROM milk_remember_tokens
+        $query = "SELECT * FROM `#__remember_tokens`
                   WHERE user_id = ? AND is_revoked = 0
                   ORDER BY created_at DESC";
         $tokens = Get::db()->getResults($query, [$user_id]);
@@ -357,7 +418,7 @@ class RememberMeService
      */
     public function revokeAllUserTokens(int $user_id): bool
     {
-        $query = "UPDATE milk_remember_tokens
+        $query = "UPDATE `#__remember_tokens`
                   SET is_revoked = 1
                   WHERE user_id = ?";
 
@@ -375,7 +436,7 @@ class RememberMeService
     {
         $fingerprint = $this->generateDeviceFingerprint();
 
-        $query = "DELETE FROM milk_remember_tokens
+        $query = "DELETE FROM `#__remember_tokens`
                   WHERE user_id = ? AND device_fingerprint = ?";
 
         return Get::db()->query($query, [$user_id, $fingerprint]) !== false;
@@ -389,7 +450,7 @@ class RememberMeService
      */
     public function deleteAllUserTokens(int $user_id): bool
     {
-        $query = "DELETE FROM milk_remember_tokens
+        $query = "DELETE FROM `#__remember_tokens`
                   WHERE user_id = ?";
 
         return Get::db()->query($query, [$user_id]) !== false;

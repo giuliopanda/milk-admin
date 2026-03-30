@@ -3,8 +3,8 @@ namespace Modules\Docs\Pages;
 /**
  * @title File Class
  * @guide framework
- * @order 60
- * @tags file_get_contents, File::get_contents, file_put_contents, File::put_contents, file_append_contents, File::append_contents, wait_lock, File::wait_lock, put_contents, get_contents, fopen, fclose, flock, LOCK
+  * @order 130
+ * @tags file-class, file-io, file_read, file_write, file_append, file_get_contents, file_put_contents, file_append_contents, file::get_contents, file::put_contents, file::append_contents, file::wait_lock, wait_lock, file-locking, lock, flock, thread-safe, concurrent-writes, fopen, fclose, filesystem, atomic-write
  */
 ?>
 <div class="bg-white p-4">

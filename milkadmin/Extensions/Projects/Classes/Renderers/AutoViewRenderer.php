@@ -2,6 +2,7 @@
 namespace Extensions\Projects\Classes\Renderers;
 
 use App\Abstracts\AbstractModule;
+use App\Hooks;
 use App\Response;
 use App\Route;
 use Builders\TitleBuilder;
@@ -236,6 +237,23 @@ class AutoViewRenderer
         if (!is_array($formattedData)) {
             $formattedData = [];
         }
+
+        Hooks::run('projects.record.view.before-render', [
+            'hook' => 'projects.record.view.before-render',
+            'stage' => 'before_render',
+            'page' => $modulePage,
+            'context' => $context,
+            'request' => $_REQUEST,
+            'record_id' => $id,
+            'root_id' => $rootId,
+            'parent_id' => $parentId,
+            'is_root' => $isRoot,
+            'model_name' => $modelName,
+            'model_title' => $modelTitle,
+            'view_display' => $viewDisplay,
+            'record' => $record,
+            'formatted_data' => $formattedData,
+        ]);
 
         $mainSectionTitle = $modelTitle !== '' ? $modelTitle : 'Detail';
 

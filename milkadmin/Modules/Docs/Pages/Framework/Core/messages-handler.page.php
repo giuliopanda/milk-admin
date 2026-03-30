@@ -3,8 +3,8 @@ namespace Modules\Docs\Pages;
 /**
  * @title Messages
  * @guide framework
- * @order 
- * @tags messages, errors, success, validation, alerts, feedback, notifications 
+  * @order 230
+ * @tags messageshandler, messages, flash-messages, user-feedback, notifications, alerts, success-messages, error-messages, validation-errors, form-errors, ui-messages, message-queue
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

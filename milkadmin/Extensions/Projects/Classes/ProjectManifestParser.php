@@ -160,6 +160,7 @@ class ProjectManifestParser
      *   defaultOrderEnabled?:bool,
      *   defaultOrderField?:string,
      *   defaultOrderDirection?:string,
+     *   allowView?:bool,
      *   viewAction?:bool,
      *   childCountColumn?:string,
      *   viewDisplay?:string,
@@ -215,6 +216,12 @@ class ProjectManifestParser
         if ($hasAllowEdit) {
             $allowEditRaw = ProjectJsonStore::resolveAliasedKey($form, ['allowEdit', 'allow_edit'], true);
             $entry['allowEdit'] = ProjectJsonStore::normalizeBool($allowEditRaw);
+        }
+
+        $hasAllowView = ProjectJsonStore::hasAliasedKey($form, ['allowView', 'allow_view']);
+        if ($hasAllowView) {
+            $allowViewRaw = ProjectJsonStore::resolveAliasedKey($form, ['allowView', 'allow_view'], true);
+            $entry['allowView'] = ProjectJsonStore::normalizeBool($allowViewRaw);
         }
 
         $hasDefaultOrderEnabled = ProjectJsonStore::hasAliasedKey($form, ['defaultOrderEnabled', 'default_order_enabled']);

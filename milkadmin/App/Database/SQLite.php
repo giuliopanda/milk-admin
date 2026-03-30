@@ -225,10 +225,11 @@ class SQLite
             $sql_to_log = $this->toSql($sql, $params);
             // Execute the statement
             $result = $stmt->execute();
+            $errorCode = $this->sqlite->lastErrorCode();
+            $errorMsg = $this->sqlite->lastErrorMsg();
 
-            // Check for errors immediately after execute
-            if ($result === false || $this->sqlite->lastErrorCode() != 0) {
-                $errorMsg = $this->sqlite->lastErrorMsg();
+            // Fail only when execute() fails. lastErrorCode/lastErrorMsg can be stale in some flows.
+            if ($result === false) {
                 Logs::set('DATABASE', "SQLITE Query execute failed: '".$sql_to_log."' error: ". $errorMsg, 'ERROR');
                 $this->error = true;
                 $this->last_error = $errorMsg;
@@ -238,6 +239,11 @@ class SQLite
                     'sqlite',
                     ['query' => $sql, 'params' => $params]
                 );
+            }
+
+            // Keep a focused trace for ALTER TABLE ... RENAME TO diagnostics.
+            if ($errorCode !== 0 && preg_match('/^\s*ALTER\s+TABLE\s+/i', $sql) === 1 && stripos($sql, ' RENAME TO ') !== false) {
+                Logs::set('DATABASE', "SQLITE ALTER RENAME post-exec warning: code={$errorCode}; msg={$errorMsg}; sql={$sql_to_log}", 'WARNING');
             }
 
             if ($result->numColumns() > 0) {

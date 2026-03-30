@@ -3,8 +3,8 @@ namespace Modules\Docs\Pages;
 /**
  * @title Http Client
  * @guide framework
- * @order 70
- * @tags HTTP, client, API, requests, GET, POST, PUT, DELETE, cURL, concurrent, exceptions
+  * @order 160
+ * @tags http-client, http, api-calls, requests, get, post, put, patch, delete, curl, concurrent-requests, parallel-requests, request-headers, response-body, json, timeout, retries, exceptions, network-errors
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

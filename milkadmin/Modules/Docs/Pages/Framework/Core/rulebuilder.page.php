@@ -3,8 +3,8 @@ namespace Modules\Docs\Pages;
 /**
  * @title RuleBuilder - Schema Definition
  * @guide framework
- * @order 45
- * @tags RuleBuilder, schema, database, fields, validation, relationships, fluent-interface, configure, model-definition
+  * @order 200
+ * @tags rulebuilder, schema-definition, model-configure, model-definition, fields, field-types, constraints, validation-rules, relationships, fluent-interface, form-generation, database-schema, configure-method
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

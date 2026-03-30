@@ -4,8 +4,8 @@ namespace Modules\Docs\Pages;
 /**
  * @title Token
  * @guide framework
- * @order 
- * @tags tokens, CSRF-protection, JWT-tokens, security-tokens, authentication-tokens, API-security, token-verification
+  * @order 70
+ * @tags token, tokens, csrf-token, csrf-protection, jwt, jwt-token, bearer-token, security-token, authentication-token, api-security, token-verification, token-generation, signed-tokens, auth-security
  */
 ?>
 <div class="bg-white p-4">

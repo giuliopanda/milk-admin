@@ -383,21 +383,6 @@ class AuthContract implements AuthContractInterface
     }
 
     /**
-     * Clear failed login attempts when login is successful
-     * 
-     * @param string $username Username
-     * @param string $ip_address IP address
-     * @param string $session_id Session ID
-     */
-    private function clearFailedAttempts($username, $ip_address, $session_id) {
-        $this->login_attempts_model->clearFailedAttempts(
-            (string) $username,
-            (string) $ip_address,
-            (string) $session_id
-        );
-    }
-
-    /**
      * Verify user credentials without performing login
      * 
      * @param string $username Username or email address
@@ -508,9 +493,6 @@ class AuthContract implements AuthContractInterface
                     $this->current_user = $user;
                     $this->setCurrentUserPermissions();
                 }
-
-                // Clear failed attempts after successful login
-                $this->clearFailedAttempts($username, $ip_address, $session_id);
 
                 // Log successful login to access logs
                 $this->logAccessLogin($this->current_user->id, (string) session_id(), $ip_address, $_SERVER['HTTP_USER_AGENT'] ?? '', $this->current_user->username ?? '');
@@ -817,28 +799,33 @@ class AuthContract implements AuthContractInterface
                 return false;
             }
 
-            // Validate token and get user_id
-            $user_id = $rememberMeService->validateToken($cookieData['selector'], $cookieData['validator']);
+            // Validate + rotate token and get user_id
+            $tokenPayload = $rememberMeService->validateToken($cookieData['selector'], $cookieData['validator']);
 
-            if (!$user_id) {
+            if (!is_array($tokenPayload) || empty($tokenPayload['user_id'])) {
                 // Invalid token - delete cookie
                 $rememberMeService->deleteCookie();
                 return false;
             }
+            $user_id = (int) $tokenPayload['user_id'];
 
             // Get user and create session
             $user = $this->getUser($user_id);
             if (!$user || $user->status != 1) {
                 // User not found or inactive - delete cookie
                 $rememberMeService->deleteCookie();
+                $rememberMeService->deleteAllUserTokens($user_id);
                 return false;
             }
 
             // Login successful - set user and create session
+            $this->session->old_phpsessid = session_id();
+            session_regenerate_id(true);
             $this->current_user = $user;
             Token::config(Config::get('secret_key'), Config::get('token_key'));
             $this->setCurrentUserPermissions();
             $this->updateUserSession($this->current_user->id);
+            $rememberMeService->setCookie((string) ($tokenPayload['selector'] ?? ''), (string) ($tokenPayload['validator'] ?? ''));
 
             // Update last login
             $this->user_model->updateLastLogin((int) ($this->current_user->id ?? 0));

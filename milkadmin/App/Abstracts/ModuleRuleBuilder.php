@@ -236,10 +236,10 @@ class ModuleRuleBuilder
     /**
      * Set the access level
      *
-     * @param string $access Access level (public, registered, authorized, admin)
+     * @param ?string $access Access level (public, registered, authorized, admin)
      * @return self
      */
-    public function access(string $access): self
+    public function access(?string $access): self
     {
         $this->access = $access;
         return $this;

@@ -2,6 +2,7 @@
 namespace Extensions\Projects\Classes\View;
 
 use App\Abstracts\AbstractModule;
+use App\Hooks;
 use App\Response;
 use App\Route;
 use Builders\TitleBuilder;
@@ -109,6 +110,27 @@ class ViewPageRenderer
 
         // For root records, rootId = record id itself.
         $rootId = $isRoot ? $id : 0;
+        $formattedData = $record->getFormattedData('array', false);
+        if (!is_array($formattedData)) {
+            $formattedData = [];
+        }
+
+        Hooks::run('projects.record.view.before-render', [
+            'hook' => 'projects.record.view.before-render',
+            'stage' => 'before_render',
+            'page' => $modulePage,
+            'context' => $context,
+            'request' => $_REQUEST,
+            'record_id' => $id,
+            'root_id' => $rootId,
+            'parent_id' => 0,
+            'is_root' => $isRoot,
+            'model_name' => $modelName,
+            'model_title' => $modelTitle,
+            'view_display' => $viewDisplay,
+            'record' => $record,
+            'formatted_data' => $formattedData,
+        ]);
 
         // ------------------------------------------------------------------
         // Build body HTML from schema cards

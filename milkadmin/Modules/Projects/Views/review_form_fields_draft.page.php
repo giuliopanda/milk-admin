@@ -19,22 +19,16 @@ $newJsonPretty = (string) ($review['new_json_pretty'] ?? '');
 $fieldChanges = is_array($review['field_changes'] ?? null) ? $review['field_changes'] : [];
 $fieldChangesSummary = is_array($review['field_changes_summary'] ?? null) ? $review['field_changes_summary'] : [];
 $dbCheckMessage = trim((string) ($review['db_check_message'] ?? ''));
-$acceptUrl = trim((string) ($review['accept_url'] ?? ''));
 $backToEditUrl = trim((string) ($review['back_to_edit_url'] ?? ''));
+$ref = trim((string) ($review['ref'] ?? ''));
+$draftToken = trim((string) ($review['draft_token'] ?? ''));
+$acceptPostUrl = '?page=' . rawurlencode($page) . '&action=accept-form-fields-draft';
 $structurePreviewStyle = 'max-height: 220px; overflow: auto; font-size: 0.72rem; line-height: 1.2;';
 $isNoChangedLine = static function (string $line): bool {
     return preg_match('/^\[?\s*no changed lines\.?\s*\]?$/i', trim($line)) === 1;
 };
 
 $titleActions = [];
-if ($canReview && $acceptUrl !== '') {
-    $titleActions[] = [
-        'label' => 'Save',
-        'url' => $acceptUrl,
-        'class' => 'btn btn-success',
-        'id' => '',
-    ];
-}
 $rightActions = [];
 if ($backToEditUrl !== '') {
     $rightActions[] = [
@@ -67,6 +61,16 @@ $projectEditContext = \Modules\Projects\ProjectEditContextService::buildBoxData(
         <div class="alert alert-info">
             Review the JSON changes. Nothing is saved until you click <strong>Save</strong>.
         </div>
+        <?php if ($acceptPostUrl !== '' && $moduleName !== '' && $ref !== '' && $draftToken !== ''): ?>
+            <form method="post" action="<?php _p($acceptPostUrl); ?>" class="mb-3 js-accept-draft-form">
+                <input type="hidden" name="page" value="<?php _p($page); ?>">
+                <input type="hidden" name="action" value="accept-form-fields-draft">
+                <input type="hidden" name="module" value="<?php _p($moduleName); ?>">
+                <input type="hidden" name="ref" value="<?php _p($ref); ?>">
+                <input type="hidden" name="draft" value="<?php _p($draftToken); ?>">
+                <button type="submit" class="btn btn-success">Save</button>
+            </form>
+        <?php endif; ?>
 
         <div class="card projects-page-card mt-3">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -227,6 +231,16 @@ $projectEditContext = \Modules\Projects\ProjectEditContextService::buildBoxData(
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    var acceptForms = document.querySelectorAll('.js-accept-draft-form');
+    acceptForms.forEach(function (form) {
+        form.addEventListener('submit', function () {
+            var submitButtons = form.querySelectorAll('button[type="submit"], input[type="submit"]');
+            submitButtons.forEach(function (button) {
+                button.disabled = true;
+            });
+        });
+    });
+
     var buttons = document.querySelectorAll('.js-copy-structure');
     if (!buttons.length) return;
 

@@ -3,8 +3,8 @@ namespace Modules\Docs\Pages;
 /**
  * @title Storage custom Settings
  * @guide framework
- * @order 
- * @tags settings, configuration-management, persistent-storage, JSON-storage, application-config, settings-groups, data-persistence, configuration-storage, application-settings, config-management
+  * @order 120
+ * @tags settings, app-settings, configuration, config-management, persistent-storage, json-storage, key-value-store, settings-groups, application-config, data-persistence, runtime-config, save-settings, load-settings
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

@@ -6,7 +6,6 @@ use Theme\Template;
 
 !defined('MILK_DIR') && die(); // Avoid direct access
 
-$version = Config::get('version');
 $user = Get::user();
 ?>
 <!doctype html>
@@ -18,10 +17,7 @@ $user = Get::user();
     <meta name="csrf-token" content="<?php echo Token::get(); ?>">
     <meta name="csrf-token-name" content="<?php echo Token::getTokenName(); ?>">
     <title><?php echo Theme::get('header.title', Config::get('site-title', '')); ?></title>
-    <link href="<?php echo THEME_URL; ?>/AssetsExtensions/Bootstrap/Css/bootstrap.min.css?v=<?php echo $version; ?>" rel="stylesheet" crossorigin="anonymous">
     <?php Template::getCss(); ?>
-    <link href="<?php echo THEME_URL; ?>/AssetsExtensions/Bootstrap/Icons/Font/bootstrap-icons.min.css?v=<?php echo $version; ?>" rel="stylesheet" crossorigin="anonymous">
-     <link href="<?php echo THEME_URL; ?>/AssetsExtensions/TrixEditor/trix.css?v=<?php echo $version; ?>" rel="stylesheet" crossorigin="anonymous">
     <link rel="icon" href="<?php echo THEME_URL; ?>/Assets/favicon.ico" type="image/x-icon">
     <script>
       var milk_url = "<?php _p(Route::url()); ?>";

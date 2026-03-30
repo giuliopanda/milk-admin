@@ -34,8 +34,50 @@ class LoginAttemptsModel extends AbstractModel {
         };
 
         $query = 'SELECT COUNT(*) as count FROM `#__login_attempts` WHERE ' . $field . ' = ? AND attempt_time > ?';
-        $result = $this->db->getRow($query, [$identifier, $formattedDateTime]);
+        $params = [$identifier, $formattedDateTime];
+
+        // Username/session counters are reset by the last successful login.
+        // IP counter stays untouched and naturally decays only by time window.
+        if ($type === 'username' || $type === 'session') {
+            $last_success_time = $this->getLastSuccessfulLoginTime($identifier, $type);
+            if ($last_success_time !== null) {
+                $query .= ' AND attempt_time > ?';
+                $params[] = $last_success_time;
+            }
+        }
+
+        $result = $this->db->getRow($query, $params);
         return (int) ($result->count ?? 0);
+    }
+
+    /**
+     * Get last successful login time for username/session if available.
+     */
+    private function getLastSuccessfulLoginTime(string $identifier, string $type): ?string {
+        if (!$this->db || $identifier === '') {
+            return null;
+        }
+
+        if ($type === 'username') {
+            $row = $this->db->getRow(
+                'SELECT MAX(login_time) as last_login FROM `#__access_logs` WHERE username = ?',
+                [$identifier]
+            );
+        } else if ($type === 'session') {
+            $row = $this->db->getRow(
+                'SELECT MAX(login_time) as last_login FROM `#__access_logs` WHERE session_id = ?',
+                [$identifier]
+            );
+        } else {
+            return null;
+        }
+
+        $last_login = $row->last_login ?? null;
+        if (!is_string($last_login) || $last_login === '') {
+            return null;
+        }
+
+        return $last_login;
     }
 
     /**
@@ -74,19 +116,6 @@ class LoginAttemptsModel extends AbstractModel {
         ];
 
         return $this->db->insert($this->table, $data) !== false;
-    }
-
-    /**
-     * Clear attempts for username, ip and session.
-     */
-    public function clearFailedAttempts(string $username, string $ip_address, string $session_id): void {
-        if (!$this->db) {
-            return;
-        }
-
-        $this->db->delete($this->table, ['username_email' => $username]);
-        $this->db->delete($this->table, ['ip_address' => $ip_address]);
-        $this->db->delete($this->table, ['session_id' => $session_id]);
     }
 
     /**

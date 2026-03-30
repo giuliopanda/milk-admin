@@ -3,8 +3,8 @@ namespace Modules\Docs\Pages;
 /**
  * @title Query Builder
  * @guide framework
- * @order 40
- * @tags query-builder, SQL, fluent-interface, where, whereIn, whereHas, JOIN, SELECT, ORDER, LIMIT, relationships, DatabaseException
+  * @order 210
+ * @tags query-builder, sql-builder, fluent-interface, select, where, wherein, wherehas, join, leftjoin, orderby, groupby, having, limit, offset, relationships, filters, databaseexception, query-composition
  */
 !defined('MILK_DIR') && die(); // Avoid direct access
 ?>

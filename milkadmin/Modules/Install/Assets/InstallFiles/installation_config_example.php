@@ -50,6 +50,7 @@ $conf['base_url'] = $scheme . '://' . $_SERVER['HTTP_HOST'] .$temp;
 $conf['home_page'] = '?page=install';
 $conf['page_not_found'] = '404';
 $conf['debug'] = true;
+$conf['environment'] = 'development'; // development | production
 
 // default title
 $conf['site-title'] = 'MilkAdmin - Framework';

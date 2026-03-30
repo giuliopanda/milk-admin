@@ -25,6 +25,7 @@ class ProjectManifestIndex
      *   soft_delete:bool,
      *   allow_delete_record:bool,
      *   allow_edit:bool,
+     *   allow_view:bool,
      *   default_order_enabled:bool,
      *   default_order_field:string,
      *   default_order_direction:string,
@@ -68,6 +69,7 @@ class ProjectManifestIndex
      *   soft_delete:bool,
      *   allow_delete_record:bool,
      *   allow_edit:bool,
+     *   allow_view:bool,
      *   default_order_enabled:bool,
      *   default_order_field:string,
      *   default_order_direction:string,
@@ -202,6 +204,11 @@ class ProjectManifestIndex
             : ProjectJsonStore::normalizeBool(
                 ProjectJsonStore::resolveAliasedKey($node, ['allowEdit', 'allow_edit'], false)
             );
+        $allowView = !ProjectJsonStore::hasAliasedKey($node, ['allowView', 'allow_view'])
+            ? true
+            : ProjectJsonStore::normalizeBool(
+                ProjectJsonStore::resolveAliasedKey($node, ['allowView', 'allow_view'], false)
+            );
         $defaultOrderEnabled = ProjectJsonStore::normalizeBool(
             ProjectJsonStore::resolveAliasedKey($node, ['defaultOrderEnabled', 'default_order_enabled'], false)
         );
@@ -259,6 +266,7 @@ class ProjectManifestIndex
             'soft_delete' => $softDelete,
             'allow_delete_record' => $allowDeleteRecord,
             'allow_edit' => $allowEdit,
+            'allow_view' => $allowView,
             'default_order_enabled' => $defaultOrderEnabled,
             'default_order_field' => $defaultOrderField,
             'default_order_direction' => $defaultOrderDirection,

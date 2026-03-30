@@ -469,8 +469,8 @@ class ProjectsModule extends AbstractModule
     public function acceptFormFieldsDraft(): void
     {
         $project = $this->getRequestedProject();
-        $ref = trim((string) ($_REQUEST['ref'] ?? ''));
-        $draftToken = trim((string) ($_REQUEST['draft'] ?? ''));
+        $ref = trim((string) ($_POST['ref'] ?? ($_REQUEST['ref'] ?? '')));
+        $draftToken = trim((string) ($_POST['draft'] ?? ($_REQUEST['draft'] ?? '')));
         $result = ProjectFormFieldsDraftService::acceptDraft($project, $ref, $draftToken, $this->page);
 
         $redirectUrl = trim((string) ($result['redirect_url'] ?? ''));
@@ -547,7 +547,7 @@ class ProjectsModule extends AbstractModule
 
     private function getRequestedModuleName(): string
     {
-        $moduleName = trim((string) ($_GET['module'] ?? ''));
+        $moduleName = trim((string) ($_GET['module'] ?? ($_POST['module'] ?? ($_REQUEST['module'] ?? ''))));
         if ($moduleName === '') {
             return '';
         }

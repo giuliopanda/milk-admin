@@ -3,8 +3,8 @@ namespace Modules\Docs\Pages;
 /**
  * @title Install Module Documentation
  * @guide framework
- * @order 2
- * @tags Install, update, uninstall, version, build-version, update-paths, cli, modules
+  * @order 10
+ * @tags install-module, module-installation, update-module, module-update, uninstall-module, module-uninstall, versioning, module-version, build-version, update-paths, migration, deployment, cli, installer, modules
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access
@@ -13,6 +13,11 @@ namespace Modules\Docs\Pages;
 <div class="bg-white p-4">
     <h1>Installation / Update</h1>
     <p>This documentation provides a description of the installation and update system.</p>
+    <p class="alert alert-info">
+        <strong>Development vs Production assets:</strong>
+        for asset delivery mode, bundling, and rebuild workflow see
+        <a href="http://localhost/milk-admin-under-development/public_html/?page=docs&action=Developer/Advanced/public-assets">Developer / Advanced / Public Assets</a>.
+    </p>
 
     <h2>Initial Tutorial</h2>
     <p>If you want to customize the system for your project, you can release your versions and install them on new machines or update already installed versions for your clients</p>

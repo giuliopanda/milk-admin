@@ -16,6 +16,7 @@ Additional docs:
 
 - `milkadmin/Extensions/Projects/JSON_OPTIONS.md`
 - `milkadmin/Extensions/Projects/VIEW_LAYOUT.md`
+- `milkadmin/Extensions/Projects/PERMISSIONS_HOOKS.md`
 
 This README describes how to structure a module that uses it, how to write the manifest, and what conventions are enforced.
 
@@ -43,26 +44,133 @@ if ($manifest === false) {
 
 ## Additional Permissions (Short Note)
 
-`Projects` exposes special permissions through hook `project_get_special_permissions`.
+`Projects` exposes special permissions through hook `projects.get-special-permissions`.
 
-Current default permissions for main table are:
+Projects exposes permissions for every form in the manifest:
 
-- `project.<manifest_id>.main_table_view` (default `true`)
-- `project.<manifest_id>.main_table_edit` (default `true`)
-- `project.<manifest_id>.main_table_delete` (default `true`)
+- root form keeps `project.<manifest_id>.main_table_*`
+- child forms use `project.<manifest_id>.<form_name_snake>__*`
+- standard columns are generated dynamically from each form config: `view`, `edit`, `soft delete`, `hard delete`
 
 Notes:
 
 - `<manifest_id>` comes from `manifest.json` field `id` (not module page).
 - Permission keys are snake_case.
+- Runtime checks keep backward compatibility with legacy `main_table_delete` roles.
+- Extra shared permissions are declared in `manifest.json` with `additionalPermissions`, for example `"additionalPermissions": ["download"]`.
+- Every `additionalPermissions` entry becomes one global toggle in the Additional permissions area of `UserRights`.
 - The extension also sends lightweight UI metadata used by `UserRights`:
   - `block_title` (project name from manifest),
   - `block_name` (currently `Access Data`),
-  - `row_name` (root table `_name` from schema JSON).
+  - `row_name` (table `_name` from each schema JSON).
 
 Runtime checks are delegated to:
 
-- `Hooks::run("project_check_special_permission", true, 'project.' . $permissionName)`
+- `Hooks::run("projects.check_special_permission", true, 'project.' . $permissionName)`
+
+## Query Hook (Rows + Total)
+
+Projects emits a hook with SQL payload for auto-list tables:
+
+- Hook name: `projects.query.before-execute`
+- Stage: emitted before list queries are executed (`beforeGetData`)
+- Fired twice per table data load:
+  - once for rows query (`is_total = false`)
+  - once for total/count query (`is_total = true`)
+
+The first hook argument is a payload array with:
+
+- `is_total` (`bool`)
+- `query_type` (`rows|total`)
+- `stage` (`before_get_data`)
+- `page` (`string`)
+- `table_id` (`string`)
+- `request` (`array`)
+- `query` (`App\Database\Query`)
+- `sql` (`string`, with placeholders)
+- `params` (`array`)
+- `manifest` (`array|null`) current project `manifest.json` when available
+- `model` (`App\Abstracts\AbstractModel|null`)
+- `model_columns` (`array<string>`)
+
+Example:
+
+```php
+\App\Hooks::set('projects.query.before-execute', function (array $payload) {
+    $type = $payload['is_total'] ? 'TOTAL' : 'ROWS';
+    $sql = (string) ($payload['sql'] ?? '');
+    $params = is_array($payload['params'] ?? null) ? $payload['params'] : [];
+
+    \App\Logs::set('SYSTEM', "Projects {$type} SQL: {$sql} | params=" . json_encode($params), 'INFO');
+
+    return $payload;
+});
+```
+
+## Post-Extract Visibility Hook
+
+Projects also emits a hook after list rows are extracted, useful for correlated-table access checks:
+
+- Hook name: `projects.data.after-extract-visibility`
+- Stage: emitted in `afterGetData`
+- Typical use: validate extracted rows visibility and stop rendering when data is not allowed.
+
+Payload keys:
+
+- `stage` (`after_get_data`)
+- `page` (`string`)
+- `table_id` (`string`)
+- `request` (`array`)
+- `query` (`App\Database\Query`)
+- `manifest` (`array|null`)
+- `model` (`App\Abstracts\AbstractModel|null`)
+- `model_columns` (`array<string>`)
+- `data` (`array`) table payload (`rows`, `info`, `page_info`)
+
+## Record Pre-Save Hooks
+
+Projects emits hooks before executing record save queries in edit forms (`FormBuilder::beforeSave`):
+
+- `projects.record.create.before-save`: fired before saving a new record.
+- `projects.record.update.before-save`: fired before saving an existing record.
+- `projects.record.related.before-save`: fired before saving related-table records (child/non-root forms), for both create/update operations.
+
+All hooks are emitted at stage `before_save_query` and receive a payload as first argument.
+
+Main payload keys:
+
+- `hook` (`string`)
+- `stage` (`before_save_query`)
+- `operation` (`create|update`)
+- `is_create` (`bool`)
+- `is_update` (`bool`)
+- `is_related_table` (`bool`)
+- `page` (`string`)
+- `request` (`array`) mutable save input data
+- `record_id` (`int`)
+- `primary_key` (`string`)
+- `model` (`App\Abstracts\AbstractModel|object|null`)
+- `model_class` (`string`)
+- `table` (`string`)
+- `form_name` (`string`)
+- `fk_field` (`string`)
+- `root_field` (`string`)
+- `root_id` (`int`)
+- `max_records` (`string`)
+- `manifest` (`array|null`) project `manifest.json`
+- `context` (`array`) Projects action context
+
+Example:
+
+```php
+\App\Hooks::set('projects.record.create.before-save', function (array $payload) {
+    $request = is_array($payload['request'] ?? null) ? $payload['request'] : [];
+    $request['updated_by_hook'] = 1;
+    $payload['request'] = $request;
+
+    return $payload;
+});
+```
 
 ## Quick Start
 

@@ -3,8 +3,8 @@ namespace Modules\Docs\Pages;
 /**
  * @title Response
  * @guide framework
- * @order 
- * @tags Response, theme_page, json, csv, output, theme, response
+  * @order 50
+ * @tags response, http-response, output, theme-page, html-response, json-response, csv-response, file-download, content-type, status-code, headers, redirect, api-response
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access

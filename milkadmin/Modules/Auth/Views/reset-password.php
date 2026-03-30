@@ -8,6 +8,16 @@ use Theme\Template;
 $msg_error = isset($msg_error) ? (string) $msg_error : '';
 $success = (bool) ($success ?? false);
 ?>
+<style>
+.mk-hp-field {
+    position: absolute !important;
+    left: -10000px !important;
+    top: auto !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+}
+</style>
 <div class="center-login">
     <div class="text-center mb-3">
         <?php Template::getLogo(); ?>
@@ -48,6 +58,14 @@ $success = (bool) ($success ?? false);
                 <input type="hidden" name="page" value="auth">
                 <input type="hidden" name="action" value="forgot_password">
                 <?php echo \App\Token::input('forgot_password'); ?>
+                <div class="mk-hp-field" aria-hidden="true">
+                    <label for="username_backup"><?php _pt('Username'); ?></label>
+                    <input type="text" name="username_backup" id="username_backup" tabindex="-1" autocomplete="off">
+                </div>
+                <div class="mk-hp-field" aria-hidden="true">
+                    <label for="password_backup"><?php _pt('Password'); ?></label>
+                    <input type="text" name="password_backup" id="password_backup" tabindex="-1" autocomplete="off">
+                </div>
                 <div class="mb-3">
                     <div class="form-floating">
                         <input type="text" name="username" class="form-control" id="floatingInput" placeholder="usernames" required>

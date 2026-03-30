@@ -656,11 +656,18 @@ class PostsController extends \App\Abstract\AbstractController {
 
             <h3 class="mt-3"><code>access()</code></h3>
              <p>Checks if the user has permissions to access the module based on the <code>$access</code> property</p>
+             <p>You can override this method in your controller when you need action-level custom logic. By default it delegates to <code>$this->module->access()</code>.</p>
 <pre class="pre-scrollable border p-2 text-bg-gray"><code class="language-php">
 /**
  * @return bool
  */
 protected function access(): bool;
+
+// Optional override in your controller
+protected function access(): bool
+{
+    return $this->module->access() && Permissions::check('projects.access');
+}
 
 // Usage example in the child class
 if ($this->access()) {

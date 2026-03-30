@@ -2,7 +2,8 @@
 namespace Extensions\Projects;
 
 use App\Abstracts\AbstractFormBuilderExtension;
-use App\{MessagesHandler, Token};
+use App\{Hooks, MessagesHandler, Token};
+use Extensions\Projects\Classes\ProjectJsonStore;
 
 !defined('MILK_DIR') && die();
 
@@ -34,6 +35,23 @@ class FormBuilder extends AbstractFormBuilderExtension
      * Root record id for the current form context.
      */
     protected int $rootId = 0;
+
+    /**
+     * AutoEdit context resolved from ActionContextRegistry.
+     * @var array<string,mixed>
+     */
+    protected array $projectsContext = [];
+
+    /**
+     * Current project manifest.json data (if available).
+     * @var array<string,mixed>|null
+     */
+    protected ?array $projectsManifest = null;
+
+    /**
+     * Module page that owns the current project form.
+     */
+    protected string $projectsModulePage = '';
 
     public function beforeRender(array $fields): array
     {
@@ -78,62 +96,205 @@ class FormBuilder extends AbstractFormBuilderExtension
         }
 
         $fkField = trim($this->fkField);
-        if ($fkField === '') {
-            return $request;
+        if ($fkField !== '') {
+            $model = $this->builder->getModel();
+            if (is_object($model) && method_exists($model, 'getPrimaryKey')) {
+                $pk = (string) $model->getPrimaryKey();
+                $id = _absint($request[$pk] ?? 0);
+                $parentId = _absint($request[$fkField] ?? 0);
+                $finiteMax = $this->getFiniteMaxRecords($this->maxRecords);
+
+                // Only enforce on "new" records. Updates are always allowed.
+                if (!($id > 0 || $parentId <= 0 || $finiteMax <= 0)) {
+                    // For max=1 keep hasOne behavior: convert insert into update when record exists.
+                    if ($finiteMax === 1) {
+                        try {
+                            $modelClass = get_class($model);
+                            $lookup = new $modelClass();
+                            $existing = $lookup->where($fkField . ' = ?', [$parentId])->getRow();
+
+                            $existingId = 0;
+                            if (is_object($existing)) {
+                                $existingId = _absint($existing->$pk ?? 0);
+                            } elseif (is_array($existing)) {
+                                $existingId = _absint($existing[$pk] ?? 0);
+                            }
+
+                            if ($existingId > 0) {
+                                $request[$pk] = $existingId;
+                            }
+                        } catch (\Throwable) {
+                            // If anything goes wrong, do not block save here.
+                        }
+                    } else {
+                        // For finite max>1, block creation when limit is reached.
+                        try {
+                            $existingCount = $this->countRecordsByParent($model, $fkField, $parentId);
+                            if ($existingCount >= $finiteMax) {
+                                MessagesHandler::addError("Maximum {$finiteMax} records reached for this parent context.");
+                            }
+                        } catch (\Throwable) {
+                            // If anything goes wrong, do not block save here.
+                        }
+                    }
+                }
+            }
         }
 
+        return $this->runProjectsPreSaveHooks($request);
+    }
+
+    /**
+     * Run Projects pre-save hooks and allow payload handlers to modify request data.
+     *
+     * @param array<string,mixed> $request
+     * @return array<string,mixed>
+     */
+    protected function runProjectsPreSaveHooks(array $request): array
+    {
+        $payload = $this->buildProjectsSavePayload($request);
+        $isCreate = (bool) ($payload['is_create'] ?? false);
+        $isRelated = (bool) ($payload['is_related_table'] ?? false);
+
+        $mainHook = $isCreate
+            ? 'projects.record.create.before-save'
+            : 'projects.record.update.before-save';
+        $payload = $this->runProjectsSaveHook($mainHook, $payload);
+
+        if ($isRelated) {
+            $payload = $this->runProjectsSaveHook('projects.record.related.before-save', $payload);
+        }
+
+        $updatedRequest = is_array($payload['request'] ?? null) ? $payload['request'] : $request;
+        return $updatedRequest;
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     * @return array<string,mixed>
+     */
+    protected function runProjectsSaveHook(string $hookName, array $payload): array
+    {
+        $payload['hook'] = $hookName;
+        $payload['stage'] = 'before_save_query';
+
+        $hookResult = Hooks::run(
+            $hookName,
+            $payload,
+            $this->builder,
+            $payload['request'] ?? [],
+            $payload['context'] ?? [],
+            $payload['manifest'] ?? null
+        );
+
+        return is_array($hookResult) ? $hookResult : $payload;
+    }
+
+    /**
+     * @param array<string,mixed> $request
+     * @return array<string,mixed>
+     */
+    protected function buildProjectsSavePayload(array $request): array
+    {
+        $modulePage = $this->resolveProjectsModulePage();
         $model = $this->builder->getModel();
-        if (!is_object($model) || !method_exists($model, 'getPrimaryKey')) {
-            return $request;
+        $primaryKey = is_object($model) && method_exists($model, 'getPrimaryKey')
+            ? (string) $model->getPrimaryKey()
+            : 'id';
+        $recordId = $primaryKey !== '' ? _absint($request[$primaryKey] ?? 0) : 0;
+        $isCreate = $recordId <= 0;
+
+        $context = $this->projectsContext;
+        $isRelatedTable = $this->resolveProjectsIsRelatedTable($context);
+        $manifest = $this->resolveProjectsManifest($modulePage);
+
+        $tableName = is_object($model) && method_exists($model, 'getTable')
+            ? (string) $model->getTable()
+            : '';
+        $formName = $this->resolveProjectsFormName($context, $model);
+
+        return [
+            'hook' => '',
+            'stage' => 'before_save_query',
+            'operation' => $isCreate ? 'create' : 'update',
+            'is_create' => $isCreate,
+            'is_update' => !$isCreate,
+            'is_related_table' => $isRelatedTable,
+            'page' => $modulePage,
+            'request' => $request,
+            'record_id' => $recordId,
+            'primary_key' => $primaryKey,
+            'model' => $model,
+            'model_class' => is_object($model) ? get_class($model) : '',
+            'table' => $tableName,
+            'form_name' => $formName,
+            'fk_field' => trim($this->fkField),
+            'root_field' => trim($this->rootField),
+            'root_id' => _absint($this->rootId),
+            'max_records' => $this->maxRecords,
+            'manifest' => $manifest,
+            'context' => $context,
+        ];
+    }
+
+    protected function resolveProjectsModulePage(): string
+    {
+        $modulePage = trim($this->projectsModulePage);
+        if ($modulePage === '' && method_exists($this->builder, 'getPage')) {
+            $modulePage = trim((string) $this->builder->getPage());
+        }
+        if ($modulePage === '') {
+            $modulePage = trim((string) ($_REQUEST['page'] ?? ''));
         }
 
-        $pk = (string) $model->getPrimaryKey();
-        $id = _absint($request[$pk] ?? 0);
-        $parentId = _absint($request[$fkField] ?? 0);
-        $finiteMax = $this->getFiniteMaxRecords($this->maxRecords);
+        return $modulePage;
+    }
 
-        // Only enforce on "new" records. Updates are always allowed.
-        if ($id > 0 || $parentId <= 0 || $finiteMax <= 0) {
-            return $request;
+    /**
+     * @param array<string,mixed> $context
+     */
+    protected function resolveProjectsIsRelatedTable(array $context): bool
+    {
+        $isRootFromContext = array_key_exists('is_root', $context) ? ((bool) $context['is_root']) : null;
+        if ($isRootFromContext === null) {
+            return trim($this->fkField) !== '';
         }
 
-        // For max=1 keep hasOne behavior: convert insert into update when record exists.
-        if ($finiteMax === 1) {
-            try {
-                $modelClass = get_class($model);
-                $lookup = new $modelClass();
-                $existing = $lookup->where($fkField . ' = ?', [$parentId])->getRow();
+        return !$isRootFromContext;
+    }
 
-                $existingId = 0;
-                if (is_object($existing)) {
-                    $existingId = _absint($existing->$pk ?? 0);
-                } elseif (is_array($existing)) {
-                    $existingId = _absint($existing[$pk] ?? 0);
-                }
-
-                if ($existingId > 0) {
-                    $request[$pk] = $existingId;
-                }
-            } catch (\Throwable) {
-                // If anything goes wrong, do not block save here.
-                return $request;
-            }
-
-            return $request;
+    /**
+     * @return array<string,mixed>|null
+     */
+    protected function resolveProjectsManifest(string $modulePage): ?array
+    {
+        if (is_array($this->projectsManifest)) {
+            return $this->projectsManifest;
         }
 
-        // For finite max>1, block creation when limit is reached.
-        try {
-            $existingCount = $this->countRecordsByParent($model, $fkField, $parentId);
-            if ($existingCount >= $finiteMax) {
-                MessagesHandler::addError("Maximum {$finiteMax} records reached for this parent context.");
-            }
-        } catch (\Throwable) {
-            // If anything goes wrong, do not block save here.
-            return $request;
+        $resolved = $modulePage !== ''
+            ? ProjectJsonStore::getCurrentManifestData($modulePage)
+            : ProjectJsonStore::getCurrentManifestData();
+
+        return is_array($resolved) ? $resolved : null;
+    }
+
+    /**
+     * @param array<string,mixed> $context
+     */
+    protected function resolveProjectsFormName(array $context, mixed $model): string
+    {
+        $formName = trim((string) ($context['form_name'] ?? ''));
+        if ($formName !== '' || !is_object($model)) {
+            return $formName;
         }
 
-        return $request;
+        $modelClass = get_class($model);
+        $short = strrpos($modelClass, '\\') !== false
+            ? substr($modelClass, (int) strrpos($modelClass, '\\') + 1)
+            : $modelClass;
+
+        return preg_replace('/Model$/', '', (string) $short) ?? '';
     }
 
     protected function getFiniteMaxRecords(string $maxRecords): int

@@ -1,6 +1,7 @@
 <?php
 namespace Extensions\Projects\Classes\Module;
 
+use App\Hooks;
 use App\Theme;
 use Builders\LinksBuilder;
 use Extensions\Projects\Classes\ProjectNaming;
@@ -33,6 +34,11 @@ class BreadcrumbManager
         int $recordId = 0,
         int $resolvedRootId = 0
     ): void {
+        $hookRootId = $this->resolveRootId($context, $recordId, $resolvedRootId);
+        if ($this->applyHeaderTopLeftLinksFromHook($context, $modulePage, $actionType, $recordId, $hookRootId)) {
+            return;
+        }
+
         $rootFormName = $this->getRootFormName($context);
         if ($rootFormName === '') {
             $this->clear();
@@ -54,7 +60,7 @@ class BreadcrumbManager
         $currentFormName = (string) ($context['form_name'] ?? '');
         $rootViewAction = $this->resolveRootViewAction($rootFormName);
         $hasRootView = ($rootViewAction !== '');
-        $rootId = $this->resolveRootId($context, $recordId, $resolvedRootId);
+        $rootId = $hookRootId;
         $currentChainParams = $this->fkResolver->getChainParams($context);
 
         $items = [[
@@ -108,6 +114,155 @@ class BreadcrumbManager
         }
 
         Theme::set('header.top-left', $links->render('breadcrumb'));
+    }
+
+    /**
+     * Resolve header links from hook and render them in top-left header area.
+     *
+     * Hook names:
+     * - projects.header.top-left.links
+     * - projects.header-top-left.links (alias)
+     *
+     * Callback input/output examples:
+     * [
+     *   ['label' => 'User list', 'url' => '?page=auth&action=user-list', 'icon' => 'bi bi-people-fill'],
+     *   ['title' => 'Help', 'url' => '?page=docs&action=guide', 'fetch' => 'post']
+     * ]
+     */
+    protected function applyHeaderTopLeftLinksFromHook(
+        array $context,
+        string $modulePage,
+        string $actionType,
+        int $recordId,
+        int $rootId
+    ): bool {
+        $linksData = Hooks::run(
+            'projects.header.top-left.links',
+            [],
+            $modulePage,
+            $context,
+            $actionType,
+            $recordId,
+            $rootId
+        );
+        $linksData = Hooks::run(
+            'projects.header-top-left.links',
+            $linksData,
+            $modulePage,
+            $context,
+            $actionType,
+            $recordId,
+            $rootId
+        );
+
+        $normalizedLinks = $this->normalizeHookLinks($linksData);
+        if ($normalizedLinks === []) {
+            return false;
+        }
+
+        $links = LinksBuilder::create();
+        foreach ($normalizedLinks as $item) {
+            $links->add((string) $item['label'], (string) $item['url']);
+
+            $icon = trim((string) ($item['icon'] ?? ''));
+            if ($icon !== '') {
+                $links->icon($icon);
+            }
+            if ((bool) ($item['active'] ?? false)) {
+                $links->active();
+            }
+            if ((bool) ($item['disabled'] ?? false)) {
+                $links->disable();
+            }
+
+            $fetch = strtolower(trim((string) ($item['fetch'] ?? '')));
+            if ($fetch === 'get' || $fetch === 'post') {
+                $links->fetch($fetch);
+            }
+
+            $params = is_array($item['params'] ?? null) ? $item['params'] : [];
+            foreach ($params as $paramName => $paramValue) {
+                $name = trim((string) $paramName);
+                if ($name === '') {
+                    continue;
+                }
+                $links->setParam($name, $paramValue);
+            }
+        }
+
+        Theme::set('header.top-left', $links->render());
+        return true;
+    }
+
+    /**
+     * @param mixed $linksData
+     * @return array<int,array{
+     *   label:string,
+     *   url:string,
+     *   icon?:string,
+     *   active?:bool,
+     *   disabled?:bool,
+     *   fetch?:string,
+     *   params?:array<string,mixed>
+     * }>
+     */
+    protected function normalizeHookLinks(mixed $linksData): array
+    {
+        if (!is_array($linksData)) {
+            return [];
+        }
+
+        $looksLikeSingle = array_key_exists('label', $linksData)
+            || array_key_exists('title', $linksData)
+            || array_key_exists('url', $linksData)
+            || array_key_exists('href', $linksData);
+        if ($looksLikeSingle) {
+            $linksData = [$linksData];
+        }
+
+        $normalized = [];
+        foreach ($linksData as $rawItem) {
+            if (!is_array($rawItem)) {
+                continue;
+            }
+
+            $label = trim((string) ($rawItem['label'] ?? ($rawItem['title'] ?? ($rawItem[0] ?? ''))));
+            if ($label === '') {
+                continue;
+            }
+
+            $url = trim((string) ($rawItem['url'] ?? ($rawItem['href'] ?? ($rawItem[1] ?? '#'))));
+            if ($url === '') {
+                $url = '#';
+            }
+
+            $item = [
+                'label' => $label,
+                'url' => $url,
+            ];
+
+            $icon = trim((string) ($rawItem['icon'] ?? ''));
+            if ($icon !== '') {
+                $item['icon'] = $icon;
+            }
+
+            if (array_key_exists('active', $rawItem)) {
+                $item['active'] = (bool) $rawItem['active'];
+            }
+            if (array_key_exists('disabled', $rawItem)) {
+                $item['disabled'] = (bool) $rawItem['disabled'];
+            }
+            if (array_key_exists('fetch', $rawItem)) {
+                $item['fetch'] = (string) $rawItem['fetch'];
+            }
+            if (isset($rawItem['params']) && is_array($rawItem['params'])) {
+                $item['params'] = $rawItem['params'];
+            }
+
+            $normalized[] = $item;
+        }
+
+        return $normalized;
     }
 
     protected function getRootFormName(array $context): string

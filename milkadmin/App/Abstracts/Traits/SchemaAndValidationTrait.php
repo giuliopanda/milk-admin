@@ -41,140 +41,222 @@ trait SchemaAndValidationTrait
      * Generate database schema for the model
      */
     public function getSchema(): \App\Database\SchemaMysql|\App\Database\SchemaSqlite {
-        $schema = Get::schema($this->table, $this->db);
+        $schema   = Get::schema($this->table, $this->db);
         $primaries = $this->getPrimaries();
-        $rules = $this->getRules('sql');
+        $rules    = $this->getRules('sql');
+
+        /**
+         * Cast a default value to int|null safely.
+         * Accepts int, numeric string, bool, null; returns null for anything else.
+         */
+        $toIntDefault = static function (mixed $v): ?int {
+            if ($v === null || $v === '')          return null;
+            if (is_bool($v))                       return (int) $v;
+            if (is_int($v))                        return $v;
+            if (is_numeric($v))                    return (int) $v;
+            return null; // non-numeric string → discard
+        };
+
+        /**
+         * Cast a default value to string|null safely.
+         */
+        $toStringDefault = static function (mixed $v): ?string {
+            if ($v === null) return null;
+            return (string) $v;
+        };
+
+        $nullable  = static fn(array $r): bool => (bool) ($r['nullable'] ?? false);
+        $unsigned  = static fn(array $r): bool => (bool) ($r['unsigned'] ?? false);
+        $isUnique  = static fn(array $r): bool => (bool) ($r['unique'] ?? false);
+        $hasIndex  = static fn(array $r): bool => (bool) ($r['index'] ?? false);
 
         $skip_primary = false;
-        if (count($primaries) == 1 && isset($rules[$primaries[0]]) && $rules[$primaries[0]]['type'] == 'int') {
+        if ( count($primaries) === 1 && isset($rules[$primaries[0]]) && $rules[$primaries[0]]['type'] === 'int') {
             $schema->id($primaries[0]);
             $skip_primary = true;
         }
         foreach ($rules as $name => $rule) {
-            if (in_array($name, $primaries) && count($primaries) == 1 && $skip_primary) {
+            // skip single-column PK already handled above
+            if ($skip_primary && count($primaries) === 1 && in_array($name, $primaries, true)) {
                 continue;
             }
-            if (!($rule['mysql'] ?? true))  continue;
-            
-            switch ($rule['type']) {
+
+            // allow per-rule opt-out for MySQL
+            if (!($rule['mysql'] ?? true)) {
+                continue;
+            }
+
+            $type = $rule['type'] ?? 'string';
+
+            switch ($type) {
                 case 'id':
                     $schema->id($name);
                     break;
                 case 'text':
-                    $textDbType = strtolower(trim((string) ($rule['db_type'] ?? 'text')));
-                    if ($textDbType === 'tinytext' && method_exists($schema, 'tinytext')) {
-                        $schema->tinytext($name, $rule['nullable'], $rule['default']);
-                    } elseif ($textDbType === 'mediumtext' && method_exists($schema, 'mediumtext')) {
-                        $schema->mediumtext($name, $rule['nullable'], $rule['default']);
-                    } elseif ($textDbType === 'longtext' && method_exists($schema, 'longtext')) {
-                        $schema->longtext($name, $rule['nullable'], $rule['default']);
+                    $dbType = strtolower(trim((string) ($rule['db_type'] ?? 'text')));
+                    $def    = $toStringDefault($rule['default'] ?? null);
+                    $null   = $nullable($rule);
+
+                    if ($dbType === 'tinytext'   && method_exists($schema, 'tinytext')) {
+                        $schema->tinytext($name, $null, $def);
+                    } elseif ($dbType === 'mediumtext' && method_exists($schema, 'mediumtext')) {
+                        $schema->mediumtext($name, $null, $def);
+                    } elseif ($dbType === 'longtext'   && method_exists($schema, 'longtext')) {
+                        $schema->longtext($name, $null, $def);
                     } else {
-                        $schema->text($name, $rule['nullable'], $rule['default']);
+                        $schema->text($name, $null, $def);
                     }
                     break;
                 case 'string':
-                    $schema->string($name, $rule['length'] ?? 255, $rule['nullable'], $rule['default']);
+                    $schema->string(
+                        $name,
+                        (int) ($rule['length'] ?? 255),
+                        $nullable($rule),
+                        $toStringDefault($rule['default'] ?? null)
+                    );
                     break;
                 case 'int':
-                    $schema->int($name, $rule['nullable'], $rule['default'], null, (bool) ($rule['unsigned'] ?? false));
+                    $schema->int(
+                        $name,
+                        $nullable($rule),
+                        $toIntDefault($rule['default'] ?? null),
+                        null,
+                        $unsigned($rule)
+                    );
                     break;
+
                 case 'tinyint':
-                    $schema->tinyint($name, $rule['nullable'], $rule['default'], null, (bool) ($rule['unsigned'] ?? false));
+                    $schema->tinyint(
+                        $name,
+                        $nullable($rule),
+                        $toIntDefault($rule['default'] ?? null),
+                        null,
+                        $unsigned($rule)
+                    );
                     break;
                 case 'float':
-                    $schema->decimal($name, $rule['length'] ?? 10, $rule['precision'] ?? 2, $rule['nullable'], $rule['default'], null, (bool) ($rule['unsigned'] ?? false));
+                    $schema->decimal(
+                        $name,
+                        (int) ($rule['length']    ?? 10),
+                        (int) ($rule['precision'] ?? 2),
+                        $nullable($rule),
+                        $rule['default'] ?? null,   // decimal accepts numeric/null
+                        null,
+                        $unsigned($rule)
+                    );
                     break;
                 case 'bool':
-                    $schema->boolean($name, $rule['nullable'], $rule['default']);
+                    $schema->boolean(
+                        $name,
+                        $nullable($rule),
+                        $toIntDefault($rule['default'] ?? null) // stored as 0/1
+                    );
                     break;
                 case 'date':
-                    $schema->date($name, $rule['nullable'], $rule['default']);
+                    $schema->date($name,  $nullable($rule), $toStringDefault($rule['default'] ?? null));
                     break;
                 case 'datetime':
-                    $schema->datetime($name, $rule['nullable'], $rule['default']);
+                    $schema->datetime($name, $nullable($rule), $toStringDefault($rule['default'] ?? null));
                     break;
                 case 'timestamp':
-                    $schema->timestamp($name, $rule['nullable'], $rule['default']);
+                    $schema->timestamp($name, $nullable($rule), $toStringDefault($rule['default'] ?? null));
                     break;
                 case 'time':
-                    $schema->time($name, $rule['nullable'], $rule['default']);
+                    $schema->time($name, $nullable($rule), $toStringDefault($rule['default'] ?? null));
                     break;
                 case 'array':
-                    $schema->text($name, $rule['nullable'], $rule['default']);
+                    $schema->text($name, $nullable($rule), $toStringDefault($rule['default'] ?? null));
                     break;
                 case 'list':
-                    $isMultipleList = !empty($rule['form-params']['multiple'])
+                    $isMultiple = !empty($rule['form-params']['multiple'])
                         || ($rule['form-params']['multiple'] ?? null) === 'multiple';
-                    if ($isMultipleList) {
-                        // Multiple list stores JSON array, needs text column
-                        $schema->text($name, $rule['nullable'], $rule['default']);
+
+                    if ($isMultiple) {
+                        $schema->text($name, $nullable($rule), $toStringDefault($rule['default'] ?? null));
                         break;
                     }
-                    $max = 0;
-                    $is_int = true;
-                    $seqence = true;
-                    $pre_sequence = null;
+
+                    $maxLen     = 0;
+                    $allInt     = true;
+                    $sequential = true;
+                    $prevKey    = null;
+
                     foreach ($rule['options'] as $key => $_) {
-                        if ($seqence) {
-                            // First check if key is an integer before doing math operations
-                            if (!is_int($key)) {
-                                $seqence = false;
-                            } elseif ($pre_sequence !== null && $pre_sequence + 1 != $key) {
-                                $seqence = false;
-                            }
-                            $pre_sequence = $key;
-                        }
-                        $max = max($max, strlen((string)$key));
                         if (!is_int($key)) {
-                            $is_int = false;
-                        }
-                    }
-                    if ($is_int && $seqence) {
-                        if (is_string($rule['default'])) {
-                            $rule['default'] = array_search($rule['default'], $rule['options']);
-                            if ($rule['default'] === false) {
-                                $rule['default'] = null;
+                            $allInt     = false;
+                            $sequential = false;
+                        } elseif ($sequential) {
+                            if ($prevKey !== null && $prevKey + 1 !== $key) {
+                                $sequential = false;
                             }
+                            $prevKey = $key;
                         }
-                        $schema->int($name, $rule['nullable'], $rule['default'], null, (bool) ($rule['unsigned'] ?? false));
+                        $maxLen = max($maxLen, strlen((string) $key));
+                    }
+
+                    if ($allInt && $sequential) {
+                        // resolve a string default to its integer key
+                        $rawDefault = $rule['default'] ?? null;
+                        if (is_string($rawDefault) && $rawDefault !== '') {
+                            $found = array_search($rawDefault, $rule['options'], true);
+                            $rawDefault = ($found !== false) ? (int) $found : null;
+                        }
+                        $schema->int(
+                            $name,
+                            $nullable($rule),
+                            $toIntDefault($rawDefault),
+                            null,
+                            $unsigned($rule)
+                        );
                     } else {
-                        $configuredLength = isset($rule['length']) ? (int) $rule['length'] : 0;
-                        if ($configuredLength > 0) {
-                            $max = max($max, $configuredLength);
-                        }
-                        $schema->string($name, $max, $rule['nullable'], $rule['default']);
+                        $configured = isset($rule['length']) ? (int) $rule['length'] : 0;
+                        $schema->string(
+                            $name,
+                            max($maxLen, $configured),
+                            $nullable($rule),
+                            $toStringDefault($rule['default'] ?? null)
+                        );
                     }
                     break;
                 case 'enum':
-                    $max = 0;
-                    $is_int = true;
+                    $maxLen = 0;
+                    $allInt = true;
+
                     foreach ($rule['options'] as $value) {
-                        $max = max($max, strlen($value));
+                        $maxLen = max($maxLen, strlen((string) $value));
                         if (!is_int($value)) {
-                            $is_int = false;
+                            $allInt = false;
                         }
                     }
-                    if ($is_int) {
-                        $schema->int($name, $rule['nullable'], $rule['default'], null, (bool) ($rule['unsigned'] ?? false));
+
+                    if ($allInt) {
+                        $schema->int(
+                            $name,
+                            $nullable($rule),
+                            $toIntDefault($rule['default'] ?? null),
+                            null,
+                            $unsigned($rule)
+                        );
                     } else {
-                        $configuredLength = isset($rule['length']) ? (int) $rule['length'] : 0;
-                        if ($configuredLength > 0) {
-                            $max = max($max, $configuredLength);
-                        }
-                        $schema->string($name, $max, $rule['nullable'], $rule['default']);
+                        $configured = isset($rule['length']) ? (int) $rule['length'] : 0;
+                        $schema->string(
+                            $name,
+                            max($maxLen, $configured),
+                            $nullable($rule),
+                            $toStringDefault($rule['default'] ?? null)
+                        );
                     }
                     break;
                 default:
                     $schema->string($name, 255);
             }
-            if ($rule['unique']) {
-                $schema->index($name,[$name], true);
-            } elseif ($rule['index']) {
+            if ($isUnique($rule)) {
+                $schema->index($name, [$name], true);
+            } elseif ($hasIndex($rule)) {
                 $schema->index($name, [$name]);
             }
         }
-        $rename_fields = $this->rule_builder->getRenameFields();
-        foreach ($rename_fields as $from => $to) {
+        foreach ($this->rule_builder->getRenameFields() as $from => $to) {
             $schema->renameField($from, $to);
         }
         if (count($primaries) > 1) {

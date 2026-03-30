@@ -3,8 +3,8 @@ namespace Modules\Docs\Pages;
 /**
  * @title Hooks Class
  * @guide framework
- * @order 
- * @tags install, theme, cli, jobs, route, render-theme, end-page, cron, modules_loaded, init, cli-init, jobs-init, route_before_run, route_after_run
+  * @order 100
+ * @tags hooks, events, event-system, lifecycle-hooks, module-hooks, install-hook, init-hook, modules_loaded, theme-hook, render-theme, end-page, cli-hook, cli-init, jobs-hook, jobs-init, cron, route-hook, route_before_run, route_after_run, extensibility, callbacks
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access

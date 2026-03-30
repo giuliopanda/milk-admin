@@ -353,6 +353,8 @@ class Route
         }
         if (is_array($url)) {
             $url = "?".http_build_query($url);
+        } else {
+            $url = self::sanitizeRedirectUrl($url);
         }
       
         if (empty($data)) {
@@ -379,6 +381,121 @@ class Route
         Settings::save();
         header('Location: ' . $url);
         exit();
+    }
+
+    /**
+     * Sanitize redirect targets to prevent open redirects and header injection.
+     *
+     * Allowed targets:
+     * - relative URLs (e.g. ?page=home, /admin, edit.php?id=1)
+     * - absolute http/https URLs only when host matches current host or configured base_url host
+     *
+     * Blocked targets:
+     * - protocol-relative URLs (//evil.example)
+     * - non-http schemes (javascript:, data:, etc.)
+     * - absolute URLs to external hosts
+     * - values containing CRLF characters
+     */
+    private static function sanitizeRedirectUrl(string $url): string {
+        $fallback = (string) Config::get('home_page', '?page=home');
+        if ($fallback === '') {
+            $fallback = '?page=home';
+        }
+
+        $url = trim($url);
+        if ($url === '') {
+            return $fallback;
+        }
+
+        if (preg_match('/[\r\n]/', $url) === 1) {
+            Logs::set('ROUTE', 'Blocked redirect containing CRLF characters', 'ERROR');
+            return $fallback;
+        }
+
+        // Prevent protocol-relative redirects (e.g. //evil.example).
+        if (preg_match('#^[/\\\\]{2,}#', $url) === 1) {
+            Logs::set('ROUTE', 'Blocked protocol-relative redirect target: ' . $url, 'ERROR');
+            return $fallback;
+        }
+
+        $parsed = parse_url($url);
+        if ($parsed === false) {
+            Logs::set('ROUTE', 'Blocked malformed redirect target: ' . $url, 'ERROR');
+            return $fallback;
+        }
+
+        $scheme = strtolower((string) ($parsed['scheme'] ?? ''));
+        if ($scheme !== '' && !in_array($scheme, ['http', 'https'], true)) {
+            Logs::set('ROUTE', 'Blocked redirect with unsupported scheme: ' . $scheme, 'ERROR');
+            return $fallback;
+        }
+
+        if (isset($parsed['host'])) {
+            $targetHost = self::normalizeHost((string) $parsed['host']);
+            if ($targetHost === '' || !self::isAllowedRedirectHost($targetHost)) {
+                Logs::set('ROUTE', 'Blocked redirect to external host: ' . $url, 'ERROR');
+                return $fallback;
+            }
+        } elseif ($scheme !== '') {
+            // URLs with scheme but without host are not valid redirect targets.
+            Logs::set('ROUTE', 'Blocked redirect with invalid absolute URL: ' . $url, 'ERROR');
+            return $fallback;
+        }
+
+        return $url;
+    }
+
+    /**
+     * Check whether absolute redirect host is part of local trusted hosts.
+     */
+    private static function isAllowedRedirectHost(string $targetHost): bool {
+        $targetHost = self::normalizeHost($targetHost);
+        if ($targetHost === '') {
+            return false;
+        }
+
+        $allowedHosts = [];
+
+        $currentHost = (string) ($_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? '');
+        $currentHost = self::normalizeHost($currentHost);
+        if ($currentHost !== '') {
+            $allowedHosts[$currentHost] = true;
+        }
+
+        $baseUrl = (string) Config::get('base_url', '');
+        if ($baseUrl !== '') {
+            $baseHost = parse_url($baseUrl, PHP_URL_HOST);
+            if (is_string($baseHost)) {
+                $baseHost = self::normalizeHost($baseHost);
+                if ($baseHost !== '') {
+                    $allowedHosts[$baseHost] = true;
+                }
+            }
+        }
+
+        return isset($allowedHosts[$targetHost]);
+    }
+
+    /**
+     * Normalize a host value (trim/lowercase and remove optional port).
+     */
+    private static function normalizeHost(string $host): string {
+        $host = strtolower(trim($host));
+        if ($host === '') {
+            return '';
+        }
+
+        // IPv6 host in bracket notation, with optional port.
+        if (preg_match('/^\[([^\]]+)\](?::\d+)?$/', $host, $matches) === 1) {
+            return strtolower((string) $matches[1]);
+        }
+
+        // hostname:port
+        if (preg_match('/^[^:]+:\d+$/', $host) === 1) {
+            $host = (string) preg_replace('/:\d+$/', '', $host);
+        }
+
+        return $host;
     }
 
     /**
@@ -806,7 +923,14 @@ class Route
      * @return string The decoded string
      */
     public static function urlsafeB64Decode(string $input): string {
-        return \base64_decode(\str_pad(\strtr($input, '-_', '+/'), \strlen($input) % 4, '=', \STR_PAD_RIGHT));
+        if ($input === '') {
+            return '';
+        }
+        $decoded = \base64_decode(
+            \str_pad(\strtr($input, '-_', '+/'), \strlen($input) % 4, '=', \STR_PAD_RIGHT),
+            true
+        );
+        return is_string($decoded) ? $decoded : '';
     }
 
     /**

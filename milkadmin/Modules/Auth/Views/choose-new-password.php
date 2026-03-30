@@ -10,6 +10,16 @@ $msg_error = isset($msg_error) ? (string) $msg_error : '';
 $key = isset($key) ? (string) $key : '';
 
 ?>
+<style>
+.mk-hp-field {
+    position: absolute !important;
+    left: -10000px !important;
+    top: auto !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+}
+</style>
 <div class="center-login">
     <?php
     if ($success == true) :?>
@@ -51,6 +61,14 @@ $key = isset($key) ? (string) $key : '';
                 <input type="hidden" name="page" value="auth">
                 <input type="hidden" name="action" value="new-password">
                 <?php echo Token::input('new_password'); ?>
+                <div class="mk-hp-field" aria-hidden="true">
+                    <label for="username_password"><?php _pt('Username'); ?></label>
+                    <input type="text" name="username_password" id="username_password" tabindex="-1" autocomplete="off">
+                </div>
+                <div class="mk-hp-field" aria-hidden="true">
+                    <label for="password_username"><?php _pt('Password'); ?></label>
+                    <input type="text" name="password_username" id="password_username" tabindex="-1" autocomplete="off">
+                </div>
                 <div class="mb-3">
                     <div class="form-floating">
                         <input name="password" type="password" class="form-control" id="newPassword" placeholder="Password" required>

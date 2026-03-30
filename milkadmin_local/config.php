@@ -50,11 +50,12 @@ $conf['base_url'] = $scheme . '://' . $_SERVER['HTTP_HOST'] .$temp;
 $conf['home_page'] = '?page=install';
 $conf['page_not_found'] = '404';
 $conf['debug'] = true;
+$conf['environment'] = 'development'; // development | production
 
 // default title
 $conf['site-title'] = 'MilkAdmin - Framework';
 
-$conf['secret_key'] = 'bc08ec414a52eba2109bf61fc57a92126de469a43022a73e02faa109628548e5';
-$conf['token_key'] = 't78f4f462';
+$conf['secret_key'] = 'ecdbb03bb454eb3b086d6f9ba9b06ff60fe060880c04db2e1820843a41d33451';
+$conf['token_key'] = 't8ed6de53';
 
 \App\Config::setAll($conf);

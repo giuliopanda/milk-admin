@@ -27,6 +27,49 @@ class AuthService {
         return Token::checkValue($token, $table_id);
     }
 
+    /**
+     * Honeypot check for basic bot form submissions.
+     *
+     * @param array<int, string> $field_names
+     */
+    static private function isHoneypotTriggered(array $field_names): bool {
+        foreach ($field_names as $field_name) {
+            $value = $_POST[$field_name] ?? ($_REQUEST[$field_name] ?? '');
+            if (is_array($value)) {
+                return true;
+            }
+            if (trim((string) $value) !== '') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array{window_minutes:int,max_attempts_ip:int,max_attempts_username:int,min_delay_ms:int}
+     */
+    static private function forgotPasswordRateLimitConfig(): array {
+        return [
+            'window_minutes' => max(1, (int) Config::get('auth_password_reset_window_minutes', 15)),
+            'max_attempts_ip' => max(1, (int) Config::get('auth_password_reset_max_attempts_ip', 3)),
+            'max_attempts_username' => max(1, (int) Config::get('auth_password_reset_max_attempts_username', 2)),
+            'min_delay_ms' => max(0, (int) Config::get('auth_password_reset_min_delay_ms', 2000)),
+        ];
+    }
+
+    static private function applyForgotPasswordDelay(float $started_at, int $minimum_delay_ms): void {
+        if ($minimum_delay_ms <= 0) {
+            return;
+        }
+
+        $elapsed_ms = (int) floor((microtime(true) - $started_at) * 1000);
+        $sleep_ms = $minimum_delay_ms - $elapsed_ms;
+        if ($sleep_ms > 0) {
+            usleep($sleep_ms * 1000);
+        }
+    }
+
     static public function tmplTitle() {
         $title = Theme::get('site.title', (Config::get('site-title', '')));
         echo '<div class="login-title">'.$title.'</div>';
@@ -34,7 +77,12 @@ class AuthService {
 
     static public function login() {
         if (isset($_REQUEST['username']) && isset($_REQUEST['password'])) {
-            if (Token::check('login') === false) {
+            if (self::isHoneypotTriggered(['username_contact', 'password_repeat'])) {
+                // Behave as normal failed login to avoid exposing anti-bot controls.
+                usleep(1200000);
+                $msg_error = 'User or password incorrect.';
+                $is_authenticated_in = false;
+            } else if (Token::check('login') === false) {
                 $msg_error = 'User or password incorrect.';
                 $is_authenticated_in = false;
             } else {
@@ -53,7 +101,10 @@ class AuthService {
         
         $home = Config::get('home_page', '?page=home');
         if (isset($_REQUEST['redirect']) && $_REQUEST['redirect'] != '') {
-            $home = Route::urlsafeB64Decode($_REQUEST['redirect']);
+            $decoded_redirect = Route::urlsafeB64Decode((string) $_REQUEST['redirect']);
+            if ($decoded_redirect !== '') {
+                $home = $decoded_redirect;
+            }
         }
         if ($is_authenticated_in && $home != '') {
             Route::redirect($home);
@@ -73,40 +124,58 @@ class AuthService {
         $msg_error = '';
         $success = false;
         if (isset($_POST['username'])) {
+            $started_at = microtime(true);
             if (Token::check('forgot_password') === false) {
                 Response::themePage('nologin-center', __DIR__ . '/Views/reset-password.php', ['msg_error' => 'Invalid token', 'success' => false]);
                 return;
-            } 
-            $username = Sanitize::input(trim($_POST['username']), 'username');
-            $find_user = Get::db()->getRow('SELECT * FROM `#__users` WHERE username = ?', [$username]);
-            if ($find_user) {
-                if ($find_user->status == 0) {
-                    $msg_error = 'User not active. Contact the administrator to activate the account.';
-                    $success = false;
-                } else {
-                    if ($find_user->activation_key != '') {
-                        if (Get::make('Auth')->checkExpiresActivationKey($find_user->activation_key, 10, '>') === false) {
-                            $msg_error = 'An email has already been sent to reset the password. Check your inbox or wait 10 minutes to request a new one.';
-                            $success = false;
-                            Response::themePage('nologin-center', __DIR__ . '/Views/reset-password.php', ['msg_error' => $msg_error , 'success' => $success]);
-                            // STOP
-                            return;
-                        }
-                    } 
-
-                    $user_id = $find_user->id;
-                    $activation_key = Get::make('Auth')->createActivationKey($user_id);
-                    // genero l'url per il reset della password
-                    $url = Route::url(['page'=>'auth', 'action'=>'new-password', 'key'=>$activation_key]);
-                    // invio l'email
-                    Get::mail()->loadTemplate(__DIR__ . '/Mails/user-reset-password.php', ['user' => $find_user, 'id' => $user_id, 'url' => $url]);
-                    Get::mail()->to($find_user->email)->send();
-                    $success = true;
-                }
-            } else {
-                // non esiste l'utente, ma invio un messaggio generico di successo per non dare informazioni sull'esistenza o meno dell'utente
-                $success = true;
             }
+            $username = strtolower((string) Sanitize::input(trim((string) $_POST['username']), 'username'));
+            $ip_address = (string) Get::clientIp();
+            if ($ip_address === '') {
+                $ip_address = '0.0.0.0';
+            }
+
+            $rate_limit = self::forgotPasswordRateLimitConfig();
+            $reset_attempts_model = new PasswordResetAttemptsModel();
+            $honeypot_triggered = self::isHoneypotTriggered(['username_backup', 'password_backup']);
+
+            $ip_attempts = $reset_attempts_model->countRecentAttemptsByIp($ip_address, $rate_limit['window_minutes']);
+            $username_attempts = $reset_attempts_model->countRecentAttemptsByUsername($username, $rate_limit['window_minutes']);
+            $is_rate_limited = $ip_attempts >= $rate_limit['max_attempts_ip']
+                || $username_attempts >= $rate_limit['max_attempts_username'];
+
+            // Always store the attempt so throttling becomes progressively stricter.
+            $reset_attempts_model->logAttempt($username, $ip_address);
+            $reset_attempts_model->cleanOlderThanMinutes(max($rate_limit['window_minutes'] * 8, 1440));
+
+            if (!$is_rate_limited && !$honeypot_triggered && $username !== '') {
+                $find_user = Get::db()->getRow(
+                    'SELECT * FROM `#__users` WHERE username = ? AND status = 1 LIMIT 1',
+                    [$username]
+                );
+
+                if ($find_user) {
+                    $can_send_email = true;
+                    if (($find_user->activation_key ?? '') !== '') {
+                        $can_send_email = Get::make('Auth')->checkExpiresActivationKey((string) $find_user->activation_key, 10, '>');
+                    }
+
+                    if ($can_send_email) {
+                        $user_id = (int) $find_user->id;
+                        $activation_key = Get::make('Auth')->createActivationKey($user_id);
+
+                        if ($activation_key !== '') {
+                            $url = Route::url(['page' => 'auth', 'action' => 'new-password', 'key' => $activation_key]);
+                            Get::mail()->loadTemplate(__DIR__ . '/Mails/user-reset-password.php', ['user' => $find_user, 'id' => $user_id, 'url' => $url]);
+                            Get::mail()->to($find_user->email)->send();
+                        }
+                    }
+                }
+            }
+
+            // Keep response timing consistent to reduce user-enumeration via timing side-channels.
+            self::applyForgotPasswordDelay($started_at, $rate_limit['min_delay_ms']);
+            $success = true;
 
             Response::themePage('nologin-center', __DIR__ . '/Views/reset-password.php', ['msg_error' => $msg_error , 'success' => $success]);
             return;
@@ -122,7 +191,10 @@ class AuthService {
             $msg_error = 'The link you entered does not appear to be valid. Select the entire link from the email you received and try again.';
         
         } else if (isset($_POST['password'])) {
-            if (\App\Token::check('new_password') === false) {
+            if (self::isHoneypotTriggered(['username_password', 'password_username'])) {
+                usleep(800000);
+                $msg_error = 'Invalid token';
+            } else if (\App\Token::check('new_password') === false) {
                 $msg_error = 'Invalid token';
             } else if (strlen(trim((string)$_POST['password'])) < UserModel::PASSWORD_MIN_LENGTH) {
                 $msg_error = \_r('Password must be at least 8 characters long');

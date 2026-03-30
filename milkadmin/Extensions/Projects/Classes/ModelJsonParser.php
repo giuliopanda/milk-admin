@@ -700,12 +700,13 @@ class ModelJsonParser
         $manualOptions = $this->resolveOptions($fieldDef['options'] ?? []);
         $source = $this->extractOptionsSource($fieldDef);
         if (!is_array($source)) {
-            return $this->sortOptionsByLabel($manualOptions);
+            // Keep JSON/manual options order as declared in schema.
+            return $manualOptions;
         }
 
         $mode = strtolower(trim((string) ($source['mode'] ?? '')));
         if ($mode !== 'all') {
-            return $this->sortOptionsByLabel($manualOptions);
+            return $manualOptions;
         }
 
         $modelClass = trim((string) ($source['model'] ?? ''));
@@ -714,7 +715,7 @@ class ModelJsonParser
         $labelField = trim((string) ($source['label_field'] ?? ''));
         $where = trim((string) ($source['where'] ?? ''));
         if (($modelClass === '' && $table === '') || $valueField === '' || $labelField === '') {
-            return $this->sortOptionsByLabel($manualOptions);
+            return $manualOptions;
         }
 
         $tableOptions = [];
@@ -723,8 +724,11 @@ class ModelJsonParser
         } elseif ($table !== '') {
             $tableOptions = $this->loadOptionsFromTable($rule, $table, $valueField, $labelField, $where);
         }
-        $resolvedOptions = !empty($tableOptions) ? $tableOptions : $manualOptions;
-        return $this->sortOptionsByLabel($resolvedOptions);
+        if (!empty($tableOptions)) {
+            return $tableOptions;
+        }
+
+        return $manualOptions;
     }
 
     protected function extractOptionsSource(array $fieldDef): ?array
@@ -913,14 +917,6 @@ class ModelJsonParser
         }
 
         return preg_match('/^[A-Za-z_#][A-Za-z0-9_#\\-\\. ]*$/', $identifier) === 1;
-    }
-
-    protected function sortOptionsByLabel(array $options): array
-    {
-        uasort($options, static function ($left, $right): int {
-            return strnatcasecmp((string) $left, (string) $right);
-        });
-        return $options;
     }
 
     /**

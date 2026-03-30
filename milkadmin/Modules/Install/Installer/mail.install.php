@@ -16,6 +16,14 @@ Hooks::set('install.get_html_modules', function($html, $errors) {
     ?><h3 class="mt-4">Mail</h3>
     <?php Install::printErrors($errors_smtp); ?>
     <?php $options = ['class' => 'mb-3', 'required' => false, 'floating'=>true]; ?>
+    <div class="row g-2 mb-3">
+        <div class="col-md-6">
+            <?php Form::input('email', 'mail_from', 'From email', $_REQUEST['mail_from'] ?? ($_REQUEST['admin-email'] ?? 'example@example.com'), $options); ?>
+        </div>
+        <div class="col-md-6">
+            <?php Form::input('text', 'mail_from_name', 'From name', $_REQUEST['mail_from_name'] ?? ($_REQUEST['site-title'] ?? 'Milk Admin'), $options); ?>
+        </div>
+    </div>
     <?php
         Form::checkboxes('mail_type',
         ['smtp' => 'Use SMTP Mail'], 
@@ -32,9 +40,9 @@ Hooks::set('install.get_html_modules', function($html, $errors) {
                     <h5 class="card-title">SMTP Configuration</h5>
                         <?php 
                         Form::input('text', 'smtp_mail_host', 'SMTP Host',  $_REQUEST['smtp_mail_host'] ?? '', $options);
-                        Form::input('text', 'smtp_mail_port', 'PORT',  $_REQUEST['connect_dbname'] ?? '465', $options);
+                        Form::input('text', 'smtp_mail_port', 'PORT',  $_REQUEST['smtp_mail_port'] ?? '465', $options);
                         Form::input('text', 'smtp_mail_username', 'Username', $_REQUEST['smtp_mail_username'] ?? '', $options);
-                        Form::input('text', 'smtp_mail_password', 'Password', $_REQUEST['smtp_mail_password'] ?? '', $options);
+                        Form::input('password', 'smtp_mail_password', 'Password', $_REQUEST['smtp_mail_password'] ?? '', $options);
                         ?>
                     </div>
                 </div>
@@ -66,6 +74,12 @@ Hooks::set('install.get_html_modules', function($html, $errors) {
 
 Hooks::set('install.check_data', function($errors, $data) {
     $smtp_errors = [];
+    if (empty($data['mail_from'])) {
+        $smtp_errors['mail_from'] = 'mail_from is required';
+    } elseif (!filter_var($data['mail_from'], FILTER_VALIDATE_EMAIL)) {
+        $smtp_errors['mail_from'] = 'mail_from must be a valid email';
+    }
+
     $mail_type = $data['mail_type'] ?? [];
     if (!is_array($mail_type) && $mail_type !== '') {
         $mail_type = [$mail_type];
@@ -89,6 +103,8 @@ Hooks::set('install.check_data', function($errors, $data) {
 });
 
 Hooks::set('install.execute_config', function($data) {
+    $mail_from = trim((string) ($data['mail_from'] ?? 'example@example.com'));
+    $mail_from_name = trim((string) ($data['mail_from_name'] ?? 'Milk Admin'));
     $mail_type = $data['mail_type'] ?? [];
     if (!is_array($mail_type) && $mail_type !== '') {
         $mail_type = [$mail_type];
@@ -106,8 +122,9 @@ Hooks::set('install.execute_config', function($data) {
             'smtp_mail' => 'false'
         ];
     }
-    $data['__mail_from'] =  'example@example.com';
-    $data['__mail_from_name'] = 'Example';
+
+    $data['mail_from'] = $mail_from;
+    $data['mail_from_name'] = $mail_from_name !== '' ? $mail_from_name : 'Milk Admin';
     Install::setConfigFile('SETTING EMAIL', $data);
     return $data;
 });

@@ -3,8 +3,8 @@ namespace Modules\Docs\Pages;
 /**
  * @title Get
  * @guide framework
- * @order 
- * @tags Get, db, db2, dbConnection, arrayDb, mail, schema, theme, dependency injection, container, facade, load_modules, theme_plugin, dir_path, uri_path, temp_dir, date_time_zone, format_date, user, user_timezone, set_user_timezone, user_locale, set_user_locale, timezone, bind, make, has, client_ip, close_connections
+  * @order 20
+ * @tags get-class, service-locator, facade, dependency-injection, container, bind, make, has, app-services, db, db2, dbconnection, arraydb, schema, mail, theme, load-modules, theme-plugin, dir-path, uri-path, temp-dir, timezone, date-time-zone, format-date, user, user-timezone, set-user-timezone, user-locale, set-user-locale, client-ip, close-connections
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access

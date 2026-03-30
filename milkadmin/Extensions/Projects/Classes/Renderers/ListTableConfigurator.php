@@ -62,6 +62,7 @@ class ListTableConfigurator
     public function configure(ListContextParams $p): TableBuilder
     {
         $tableBuilder = TableBuilder::create($p->model, $p->tableId)
+            ->extensions(['Projects'])
             ->setErrorMessage('Unable to load table data.');
 
         $editUrlWithPlaceholders = $this->actionsConfigurator->buildActionUrl($p, $p->editAction);

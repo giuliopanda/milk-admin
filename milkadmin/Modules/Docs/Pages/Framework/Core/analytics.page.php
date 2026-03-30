@@ -3,8 +3,8 @@ namespace Modules\Docs\Pages;
 /**
  * @title Analytics
  * @guide framework
- * @order 85
- * @tags analytics, dataset, grouped dataset, data series, aggregation primitives, grouping primitives, aggregation engine, reporting
+  * @order 220
+ * @tags analytics, reporting, dashboard-metrics, dataset, data-set, data-series, grouped-data, aggregation, aggregate-functions, group-by, grouping, summarize-data, kpi, charts-data, statistics, trends, data-analysis
  */
 
 !defined('MILK_DIR') && die(); // Avoid direct access

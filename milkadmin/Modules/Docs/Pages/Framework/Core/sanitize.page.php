@@ -3,8 +3,8 @@ namespace Modules\Docs\Pages;
 /**
  * @title Sanitize
  * @guide framework
- * @order 
- * @tags sanitization, XSS-protection, security, input-validation, HTML-sanitization, JavaScript-sanitization, CSRF-protection, data-security, output-encoding, safe-output, code-injection-prevention, HTML-entities
+  * @order 80
+ * @tags sanitize, sanitization, xss-protection, escaping, output-encoding, safe-output, input-validation, html-sanitization, javascript-sanitization, csrf-protection, security, injection-prevention, html-entities, clean-input
  */
 !defined('MILK_DIR') && die(); // Avoid direct access 
 ?>

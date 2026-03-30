@@ -73,6 +73,7 @@ class ActionsConfigurator
     public function applyCustomData(TableBuilder $tb, ListContextParams $p): void
     {
         $tb->customData('root_id', $p->requestedRootId);
+        $tb->customData('projects_context', $p->context);
         foreach ($p->urlFilterParams as $paramName => $paramValue) {
             $tb->customData((string) $paramName, $paramValue);
         }

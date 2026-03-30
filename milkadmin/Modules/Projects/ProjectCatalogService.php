@@ -47,6 +47,9 @@ class ProjectCatalogService
             if ($moduleName === '.' || $moduleName === '..') {
                 continue;
             }
+            if (isset($moduleName[0]) && $moduleName[0] === '.') {
+                continue;
+            }
 
             $moduleDir = $modulesDir . '/' . $moduleName;
             if (!is_dir($moduleDir)) {

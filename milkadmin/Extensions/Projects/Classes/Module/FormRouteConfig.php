@@ -47,6 +47,7 @@ class FormRouteConfig
     public bool $allowDeleteRecord;
     public bool $canManageDeleteRecords;
     public bool $allowEdit;
+    public bool $allowView;
     public bool $softDeleteScopeFilter;
     public bool $defaultOrderEnabled;
     public string $defaultOrderField;
@@ -57,6 +58,8 @@ class FormRouteConfig
     public string $projectStatus;
     /** @var bool Whether edit/delete data mutations are allowed by project status. */
     public bool $projectAllowsDataMutation;
+    /** @var array<string,mixed> */
+    public array $specialPermissions;
 
     // -- Display --
 
@@ -108,6 +111,7 @@ class FormRouteConfig
         $config->allowDeleteRecord  = true;
         $config->canManageDeleteRecords = true;
         $config->allowEdit          = true;
+        $config->allowView          = true;
         $config->softDeleteScopeFilter = false;
         $config->defaultOrderEnabled = false;
         $config->defaultOrderField = '';
@@ -115,6 +119,7 @@ class FormRouteConfig
         $config->childCountColumn = '';
         $config->projectStatus = 'development';
         $config->projectAllowsDataMutation = true;
+        $config->specialPermissions = [];
 
         $config->viewActionEnabled  = false;
         $config->viewDisplay        = 'page';
@@ -220,6 +225,7 @@ class FormRouteConfig
             'allow_delete_record'    => $this->allowDeleteRecord,
             'can_manage_delete_records' => $this->canManageDeleteRecords,
             'allow_edit'             => $this->allowEdit,
+            'allow_view'             => $this->allowView,
             'soft_delete_scope_filter' => $this->softDeleteScopeFilter,
             'default_order_enabled' => $this->defaultOrderEnabled,
             'default_order_field' => $this->defaultOrderField,
@@ -227,6 +233,7 @@ class FormRouteConfig
             'child_count_column' => $this->childCountColumn,
             'project_status' => $this->projectStatus,
             'project_allows_data_mutation' => $this->projectAllowsDataMutation,
+            'special_permissions' => $this->specialPermissions,
         ];
     }
 }

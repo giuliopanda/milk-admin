@@ -3,6 +3,7 @@
 namespace Modules\Projects;
 
 use App\Get;
+use App\Logs;
 
 !defined('MILK_DIR') && die();
 
@@ -203,9 +204,24 @@ class ProjectTableService
                 continue;
             }
 
-            // 2) Block cross-family conversion on existing columns.
+            // 2) Block only unsafe cross-family conversions on existing columns.
             if ($targetFamily !== $currentFamily) {
+                if (self::isAllowedCrossFamilyConversion($currentFamily, $targetFamily)) {
+                    Logs::set(
+                        'DATABASE',
+                        "Projects schema conversion allowed for field '{$name}': {$currentFamily} -> {$targetFamily}",
+                        'DEBUG'
+                    );
+                    $rules[$fieldName] = $rule;
+                    continue;
+                }
+
                 self::applyExistingColumnToRule($rule, $current);
+                Logs::set(
+                    'DATABASE',
+                    "Projects schema conversion blocked for field '{$name}': {$currentFamily} -> {$targetFamily}",
+                    'WARNING'
+                );
                 $rules[$fieldName] = $rule;
                 $changed = true;
                 continue;
@@ -610,6 +626,25 @@ class ProjectTableService
         }
 
         return 'unknown';
+    }
+
+    private static function isAllowedCrossFamilyConversion(string $currentFamily, string $targetFamily): bool
+    {
+        $currentFamily = strtolower(trim($currentFamily));
+        $targetFamily = strtolower(trim($targetFamily));
+
+        if ($currentFamily === $targetFamily) {
+            return true;
+        }
+
+        // Allow numeric-related transitions used by Projects schema editor.
+        // SQLite migration layer already handles value casting during copy.
+        $numericLike = ['string', 'int', 'decimal'];
+        if (in_array($currentFamily, $numericLike, true) && in_array($targetFamily, $numericLike, true)) {
+            return true;
+        }
+
+        return false;
     }
 
     private static function isTextBaseType(string $baseType): bool
