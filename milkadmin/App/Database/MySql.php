@@ -1199,25 +1199,15 @@ class MySql
     private function qnSafe(string $name): string {
         // Rimuovi spazi iniziali/finali
         $name = trim($name);
-        
-        // Se è già quotato con backtick, ritorna così com'è
-        if (preg_match('/^`.*`$/', $name)) {
-            // Verifica che sia ben formato (backtick bilanciate)
-            $inner = substr($name, 1, -1);
-            if (substr_count($inner, '`') % 2 === 0) {
-                return $name; // È già quotato correttamente
-            }
+
+        // Strip at most one layer of surrounding identifier quotes, then validate
+        // strictly below. An already quoted identifier is not trusted verbatim:
+        // returning it unchanged allowed ORDER BY / identifier injection by wrapping
+        // a payload in backticks or double quotes.
+        if (preg_match('/^`(.*)`$/s', $name, $m) || preg_match('/^"(.*)"$/s', $name, $m)) {
+            $name = trim($m[1]);
         }
-        
-        // Se è già quotato con virgolette doppie, ritorna così com'è
-        if (preg_match('/^".*"$/', $name)) {
-            // Verifica che sia ben formato (virgolette bilanciate)
-            $inner = substr($name, 1, -1);
-            if (substr_count($inner, '"') % 2 === 0) {
-                return $name; // È già quotato correttamente
-            }
-        }
-        
+
         // Verifica lunghezza (MySQL limit: 64 caratteri)
         if (strlen($name) > 64) {
             throw new \InvalidArgumentException("Identifier too long: $name");
